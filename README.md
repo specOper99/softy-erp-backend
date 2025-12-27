@@ -123,11 +123,17 @@ GitHub Actions workflows are included:
 | `PORT` | 3000 | API server port |
 | `DB_HOST` | localhost | PostgreSQL host |
 | `DB_PORT` | 5434 | PostgreSQL port |
+| `DB_USERNAME` | - | PostgreSQL username |
+| `DB_PASSWORD` | - | PostgreSQL password |
+| `DB_DATABASE` | - | PostgreSQL database name |
 | `JWT_SECRET` | - | JWT signing secret (required) |
 | `REDIS_URL` | - | Redis connection URL |
 | `SENTRY_DSN` | - | Sentry error tracking DSN |
 | `OTEL_ENABLED` | false | Enable OpenTelemetry tracing |
 | `ZIPKIN_ENDPOINT` | http://localhost:9411/api/v2/spans | Zipkin collector URL |
+| `SEED_ADMIN_PASSWORD` | - | Admin user password for seeding (required for `npm run seed`) |
+| `SEED_STAFF_PASSWORD` | - | Staff user password for seeding (required for `npm run seed`) |
+| `SEED_OPS_PASSWORD` | - | Ops manager password for seeding (required for `npm run seed`) |
 
 ## 📊 API Rate Limits
 

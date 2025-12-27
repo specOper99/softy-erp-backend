@@ -5,6 +5,21 @@ import { DataSource } from 'typeorm';
 // Load environment variables
 config();
 
+// Validate required environment variables
+const requiredEnvVars = [
+  'SEED_ADMIN_PASSWORD',
+  'SEED_STAFF_PASSWORD',
+  'SEED_OPS_PASSWORD',
+] as const;
+
+const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:');
+  missingEnvVars.forEach((envVar) => console.error(`   - ${envVar}`));
+  console.error('\nPlease set these in your .env file before running the seeder.');
+  process.exit(1);
+}
+
 // Import entities
 import { Role } from '../common/enums';
 import { Booking } from '../modules/bookings/entities/booking.entity';
@@ -62,7 +77,10 @@ async function seed() {
 
     let _adminUser: User;
     if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash('Admin123!', 10);
+      const passwordHash = await bcrypt.hash(
+        process.env.SEED_ADMIN_PASSWORD!,
+        10,
+      );
       _adminUser = userRepo.create({
         email: 'admin@chapters.studio',
         passwordHash,
@@ -230,7 +248,10 @@ async function seed() {
     for (const data of staffData) {
       let user = await userRepo.findOne({ where: { email: data.email } });
       if (!user) {
-        const passwordHash = await bcrypt.hash('Staff123!', 10);
+        const passwordHash = await bcrypt.hash(
+          process.env.SEED_STAFF_PASSWORD!,
+          10,
+        );
         user = userRepo.create({
           email: data.email,
           passwordHash,
@@ -269,7 +290,7 @@ async function seed() {
       where: { email: 'ops@chapters.studio' },
     });
     if (!existingOps) {
-      const passwordHash = await bcrypt.hash('Ops123!', 10);
+      const passwordHash = await bcrypt.hash(process.env.SEED_OPS_PASSWORD!, 10);
       const opsUser = userRepo.create({
         email: 'ops@chapters.studio',
         passwordHash,
@@ -286,11 +307,11 @@ async function seed() {
     console.log('🎉 Seed completed successfully!');
     console.log('========================================\n');
     console.log('Login credentials:');
-    console.log('  Admin:    admin@chapters.studio / Admin123!');
-    console.log('  Ops Mgr:  ops@chapters.studio / Ops123!');
-    console.log('  Staff:    john.photographer@chapters.studio / Staff123!');
-    console.log('            sarah.videographer@chapters.studio / Staff123!');
-    console.log('            mike.editor@chapters.studio / Staff123!\n');
+    console.log('  Admin:    admin@chapters.studio / [SEED_ADMIN_PASSWORD]');
+    console.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');
+    console.log('  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]');
+    console.log('            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]');
+    console.log('            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]\n');
   } catch (error) {
     console.error('❌ Seed failed:', error);
     process.exit(1);
