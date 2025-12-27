@@ -1,18 +1,27 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { TransformInterceptor } from '../src/common/interceptors';
+
+// Mock ThrottlerGuard to always allow requests in tests
+class MockThrottlerGuard extends ThrottlerGuard {
+  protected override async handleRequest(): Promise<boolean> {
+    return true;
+  }
+}
 
 describe('Auth & Users E2E Tests', () => {
   let app: INestApplication;
   let _accessToken: string;
   let testEmail: string;
-  const testPassword = 'TestUser123!'; // OK for dynamically created test users
-
-  // Get seeder password from environment variable
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const testPassword = process.env.TEST_MOCK_PASSWORD || 'TestUser123!'; // OK for dynamically created test users
 
   beforeAll(async () => {
+    // Get seeder password from environment variable (after dotenv has loaded)
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+
     // Validate required environment variables (for tests using seeded users)
     if (!adminPassword) {
       throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
@@ -20,12 +29,24 @@ describe('Auth & Users E2E Tests', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useClass(MockThrottlerGuard)
+      .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
     );
+    app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
     testEmail = `test-${Date.now()}@example.com`;
@@ -35,24 +56,24 @@ describe('Auth & Users E2E Tests', () => {
     await app.close();
   });
 
-  describe('POST /auth/register', () => {
+  describe('POST /api/v1/auth/register', () => {
     it('should register a new user', async () => {
       const response = await request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/api/v1/auth/register')
         .send({
           email: testEmail,
           password: testPassword,
         })
         .expect(201);
 
-      expect(response.body).toHaveProperty('accessToken');
-      expect(response.body).toHaveProperty('user');
-      _accessToken = response.body.accessToken;
+      expect(response.body.data).toHaveProperty('accessToken');
+      expect(response.body.data).toHaveProperty('user');
+      _accessToken = response.body.data.accessToken;
     });
 
     it('should fail with invalid email', async () => {
       await request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/api/v1/auth/register')
         .send({
           email: 'invalid-email',
           password: testPassword,
@@ -62,7 +83,7 @@ describe('Auth & Users E2E Tests', () => {
 
     it('should fail with short password', async () => {
       await request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/api/v1/auth/register')
         .send({
           email: 'valid@example.com',
           password: '12345',
@@ -72,7 +93,7 @@ describe('Auth & Users E2E Tests', () => {
 
     it('should fail with duplicate email', async () => {
       await request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/api/v1/auth/register')
         .send({
           email: testEmail,
           password: testPassword,
@@ -81,23 +102,23 @@ describe('Auth & Users E2E Tests', () => {
     });
   });
 
-  describe('POST /auth/login', () => {
+  describe('POST /api/v1/auth/login', () => {
     it('should login with valid credentials', async () => {
       const response = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testEmail,
           password: testPassword,
         })
-        .expect(201);
+        .expect(200);
 
-      expect(response.body).toHaveProperty('accessToken');
-      _accessToken = response.body.accessToken;
+      expect(response.body.data).toHaveProperty('accessToken');
+      _accessToken = response.body.data.accessToken;
     });
 
     it('should fail with invalid password', async () => {
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: testEmail,
           password: 'wrongPassword',
@@ -107,7 +128,7 @@ describe('Auth & Users E2E Tests', () => {
 
     it('should fail with non-existent user', async () => {
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: 'nonexistent@example.com',
           password: testPassword,
@@ -120,26 +141,28 @@ describe('Auth & Users E2E Tests', () => {
     it('should access protected route with admin token', async () => {
       // Login as seeded admin user (has proper role)
       const adminLogin = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           email: 'admin@chapters.studio',
-          password: adminPassword,
+          password: process.env.SEED_ADMIN_PASSWORD,
         });
-      const adminToken = adminLogin.body.accessToken;
+
+
+      const adminToken = adminLogin.body.data.accessToken;
 
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/api/v1/users')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
     });
 
     it('should reject access without token', async () => {
-      await request(app.getHttpServer()).get('/users').expect(401);
+      await request(app.getHttpServer()).get('/api/v1/users').expect(401);
     });
 
     it('should reject access with invalid token', async () => {
       await request(app.getHttpServer())
-        .get('/users')
+        .get('/api/v1/users')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
     });

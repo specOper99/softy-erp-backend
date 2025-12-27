@@ -118,22 +118,86 @@ GitHub Actions workflows are included:
 
 ## 🔐 Environment Variables
 
+Copy `.env.example` to `.env` and configure the following variables:
+
+### Application
+
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `NODE_ENV` | development | Environment mode (`development`, `production`, `test`) |
 | `PORT` | 3000 | API server port |
+
+### Database (PostgreSQL)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `DB_HOST` | localhost | PostgreSQL host |
 | `DB_PORT` | 5434 | PostgreSQL port |
-| `DB_USERNAME` | - | PostgreSQL username |
-| `DB_PASSWORD` | - | PostgreSQL password |
-| `DB_DATABASE` | - | PostgreSQL database name |
+| `DB_USERNAME` | - | PostgreSQL username (required) |
+| `DB_PASSWORD` | - | PostgreSQL password (required) |
+| `DB_DATABASE` | - | PostgreSQL database name (required) |
+| `DB_SYNCHRONIZE` | true | Auto-sync schema (disable in production) |
+| `DB_LOGGING` | false | Enable SQL query logging |
+
+### Authentication (JWT)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `JWT_SECRET` | - | JWT signing secret (required) |
-| `REDIS_URL` | - | Redis connection URL |
-| `SENTRY_DSN` | - | Sentry error tracking DSN |
+| `JWT_ACCESS_EXPIRES_SECONDS` | 900 | Access token expiry (15 min) |
+| `JWT_REFRESH_EXPIRES_DAYS` | 7 | Refresh token expiry (7 days) |
+
+### MinIO / S3 Storage
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MINIO_ENDPOINT` | http://localhost:9000 | MinIO/S3 endpoint URL |
+| `MINIO_BUCKET` | chapters-studio | Bucket name for file storage |
+| `MINIO_REGION` | us-east-1 | S3 region |
+| `MINIO_ACCESS_KEY` | - | MinIO/S3 access key (required) |
+| `MINIO_SECRET_KEY` | - | MinIO/S3 secret key (required) |
+| `MINIO_PUBLIC_URL` | http://localhost:9000 | Public URL for file access |
+
+### Email (SMTP)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MAIL_HOST` | - | SMTP server host |
+| `MAIL_PORT` | 587 | SMTP server port |
+| `MAIL_USER` | - | SMTP username |
+| `MAIL_PASSWORD` | - | SMTP password |
+| `MAIL_FROM` | - | Default "From" address |
+
+### Telemetry & Monitoring
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `OTEL_ENABLED` | false | Enable OpenTelemetry tracing |
 | `ZIPKIN_ENDPOINT` | http://localhost:9411/api/v2/spans | Zipkin collector URL |
-| `SEED_ADMIN_PASSWORD` | - | Admin user password for seeding (required for `npm run seed`) |
-| `SEED_STAFF_PASSWORD` | - | Staff user password for seeding (required for `npm run seed`) |
+| `SENTRY_DSN` | - | Sentry error tracking DSN |
+| `TEST_ERROR_KEY` | - | Key for triggering test errors |
+
+### Redis Cache
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_URL` | redis://localhost:6379 | Redis connection URL |
+
+### Backup & Seeding
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UPLOAD_TO_MINIO` | false | Upload backups to MinIO |
+| `SEED_ADMIN_PASSWORD` | - | Admin password for seeding (required for `npm run seed`) |
+| `SEED_STAFF_PASSWORD` | - | Staff password for seeding (required for `npm run seed`) |
 | `SEED_OPS_PASSWORD` | - | Ops manager password for seeding (required for `npm run seed`) |
+
+### Testing (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TEST_MOCK_PASSWORD` | - | Mock password for unit tests |
+| `TEST_MOCK_PASSWORD_WRONG` | - | Wrong mock password for unit tests |
 
 ## 📊 API Rate Limits
 

@@ -1,0 +1,13 @@
+# Snyk (https://snyk.io) policy file, patches or ignores vulnerabilities.
+version: v1.25.0
+# Snyk Code exclusions
+exclude:
+  code:
+    - test/
+    - load-tests/
+    - coverage/
+    - "**/*.spec.ts"
+    - "**/*.e2e-spec.ts"
+# Snyk Open Source ignores
+ignore: {}
+patch: {}

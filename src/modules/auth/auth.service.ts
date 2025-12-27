@@ -40,12 +40,12 @@ export class AuthService {
   ) {
     // Access token: 15 minutes by default
     this.accessTokenExpiresIn = this.configService.get<number>(
-      'JWT_ACCESS_EXPIRES_SECONDS',
+      'auth.jwtAccessExpires',
       900,
     );
     // Refresh token: 7 days by default
     this.refreshTokenExpiresIn = this.configService.get<number>(
-      'JWT_REFRESH_EXPIRES_DAYS',
+      'auth.jwtRefreshExpires',
       7,
     );
   }

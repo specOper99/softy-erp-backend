@@ -1,5 +1,5 @@
 # Build stage
-FROM node:22-alpine AS builder
+FROM node:lts-alpine AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN npm run build
 RUN npm prune --production
 
 # Production stage
-FROM node:22-alpine AS production
+FROM node:lts-alpine AS production
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

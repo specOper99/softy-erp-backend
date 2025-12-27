@@ -29,6 +29,8 @@ import { MediaModule } from './modules/media/media.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { UsersModule } from './modules/users/users.module';
 
+import authConfig from './config/auth.config';
+
 @Module({
   imports: [
     // Sentry error tracking (must be first)
@@ -37,7 +39,7 @@ import { UsersModule } from './modules/users/users.module';
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
+      load: [databaseConfig, authConfig],
     }),
 
     // Structured Logging with Winston
@@ -100,11 +102,15 @@ import { UsersModule } from './modules/users/users.module';
     HealthModule,
   ],
   providers: [
-    // Apply rate limiting globally
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    // Apply rate limiting globally (disabled in test environment)
+    ...(process.env.NODE_ENV !== 'test'
+      ? [
+        {
+          provide: APP_GUARD,
+          useClass: ThrottlerGuard,
+        },
+      ]
+      : []),
     // Graceful shutdown handler
     ShutdownService,
   ],

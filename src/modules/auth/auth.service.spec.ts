@@ -9,8 +9,8 @@ import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 
 // Test password constants - not real credentials, used only for unit test mocking
-const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD || 'Test@Mock#Password!2024';
-const TEST_WRONG_PASSWORD = process.env.TEST_MOCK_PASSWORD_WRONG || 'Wrong@Mock#Password!2024';
+const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD!;
+const TEST_WRONG_PASSWORD = process.env.TEST_MOCK_PASSWORD_WRONG!;
 
 describe('AuthService - Comprehensive Tests', () => {
   let service: AuthService;

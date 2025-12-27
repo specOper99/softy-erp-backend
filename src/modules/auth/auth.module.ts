@@ -18,15 +18,10 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        // Default: 15 minutes for access token
-        const expiresIn = configService.get<number>(
-          'JWT_ACCESS_EXPIRES_SECONDS',
-          900,
-        );
         return {
-          secret: configService.get<string>('JWT_SECRET'),
+          secret: configService.get<string>('auth.jwtSecret'),
           signOptions: {
-            expiresIn,
+            expiresIn: configService.get<number>('auth.jwtAccessExpires'),
           } as JwtSignOptions,
         };
       },
@@ -36,4 +31,4 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   providers: [AuthService, JwtStrategy],
   exports: [AuthService, JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }

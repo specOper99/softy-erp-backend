@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { TransformInterceptor } from '../src/common/interceptors';
 
 describe('Bookings Workflow E2E Tests', () => {
   let app: INestApplication;
@@ -9,10 +10,10 @@ describe('Bookings Workflow E2E Tests', () => {
   let packageId: string;
   let bookingId: string;
 
-  // Get password from environment variable
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-
   beforeAll(async () => {
+    // Get password from environment variable (after dotenv has loaded)
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+
     // Validate required environment variable
     if (!adminPassword) {
       throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
@@ -23,25 +24,34 @@ describe('Bookings Workflow E2E Tests', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
     );
+    app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
     // Login as seeded admin user
     const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/v1/auth/login')
       .send({
         email: 'admin@chapters.studio',
         password: adminPassword,
       });
-    adminToken = loginResponse.body.accessToken;
+    adminToken = loginResponse.body.data.accessToken;
 
     // Get existing package from seed data
     const packagesRes = await request(app.getHttpServer())
-      .get('/packages')
+      .get('/api/v1/packages')
       .set('Authorization', `Bearer ${adminToken}`);
-    packageId = packagesRes.body[0]?.id;
+    packageId = packagesRes.body.data[0]?.id;
   });
 
   afterAll(async () => {
@@ -51,7 +61,7 @@ describe('Bookings Workflow E2E Tests', () => {
   describe('Complete Booking Workflow', () => {
     it('Step 1: Create Booking (DRAFT)', async () => {
       const response = await request(app.getHttpServer())
-        .post('/bookings')
+        .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           clientName: 'John Doe',
@@ -64,37 +74,38 @@ describe('Bookings Workflow E2E Tests', () => {
         })
         .expect(201);
 
-      expect(response.body.status).toBe('DRAFT');
-      bookingId = response.body.id;
+      expect(response.body.data.status).toBe('DRAFT');
+      bookingId = response.body.data.id;
     });
 
     it('Step 2: Get Booking Details', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/bookings/${bookingId}`)
+        .get(`/api/v1/bookings/${bookingId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      expect(response.body.clientName).toBe('John Doe');
+      expect(response.body.data.clientName).toBe('John Doe');
     });
 
     it('Step 3: Confirm Booking (creates tasks + income)', async () => {
       const response = await request(app.getHttpServer())
-        .patch(`/bookings/${bookingId}/confirm`)
+        .patch(`/api/v1/bookings/${bookingId}/confirm`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      expect(response.body.booking.status).toBe('CONFIRMED');
-      expect(response.body.tasksCreated).toBeGreaterThan(0);
-      expect(response.body).toHaveProperty('transactionId');
+      expect(response.body.data.booking.status).toBe('CONFIRMED');
+      expect(response.body.data.tasksCreated).toBeGreaterThan(0);
+      expect(response.body.data).toHaveProperty('transactionId');
     });
 
     it('Step 4: Verify Tasks were Created', async () => {
       const response = await request(app.getHttpServer())
-        .get('/tasks')
+        .get('/api/v1/tasks')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      const bookingTasks = response.body.filter(
+      const tasks = response.body.data || response.body;
+      const bookingTasks = tasks.filter(
         (t: any) => t.bookingId === bookingId,
       );
       expect(bookingTasks.length).toBeGreaterThan(0);
@@ -103,11 +114,12 @@ describe('Bookings Workflow E2E Tests', () => {
 
     it('Step 5: Verify Income Transaction was Created', async () => {
       const response = await request(app.getHttpServer())
-        .get('/transactions')
+        .get('/api/v1/transactions')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      const incomeTransaction = response.body.find(
+      const transactions = response.body.data || response.body;
+      const incomeTransaction = transactions.find(
         (t: any) => t.type === 'INCOME' && t.referenceId === bookingId,
       );
       expect(incomeTransaction).toBeDefined();
@@ -117,7 +129,7 @@ describe('Bookings Workflow E2E Tests', () => {
   describe('Validation Tests', () => {
     it('should reject booking without required fields', async () => {
       await request(app.getHttpServer())
-        .post('/bookings')
+        .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           clientName: 'John',
@@ -128,7 +140,7 @@ describe('Bookings Workflow E2E Tests', () => {
 
     it('should reject confirming already confirmed booking', async () => {
       await request(app.getHttpServer())
-        .patch(`/bookings/${bookingId}/confirm`)
+        .patch(`/api/v1/bookings/${bookingId}/confirm`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(400);
     });
