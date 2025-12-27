@@ -275,6 +275,24 @@ describe('HrService - Comprehensive Tests', () => {
       expect(result.totalEmployees).toBe(1);
     });
 
+    it('should catch and log email failures during payroll', async () => {
+      mockQueryRunner.manager.find.mockResolvedValue([
+        { ...mockProfile, user: { email: 'fail@e.com' } }
+      ]);
+      mockFinanceService.createTransactionWithManager.mockResolvedValue({ id: 'tx-1' });
+      mockMailService.sendPayrollNotification.mockRejectedValue(new Error('Email fail'));
+
+      const result = await service.runPayroll();
+      expect(result.totalEmployees).toBe(1);
+    });
+
+    it('should return transaction IDs', async () => {
+      mockQueryRunner.manager.find.mockResolvedValue([mockProfile]);
+      mockFinanceService.createTransactionWithManager.mockResolvedValue({ id: 'txn-uuid-123' });
+      const result = await service.runPayroll();
+      expect(result.transactionIds).toContain('txn-uuid-123');
+    });
+
     it('should reset payable balance after payroll', async () => {
       await service.runPayroll();
       expect(mockFinanceService.resetPayableBalance).toHaveBeenCalled();
@@ -344,11 +362,6 @@ describe('HrService - Comprehensive Tests', () => {
       expect(result.processedAt).toBeInstanceOf(Date);
     });
 
-    it('should return transaction IDs', async () => {
-      const result = await service.runPayroll();
-      expect(result.transactionIds).toContain('txn-uuid-123');
-    });
-
     it('should handle high salary and commission values', async () => {
       mockQueryRunner.manager.find.mockResolvedValueOnce([
         { ...mockProfile, baseSalary: 999999.99 },
@@ -360,6 +373,24 @@ describe('HrService - Comprehensive Tests', () => {
 
       const result = await service.runPayroll();
       expect(result.totalPayout).toBe(1099999.98);
+    });
+  });
+
+  describe('runScheduledPayroll', () => {
+    it('should call runPayroll and log results', async () => {
+      const runPayrollSpy = jest.spyOn(service, 'runPayroll').mockResolvedValue({
+        totalEmployees: 1,
+        totalPayout: 100,
+        transactionIds: ['tx-1'],
+        processedAt: new Date(),
+      });
+      await service.runScheduledPayroll();
+      expect(runPayrollSpy).toHaveBeenCalled();
+    });
+
+    it('should handle errors in scheduled payroll', async () => {
+      jest.spyOn(service, 'runPayroll').mockRejectedValue(new Error('Failed'));
+      await expect(service.runScheduledPayroll()).resolves.not.toThrow();
     });
   });
 });

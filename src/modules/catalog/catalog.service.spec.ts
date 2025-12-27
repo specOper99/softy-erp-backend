@@ -257,6 +257,22 @@ describe('CatalogService', () => {
         expect(mockTaskTypeRepository.save).toHaveBeenCalled();
       });
     });
+
+    describe('findAllTaskTypes', () => {
+      it('should return all task types', async () => {
+        mockTaskTypeRepository.find.mockResolvedValue([mockTaskType]);
+        const result = await service.findAllTaskTypes();
+        expect(result).toEqual([mockTaskType]);
+      });
+    });
+
+    describe('deleteTaskType', () => {
+      it('should delete a task type', async () => {
+        mockTaskTypeRepository.findOne.mockResolvedValue(mockTaskType);
+        await service.deleteTaskType('uuid');
+        expect(mockTaskTypeRepository.remove).toHaveBeenCalledWith(mockTaskType);
+      });
+    });
   });
 
   // ============ PACKAGE ITEM TESTS ============

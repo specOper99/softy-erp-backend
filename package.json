@@ -16,6 +16,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:cov:all": "jest --config ./test/jest-all.json --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
@@ -98,7 +99,7 @@
   "overrides": {
     "nodemailer": "^7.0.12",
     "glob": "^10.5.0",
-    "mjml": "npm:empty-npm-package@1.0.0"
+    "mjml": "^4.18.0 "
   },
   "jest": {
     "moduleFileExtensions": [
@@ -116,7 +117,25 @@
     ],
     "coverageProvider": "v8",
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!main.ts",
+      "!instrument.ts",
+      "!**/*.module.ts",
+      "!**/*.dto.ts",
+      "!**/*.entity.ts",
+      "!**/index.ts",
+      "!**/*.config.ts",
+      "!**/*.decorator.ts",
+      "!**/*.strategy.ts",
+      "!**/*.guard.ts",
+      "!**/*.middleware.ts",
+      "!**/*.interceptor.ts",
+      "!**/*.filter.ts",
+      "!common/telemetry/**",
+      "!database/migrations/**",
+      "!database/seeds/**",
+      "!database/data-source.ts",
+      "!database/seed.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",

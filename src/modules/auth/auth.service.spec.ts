@@ -1,4 +1,7 @@
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -239,6 +242,44 @@ describe('AuthService - Comprehensive Tests', () => {
         UnauthorizedException,
       );
     });
+
+    it('should rotate tokens for valid refresh token', async () => {
+      const mockToken = {
+        tokenHash: 'hash',
+        userId: mockUser.id,
+        isRevoked: false,
+        expiresAt: new Date(Date.now() + 86400000),
+        isExpired: () => false,
+        isValid: () => true,
+        user: mockUser,
+      };
+      mockRefreshTokenRepository.findOne.mockResolvedValue(mockToken);
+      mockUsersService.findOne.mockResolvedValue(mockUser);
+
+      const result = await service.refreshTokens('valid-token');
+
+      expect(result).toHaveProperty('accessToken', 'mock-jwt-token');
+      expect(result).toHaveProperty('refreshToken');
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalled();
+      expect(mockToken.isRevoked).toBe(true);
+    });
+
+    it('should throw UnauthorizedException if user not found or inactive during refresh', async () => {
+      mockRefreshTokenRepository.findOne.mockResolvedValue({
+        tokenHash: 'hash',
+        userId: mockUser.id,
+        isRevoked: false,
+        expiresAt: new Date(Date.now() + 86400000),
+        isExpired: () => false,
+        isValid: () => true,
+        user: { ...mockUser, isActive: false },
+      });
+
+      await expect(service.refreshTokens('valid-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
   });
 
   // ============ LOGOUT TESTS ============
@@ -301,6 +342,61 @@ describe('AuthService - Comprehensive Tests', () => {
       await expect(service.validateUser(payload)).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('logoutAllSessions', () => {
+    it('should revoke all active tokens', async () => {
+      mockRefreshTokenRepository.update.mockResolvedValue({ affected: 5 });
+      const result = await service.logoutAllSessions('u-1');
+      expect(result).toBe(5);
+    });
+  });
+
+  describe('getActiveSessions', () => {
+    it('should return non-revoked non-expired sessions', async () => {
+      mockRefreshTokenRepository.find.mockResolvedValue([]);
+      await service.getActiveSessions('u-1');
+      expect(mockRefreshTokenRepository.find).toHaveBeenCalled();
+    });
+  });
+
+  describe('cleanupExpiredTokens', () => {
+    it('should delete expired tokens', async () => {
+      mockRefreshTokenRepository.delete.mockResolvedValue({ affected: 10 });
+      const result = await service.cleanupExpiredTokens();
+      expect(result).toBe(10);
+    });
+  });
+
+  describe('token reuse attack detection', () => {
+    it('should revoke all tokens if a revoked token is used', async () => {
+      const revokedToken = {
+        userId: 'u-1',
+        isRevoked: true,
+        isValid: () => false,
+      };
+      mockRefreshTokenRepository.findOne.mockResolvedValue(revokedToken);
+
+      await expect(service.refreshTokens('revoked-token')).rejects.toThrow(UnauthorizedException);
+      expect(mockRefreshTokenRepository.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('register conflict handling', () => {
+    it('should throw BadRequestException on database unique constraint error', async () => {
+      class DBError extends Error { code = '23505'; }
+      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersService.create.mockRejectedValue(new DBError());
+      await expect(service.register({ email: 'taken@e.com', password: 'p' }))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('should rethrow non-conflict errors during registration', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersService.create.mockRejectedValue(new Error('DB Down'));
+      await expect(service.register({ email: 'e@e.com', password: 'p' }))
+        .rejects.toThrow('DB Down');
     });
   });
 });

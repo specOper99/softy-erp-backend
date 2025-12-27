@@ -189,9 +189,19 @@ describe('UsersService - Comprehensive Tests', () => {
       expect(mockRepository.save).toHaveBeenCalled();
     });
 
-    it('should update user active status', async () => {
+    it('should update user active status and log audit note', async () => {
+      mockRepository.findOne.mockResolvedValueOnce({ ...mockUser, isActive: true });
       await service.update('test-uuid-123', { isActive: false });
       expect(mockRepository.save).toHaveBeenCalled();
+      expect(mockAuditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        notes: 'Account deactivated'
+      }));
+
+      mockRepository.findOne.mockResolvedValueOnce({ ...mockUser, isActive: false });
+      await service.update('test-uuid-123', { isActive: true });
+      expect(mockAuditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        notes: 'Account activated'
+      }));
     });
 
     it('should throw NotFoundException when updating non-existent user', async () => {

@@ -12,7 +12,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly auditService: AuditService,
-  ) {}
+  ) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const passwordHash = await bcrypt.hash(createUserDto.password, 10);
@@ -73,9 +73,10 @@ export class UsersService {
         oldValues,
         newValues: { role: savedUser.role, isActive: savedUser.isActive },
         notes:
-          updateUserDto.role !== oldValues.role
+          updateUserDto.role !== undefined && updateUserDto.role !== oldValues.role
             ? `Role changed from ${oldValues.role} to ${savedUser.role}`
-            : updateUserDto.isActive !== oldValues.isActive
+            : updateUserDto.isActive !== undefined &&
+              updateUserDto.isActive !== oldValues.isActive
               ? `Account ${savedUser.isActive ? 'activated' : 'deactivated'}`
               : undefined,
       });

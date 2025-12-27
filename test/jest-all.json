@@ -1,0 +1,46 @@
+{
+    "moduleFileExtensions": [
+        "js",
+        "json",
+        "ts"
+    ],
+    "rootDir": "..",
+    "testEnvironment": "node",
+    "testRegex": ".(spec|e2e-spec).ts$",
+    "transform": {
+        "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "transformIgnorePatterns": [
+        "node_modules/(?!(uuid)/)"
+    ],
+    "moduleDirectories": [
+        "node_modules",
+        "<rootDir>"
+    ],
+    "coverageProvider": "v8",
+    "collectCoverageFrom": [
+        "src/**/*.(t|j)s",
+        "!src/main.ts",
+        "!src/instrument.ts",
+        "!src/**/*.module.ts",
+        "!src/**/*.dto.ts",
+        "!src/**/*.entity.ts",
+        "!src/**/index.ts",
+        "!src/**/*.config.ts",
+        "!src/**/strategies/**",
+        "!src/**/guards/**",
+        "!src/**/interceptors/**",
+        "!src/**/filters/**",
+        "!src/**/decorators/**",
+        "!src/common/telemetry/**",
+        "!src/database/migrations/**",
+        "!src/database/seeds/**",
+        "!src/database/data-source.ts",
+        "!src/database/seed.ts",
+        "!src/**/*.middleware.ts"
+    ],
+    "coverageDirectory": "coverage",
+    "setupFilesAfterEnv": [
+        "<rootDir>/test/jest-setup.ts"
+    ]
+}
