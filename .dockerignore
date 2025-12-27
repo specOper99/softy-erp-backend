@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build output (we build in container)
+dist
+
+# Development files
+.git
+.gitignore
+.env
+.env.local
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+test
+*.spec.ts
+*.e2e-spec.ts
+coverage
+.nyc_output
+
+# Load tests
+load-tests
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Logs
+logs
+*.log
+
+# Backups
+backups
+
+# OS files
+.DS_Store
+Thumbs.db

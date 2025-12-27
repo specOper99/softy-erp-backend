@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll Processed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .detail {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-left: 4px solid #f5576c;
+        }
+
+        .breakdown {
+            margin: 10px 0;
+        }
+
+        .total {
+            font-size: 28px;
+            color: #f5576c;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>💰 Payroll Processed</h1>
+        <h2>Payment Details</h2>
+    </div>
+    <div class="content">
+        <p>Dear <strong>{{employeeName}}</strong>,</p>
+        <p>Your payroll has been processed for the period ending {{payrollDate}}.</p>
+
+        <div class="detail">
+            <h3>📊 Payment Breakdown</h3>
+            <div class="breakdown">
+                <p>Base Salary: <strong>{{baseSalary}}</strong></p>
+                <p>Commission Earned: <strong>{{commission}}</strong></p>
+            </div>
+        </div>
+
+        <div class="total">
+            Total Payout: {{totalPayout}}
+        </div>
+
+        <p style="margin-top: 20px;">The payment will be transferred to your registered bank account shortly.</p>
+        <p>Thank you for your hard work!</p>
+    </div>
+    <div class="footer">
+        <p>© {{year}} Chapters Studio. All rights reserved.</p>
+        <p>This is an automated payroll notification.</p>
+    </div>
+</body>
+
+</html>

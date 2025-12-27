@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: chapters_studio_db
+    environment:
+      POSTGRES_USER: chapters_studio
+      POSTGRES_PASSWORD: chapters_studio_secret
+      POSTGRES_DB: chapters_studio
+    ports:
+      - '5434:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chapters_studio']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: chapters_studio_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - '9000:9000'   # API
+      - '9001:9001'   # Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Create default bucket on startup
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/chapters-studio --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/chapters-studio;
+      exit 0;
+      "
+
+  # OpenTelemetry collector (optional - for distributed tracing)
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: chapters_studio_zipkin
+    ports:
+      - '9411:9411'   # Zipkin UI + API
+    profiles:
+      - telemetry  # Only starts with: docker compose --profile telemetry up
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: chapters_studio_redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  minio_data:
+  redis_data:

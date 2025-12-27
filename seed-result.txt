@@ -1,0 +1,6 @@
+Login credentials:
+  Admin:    admin@chapters.studio / Admin123!
+  Ops Mgr:  ops@chapters.studio / Ops123!
+  Staff:    john.photographer@chapters.studio / Staff123!
+            sarah.videographer@chapters.studio / Staff123!
+            mike.editor@chapters.studio / Staff123!
