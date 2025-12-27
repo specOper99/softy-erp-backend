@@ -16,7 +16,18 @@ describe('Workflow Integration Tests (E2E)', () => {
   let staffToken: string;
   let staffUserId: string;
 
+  // Get passwords from environment variables
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const staffPassword = process.env.SEED_STAFF_PASSWORD;
+
   beforeAll(async () => {
+    // Validate required environment variables
+    if (!adminPassword || !staffPassword) {
+      throw new Error(
+        'Missing required environment variables: SEED_ADMIN_PASSWORD and/or SEED_STAFF_PASSWORD',
+      );
+    }
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -32,7 +43,7 @@ describe('Workflow Integration Tests (E2E)', () => {
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'admin@chapters.studio', password: 'Admin123!' });
+      .send({ email: 'admin@chapters.studio', password: adminPassword });
     adminToken = adminLoginRes.body.accessToken;
 
     // Login as staff (seeded user)
@@ -40,7 +51,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       .post('/auth/login')
       .send({
         email: 'john.photographer@chapters.studio',
-        password: 'Staff123!',
+        password: staffPassword,
       });
     staffToken = staffLoginRes.body.accessToken;
     staffUserId = staffLoginRes.body.user.id;

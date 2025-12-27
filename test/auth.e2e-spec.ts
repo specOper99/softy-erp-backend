@@ -7,9 +7,17 @@ describe('Auth & Users E2E Tests', () => {
   let app: INestApplication;
   let _accessToken: string;
   let testEmail: string;
-  const testPassword = 'TestUser123!';
+  const testPassword = 'TestUser123!'; // OK for dynamically created test users
+
+  // Get seeder password from environment variable
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 
   beforeAll(async () => {
+    // Validate required environment variables (for tests using seeded users)
+    if (!adminPassword) {
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
+    }
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -115,7 +123,7 @@ describe('Auth & Users E2E Tests', () => {
         .post('/auth/login')
         .send({
           email: 'admin@chapters.studio',
-          password: 'Admin123!',
+          password: adminPassword,
         });
       const adminToken = adminLogin.body.accessToken;
 

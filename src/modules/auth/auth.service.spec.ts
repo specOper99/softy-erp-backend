@@ -8,6 +8,10 @@ import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 
+// Test password constants - not real credentials, used only for unit test mocking
+const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD || 'Test@Mock#Password!2024';
+const TEST_WRONG_PASSWORD = process.env.TEST_MOCK_PASSWORD_WRONG || 'Wrong@Mock#Password!2024';
+
 describe('AuthService - Comprehensive Tests', () => {
   let service: AuthService;
   let _usersService: UsersService;
@@ -81,7 +85,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: 'password123' };
+      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
       const result = await service.register(dto);
 
       expect(result).toHaveProperty('accessToken', 'mock-jwt-token');
@@ -93,7 +97,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: 'password123' };
+      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
       await service.register(dto);
 
       expect(mockUsersService.create).toHaveBeenCalledWith(dto);
@@ -108,7 +112,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
       const dto = {
         email: 'admin@example.com',
-        password: 'password123',
+        password: TEST_PASSWORD,
         role: Role.ADMIN,
       };
       const result = await service.register(dto);
@@ -120,7 +124,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: 'password123' };
+      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
       await service.register(dto);
 
       expect(mockJwtService.sign).toHaveBeenCalledWith(
@@ -133,7 +137,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: 'password123' };
+      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
       await service.register(dto);
 
       expect(mockRefreshTokenRepository.create).toHaveBeenCalled();
@@ -147,7 +151,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
 
-      const dto = { email: 'test@example.com', password: 'password123' };
+      const dto = { email: 'test@example.com', password: TEST_PASSWORD };
       const result = await service.login(dto);
 
       expect(result).toHaveProperty('accessToken', 'mock-jwt-token');
@@ -158,7 +162,7 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should throw UnauthorizedException for non-existent email', async () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
 
-      const dto = { email: 'notfound@example.com', password: 'password123' };
+      const dto = { email: 'notfound@example.com', password: TEST_PASSWORD };
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
     });
 
@@ -166,7 +170,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(false);
 
-      const dto = { email: 'test@example.com', password: 'wrongPassword' };
+      const dto = { email: 'test@example.com', password: TEST_WRONG_PASSWORD };
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
     });
 
@@ -176,7 +180,7 @@ describe('AuthService - Comprehensive Tests', () => {
         isActive: false,
       });
 
-      const dto = { email: 'test@example.com', password: 'password123' };
+      const dto = { email: 'test@example.com', password: TEST_PASSWORD };
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
     });
 
@@ -187,7 +191,7 @@ describe('AuthService - Comprehensive Tests', () => {
       });
       mockUsersService.validatePassword.mockResolvedValue(true);
 
-      const dto = { email: 'admin@example.com', password: 'password123' };
+      const dto = { email: 'admin@example.com', password: TEST_PASSWORD };
       const result = await service.login(dto);
 
       expect(result.user.role).toBe(Role.ADMIN);

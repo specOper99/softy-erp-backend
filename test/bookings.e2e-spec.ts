@@ -9,7 +9,15 @@ describe('Bookings Workflow E2E Tests', () => {
   let packageId: string;
   let bookingId: string;
 
+  // Get password from environment variable
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+
   beforeAll(async () => {
+    // Validate required environment variable
+    if (!adminPassword) {
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
+    }
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -25,7 +33,7 @@ describe('Bookings Workflow E2E Tests', () => {
       .post('/auth/login')
       .send({
         email: 'admin@chapters.studio',
-        password: 'Admin123!',
+        password: adminPassword,
       });
     adminToken = loginResponse.body.accessToken;
 

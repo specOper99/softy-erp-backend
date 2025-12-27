@@ -23,7 +23,7 @@ export class StorageService implements OnModuleInit {
   private endpoint: string;
   private publicUrl: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   onModuleInit() {
     this.endpoint = this.configService.get(
@@ -37,11 +37,8 @@ export class StorageService implements OnModuleInit {
       endpoint: this.endpoint,
       region: this.configService.get('MINIO_REGION', 'us-east-1'),
       credentials: {
-        accessKeyId: this.configService.get('MINIO_ACCESS_KEY', 'minioadmin'),
-        secretAccessKey: this.configService.get(
-          'MINIO_SECRET_KEY',
-          'minioadmin',
-        ),
+        accessKeyId: this.configService.getOrThrow<string>('MINIO_ACCESS_KEY'),
+        secretAccessKey: this.configService.getOrThrow<string>('MINIO_SECRET_KEY'),
       },
       forcePathStyle: true, // Required for MinIO
     });

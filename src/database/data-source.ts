@@ -17,11 +17,11 @@ import { User } from '../modules/users/entities/user.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5434', 10),
-  username: process.env.DB_USERNAME || 'chapters_studio',
-  password: process.env.DB_PASSWORD || 'chapters_studio_secret',
-  database: process.env.DB_DATABASE || 'chapters_studio',
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
   entities: [
     User,
     Profile,

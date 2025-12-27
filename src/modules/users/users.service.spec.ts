@@ -8,6 +8,10 @@ import { AuditService } from '../audit/audit.service';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
+// Test password constants - not real credentials, used only for unit test mocking
+const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD || 'Test@Mock#Password!2024';
+const TEST_WRONG_PASSWORD = process.env.TEST_MOCK_PASSWORD_WRONG || 'Wrong@Mock#Password!2024';
+
 describe('UsersService - Comprehensive Tests', () => {
   let service: UsersService;
   let _repository: Repository<User>;
@@ -70,24 +74,24 @@ describe('UsersService - Comprehensive Tests', () => {
   // ============ CREATE USER TESTS ============
   describe('create', () => {
     it('should create user with valid email and password', async () => {
-      const dto = { email: 'new@example.com', password: 'password123' };
+      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
       const result = await service.create(dto);
       expect(result).toHaveProperty('id');
       expect(mockRepository.create).toHaveBeenCalled();
     });
 
     it('should hash password before saving', async () => {
-      const dto = { email: 'new@example.com', password: 'password123' };
+      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
       await service.create(dto);
 
       const savedUser = mockRepository.create.mock.calls[0][0];
-      expect(savedUser.passwordHash).not.toBe('password123');
+      expect(savedUser.passwordHash).not.toBe(TEST_PASSWORD);
     });
 
     it('should use provided role when specified', async () => {
       const dto = {
         email: 'admin@example.com',
-        password: 'password123',
+        password: TEST_PASSWORD,
         role: Role.ADMIN,
       };
       await service.create(dto);
@@ -99,7 +103,7 @@ describe('UsersService - Comprehensive Tests', () => {
     it('should allow creating user with OPS_MANAGER role', async () => {
       const dto = {
         email: 'ops@example.com',
-        password: 'password123',
+        password: TEST_PASSWORD,
         role: Role.OPS_MANAGER,
       };
       await service.create(dto);
@@ -214,7 +218,7 @@ describe('UsersService - Comprehensive Tests', () => {
   // ============ PASSWORD VALIDATION TESTS ============
   describe('validatePassword', () => {
     it('should return true for correct password', async () => {
-      const password = 'correctPassword';
+      const password = TEST_PASSWORD;
       const hash = await bcrypt.hash(password, 10);
       const user = { ...mockUser, passwordHash: hash } as User;
 
@@ -223,15 +227,15 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should return false for incorrect password', async () => {
-      const hash = await bcrypt.hash('correctPassword', 10);
+      const hash = await bcrypt.hash(TEST_PASSWORD, 10);
       const user = { ...mockUser, passwordHash: hash } as User;
 
-      const result = await service.validatePassword(user, 'wrongPassword');
+      const result = await service.validatePassword(user, TEST_WRONG_PASSWORD);
       expect(result).toBe(false);
     });
 
     it('should return false for empty password', async () => {
-      const hash = await bcrypt.hash('correctPassword', 10);
+      const hash = await bcrypt.hash(TEST_PASSWORD, 10);
       const user = { ...mockUser, passwordHash: hash } as User;
 
       const result = await service.validatePassword(user, '');
