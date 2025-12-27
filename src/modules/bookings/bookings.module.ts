@@ -8,13 +8,13 @@ import { BookingsService } from './bookings.service';
 import { Booking } from './entities/booking.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Booking, ServicePackage]),
-        FinanceModule,
-        MailModule,
-    ],
-    controllers: [BookingsController],
-    providers: [BookingsService],
-    exports: [BookingsService],
+  imports: [
+    TypeOrmModule.forFeature([Booking, ServicePackage]),
+    FinanceModule,
+    MailModule,
+  ],
+  controllers: [BookingsController],
+  providers: [BookingsService],
+  exports: [BookingsService],
 })
-export class BookingsModule { }
+export class BookingsModule {}

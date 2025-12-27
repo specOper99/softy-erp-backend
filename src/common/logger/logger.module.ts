@@ -7,61 +7,76 @@ import { getRequestContext } from './request-context';
 
 // Custom format that adds correlation ID to every log
 const correlationFormat = winston.format((info) => {
-    const context = getRequestContext();
-    if (context) {
-        info.correlationId = context.correlationId;
-        if (context.userId) {
-            info.userId = context.userId;
-        }
+  const context = getRequestContext();
+  if (context) {
+    info.correlationId = context.correlationId;
+    if (context.userId) {
+      info.userId = context.userId;
     }
-    return info;
+  }
+  return info;
 });
 
 @Global()
 @Module({
-    imports: [
-        WinstonModule.forRootAsync({
-            inject: [ConfigService],
-            useFactory: (configService: ConfigService) => {
-                const isProduction = configService.get('NODE_ENV') === 'production';
+  imports: [
+    WinstonModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const isProduction = configService.get('NODE_ENV') === 'production';
 
-                return {
-                    level: isProduction ? 'info' : 'debug',
-                    format: winston.format.combine(
-                        winston.format.timestamp(),
-                        correlationFormat(),
-                        sanitizeFormat() as any,
-                        isProduction
-                            ? winston.format.json()
-                            : winston.format.combine(
-                                winston.format.colorize(),
-                                winston.format.printf(({ level, message, timestamp, correlationId, context, ...meta }) => {
-                                    const corrId = correlationId ? `[${String(correlationId).substring(0, 8)}]` : '';
-                                    const ctx = context ? `[${context}]` : '';
-                                    const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
-                                    return `${timestamp} ${level} ${corrId}${ctx} ${message} ${metaStr}`;
-                                }),
-                            ),
-                    ),
-                    transports: [
-                        new winston.transports.Console(),
-                        // Add file transport for production
-                        ...(isProduction
-                            ? [
-                                new winston.transports.File({
-                                    filename: 'logs/error.log',
-                                    level: 'error',
-                                }),
-                                new winston.transports.File({
-                                    filename: 'logs/combined.log',
-                                }),
-                            ]
-                            : []),
-                    ],
-                };
-            },
-        }),
-    ],
-    exports: [WinstonModule],
+        return {
+          level: isProduction ? 'info' : 'debug',
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            correlationFormat(),
+            sanitizeFormat(),
+            isProduction
+              ? winston.format.json()
+              : winston.format.combine(
+                  winston.format.colorize(),
+                  winston.format.printf(
+                    ({
+                      level,
+                      message,
+                      timestamp,
+                      correlationId,
+                      context,
+                      ...meta
+                    }: winston.Logform.TransformableInfo) => {
+                      const corrId = correlationId
+                        ? `[${typeof correlationId === 'string' ? correlationId.substring(0, 8) : JSON.stringify(correlationId).substring(0, 8)}]`
+                        : '';
+                      const ctx = context
+                        ? `[${typeof context === 'string' ? context : JSON.stringify(context)}]`
+                        : '';
+                      const metaStr = Object.keys(meta).length
+                        ? JSON.stringify(meta)
+                        : '';
+                      return `${String(timestamp)} ${String(level)} ${corrId}${ctx} ${String(message)} ${metaStr}`;
+                    },
+                  ),
+                ),
+          ),
+          transports: [
+            new winston.transports.Console(),
+            // Add file transport for production
+            ...(isProduction
+              ? [
+                  new winston.transports.File({
+                    filename: 'logs/error.log',
+                    level: 'error',
+                  }),
+                  new winston.transports.File({
+                    filename: 'logs/combined.log',
+                  }),
+                ]
+              : []),
+          ],
+        };
+      },
+    }),
+  ],
+  exports: [WinstonModule],
 })
-export class LoggerModule { }
+export class LoggerModule {}

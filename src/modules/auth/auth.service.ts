@@ -1,8 +1,8 @@
 import {
-    BadRequestException,
-    Injectable,
-    Logger,
-    UnauthorizedException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -15,263 +15,263 @@ import { AuthResponseDto, LoginDto, RegisterDto, TokensDto } from './dto';
 import { RefreshToken } from './entities/refresh-token.entity';
 
 interface TokenPayload {
-    sub: string;
-    email: string;
-    role: string;
+  sub: string;
+  email: string;
+  role: string;
 }
 
 interface RequestContext {
-    userAgent?: string;
-    ipAddress?: string;
+  userAgent?: string;
+  ipAddress?: string;
 }
 
 @Injectable()
 export class AuthService {
-    private readonly logger = new Logger(AuthService.name);
-    private readonly accessTokenExpiresIn: number; // seconds
-    private readonly refreshTokenExpiresIn: number; // days
+  private readonly logger = new Logger(AuthService.name);
+  private readonly accessTokenExpiresIn: number; // seconds
+  private readonly refreshTokenExpiresIn: number; // days
 
-    constructor(
-        private readonly usersService: UsersService,
-        private readonly jwtService: JwtService,
-        private readonly configService: ConfigService,
-        @InjectRepository(RefreshToken)
-        private readonly refreshTokenRepository: Repository<RefreshToken>,
-    ) {
-        // Access token: 15 minutes by default
-        this.accessTokenExpiresIn = this.configService.get<number>(
-            'JWT_ACCESS_EXPIRES_SECONDS',
-            900,
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
+  ) {
+    // Access token: 15 minutes by default
+    this.accessTokenExpiresIn = this.configService.get<number>(
+      'JWT_ACCESS_EXPIRES_SECONDS',
+      900,
+    );
+    // Refresh token: 7 days by default
+    this.refreshTokenExpiresIn = this.configService.get<number>(
+      'JWT_REFRESH_EXPIRES_DAYS',
+      7,
+    );
+  }
+
+  async register(
+    registerDto: RegisterDto,
+    context?: RequestContext,
+  ): Promise<AuthResponseDto> {
+    // Check if email already exists
+    const existingUser = await this.usersService.findByEmail(registerDto.email);
+    if (existingUser) {
+      throw new BadRequestException('Email already registered');
+    }
+
+    try {
+      const user = await this.usersService.create({
+        email: registerDto.email,
+        password: registerDto.password,
+      });
+      return this.generateAuthResponse(user, context);
+    } catch (error: unknown) {
+      // Handle database unique constraint violation
+      if (error instanceof Error && 'code' in error && error.code === '23505') {
+        throw new BadRequestException('Email already registered');
+      }
+      throw error;
+    }
+  }
+
+  async login(
+    loginDto: LoginDto,
+    context?: RequestContext,
+  ): Promise<AuthResponseDto> {
+    const user = await this.usersService.findByEmail(loginDto.email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    const isPasswordValid = await this.usersService.validatePassword(
+      user,
+      loginDto.password,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return this.generateAuthResponse(user, context);
+  }
+
+  async refreshTokens(
+    refreshToken: string,
+    context?: RequestContext,
+  ): Promise<TokensDto> {
+    // Hash the token to look it up
+    const tokenHash = this.hashToken(refreshToken);
+    const storedToken = await this.refreshTokenRepository.findOne({
+      where: { tokenHash },
+      relations: ['user'],
+    });
+
+    if (!storedToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (!storedToken.isValid()) {
+      // If token is revoked, it might be a token reuse attack
+      if (storedToken.isRevoked) {
+        this.logger.warn(
+          `Possible token reuse detected for user ${storedToken.userId}`,
         );
-        // Refresh token: 7 days by default
-        this.refreshTokenExpiresIn = this.configService.get<number>(
-            'JWT_REFRESH_EXPIRES_DAYS',
-            7,
-        );
+        // Revoke all tokens for this user as a security measure
+        await this.revokeAllUserTokens(storedToken.userId);
+      }
+      throw new UnauthorizedException('Refresh token expired or revoked');
     }
 
-    async register(
-        registerDto: RegisterDto,
-        context?: RequestContext,
-    ): Promise<AuthResponseDto> {
-        // Check if email already exists
-        const existingUser = await this.usersService.findByEmail(registerDto.email);
-        if (existingUser) {
-            throw new BadRequestException('Email already registered');
-        }
-
-        try {
-            const user = await this.usersService.create({
-                email: registerDto.email,
-                password: registerDto.password,
-            });
-            return this.generateAuthResponse(user, context);
-        } catch (error: any) {
-            // Handle database unique constraint violation
-            if (error?.code === '23505') {
-                throw new BadRequestException('Email already registered');
-            }
-            throw error;
-        }
+    const user = storedToken.user;
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
     }
 
-    async login(
-        loginDto: LoginDto,
-        context?: RequestContext,
-    ): Promise<AuthResponseDto> {
-        const user = await this.usersService.findByEmail(loginDto.email);
-        if (!user) {
-            throw new UnauthorizedException('Invalid credentials');
-        }
+    // Token rotation: revoke old token and issue new one
+    storedToken.isRevoked = true;
+    storedToken.lastUsedAt = new Date();
+    await this.refreshTokenRepository.save(storedToken);
 
-        if (!user.isActive) {
-            throw new UnauthorizedException('Account is deactivated');
-        }
+    // Generate new tokens
+    const tokens = await this.generateTokens(user, context);
 
-        const isPasswordValid = await this.usersService.validatePassword(
-            user,
-            loginDto.password,
-        );
-        if (!isPasswordValid) {
-            throw new UnauthorizedException('Invalid credentials');
-        }
+    return tokens;
+  }
 
-        return this.generateAuthResponse(user, context);
+  async logout(userId: string, refreshToken?: string): Promise<void> {
+    if (refreshToken) {
+      // Revoke specific token
+      const tokenHash = this.hashToken(refreshToken);
+      await this.refreshTokenRepository.update(
+        { tokenHash, userId },
+        { isRevoked: true },
+      );
+    } else {
+      // Revoke all tokens for user
+      await this.revokeAllUserTokens(userId);
     }
+  }
 
-    async refreshTokens(
-        refreshToken: string,
-        context?: RequestContext,
-    ): Promise<TokensDto> {
-        // Hash the token to look it up
-        const tokenHash = this.hashToken(refreshToken);
-        const storedToken = await this.refreshTokenRepository.findOne({
-            where: { tokenHash },
-            relations: ['user'],
-        });
+  async logoutAllSessions(userId: string): Promise<number> {
+    const result = await this.refreshTokenRepository.update(
+      { userId, isRevoked: false },
+      { isRevoked: true },
+    );
+    return result.affected || 0;
+  }
 
-        if (!storedToken) {
-            throw new UnauthorizedException('Invalid refresh token');
-        }
-
-        if (!storedToken.isValid()) {
-            // If token is revoked, it might be a token reuse attack
-            if (storedToken.isRevoked) {
-                this.logger.warn(
-                    `Possible token reuse detected for user ${storedToken.userId}`,
-                );
-                // Revoke all tokens for this user as a security measure
-                await this.revokeAllUserTokens(storedToken.userId);
-            }
-            throw new UnauthorizedException('Refresh token expired or revoked');
-        }
-
-        const user = storedToken.user;
-        if (!user || !user.isActive) {
-            throw new UnauthorizedException('User not found or inactive');
-        }
-
-        // Token rotation: revoke old token and issue new one
-        storedToken.isRevoked = true;
-        storedToken.lastUsedAt = new Date();
-        await this.refreshTokenRepository.save(storedToken);
-
-        // Generate new tokens
-        const tokens = await this.generateTokens(user, context);
-
-        return tokens;
+  async validateUser(payload: TokenPayload): Promise<User> {
+    const user = await this.usersService.findOne(payload.sub);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
     }
+    return user;
+  }
 
-    async logout(userId: string, refreshToken?: string): Promise<void> {
-        if (refreshToken) {
-            // Revoke specific token
-            const tokenHash = this.hashToken(refreshToken);
-            await this.refreshTokenRepository.update(
-                { tokenHash, userId },
-                { isRevoked: true },
-            );
-        } else {
-            // Revoke all tokens for user
-            await this.revokeAllUserTokens(userId);
-        }
+  async getActiveSessions(userId: string): Promise<RefreshToken[]> {
+    return this.refreshTokenRepository.find({
+      where: {
+        userId,
+        isRevoked: false,
+        expiresAt: LessThan(new Date()),
+      },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async cleanupExpiredTokens(): Promise<number> {
+    const result = await this.refreshTokenRepository.delete({
+      expiresAt: LessThan(new Date()),
+    });
+    const deleted = result.affected || 0;
+    if (deleted > 0) {
+      this.logger.log(`Cleaned up ${deleted} expired refresh tokens`);
     }
+    return deleted;
+  }
 
-    async logoutAllSessions(userId: string): Promise<number> {
-        const result = await this.refreshTokenRepository.update(
-            { userId, isRevoked: false },
-            { isRevoked: true },
-        );
-        return result.affected || 0;
-    }
+  // ============ Private Methods ============
 
-    async validateUser(payload: TokenPayload): Promise<User> {
-        const user = await this.usersService.findOne(payload.sub);
-        if (!user || !user.isActive) {
-            throw new UnauthorizedException('User not found or inactive');
-        }
-        return user;
-    }
+  private async generateAuthResponse(
+    user: User,
+    context?: RequestContext,
+  ): Promise<AuthResponseDto> {
+    const tokens = await this.generateTokens(user, context);
 
-    async getActiveSessions(userId: string): Promise<RefreshToken[]> {
-        return this.refreshTokenRepository.find({
-            where: {
-                userId,
-                isRevoked: false,
-                expiresAt: LessThan(new Date()),
-            },
-            order: { createdAt: 'DESC' },
-        });
-    }
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  }
 
-    async cleanupExpiredTokens(): Promise<number> {
-        const result = await this.refreshTokenRepository.delete({
-            expiresAt: LessThan(new Date()),
-        });
-        const deleted = result.affected || 0;
-        if (deleted > 0) {
-            this.logger.log(`Cleaned up ${deleted} expired refresh tokens`);
-        }
-        return deleted;
-    }
+  private async generateTokens(
+    user: User,
+    context?: RequestContext,
+  ): Promise<TokensDto> {
+    const payload: TokenPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
 
-    // ============ Private Methods ============
+    // Generate access token (short-lived)
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: this.accessTokenExpiresIn,
+    });
 
-    private async generateAuthResponse(
-        user: User,
-        context?: RequestContext,
-    ): Promise<AuthResponseDto> {
-        const tokens = await this.generateTokens(user, context);
+    // Generate refresh token (random string, not JWT)
+    const refreshToken = this.generateRefreshToken();
 
-        return {
-            ...tokens,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-            },
-        };
-    }
+    // Store refresh token hash in database
+    await this.storeRefreshToken(user.id, refreshToken, context);
 
-    private async generateTokens(
-        user: User,
-        context?: RequestContext,
-    ): Promise<TokensDto> {
-        const payload: TokenPayload = {
-            sub: user.id,
-            email: user.email,
-            role: user.role,
-        };
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: this.accessTokenExpiresIn,
+    };
+  }
 
-        // Generate access token (short-lived)
-        const accessToken = this.jwtService.sign(payload, {
-            expiresIn: this.accessTokenExpiresIn,
-        });
+  private generateRefreshToken(): string {
+    return crypto.randomBytes(64).toString('base64url');
+  }
 
-        // Generate refresh token (random string, not JWT)
-        const refreshToken = this.generateRefreshToken();
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
 
-        // Store refresh token hash in database
-        await this.storeRefreshToken(user.id, refreshToken, context);
+  private async storeRefreshToken(
+    userId: string,
+    token: string,
+    context?: RequestContext,
+  ): Promise<RefreshToken> {
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + this.refreshTokenExpiresIn);
 
-        return {
-            accessToken,
-            refreshToken,
-            expiresIn: this.accessTokenExpiresIn,
-        };
-    }
+    const refreshToken = this.refreshTokenRepository.create({
+      tokenHash,
+      userId,
+      expiresAt,
+      userAgent: context?.userAgent?.substring(0, 500) || null,
+      ipAddress: context?.ipAddress || null,
+    });
 
-    private generateRefreshToken(): string {
-        return crypto.randomBytes(64).toString('base64url');
-    }
+    return this.refreshTokenRepository.save(refreshToken);
+  }
 
-    private hashToken(token: string): string {
-        return crypto.createHash('sha256').update(token).digest('hex');
-    }
-
-    private async storeRefreshToken(
-        userId: string,
-        token: string,
-        context?: RequestContext,
-    ): Promise<RefreshToken> {
-        const tokenHash = this.hashToken(token);
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + this.refreshTokenExpiresIn);
-
-        const refreshToken = this.refreshTokenRepository.create({
-            tokenHash,
-            userId,
-            expiresAt,
-            userAgent: context?.userAgent?.substring(0, 500) || null,
-            ipAddress: context?.ipAddress || null,
-        });
-
-        return this.refreshTokenRepository.save(refreshToken);
-    }
-
-    private async revokeAllUserTokens(userId: string): Promise<void> {
-        await this.refreshTokenRepository.update(
-            { userId, isRevoked: false },
-            { isRevoked: true },
-        );
-    }
+  private async revokeAllUserTokens(userId: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      { userId, isRevoked: false },
+      { isRevoked: true },
+    );
+  }
 }

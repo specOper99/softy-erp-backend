@@ -7,11 +7,9 @@ import { Transaction } from './entities/transaction.entity';
 import { FinanceService } from './services/finance.service';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Transaction, EmployeeWallet]),
-    ],
-    controllers: [TransactionsController, WalletsController],
-    providers: [FinanceService],
-    exports: [FinanceService],
+  imports: [TypeOrmModule.forFeature([Transaction, EmployeeWallet])],
+  controllers: [TransactionsController, WalletsController],
+  providers: [FinanceService],
+  exports: [FinanceService],
 })
-export class FinanceModule { }
+export class FinanceModule {}

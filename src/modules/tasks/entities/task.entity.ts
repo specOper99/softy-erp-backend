@@ -1,12 +1,12 @@
 import {
-    Column,
-    CreateDateColumn,
-    DeleteDateColumn,
-    Entity,
-    JoinColumn,
-    ManyToOne,
-    PrimaryGeneratedColumn,
-    UpdateDateColumn,
+  Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { TaskStatus } from '../../../common/enums';
 import { Booking } from '../../bookings/entities/booking.entity';
@@ -15,61 +15,61 @@ import { User } from '../../users/entities/user.entity';
 
 @Entity('tasks')
 export class Task {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column({ name: 'booking_id' })
-    bookingId: string;
+  @Column({ name: 'booking_id' })
+  bookingId: string;
 
-    @Column({ name: 'task_type_id' })
-    taskTypeId: string;
+  @Column({ name: 'task_type_id' })
+  taskTypeId: string;
 
-    @Column({ name: 'assigned_user_id', nullable: true })
-    assignedUserId: string | null;
+  @Column({ name: 'assigned_user_id', nullable: true })
+  assignedUserId: string | null;
 
-    @Column({
-        type: 'enum',
-        enum: TaskStatus,
-        default: TaskStatus.PENDING,
-    })
-    status: TaskStatus;
+  @Column({
+    type: 'enum',
+    enum: TaskStatus,
+    default: TaskStatus.PENDING,
+  })
+  status: TaskStatus;
 
-    @Column({
-        name: 'commission_snapshot',
-        type: 'decimal',
-        precision: 12,
-        scale: 2,
-        default: 0,
-    })
-    commissionSnapshot: number;
+  @Column({
+    name: 'commission_snapshot',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  commissionSnapshot: number;
 
-    @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
-    dueDate: Date | null;
+  @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
+  dueDate: Date | null;
 
-    @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
-    completedAt: Date | null;
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt: Date | null;
 
-    @Column({ type: 'text', nullable: true })
-    notes: string;
+  @Column({ type: 'text', nullable: true })
+  notes: string;
 
-    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-    createdAt: Date;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt: Date;
 
-    @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-    updatedAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt: Date;
 
-    @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-    deletedAt: Date;
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt: Date;
 
-    @ManyToOne(() => Booking, (booking) => booking.tasks, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'booking_id' })
-    booking: Booking;
+  @ManyToOne(() => Booking, (booking) => booking.tasks, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'booking_id' })
+  booking: Booking;
 
-    @ManyToOne(() => TaskType, (taskType) => taskType.tasks)
-    @JoinColumn({ name: 'task_type_id' })
-    taskType: TaskType;
+  @ManyToOne(() => TaskType, (taskType) => taskType.tasks)
+  @JoinColumn({ name: 'task_type_id' })
+  taskType: TaskType;
 
-    @ManyToOne(() => User, { nullable: true })
-    @JoinColumn({ name: 'assigned_user_id' })
-    assignedUser: User | null;
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'assigned_user_id' })
+  assignedUser: User | null;
 }

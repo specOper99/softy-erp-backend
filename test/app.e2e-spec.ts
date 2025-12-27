@@ -27,8 +27,6 @@ describe('AppController (e2e)', () => {
   });
 
   it('/packages (GET) - should return 401 without auth', () => {
-    return request(app.getHttpServer())
-      .get('/packages')
-      .expect(401);
+    return request(app.getHttpServer()).get('/packages').expect(401);
   });
 });

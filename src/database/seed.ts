@@ -19,244 +19,284 @@ import { User } from '../modules/users/entities/user.entity';
 
 // Create data source
 const AppDataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5434', 10),
-    username: process.env.DB_USERNAME || 'chapters_user',
-    password: process.env.DB_PASSWORD || 'chapters_pass',
-    database: process.env.DB_DATABASE || 'chapters_studio',
-    entities: [User, Profile, EmployeeWallet, Transaction, ServicePackage, TaskType, PackageItem, Booking, Task],
-    synchronize: true, // Only for seeding - creates tables
+  type: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5434', 10),
+  username: process.env.DB_USERNAME || 'chapters_user',
+  password: process.env.DB_PASSWORD || 'chapters_pass',
+  database: process.env.DB_DATABASE || 'chapters_studio',
+  entities: [
+    User,
+    Profile,
+    EmployeeWallet,
+    Transaction,
+    ServicePackage,
+    TaskType,
+    PackageItem,
+    Booking,
+    Task,
+  ],
+  synchronize: true, // Only for seeding - creates tables
 });
 
 async function seed() {
-    console.log('🌱 Starting database seed...\n');
+  console.log('🌱 Starting database seed...\n');
 
-    try {
-        await AppDataSource.initialize();
-        console.log('✅ Database connected\n');
+  try {
+    await AppDataSource.initialize();
+    console.log('✅ Database connected\n');
 
-        // Get repositories
-        const userRepo = AppDataSource.getRepository(User);
-        const profileRepo = AppDataSource.getRepository(Profile);
-        const walletRepo = AppDataSource.getRepository(EmployeeWallet);
-        const packageRepo = AppDataSource.getRepository(ServicePackage);
-        const taskTypeRepo = AppDataSource.getRepository(TaskType);
-        const packageItemRepo = AppDataSource.getRepository(PackageItem);
+    // Get repositories
+    const userRepo = AppDataSource.getRepository(User);
+    const profileRepo = AppDataSource.getRepository(Profile);
+    const walletRepo = AppDataSource.getRepository(EmployeeWallet);
+    const packageRepo = AppDataSource.getRepository(ServicePackage);
+    const taskTypeRepo = AppDataSource.getRepository(TaskType);
+    const packageItemRepo = AppDataSource.getRepository(PackageItem);
 
-        // ============ 1. CREATE ADMIN USER ============
-        console.log('👤 Creating admin user...');
-        const existingAdmin = await userRepo.findOne({ where: { email: 'admin@chapters.studio' } });
+    // ============ 1. CREATE ADMIN USER ============
+    console.log('👤 Creating admin user...');
+    const existingAdmin = await userRepo.findOne({
+      where: { email: 'admin@chapters.studio' },
+    });
 
-        let adminUser: User;
-        if (!existingAdmin) {
-            const passwordHash = await bcrypt.hash('Admin123!', 10);
-            adminUser = userRepo.create({
-                email: 'admin@chapters.studio',
-                passwordHash,
-                role: Role.ADMIN,
-                isActive: true,
-            });
-            adminUser = await userRepo.save(adminUser);
-            console.log('   ✅ Admin user created: admin@chapters.studio');
-        } else {
-            adminUser = existingAdmin;
-            console.log('   ⏭️  Admin user already exists');
-        }
-
-        // ============ 2. CREATE TASK TYPES ============
-        console.log('\n📋 Creating task types...');
-        const taskTypesData = [
-            { name: 'Photography', description: 'Event photography coverage', defaultCommissionAmount: 100 },
-            { name: 'Videography', description: 'Video recording and capturing', defaultCommissionAmount: 150 },
-            { name: 'Video Editing', description: 'Post-production video editing', defaultCommissionAmount: 200 },
-            { name: 'Color Grading', description: 'Professional color correction', defaultCommissionAmount: 120 },
-            { name: 'Sound Mixing', description: 'Audio mixing and mastering', defaultCommissionAmount: 80 },
-            { name: 'Drone Footage', description: 'Aerial photography and videography', defaultCommissionAmount: 180 },
-        ];
-
-        const taskTypes: TaskType[] = [];
-        for (const data of taskTypesData) {
-            const existing = await taskTypeRepo.findOne({ where: { name: data.name } });
-            if (!existing) {
-                const taskType = taskTypeRepo.create(data);
-                taskTypes.push(await taskTypeRepo.save(taskType));
-                console.log(`   ✅ Created: ${data.name}`);
-            } else {
-                taskTypes.push(existing);
-                console.log(`   ⏭️  Exists: ${data.name}`);
-            }
-        }
-
-        // ============ 3. CREATE SERVICE PACKAGES ============
-        console.log('\n📦 Creating service packages...');
-        const packagesData = [
-            {
-                name: 'Wedding Premium',
-                description: 'Complete wedding coverage with photography, videography, drone, and full editing',
-                price: 2500,
-                items: [
-                    { taskTypeName: 'Photography', quantity: 2 },
-                    { taskTypeName: 'Videography', quantity: 2 },
-                    { taskTypeName: 'Video Editing', quantity: 1 },
-                    { taskTypeName: 'Drone Footage', quantity: 1 },
-                    { taskTypeName: 'Color Grading', quantity: 1 },
-                ],
-            },
-            {
-                name: 'Corporate Event',
-                description: 'Professional corporate event coverage',
-                price: 1500,
-                items: [
-                    { taskTypeName: 'Photography', quantity: 1 },
-                    { taskTypeName: 'Videography', quantity: 1 },
-                    { taskTypeName: 'Video Editing', quantity: 1 },
-                ],
-            },
-            {
-                name: 'Music Video',
-                description: 'Full music video production',
-                price: 3000,
-                items: [
-                    { taskTypeName: 'Videography', quantity: 2 },
-                    { taskTypeName: 'Video Editing', quantity: 1 },
-                    { taskTypeName: 'Color Grading', quantity: 1 },
-                    { taskTypeName: 'Sound Mixing', quantity: 1 },
-                ],
-            },
-            {
-                name: 'Photo Session',
-                description: 'Basic photography session',
-                price: 500,
-                items: [
-                    { taskTypeName: 'Photography', quantity: 1 },
-                ],
-            },
-        ];
-
-        for (const pkgData of packagesData) {
-            let pkg = await packageRepo.findOne({ where: { name: pkgData.name } });
-            if (!pkg) {
-                pkg = packageRepo.create({
-                    name: pkgData.name,
-                    description: pkgData.description,
-                    price: pkgData.price,
-                });
-                pkg = await packageRepo.save(pkg);
-                console.log(`   ✅ Created package: ${pkgData.name}`);
-
-                // Add package items
-                for (const itemData of pkgData.items) {
-                    const taskType = taskTypes.find(t => t.name === itemData.taskTypeName);
-                    if (taskType) {
-                        const item = packageItemRepo.create({
-                            packageId: pkg.id,
-                            taskTypeId: taskType.id,
-                            quantity: itemData.quantity,
-                        });
-                        await packageItemRepo.save(item);
-                    }
-                }
-            } else {
-                console.log(`   ⏭️  Exists: ${pkgData.name}`);
-            }
-        }
-
-        // ============ 4. CREATE FIELD STAFF USERS ============
-        console.log('\n👥 Creating field staff users...');
-        const staffData = [
-            {
-                email: 'john.photographer@chapters.studio',
-                firstName: 'John',
-                lastName: 'Smith',
-                jobTitle: 'Senior Photographer',
-                baseSalary: 2500,
-            },
-            {
-                email: 'sarah.videographer@chapters.studio',
-                firstName: 'Sarah',
-                lastName: 'Johnson',
-                jobTitle: 'Lead Videographer',
-                baseSalary: 2800,
-            },
-            {
-                email: 'mike.editor@chapters.studio',
-                firstName: 'Mike',
-                lastName: 'Williams',
-                jobTitle: 'Video Editor',
-                baseSalary: 2200,
-            },
-        ];
-
-        for (const data of staffData) {
-            let user = await userRepo.findOne({ where: { email: data.email } });
-            if (!user) {
-                const passwordHash = await bcrypt.hash('Staff123!', 10);
-                user = userRepo.create({
-                    email: data.email,
-                    passwordHash,
-                    role: Role.FIELD_STAFF,
-                    isActive: true,
-                });
-                user = await userRepo.save(user);
-                console.log(`   ✅ Created user: ${data.email}`);
-
-                // Create profile
-                const profile = profileRepo.create({
-                    userId: user.id,
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    jobTitle: data.jobTitle,
-                    baseSalary: data.baseSalary,
-                    hireDate: new Date(),
-                });
-                await profileRepo.save(profile);
-
-                // Create wallet
-                const wallet = walletRepo.create({
-                    userId: user.id,
-                    pendingBalance: 0,
-                    payableBalance: 0,
-                });
-                await walletRepo.save(wallet);
-            } else {
-                console.log(`   ⏭️  Exists: ${data.email}`);
-            }
-        }
-
-        // ============ 5. CREATE OPS MANAGER ============
-        console.log('\n👔 Creating operations manager...');
-        const existingOps = await userRepo.findOne({ where: { email: 'ops@chapters.studio' } });
-        if (!existingOps) {
-            const passwordHash = await bcrypt.hash('Ops123!', 10);
-            const opsUser = userRepo.create({
-                email: 'ops@chapters.studio',
-                passwordHash,
-                role: Role.OPS_MANAGER,
-                isActive: true,
-            });
-            await userRepo.save(opsUser);
-            console.log('   ✅ Created: ops@chapters.studio');
-        } else {
-            console.log('   ⏭️  Exists: ops@chapters.studio');
-        }
-
-        console.log('\n========================================');
-        console.log('🎉 Seed completed successfully!');
-        console.log('========================================\n');
-        console.log('Login credentials:');
-        console.log('  Admin:    admin@chapters.studio / Admin123!');
-        console.log('  Ops Mgr:  ops@chapters.studio / Ops123!');
-        console.log('  Staff:    john.photographer@chapters.studio / Staff123!');
-        console.log('            sarah.videographer@chapters.studio / Staff123!');
-        console.log('            mike.editor@chapters.studio / Staff123!\n');
-
-    } catch (error) {
-        console.error('❌ Seed failed:', error);
-        process.exit(1);
-    } finally {
-        await AppDataSource.destroy();
+    let _adminUser: User;
+    if (!existingAdmin) {
+      const passwordHash = await bcrypt.hash('Admin123!', 10);
+      _adminUser = userRepo.create({
+        email: 'admin@chapters.studio',
+        passwordHash,
+        role: Role.ADMIN,
+        isActive: true,
+      });
+      _adminUser = await userRepo.save(_adminUser);
+      console.log('   ✅ Admin user created: admin@chapters.studio');
+    } else {
+      _adminUser = existingAdmin;
+      console.log('   ⏭️  Admin user already exists');
     }
+
+    // ============ 2. CREATE TASK TYPES ============
+    console.log('\n📋 Creating task types...');
+    const taskTypesData = [
+      {
+        name: 'Photography',
+        description: 'Event photography coverage',
+        defaultCommissionAmount: 100,
+      },
+      {
+        name: 'Videography',
+        description: 'Video recording and capturing',
+        defaultCommissionAmount: 150,
+      },
+      {
+        name: 'Video Editing',
+        description: 'Post-production video editing',
+        defaultCommissionAmount: 200,
+      },
+      {
+        name: 'Color Grading',
+        description: 'Professional color correction',
+        defaultCommissionAmount: 120,
+      },
+      {
+        name: 'Sound Mixing',
+        description: 'Audio mixing and mastering',
+        defaultCommissionAmount: 80,
+      },
+      {
+        name: 'Drone Footage',
+        description: 'Aerial photography and videography',
+        defaultCommissionAmount: 180,
+      },
+    ];
+
+    const taskTypes: TaskType[] = [];
+    for (const data of taskTypesData) {
+      const existing = await taskTypeRepo.findOne({
+        where: { name: data.name },
+      });
+      if (!existing) {
+        const taskType = taskTypeRepo.create(data);
+        taskTypes.push(await taskTypeRepo.save(taskType));
+        console.log(`   ✅ Created: ${data.name}`);
+      } else {
+        taskTypes.push(existing);
+        console.log(`   ⏭️  Exists: ${data.name}`);
+      }
+    }
+
+    // ============ 3. CREATE SERVICE PACKAGES ============
+    console.log('\n📦 Creating service packages...');
+    const packagesData = [
+      {
+        name: 'Wedding Premium',
+        description:
+          'Complete wedding coverage with photography, videography, drone, and full editing',
+        price: 2500,
+        items: [
+          { taskTypeName: 'Photography', quantity: 2 },
+          { taskTypeName: 'Videography', quantity: 2 },
+          { taskTypeName: 'Video Editing', quantity: 1 },
+          { taskTypeName: 'Drone Footage', quantity: 1 },
+          { taskTypeName: 'Color Grading', quantity: 1 },
+        ],
+      },
+      {
+        name: 'Corporate Event',
+        description: 'Professional corporate event coverage',
+        price: 1500,
+        items: [
+          { taskTypeName: 'Photography', quantity: 1 },
+          { taskTypeName: 'Videography', quantity: 1 },
+          { taskTypeName: 'Video Editing', quantity: 1 },
+        ],
+      },
+      {
+        name: 'Music Video',
+        description: 'Full music video production',
+        price: 3000,
+        items: [
+          { taskTypeName: 'Videography', quantity: 2 },
+          { taskTypeName: 'Video Editing', quantity: 1 },
+          { taskTypeName: 'Color Grading', quantity: 1 },
+          { taskTypeName: 'Sound Mixing', quantity: 1 },
+        ],
+      },
+      {
+        name: 'Photo Session',
+        description: 'Basic photography session',
+        price: 500,
+        items: [{ taskTypeName: 'Photography', quantity: 1 }],
+      },
+    ];
+
+    for (const pkgData of packagesData) {
+      let pkg = await packageRepo.findOne({ where: { name: pkgData.name } });
+      if (!pkg) {
+        pkg = packageRepo.create({
+          name: pkgData.name,
+          description: pkgData.description,
+          price: pkgData.price,
+        });
+        pkg = await packageRepo.save(pkg);
+        console.log(`   ✅ Created package: ${pkgData.name}`);
+
+        // Add package items
+        for (const itemData of pkgData.items) {
+          const taskType = taskTypes.find(
+            (t) => t.name === itemData.taskTypeName,
+          );
+          if (taskType) {
+            const item = packageItemRepo.create({
+              packageId: pkg.id,
+              taskTypeId: taskType.id,
+              quantity: itemData.quantity,
+            });
+            await packageItemRepo.save(item);
+          }
+        }
+      } else {
+        console.log(`   ⏭️  Exists: ${pkgData.name}`);
+      }
+    }
+
+    // ============ 4. CREATE FIELD STAFF USERS ============
+    console.log('\n👥 Creating field staff users...');
+    const staffData = [
+      {
+        email: 'john.photographer@chapters.studio',
+        firstName: 'John',
+        lastName: 'Smith',
+        jobTitle: 'Senior Photographer',
+        baseSalary: 2500,
+      },
+      {
+        email: 'sarah.videographer@chapters.studio',
+        firstName: 'Sarah',
+        lastName: 'Johnson',
+        jobTitle: 'Lead Videographer',
+        baseSalary: 2800,
+      },
+      {
+        email: 'mike.editor@chapters.studio',
+        firstName: 'Mike',
+        lastName: 'Williams',
+        jobTitle: 'Video Editor',
+        baseSalary: 2200,
+      },
+    ];
+
+    for (const data of staffData) {
+      let user = await userRepo.findOne({ where: { email: data.email } });
+      if (!user) {
+        const passwordHash = await bcrypt.hash('Staff123!', 10);
+        user = userRepo.create({
+          email: data.email,
+          passwordHash,
+          role: Role.FIELD_STAFF,
+          isActive: true,
+        });
+        user = await userRepo.save(user);
+        console.log(`   ✅ Created user: ${data.email}`);
+
+        // Create profile
+        const profile = profileRepo.create({
+          userId: user.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          jobTitle: data.jobTitle,
+          baseSalary: data.baseSalary,
+          hireDate: new Date(),
+        });
+        await profileRepo.save(profile);
+
+        // Create wallet
+        const wallet = walletRepo.create({
+          userId: user.id,
+          pendingBalance: 0,
+          payableBalance: 0,
+        });
+        await walletRepo.save(wallet);
+      } else {
+        console.log(`   ⏭️  Exists: ${data.email}`);
+      }
+    }
+
+    // ============ 5. CREATE OPS MANAGER ============
+    console.log('\n👔 Creating operations manager...');
+    const existingOps = await userRepo.findOne({
+      where: { email: 'ops@chapters.studio' },
+    });
+    if (!existingOps) {
+      const passwordHash = await bcrypt.hash('Ops123!', 10);
+      const opsUser = userRepo.create({
+        email: 'ops@chapters.studio',
+        passwordHash,
+        role: Role.OPS_MANAGER,
+        isActive: true,
+      });
+      await userRepo.save(opsUser);
+      console.log('   ✅ Created: ops@chapters.studio');
+    } else {
+      console.log('   ⏭️  Exists: ops@chapters.studio');
+    }
+
+    console.log('\n========================================');
+    console.log('🎉 Seed completed successfully!');
+    console.log('========================================\n');
+    console.log('Login credentials:');
+    console.log('  Admin:    admin@chapters.studio / Admin123!');
+    console.log('  Ops Mgr:  ops@chapters.studio / Ops123!');
+    console.log('  Staff:    john.photographer@chapters.studio / Staff123!');
+    console.log('            sarah.videographer@chapters.studio / Staff123!');
+    console.log('            mike.editor@chapters.studio / Staff123!\n');
+  } catch (error) {
+    console.error('❌ Seed failed:', error);
+    process.exit(1);
+  } finally {
+    await AppDataSource.destroy();
+  }
 }
 
-seed();
+void seed();

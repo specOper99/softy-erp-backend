@@ -1,13 +1,13 @@
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    Patch,
-    Post,
-    UseGuards,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
@@ -22,41 +22,41 @@ import { CatalogService } from '../services/catalog.service';
 @Controller('task-types')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TaskTypesController {
-    constructor(private readonly catalogService: CatalogService) { }
+  constructor(private readonly catalogService: CatalogService) {}
 
-    @Post()
-    @Roles(Role.ADMIN, Role.OPS_MANAGER)
-    @ApiOperation({ summary: 'Create a new task type' })
-    create(@Body() dto: CreateTaskTypeDto) {
-        return this.catalogService.createTaskType(dto);
-    }
+  @Post()
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Create a new task type' })
+  create(@Body() dto: CreateTaskTypeDto) {
+    return this.catalogService.createTaskType(dto);
+  }
 
-    @Get()
-    @ApiOperation({ summary: 'Get all task types' })
-    findAll() {
-        return this.catalogService.findAllTaskTypes();
-    }
+  @Get()
+  @ApiOperation({ summary: 'Get all task types' })
+  findAll() {
+    return this.catalogService.findAllTaskTypes();
+  }
 
-    @Get(':id')
-    @ApiOperation({ summary: 'Get task type by ID' })
-    findOne(@Param('id', ParseUUIDPipe) id: string) {
-        return this.catalogService.findTaskTypeById(id);
-    }
+  @Get(':id')
+  @ApiOperation({ summary: 'Get task type by ID' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.catalogService.findTaskTypeById(id);
+  }
 
-    @Patch(':id')
-    @Roles(Role.ADMIN, Role.OPS_MANAGER)
-    @ApiOperation({ summary: 'Update task type' })
-    update(
-        @Param('id', ParseUUIDPipe) id: string,
-        @Body() dto: UpdateTaskTypeDto,
-    ) {
-        return this.catalogService.updateTaskType(id, dto);
-    }
+  @Patch(':id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Update task type' })
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTaskTypeDto,
+  ) {
+    return this.catalogService.updateTaskType(id, dto);
+  }
 
-    @Delete(':id')
-    @Roles(Role.ADMIN)
-    @ApiOperation({ summary: 'Delete task type (Admin only)' })
-    remove(@Param('id', ParseUUIDPipe) id: string) {
-        return this.catalogService.deleteTaskType(id);
-    }
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Delete task type (Admin only)' })
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.catalogService.deleteTaskType(id);
+  }
 }

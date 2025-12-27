@@ -5,8 +5,8 @@ import { AuditLog } from './entities/audit-log.entity';
 
 @Global()
 @Module({
-    imports: [TypeOrmModule.forFeature([AuditLog])],
-    providers: [AuditService],
-    exports: [AuditService],
+  imports: [TypeOrmModule.forFeature([AuditLog])],
+  providers: [AuditService],
+  exports: [AuditService],
 })
-export class AuditModule { }
+export class AuditModule {}

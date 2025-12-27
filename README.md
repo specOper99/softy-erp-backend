@@ -11,7 +11,7 @@ docker compose up -d
 # 2. Install dependencies
 npm install
 
-# 3. Copy environment file
+# 3. Copy environment file and update it with your configuration
 cp .env.example .env
 
 # 4. Start development server

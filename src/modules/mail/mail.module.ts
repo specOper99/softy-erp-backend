@@ -6,34 +6,37 @@ import { join } from 'path';
 import { MailService } from './mail.service';
 
 @Module({
-    imports: [
-        MailerModule.forRootAsync({
-            imports: [ConfigModule],
-            inject: [ConfigService],
-            useFactory: (configService: ConfigService) => ({
-                transport: {
-                    host: configService.get('MAIL_HOST', 'smtp.gmail.com'),
-                    port: parseInt(configService.get('MAIL_PORT', '587')),
-                    secure: false,
-                    auth: {
-                        user: configService.get('MAIL_USER'),
-                        pass: configService.get('MAIL_PASS'),
-                    },
-                },
-                defaults: {
-                    from: configService.get('MAIL_FROM', '"Chapters Studio" <noreply@chapters.studio>'),
-                },
-                template: {
-                    dir: join(__dirname, 'templates'),
-                    adapter: new HandlebarsAdapter(),
-                    options: {
-                        strict: true,
-                    },
-                },
-            }),
-        }),
-    ],
-    providers: [MailService],
-    exports: [MailService],
+  imports: [
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        transport: {
+          host: configService.get('MAIL_HOST', 'smtp.gmail.com'),
+          port: parseInt(configService.get('MAIL_PORT', '587')),
+          secure: false,
+          auth: {
+            user: configService.get('MAIL_USER'),
+            pass: configService.get('MAIL_PASS'),
+          },
+        },
+        defaults: {
+          from: configService.get(
+            'MAIL_FROM',
+            '"Chapters Studio" <noreply@chapters.studio>',
+          ),
+        },
+        template: {
+          dir: join(__dirname, 'templates'),
+          adapter: new HandlebarsAdapter(),
+          options: {
+            strict: true,
+          },
+        },
+      }),
+    }),
+  ],
+  providers: [MailService],
+  exports: [MailService],
 })
-export class MailModule { }
+export class MailModule {}

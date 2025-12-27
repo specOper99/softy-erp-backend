@@ -8,13 +8,13 @@ import { HrController } from './hr.controller';
 import { HrService } from './hr.service';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Profile, EmployeeWallet]),
-        FinanceModule,
-        MailModule,
-    ],
-    controllers: [HrController],
-    providers: [HrService],
-    exports: [HrService],
+  imports: [
+    TypeOrmModule.forFeature([Profile, EmployeeWallet]),
+    FinanceModule,
+    MailModule,
+  ],
+  controllers: [HrController],
+  providers: [HrService],
+  exports: [HrService],
 })
-export class HrModule { }
+export class HrModule {}

@@ -5,7 +5,11 @@ import { Role } from '../../common/enums';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
-import { PackageStatsDto, RevenueSummaryDto, StaffPerformanceDto } from './dto/dashboard.dto';
+import {
+  PackageStatsDto,
+  RevenueSummaryDto,
+  StaffPerformanceDto,
+} from './dto/dashboard.dto';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth()
@@ -13,23 +17,23 @@ import { PackageStatsDto, RevenueSummaryDto, StaffPerformanceDto } from './dto/d
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.OPS_MANAGER)
 export class DashboardController {
-    constructor(private readonly dashboardService: DashboardService) { }
+  constructor(private readonly dashboardService: DashboardService) {}
 
-    @Get('summary')
-    @ApiOperation({ summary: 'Get monthly revenue vs payouts summary' })
-    async getSummary(): Promise<RevenueSummaryDto[]> {
-        return this.dashboardService.getRevenueSummary();
-    }
+  @Get('summary')
+  @ApiOperation({ summary: 'Get monthly revenue vs payouts summary' })
+  async getSummary(): Promise<RevenueSummaryDto[]> {
+    return this.dashboardService.getRevenueSummary();
+  }
 
-    @Get('staff-performance')
-    @ApiOperation({ summary: 'Get staff performance ranking' })
-    async getStaffPerformance(): Promise<StaffPerformanceDto[]> {
-        return this.dashboardService.getStaffPerformance();
-    }
+  @Get('staff-performance')
+  @ApiOperation({ summary: 'Get staff performance ranking' })
+  async getStaffPerformance(): Promise<StaffPerformanceDto[]> {
+    return this.dashboardService.getStaffPerformance();
+  }
 
-    @Get('package-stats')
-    @ApiOperation({ summary: 'Get service package popularity and revenue' })
-    async getPackageStats(): Promise<PackageStatsDto[]> {
-        return this.dashboardService.getPackageStats();
-    }
+  @Get('package-stats')
+  @ApiOperation({ summary: 'Get service package popularity and revenue' })
+  async getPackageStats(): Promise<PackageStatsDto[]> {
+    return this.dashboardService.getPackageStats();
+  }
 }

@@ -1,111 +1,111 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-    IsDateString,
-    IsEnum,
-    IsNumber,
-    IsOptional,
-    IsString,
-    IsUUID,
-    Min,
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
 } from 'class-validator';
 import { ReferenceType, TransactionType } from '../../../common/enums';
 
 // Transaction DTOs
 export class CreateTransactionDto {
-    @ApiProperty({ enum: TransactionType })
-    @IsEnum(TransactionType)
-    type: TransactionType;
+  @ApiProperty({ enum: TransactionType })
+  @IsEnum(TransactionType)
+  type: TransactionType;
 
-    @ApiProperty({ example: 1500.00 })
-    @IsNumber({ maxDecimalPlaces: 2 })
-    @Min(0)
-    amount: number;
+  @ApiProperty({ example: 1500.0 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  amount: number;
 
-    @ApiPropertyOptional({ example: 'Booking Payment' })
-    @IsString()
-    @IsOptional()
-    category?: string;
+  @ApiPropertyOptional({ example: 'Booking Payment' })
+  @IsString()
+  @IsOptional()
+  category?: string;
 
-    @ApiPropertyOptional()
-    @IsUUID()
-    @IsOptional()
-    referenceId?: string;
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  referenceId?: string;
 
-    @ApiPropertyOptional({ enum: ReferenceType })
-    @IsEnum(ReferenceType)
-    @IsOptional()
-    referenceType?: ReferenceType;
+  @ApiPropertyOptional({ enum: ReferenceType })
+  @IsEnum(ReferenceType)
+  @IsOptional()
+  referenceType?: ReferenceType;
 
-    @ApiPropertyOptional()
-    @IsString()
-    @IsOptional()
-    description?: string;
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  description?: string;
 
-    @ApiProperty()
-    @IsDateString()
-    transactionDate: string;
+  @ApiProperty()
+  @IsDateString()
+  transactionDate: string;
 }
 
 export class TransactionResponseDto {
-    @ApiProperty()
-    id: string;
+  @ApiProperty()
+  id: string;
 
-    @ApiProperty({ enum: TransactionType })
-    type: TransactionType;
+  @ApiProperty({ enum: TransactionType })
+  type: TransactionType;
 
-    @ApiProperty()
-    amount: number;
+  @ApiProperty()
+  amount: number;
 
-    @ApiPropertyOptional()
-    category: string;
+  @ApiPropertyOptional()
+  category: string;
 
-    @ApiPropertyOptional()
-    referenceId: string | null;
+  @ApiPropertyOptional()
+  referenceId: string | null;
 
-    @ApiPropertyOptional({ enum: ReferenceType })
-    referenceType: ReferenceType | null;
+  @ApiPropertyOptional({ enum: ReferenceType })
+  referenceType: ReferenceType | null;
 
-    @ApiPropertyOptional()
-    description: string;
+  @ApiPropertyOptional()
+  description: string;
 
-    @ApiProperty()
-    transactionDate: Date;
+  @ApiProperty()
+  transactionDate: Date;
 
-    @ApiProperty()
-    createdAt: Date;
+  @ApiProperty()
+  createdAt: Date;
 }
 
 // Wallet DTOs
 export class WalletResponseDto {
-    @ApiProperty()
-    id: string;
+  @ApiProperty()
+  id: string;
 
-    @ApiProperty()
-    userId: string;
+  @ApiProperty()
+  userId: string;
 
-    @ApiProperty()
-    pendingBalance: number;
+  @ApiProperty()
+  pendingBalance: number;
 
-    @ApiProperty()
-    payableBalance: number;
+  @ApiProperty()
+  payableBalance: number;
 
-    @ApiProperty()
-    updatedAt: Date;
+  @ApiProperty()
+  updatedAt: Date;
 }
 
 export class TransactionFilterDto {
-    @ApiPropertyOptional({ enum: TransactionType })
-    @IsEnum(TransactionType)
-    @IsOptional()
-    type?: TransactionType;
+  @ApiPropertyOptional({ enum: TransactionType })
+  @IsEnum(TransactionType)
+  @IsOptional()
+  type?: TransactionType;
 
-    @ApiPropertyOptional()
-    @IsDateString()
-    @IsOptional()
-    startDate?: string;
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
 
-    @ApiPropertyOptional()
-    @IsDateString()
-    @IsOptional()
-    endDate?: string;
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
 }

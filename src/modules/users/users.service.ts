@@ -8,92 +8,96 @@ import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
-    constructor(
-        @InjectRepository(User)
-        private readonly userRepository: Repository<User>,
-        private readonly auditService: AuditService,
-    ) { }
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly auditService: AuditService,
+  ) {}
 
-    async create(createUserDto: CreateUserDto): Promise<User> {
-        const passwordHash = await bcrypt.hash(createUserDto.password, 10);
-        const user = this.userRepository.create({
-            email: createUserDto.email,
-            passwordHash,
-            role: createUserDto.role,
-        });
-        const savedUser = await this.userRepository.save(user);
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const passwordHash = await bcrypt.hash(createUserDto.password, 10);
+    const user = this.userRepository.create({
+      email: createUserDto.email,
+      passwordHash,
+      role: createUserDto.role,
+    });
+    const savedUser = await this.userRepository.save(user);
 
-        await this.auditService.log({
-            action: 'CREATE',
-            entityName: 'User',
-            entityId: savedUser.id,
-            newValues: { email: savedUser.email, role: savedUser.role },
-        });
+    await this.auditService.log({
+      action: 'CREATE',
+      entityName: 'User',
+      entityId: savedUser.id,
+      newValues: { email: savedUser.email, role: savedUser.role },
+    });
 
-        return savedUser;
+    return savedUser;
+  }
+
+  async findAll(): Promise<User[]> {
+    return this.userRepository.find({
+      relations: ['profile', 'wallet'],
+    });
+  }
+
+  async findOne(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: ['profile', 'wallet'],
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email } });
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+    const user = await this.findOne(id);
+    const oldValues = { role: user.role, isActive: user.isActive };
+
+    Object.assign(user, updateUserDto);
+    const savedUser = await this.userRepository.save(user);
+
+    // Log role or status changes
+    if (
+      updateUserDto.role !== undefined ||
+      updateUserDto.isActive !== undefined
+    ) {
+      await this.auditService.log({
+        action: 'UPDATE',
+        entityName: 'User',
+        entityId: id,
+        oldValues,
+        newValues: { role: savedUser.role, isActive: savedUser.isActive },
+        notes:
+          updateUserDto.role !== oldValues.role
+            ? `Role changed from ${oldValues.role} to ${savedUser.role}`
+            : updateUserDto.isActive !== oldValues.isActive
+              ? `Account ${savedUser.isActive ? 'activated' : 'deactivated'}`
+              : undefined,
+      });
     }
 
-    async findAll(): Promise<User[]> {
-        return this.userRepository.find({
-            relations: ['profile', 'wallet'],
-        });
-    }
+    return savedUser;
+  }
 
-    async findOne(id: string): Promise<User> {
-        const user = await this.userRepository.findOne({
-            where: { id },
-            relations: ['profile', 'wallet'],
-        });
-        if (!user) {
-            throw new NotFoundException(`User with ID ${id} not found`);
-        }
-        return user;
-    }
+  async remove(id: string): Promise<void> {
+    const user = await this.findOne(id);
 
-    async findByEmail(email: string): Promise<User | null> {
-        return this.userRepository.findOne({ where: { email } });
-    }
+    await this.auditService.log({
+      action: 'DELETE',
+      entityName: 'User',
+      entityId: id,
+      oldValues: { email: user.email, role: user.role },
+    });
 
-    async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-        const user = await this.findOne(id);
-        const oldValues = { role: user.role, isActive: user.isActive };
+    await this.userRepository.softRemove(user);
+  }
 
-        Object.assign(user, updateUserDto);
-        const savedUser = await this.userRepository.save(user);
-
-        // Log role or status changes
-        if (updateUserDto.role !== undefined || updateUserDto.isActive !== undefined) {
-            await this.auditService.log({
-                action: 'UPDATE',
-                entityName: 'User',
-                entityId: id,
-                oldValues,
-                newValues: { role: savedUser.role, isActive: savedUser.isActive },
-                notes: updateUserDto.role !== oldValues.role
-                    ? `Role changed from ${oldValues.role} to ${savedUser.role}`
-                    : updateUserDto.isActive !== oldValues.isActive
-                        ? `Account ${savedUser.isActive ? 'activated' : 'deactivated'}`
-                        : undefined,
-            });
-        }
-
-        return savedUser;
-    }
-
-    async remove(id: string): Promise<void> {
-        const user = await this.findOne(id);
-
-        await this.auditService.log({
-            action: 'DELETE',
-            entityName: 'User',
-            entityId: id,
-            oldValues: { email: user.email, role: user.role },
-        });
-
-        await this.userRepository.softRemove(user);
-    }
-
-    async validatePassword(user: User, password: string): Promise<boolean> {
-        return bcrypt.compare(password, user.passwordHash);
-    }
+  async validatePassword(user: User, password: string): Promise<boolean> {
+    return bcrypt.compare(password, user.passwordHash);
+  }
 }

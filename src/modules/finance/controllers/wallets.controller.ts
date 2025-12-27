@@ -1,9 +1,9 @@
 import {
-    Controller,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    UseGuards,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
@@ -17,19 +17,19 @@ import { FinanceService } from '../services/finance.service';
 @Controller('wallets')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class WalletsController {
-    constructor(private readonly financeService: FinanceService) { }
+  constructor(private readonly financeService: FinanceService) {}
 
-    @Get()
-    @Roles(Role.ADMIN, Role.OPS_MANAGER)
-    @ApiOperation({ summary: 'Get all employee wallets' })
-    findAll() {
-        return this.financeService.getAllWallets();
-    }
+  @Get()
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all employee wallets' })
+  findAll() {
+    return this.financeService.getAllWallets();
+  }
 
-    @Get('user/:userId')
-    @Roles(Role.ADMIN, Role.OPS_MANAGER)
-    @ApiOperation({ summary: 'Get wallet by user ID' })
-    findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
-        return this.financeService.getWalletByUserId(userId);
-    }
+  @Get('user/:userId')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get wallet by user ID' })
+  findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.financeService.getWalletByUserId(userId);
+  }
 }

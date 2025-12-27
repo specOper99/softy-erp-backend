@@ -6,9 +6,9 @@ import { MediaService } from './media.service';
 import { StorageService } from './storage.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Attachment])],
-    controllers: [MediaController],
-    providers: [MediaService, StorageService],
-    exports: [MediaService, StorageService],
+  imports: [TypeOrmModule.forFeature([Attachment])],
+  controllers: [MediaController],
+  providers: [MediaService, StorageService],
+  exports: [MediaService, StorageService],
 })
-export class MediaModule { }
+export class MediaModule {}

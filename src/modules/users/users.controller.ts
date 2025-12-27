@@ -1,13 +1,13 @@
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    Patch,
-    Post,
-    UseGuards,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators';
@@ -22,42 +22,42 @@ import { UsersService } from './users.service';
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-    constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
-    @Post()
-    @Roles(Role.ADMIN)
-    @ApiOperation({ summary: 'Create a new user (Admin only)' })
-    create(@Body() createUserDto: CreateUserDto) {
-        return this.usersService.create(createUserDto);
-    }
+  @Post()
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Create a new user (Admin only)' })
+  create(@Body() createUserDto: CreateUserDto) {
+    return this.usersService.create(createUserDto);
+  }
 
-    @Get()
-    @Roles(Role.ADMIN, Role.OPS_MANAGER)
-    @ApiOperation({ summary: 'Get all users' })
-    findAll() {
-        return this.usersService.findAll();
-    }
+  @Get()
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all users' })
+  findAll() {
+    return this.usersService.findAll();
+  }
 
-    @Get(':id')
-    @ApiOperation({ summary: 'Get user by ID' })
-    findOne(@Param('id', ParseUUIDPipe) id: string) {
-        return this.usersService.findOne(id);
-    }
+  @Get(':id')
+  @ApiOperation({ summary: 'Get user by ID' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.findOne(id);
+  }
 
-    @Patch(':id')
-    @Roles(Role.ADMIN)
-    @ApiOperation({ summary: 'Update user (Admin only)' })
-    update(
-        @Param('id', ParseUUIDPipe) id: string,
-        @Body() updateUserDto: UpdateUserDto,
-    ) {
-        return this.usersService.update(id, updateUserDto);
-    }
+  @Patch(':id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update user (Admin only)' })
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.update(id, updateUserDto);
+  }
 
-    @Delete(':id')
-    @Roles(Role.ADMIN)
-    @ApiOperation({ summary: 'Delete user (Admin only)' })
-    remove(@Param('id', ParseUUIDPipe) id: string) {
-        return this.usersService.remove(id);
-    }
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Delete user (Admin only)' })
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.remove(id);
+  }
 }

@@ -12,7 +12,6 @@ import { initTracing } from './common/telemetry/tracing';
 // Initialize OpenTelemetry tracing
 initTracing();
 
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -81,4 +80,4 @@ async function bootstrap() {
 ========================================
   `);
 }
-bootstrap();
+void bootstrap();
