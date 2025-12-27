@@ -96,17 +96,9 @@
     "typescript-eslint": "^8.20.0"
   },
   "overrides": {
-    "@nestjs-modules/mailer": {
-      "nodemailer": "^7.0.12",
-      "glob": "^10.5.0",
-      "preview-email": {
-        "nodemailer": "^7.0.12",
-        "mailparser": {
-          "nodemailer": "^7.0.12"
-        }
-      },
-      "mjml": "npm:empty-npm-package@1.0.0"
-    }
+    "nodemailer": "^7.0.12",
+    "glob": "^10.5.0",
+    "mjml": "npm:empty-npm-package@1.0.0"
   },
   "jest": {
     "moduleFileExtensions": [
