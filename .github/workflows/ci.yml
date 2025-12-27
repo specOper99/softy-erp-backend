@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Create .env file
+        run: cp .env.example .env
+      
       - name: Run linter
         run: npm run lint
 
@@ -57,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Create .env file
+        run: cp .env.example .env
+      
       - name: Run tests
         run: npm run test
         env:
@@ -84,6 +90,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Create .env file
+        run: cp .env.example .env
+      
       - name: Build
         run: npm run build
       
@@ -103,6 +112,9 @@ jobs:
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      
+      - name: Create .env file
+        run: cp .env.example .env
       
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -131,6 +143,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Create .env file
+        run: cp .env.example .env
+      
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/node@master
         continue-on-error: true  # Don't fail build on vulnerabilities
@@ -149,6 +164,9 @@ jobs:
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      
+      - name: Create .env file
+        run: cp .env.example .env
       
       - name: Build Docker image
         run: docker build -t chapters-studio-erp:test .
