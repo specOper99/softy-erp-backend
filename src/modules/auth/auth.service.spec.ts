@@ -7,12 +7,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { Role } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { AccountLockoutService } from './services/account-lockout.service';
 
 // Test password constants - not real credentials, used only for unit test mocking
 const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD!;
@@ -45,6 +47,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
   const mockUsersService = {
     create: jest.fn(),
+    createWithManager: jest.fn(),
     findByEmail: jest.fn(),
     findOne: jest.fn(),
     validatePassword: jest.fn(),
@@ -52,6 +55,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
   const mockTenantsService = {
     create: jest.fn(),
+    createWithManager: jest.fn(),
     findBySlug: jest.fn(),
     findOne: jest.fn(),
   };
@@ -79,6 +83,22 @@ describe('AuthService - Comprehensive Tests', () => {
     find: jest.fn().mockResolvedValue([]),
   };
 
+  const mockQueryRunner = {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      create: jest.fn(),
+      save: jest.fn(),
+    },
+  };
+
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -90,6 +110,15 @@ describe('AuthService - Comprehensive Tests', () => {
         {
           provide: getRepositoryToken(RefreshToken),
           useValue: mockRefreshTokenRepository,
+        },
+        { provide: DataSource, useValue: mockDataSource },
+        {
+          provide: AccountLockoutService,
+          useValue: {
+            isLockedOut: jest.fn().mockResolvedValue({ locked: false }),
+            recordFailedAttempt: jest.fn().mockResolvedValue(false),
+            clearAttempts: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();
@@ -113,9 +142,9 @@ describe('AuthService - Comprehensive Tests', () => {
       mockTenantsService.findBySlug.mockRejectedValue(
         new NotFoundException('Not Found'),
       ); // Simulate not found which is caught and ignored
-      mockTenantsService.create.mockResolvedValue(mockTenant);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockResolvedValue(mockUser);
+      mockUsersService.createWithManager.mockResolvedValue(mockUser);
 
       const dto = {
         email: 'new@example.com',
@@ -127,16 +156,16 @@ describe('AuthService - Comprehensive Tests', () => {
       expect(result).toHaveProperty('accessToken', 'mock-jwt-token');
       expect(result).toHaveProperty('refreshToken');
       expect(result.user).toHaveProperty('email', mockUser.email);
-      expect(mockTenantsService.create).toHaveBeenCalled();
+      expect(mockTenantsService.createWithManager).toHaveBeenCalled();
     });
 
-    it('should call usersService.create with dto and tenantId', async () => {
+    it('should call usersService.createWithManager with dto and tenantId', async () => {
       mockTenantsService.findBySlug.mockRejectedValue(
         new NotFoundException('Not Found'),
       );
-      mockTenantsService.create.mockResolvedValue(mockTenant);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockResolvedValue(mockUser);
+      mockUsersService.createWithManager.mockResolvedValue(mockUser);
 
       const dto = {
         email: 'new@example.com',
@@ -145,7 +174,8 @@ describe('AuthService - Comprehensive Tests', () => {
       };
       await service.register(dto);
 
-      expect(mockUsersService.create).toHaveBeenCalledWith(
+      expect(mockUsersService.createWithManager).toHaveBeenCalledWith(
+        expect.anything(), // EntityManager
         expect.objectContaining({
           email: dto.email,
           tenantId: mockTenant.id,
@@ -157,9 +187,9 @@ describe('AuthService - Comprehensive Tests', () => {
       mockTenantsService.findBySlug.mockRejectedValue(
         new NotFoundException('Not Found'),
       );
-      mockTenantsService.create.mockResolvedValue(mockTenant);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockResolvedValue({
+      mockUsersService.createWithManager.mockResolvedValue({
         ...mockUser,
         role: Role.ADMIN,
       });
@@ -168,10 +198,9 @@ describe('AuthService - Comprehensive Tests', () => {
         email: 'admin@example.com',
         password: TEST_PASSWORD,
         companyName: 'Test Tenant',
-        // Role is ignored in register typically unless overridden internally, but let's assume implementation logic
       };
 
-      const result = await service.register(dto as any); // Type cast if RegisterDto doesn't have role
+      const result = await service.register(dto as any);
 
       expect(result.user.role).toBe(Role.ADMIN);
     });
@@ -180,9 +209,9 @@ describe('AuthService - Comprehensive Tests', () => {
       mockTenantsService.findBySlug.mockRejectedValue(
         new NotFoundException('Not Found'),
       );
-      mockTenantsService.create.mockResolvedValue(mockTenant);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockResolvedValue(mockUser);
+      mockUsersService.createWithManager.mockResolvedValue(mockUser);
 
       const dto = {
         email: 'new@example.com',
@@ -201,9 +230,9 @@ describe('AuthService - Comprehensive Tests', () => {
       mockTenantsService.findBySlug.mockRejectedValue(
         new NotFoundException('Not Found'),
       );
-      mockTenantsService.create.mockResolvedValue(mockTenant);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockResolvedValue(mockUser);
+      mockUsersService.createWithManager.mockResolvedValue(mockUser);
 
       const dto = {
         email: 'new@example.com',
@@ -380,6 +409,7 @@ describe('AuthService - Comprehensive Tests', () => {
         sub: 'test-uuid-123',
         email: 'test@example.com',
         role: Role.FIELD_STAFF,
+        tenantId: 'tenant-123',
       };
       const result = await service.validateUser(payload);
 
@@ -393,6 +423,7 @@ describe('AuthService - Comprehensive Tests', () => {
         sub: 'invalid-id',
         email: 'test@example.com',
         role: Role.FIELD_STAFF,
+        tenantId: 'tenant-123',
       };
       await expect(service.validateUser(payload)).rejects.toThrow(
         UnauthorizedException,
@@ -409,6 +440,7 @@ describe('AuthService - Comprehensive Tests', () => {
         sub: 'test-uuid-123',
         email: 'test@example.com',
         role: Role.FIELD_STAFF,
+        tenantId: 'tenant-123',
       };
       await expect(service.validateUser(payload)).rejects.toThrow(
         UnauthorizedException,
@@ -464,9 +496,9 @@ describe('AuthService - Comprehensive Tests', () => {
       mockTenantsService.findBySlug.mockRejectedValue(
         new BadRequestException('Not Found'),
       );
-      mockTenantsService.create.mockResolvedValue(mockTenant);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockRejectedValue(new DBError());
+      mockUsersService.createWithManager.mockRejectedValue(new DBError());
       await expect(
         service.register({
           email: 'taken@e.com',
@@ -480,9 +512,11 @@ describe('AuthService - Comprehensive Tests', () => {
       mockTenantsService.findBySlug.mockRejectedValue(
         new NotFoundException('Not Found'),
       );
-      mockTenantsService.create.mockResolvedValue(mockTenant);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
-      mockUsersService.create.mockRejectedValue(new Error('DB Down'));
+      mockUsersService.createWithManager.mockRejectedValue(
+        new Error('DB Down'),
+      );
       await expect(
         service.register({ email: 'e@e.com', password: 'p', companyName: 'T' }),
       ).rejects.toThrow('DB Down');

@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -184,9 +185,10 @@ describe('FinanceService - Comprehensive Tests', () => {
       expect(result).toEqual(mockTransaction);
     });
 
-    it('should return null for invalid id', async () => {
-      const result = await service.findTransactionById('invalid-id');
-      expect(result).toBeNull();
+    it('should throw NotFoundException for invalid id', async () => {
+      await expect(service.findTransactionById('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

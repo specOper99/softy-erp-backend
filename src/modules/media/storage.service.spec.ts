@@ -1,10 +1,22 @@
-import { S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StorageService } from './storage.service';
 
-jest.mock('@aws-sdk/client-s3');
+const mockSend = jest.fn();
+
+jest.mock('@aws-sdk/client-s3', () => {
+  return {
+    S3Client: jest.fn().mockImplementation(() => {
+      return {
+        send: mockSend,
+      };
+    }),
+    PutObjectCommand: jest.fn(),
+    DeleteObjectCommand: jest.fn(),
+    GetObjectCommand: jest.fn(),
+  };
+});
 jest.mock('@aws-sdk/s3-request-presigner');
 
 describe('StorageService', () => {
@@ -20,6 +32,8 @@ describe('StorageService', () => {
   };
 
   beforeEach(async () => {
+    mockSend.mockClear();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageService,
@@ -30,6 +44,12 @@ describe('StorageService', () => {
             getOrThrow: jest.fn(
               (key: keyof typeof mockConfig) => mockConfig[key],
             ),
+          },
+        },
+        {
+          provide: 'CIRCUIT_BREAKER_S3',
+          useValue: {
+            fire: jest.fn((fn) => fn()),
           },
         },
       ],
@@ -51,7 +71,7 @@ describe('StorageService', () => {
 
       const result = await service.uploadFile(buffer, key, mimeType);
 
-      expect(S3Client.prototype.send).toHaveBeenCalled();
+      expect(mockSend).toHaveBeenCalled();
       expect(result.url).toContain('test-bucket/test-key');
     });
   });
@@ -66,7 +86,7 @@ describe('StorageService', () => {
   describe('deleteFile', () => {
     it('should send DeleteObjectCommand', async () => {
       await service.deleteFile('test-key');
-      expect(S3Client.prototype.send).toHaveBeenCalled();
+      expect(mockSend).toHaveBeenCalled();
     });
   });
 
@@ -89,7 +109,7 @@ describe('StorageService', () => {
   describe('getFileStream', () => {
     it('should get file stream', async () => {
       const mockStream = { on: jest.fn() };
-      (S3Client.prototype.send as jest.Mock).mockResolvedValue({
+      mockSend.mockResolvedValue({
         Body: mockStream,
       });
       const result = await service.getFileStream('key');

@@ -37,6 +37,12 @@ describe('MailService', () => {
             get: jest.fn((key: string) => mockConfig[key]),
           },
         },
+        {
+          provide: 'CIRCUIT_BREAKER_MAIL',
+          useValue: {
+            fire: jest.fn((fn) => fn()),
+          },
+        },
       ],
     }).compile();
 
@@ -70,7 +76,9 @@ describe('MailService', () => {
 
     it('should not send email if disabled', async () => {
       mockConfig['MAIL_USER'] = null;
-      const disabledService = new MailService(mailerService, configService);
+      const disabledService = new MailService(mailerService, configService, {
+        fire: jest.fn((fn) => fn()),
+      } as any);
 
       await disabledService.sendBookingConfirmation(data);
       expect(mailerService.sendMail).not.toHaveBeenCalled();

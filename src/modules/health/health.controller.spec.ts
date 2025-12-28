@@ -6,6 +6,7 @@ import {
 } from '@nestjs/terminus';
 import { Test, TestingModule } from '@nestjs/testing';
 import { HealthController } from './health.controller';
+import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 
 describe('HealthController', () => {
   let controller: HealthController;
@@ -50,6 +51,22 @@ describe('HealthController', () => {
             checkStorage: jest
               .fn()
               .mockResolvedValue({ disk: { status: 'up' } }),
+          },
+        },
+        {
+          provide: S3HealthIndicator,
+          useValue: {
+            isHealthy: jest
+              .fn()
+              .mockResolvedValue({ storage_s3: { status: 'up' } }),
+          },
+        },
+        {
+          provide: SmtpHealthIndicator,
+          useValue: {
+            isHealthy: jest
+              .fn()
+              .mockResolvedValue({ email_smtp: { status: 'up' } }),
           },
         },
       ],

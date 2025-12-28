@@ -118,6 +118,30 @@ describe('UsersService - Comprehensive Tests', () => {
       const result = await service.create(dto);
       expect(result).toHaveProperty('id');
     });
+
+    it('should create user with a manager (transactional)', async () => {
+      const mockManager = {
+        create: jest.fn().mockImplementation((_entity, data) => data),
+        save: jest
+          .fn()
+          .mockImplementation((data) =>
+            Promise.resolve({ id: 'managed-uuid', ...data }),
+          ),
+      } as any;
+
+      const dto = {
+        email: 'managed@example.com',
+        password: TEST_PASSWORD,
+        role: Role.FIELD_STAFF,
+        tenantId: 'tenant-123',
+      };
+
+      const result = await service.createWithManager(mockManager, dto);
+
+      expect(result).toHaveProperty('id', 'managed-uuid');
+      expect(mockManager.create).toHaveBeenCalled();
+      expect(mockManager.save).toHaveBeenCalled();
+    });
   });
 
   // ============ FIND OPERATIONS TESTS ============
