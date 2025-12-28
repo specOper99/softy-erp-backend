@@ -10,8 +10,8 @@ import {
   TransactionType,
 } from '../src/common/enums';
 import { TransformInterceptor } from '../src/common/interceptors';
-
 import { MailService } from '../src/modules/mail/mail.service';
+import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests
 class MockThrottlerGuard extends ThrottlerGuard {
@@ -69,20 +69,27 @@ describe('Workflow Integration Tests (E2E)', () => {
 
     _dataSource = moduleFixture.get(DataSource);
 
+    // Seed Test DB and Get Tenant ID
+    const { tenantId } = await seedTestDatabase(_dataSource);
+    (global as any).testTenantId = tenantId;
+
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Tenant-ID', tenantId)
       .send({ email: 'admin@chapters.studio', password: adminPassword });
     adminToken = adminLoginRes.body.data.accessToken;
 
     // Login as staff (seeded user)
     const staffLoginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Tenant-ID', tenantId)
       .send({
         email: 'john.photographer@chapters.studio',
         password: staffPassword,
       });
     staffToken = staffLoginRes.body.data.accessToken;
+
     staffUserId = staffLoginRes.body.data.user.id;
   });
 
@@ -99,7 +106,8 @@ describe('Workflow Integration Tests (E2E)', () => {
       // Get a package ID from catalog
       const packagesRes = await request(app.getHttpServer())
         .get('/api/v1/packages')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       // Handle wrapped response format { data: [...] }
       const packages = packagesRes.body.data || packagesRes.body;
       packageId = Array.isArray(packages) ? packages[0]?.id : undefined;
@@ -115,6 +123,8 @@ describe('Workflow Integration Tests (E2E)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .send({
           clientName: 'Integration Test Client',
           clientEmail: 'test@integration.com',
@@ -142,8 +152,8 @@ describe('Workflow Integration Tests (E2E)', () => {
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       if (res.status !== 200) {
         console.log('Confirm booking response:', res.status, res.body);
       }
@@ -162,8 +172,8 @@ describe('Workflow Integration Tests (E2E)', () => {
 
       const res = await request(app.getHttpServer())
         .get('/api/v1/tasks')
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       // Handle wrapped response format { data: [...] }
       const tasks = res.body.data || res.body;
       const bookingTasks = Array.isArray(tasks)
@@ -181,8 +191,8 @@ describe('Workflow Integration Tests (E2E)', () => {
 
       const res = await request(app.getHttpServer())
         .get('/api/v1/transactions')
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       expect(res.status).toBe(200);
       // Handle wrapped response format { data: [...] }
       const transactions = res.body.data || res.body;
@@ -204,8 +214,8 @@ describe('Workflow Integration Tests (E2E)', () => {
       // Get first pending task and assign to staff
       const tasksRes = await request(app.getHttpServer())
         .get('/api/v1/tasks')
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       // Handle wrapped response format { data: [...] }
       const tasks = tasksRes.body.data || tasksRes.body;
       const pendingTask = Array.isArray(tasks)
@@ -220,6 +230,8 @@ describe('Workflow Integration Tests (E2E)', () => {
           await request(app.getHttpServer())
             .patch(`/api/v1/tasks/${taskId}/assign`)
             .set('Authorization', `Bearer ${adminToken}`)
+            .set('X-Tenant-ID', (global as any).testTenantId)
+
             .send({ userId: staffUserId });
         }
       }
@@ -233,8 +245,8 @@ describe('Workflow Integration Tests (E2E)', () => {
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/tasks/${taskId}/start`)
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       expect(res.status).toBe(200);
       expect(res.body.data.status).toBe(TaskStatus.IN_PROGRESS);
     });
@@ -247,8 +259,8 @@ describe('Workflow Integration Tests (E2E)', () => {
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/tasks/${taskId}/complete`)
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       expect(res.status).toBe(200);
       expect(res.body.data.walletUpdated).toBe(true);
       expect(res.body.data.commissionAccrued).toBeGreaterThan(0);
@@ -257,8 +269,8 @@ describe('Workflow Integration Tests (E2E)', () => {
     it('should have updated wallet payable balance', async () => {
       const res = await request(app.getHttpServer())
         .get(`/api/v1/wallets/user/${staffUserId}`)
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       expect(res.status).toBe(200);
       expect(parseFloat(res.body.data.payableBalance)).toBeGreaterThan(0);
     });
@@ -269,8 +281,8 @@ describe('Workflow Integration Tests (E2E)', () => {
     it('should run payroll and create transactions', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/hr/payroll/run')
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       expect(res.status).toBe(201);
       expect(res.body.data.totalEmployees).toBeGreaterThan(0);
       expect(res.body.data.totalPayout).toBeGreaterThan(0);
@@ -280,8 +292,8 @@ describe('Workflow Integration Tests (E2E)', () => {
     it('should have reset payable balances after payroll', async () => {
       const res = await request(app.getHttpServer())
         .get(`/api/v1/wallets/user/${staffUserId}`)
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       expect(res.status).toBe(200);
       expect(parseFloat(res.body.data.payableBalance)).toBe(0);
     });
@@ -289,8 +301,8 @@ describe('Workflow Integration Tests (E2E)', () => {
     it('should have created payroll transactions', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/transactions?type=PAYROLL')
-        .set('Authorization', `Bearer ${adminToken}`);
-
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId);
       expect(res.status).toBe(200);
       // Handle wrapped response format { data: [...] }
       const transactions = res.body.data || res.body;
@@ -306,6 +318,8 @@ describe('Workflow Integration Tests (E2E)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/hr/payroll/run')
         .set('Authorization', `Bearer ${staffToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .expect(403);
     });
 

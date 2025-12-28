@@ -20,6 +20,7 @@ export class UsersService {
       email: createUserDto.email,
       passwordHash,
       role: createUserDto.role,
+      tenantId: createUserDto['tenantId'], // Passed optionally or securely
     });
     const savedUser = await this.userRepository.save(user);
 
@@ -50,8 +51,10 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { email } });
+  async findByEmail(email: string, tenantId?: string): Promise<User | null> {
+    const where: { email: string; tenantId?: string } = { email };
+    if (tenantId) where.tenantId = tenantId;
+    return this.userRepository.findOne({ where });
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {

@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { BookingStatus } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceService } from '../finance/services/finance.service';
@@ -128,6 +129,10 @@ describe('BookingsService - Comprehensive Tests', () => {
         return Promise.resolve({ ...mockBooking });
       return Promise.resolve(null);
     });
+
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
   });
 
   // ============ CREATE BOOKING TESTS ============

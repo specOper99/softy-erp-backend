@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { TaskStatus } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
@@ -24,15 +25,18 @@ export class TasksService {
   ) {}
 
   async findAll(): Promise<Task[]> {
+    const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
+      where: { tenantId },
       relations: ['booking', 'taskType', 'assignedUser'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: string): Promise<Task> {
+    const tenantId = TenantContextService.getTenantId();
     const task = await this.taskRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
       relations: ['booking', 'taskType', 'assignedUser'],
     });
     if (!task) {
@@ -42,15 +46,17 @@ export class TasksService {
   }
 
   async findByBooking(bookingId: string): Promise<Task[]> {
+    const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
-      where: { bookingId },
+      where: { bookingId, tenantId },
       relations: ['taskType', 'assignedUser'],
     });
   }
 
   async findByUser(userId: string): Promise<Task[]> {
+    const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
-      where: { assignedUserId: userId },
+      where: { assignedUserId: userId, tenantId },
       relations: ['booking', 'taskType'],
       order: { dueDate: 'ASC' },
     });

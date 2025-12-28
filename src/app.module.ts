@@ -13,7 +13,9 @@ import { databaseConfig } from './config';
 import { AppCacheModule } from './common/cache/cache.module';
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { ShutdownService } from './common/services/shutdown.service';
+import { TenantsModule } from './modules/tenants/tenants.module';
 
 // Modules
 import { AuditModule } from './modules/audit/audit.module';
@@ -100,6 +102,7 @@ import authConfig from './config/auth.config';
     AuditModule,
     MediaModule,
     HealthModule,
+    TenantsModule,
   ],
   providers: [
     // Apply rate limiting globally (disabled in test environment)
@@ -118,5 +121,6 @@ import authConfig from './config/auth.config';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+    consumer.apply(TenantMiddleware).forRoutes('*');
   }
 }

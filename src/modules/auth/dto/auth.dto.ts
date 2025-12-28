@@ -21,6 +21,10 @@ export class RegisterDto {
   @IsString()
   @MinLength(6)
   password: string;
+
+  @ApiProperty({ example: 'Acme Studio' })
+  @IsString()
+  companyName: string;
 }
 
 export class RefreshTokenDto {
@@ -55,6 +59,7 @@ export class AuthResponseDto {
     id: string;
     email: string;
     role: string;
+    tenantId: string;
   };
 }
 

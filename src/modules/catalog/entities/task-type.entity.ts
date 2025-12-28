@@ -1,19 +1,10 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Task } from '../../tasks/entities/task.entity';
 import { PackageItem } from './package-item.entity';
 
 @Entity('task_types')
-export class TaskType {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class TaskType extends BaseTenantEntity {
   @Column()
   name: string;
 
@@ -31,12 +22,6 @@ export class TaskType {
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
 
   @OneToMany(() => PackageItem, (item) => item.taskType)
   packageItems: PackageItem[];

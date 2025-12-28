@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { PackageItem } from './entities/package-item.entity';
 import { ServicePackage } from './entities/service-package.entity';
@@ -110,6 +111,10 @@ describe('CatalogService', () => {
     }).compile();
 
     service = module.get<CatalogService>(CatalogService);
+
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
   });
 
   afterEach(() => {
@@ -123,7 +128,12 @@ describe('CatalogService', () => {
         const dto = { name: 'New Package', description: 'Test', price: 1000 };
         const result = await service.createPackage(dto);
         expect(result).toHaveProperty('id');
-        expect(mockPackageRepository.create).toHaveBeenCalledWith(dto);
+        expect(mockPackageRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ...dto,
+            tenantId: 'tenant-123',
+          }),
+        );
       });
 
       it('should handle zero price package', async () => {

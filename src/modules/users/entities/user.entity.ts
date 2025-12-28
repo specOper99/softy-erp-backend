@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -15,12 +16,16 @@ import { Profile } from '../../hr/entities/profile.entity';
 import { Task } from '../../tasks/entities/task.entity';
 
 @Entity('users')
+@Index(['email', 'tenantId'], { unique: true })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ unique: true })
   email: string;
+
+  @Column({ name: 'tenant_id', nullable: true }) // Nullable for migration, but strict later
+  tenantId: string;
 
   @Column({ name: 'password_hash' })
   @Exclude()

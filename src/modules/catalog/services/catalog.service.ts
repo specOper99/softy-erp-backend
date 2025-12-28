@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import {
   AddPackageItemsDto,
@@ -27,7 +28,8 @@ export class CatalogService {
 
   // Service Package Methods
   async createPackage(dto: CreateServicePackageDto): Promise<ServicePackage> {
-    const pkg = this.packageRepository.create(dto);
+    const tenantId = TenantContextService.getTenantId();
+    const pkg = this.packageRepository.create({ ...dto, tenantId });
     const savedPkg = await this.packageRepository.save(pkg);
 
     await this.auditService.log({
@@ -41,14 +43,17 @@ export class CatalogService {
   }
 
   async findAllPackages(): Promise<ServicePackage[]> {
+    const tenantId = TenantContextService.getTenantId();
     return this.packageRepository.find({
+      where: { tenantId },
       relations: ['packageItems', 'packageItems.taskType'],
     });
   }
 
   async findPackageById(id: string): Promise<ServicePackage> {
+    const tenantId = TenantContextService.getTenantId();
     const pkg = await this.packageRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
       relations: ['packageItems', 'packageItems.taskType'],
     });
     if (!pkg) {
@@ -115,11 +120,13 @@ export class CatalogService {
     dto: AddPackageItemsDto,
   ): Promise<PackageItem[]> {
     await this.findPackageById(packageId);
+    const tenantId = TenantContextService.getTenantId();
     const items = dto.items.map((item) =>
       this.packageItemRepository.create({
         packageId,
         taskTypeId: item.taskTypeId,
         quantity: item.quantity,
+        tenantId,
       }),
     );
     const savedItems = await this.packageItemRepository.save(items);
@@ -136,8 +143,9 @@ export class CatalogService {
   }
 
   async removePackageItem(itemId: string): Promise<void> {
+    const tenantId = TenantContextService.getTenantId();
     const item = await this.packageItemRepository.findOne({
-      where: { id: itemId },
+      where: { id: itemId, tenantId },
     });
     if (!item) {
       throw new NotFoundException(`PackageItem with ID ${itemId} not found`);
@@ -155,7 +163,8 @@ export class CatalogService {
 
   // Task Type Methods
   async createTaskType(dto: CreateTaskTypeDto): Promise<TaskType> {
-    const taskType = this.taskTypeRepository.create(dto);
+    const tenantId = TenantContextService.getTenantId();
+    const taskType = this.taskTypeRepository.create({ ...dto, tenantId });
     const savedTaskType = await this.taskTypeRepository.save(taskType);
 
     await this.auditService.log({
@@ -172,11 +181,15 @@ export class CatalogService {
   }
 
   async findAllTaskTypes(): Promise<TaskType[]> {
-    return this.taskTypeRepository.find();
+    const tenantId = TenantContextService.getTenantId();
+    return this.taskTypeRepository.find({ where: { tenantId } });
   }
 
   async findTaskTypeById(id: string): Promise<TaskType> {
-    const taskType = await this.taskTypeRepository.findOne({ where: { id } });
+    const tenantId = TenantContextService.getTenantId();
+    const taskType = await this.taskTypeRepository.findOne({
+      where: { id, tenantId },
+    });
     if (!taskType) {
       throw new NotFoundException(`TaskType with ID ${id} not found`);
     }

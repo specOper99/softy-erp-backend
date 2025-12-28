@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { TaskStatus } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
@@ -84,6 +85,10 @@ describe('TasksService - Comprehensive Tests', () => {
       }
       return Promise.resolve(null);
     });
+
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
   });
 
   // ============ FIND OPERATIONS TESTS ============
@@ -94,6 +99,7 @@ describe('TasksService - Comprehensive Tests', () => {
       expect(mockTaskRepository.find).toHaveBeenCalledWith({
         relations: ['booking', 'taskType', 'assignedUser'],
         order: { createdAt: 'DESC' },
+        where: { tenantId: 'tenant-123' },
       });
     });
 

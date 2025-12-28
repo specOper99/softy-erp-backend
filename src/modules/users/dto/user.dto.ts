@@ -21,7 +21,13 @@ export class CreateUserDto {
   @ApiPropertyOptional({ enum: Role, default: Role.FIELD_STAFF })
   @IsEnum(Role)
   @IsOptional()
+  @IsEnum(Role)
+  @IsOptional()
   role?: Role;
+
+  @IsString()
+  @IsOptional()
+  tenantId?: string;
 }
 
 export class UpdateUserDto {

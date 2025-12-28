@@ -11,6 +11,7 @@ import {
   TaskStatus,
   TransactionType,
 } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceService } from '../finance/services/finance.service';
@@ -37,9 +38,10 @@ export class BookingsService {
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
+    const tenantId = TenantContextService.getTenantId();
     // Validate package exists and get price
     const pkg = await this.packageRepository.findOne({
-      where: { id: dto.packageId },
+      where: { id: dto.packageId, tenantId },
     });
     if (!pkg) {
       throw new NotFoundException(
@@ -56,21 +58,25 @@ export class BookingsService {
       notes: dto.notes,
       totalPrice: pkg.price,
       status: BookingStatus.DRAFT,
+      tenantId,
     });
 
     return this.bookingRepository.save(booking);
   }
 
   async findAll(): Promise<Booking[]> {
+    const tenantId = TenantContextService.getTenantId();
     return this.bookingRepository.find({
+      where: { tenantId },
       relations: ['servicePackage', 'tasks'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: string): Promise<Booking> {
+    const tenantId = TenantContextService.getTenantId();
     const booking = await this.bookingRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
       relations: [
         'servicePackage',
         'servicePackage.packageItems',
@@ -151,6 +157,7 @@ export class BookingsService {
             status: TaskStatus.PENDING,
             commissionSnapshot: item.taskType?.defaultCommissionAmount || 0,
             dueDate: booking.eventDate,
+            tenantId: booking.tenantId, // Inherit tenant from booking
           });
           const savedTask = await queryRunner.manager.save(task);
           createdTasks.push(savedTask);

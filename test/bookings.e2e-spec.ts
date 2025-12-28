@@ -1,9 +1,11 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
+import { seedTestDatabase } from './utils/seed-data';
 
 describe('Bookings Workflow E2E Tests', () => {
   let app: INestApplication;
@@ -48,9 +50,14 @@ describe('Bookings Workflow E2E Tests', () => {
     app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
+    // Seed Test DB and Get Tenant ID
+    const dataSource = app.get(DataSource);
+    const { tenantId } = await seedTestDatabase(dataSource);
+
     // Login as seeded admin user
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Tenant-ID', tenantId)
       .send({
         email: 'admin@chapters.studio',
         password: adminPassword,
@@ -60,8 +67,12 @@ describe('Bookings Workflow E2E Tests', () => {
     // Get existing package from seed data
     const packagesRes = await request(app.getHttpServer())
       .get('/api/v1/packages')
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Tenant-ID', tenantId);
     packageId = packagesRes.body.data[0]?.id;
+
+    // Store tenantId for tests
+    (global as any).testTenantId = tenantId;
   });
 
   afterAll(async () => {
@@ -73,6 +84,10 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .send({
           clientName: 'John Doe',
           clientPhone: '+1234567890',
@@ -92,6 +107,10 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get(`/api/v1/bookings/${bookingId}`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .expect(200);
 
       expect(response.body.data.clientName).toBe('John Doe');
@@ -101,6 +120,10 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .expect(200);
 
       expect(response.body.data.booking.status).toBe('CONFIRMED');
@@ -112,6 +135,10 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .expect(200);
 
       const tasks = response.body.data || response.body;
@@ -124,6 +151,10 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/transactions')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .expect(200);
 
       const transactions = response.body.data || response.body;
@@ -139,6 +170,8 @@ describe('Bookings Workflow E2E Tests', () => {
       await request(app.getHttpServer())
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .send({
           clientName: 'John',
           // Missing eventDate and packageId
@@ -150,6 +183,8 @@ describe('Bookings Workflow E2E Tests', () => {
       await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
         .set('Authorization', `Bearer ${adminToken}`)
+        .set('X-Tenant-ID', (global as any).testTenantId)
+
         .expect(400);
     });
   });

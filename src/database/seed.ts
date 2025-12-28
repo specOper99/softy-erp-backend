@@ -32,6 +32,7 @@ import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.enti
 import { Transaction } from '../modules/finance/entities/transaction.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
 import { Task } from '../modules/tasks/entities/task.entity';
+import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
 
 // Create data source
@@ -43,6 +44,7 @@ const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
   entities: [
+    Tenant,
     User,
     Profile,
     EmployeeWallet,
@@ -64,6 +66,7 @@ async function seed() {
     console.log('✅ Database connected\n');
 
     // Get repositories
+    const tenantRepo = AppDataSource.getRepository(Tenant);
     const userRepo = AppDataSource.getRepository(User);
     const profileRepo = AppDataSource.getRepository(Profile);
     const walletRepo = AppDataSource.getRepository(EmployeeWallet);
@@ -71,10 +74,29 @@ async function seed() {
     const taskTypeRepo = AppDataSource.getRepository(TaskType);
     const packageItemRepo = AppDataSource.getRepository(PackageItem);
 
+    // ============ 0. CREATE DEFAULT TENANT ============
+    console.log('🏢 Creating default tenant...');
+    let mainTenant = await tenantRepo.findOne({
+      where: { slug: 'chapters-studio-hq' },
+    });
+
+    if (!mainTenant) {
+      mainTenant = tenantRepo.create({
+        name: 'Chapters Studio HQ',
+        slug: 'chapters-studio-hq',
+      });
+      mainTenant = await tenantRepo.save(mainTenant);
+      console.log('   ✅ Tenant created: Chapters Studio HQ');
+    } else {
+      console.log('   ⏭️  Tenant already exists');
+    }
+
+    const tenantId = mainTenant.id;
+
     // ============ 1. CREATE ADMIN USER ============
     console.log('👤 Creating admin user...');
     const existingAdmin = await userRepo.findOne({
-      where: { email: 'admin@chapters.studio' },
+      where: { email: 'admin@chapters.studio' }, // Unique constraint is (email, tenantId) typically, but we check email + tenant
     });
 
     let _adminUser: User;
@@ -88,6 +110,7 @@ async function seed() {
         passwordHash,
         role: Role.ADMIN,
         isActive: true,
+        tenantId,
       });
       _adminUser = await userRepo.save(_adminUser);
       console.log('   ✅ Admin user created: admin@chapters.studio');
@@ -134,10 +157,10 @@ async function seed() {
     const taskTypes: TaskType[] = [];
     for (const data of taskTypesData) {
       const existing = await taskTypeRepo.findOne({
-        where: { name: data.name },
+        where: { name: data.name, tenantId },
       });
       if (!existing) {
-        const taskType = taskTypeRepo.create(data);
+        const taskType = taskTypeRepo.create({ ...data, tenantId });
         taskTypes.push(await taskTypeRepo.save(taskType));
         console.log(`   ✅ Created: ${data.name}`);
       } else {
@@ -192,12 +215,15 @@ async function seed() {
     ];
 
     for (const pkgData of packagesData) {
-      let pkg = await packageRepo.findOne({ where: { name: pkgData.name } });
+      let pkg = await packageRepo.findOne({
+        where: { name: pkgData.name, tenantId },
+      });
       if (!pkg) {
         pkg = packageRepo.create({
           name: pkgData.name,
           description: pkgData.description,
           price: pkgData.price,
+          tenantId,
         });
         pkg = await packageRepo.save(pkg);
         console.log(`   ✅ Created package: ${pkgData.name}`);
@@ -212,6 +238,7 @@ async function seed() {
               packageId: pkg.id,
               taskTypeId: taskType.id,
               quantity: itemData.quantity,
+              tenantId,
             });
             await packageItemRepo.save(item);
           }
@@ -259,6 +286,7 @@ async function seed() {
           passwordHash,
           role: Role.FIELD_STAFF,
           isActive: true,
+          tenantId,
         });
         user = await userRepo.save(user);
         console.log(`   ✅ Created user: ${data.email}`);
@@ -279,6 +307,7 @@ async function seed() {
           userId: user.id,
           pendingBalance: 0,
           payableBalance: 0,
+          tenantId,
         });
         await walletRepo.save(wallet);
       } else {
@@ -301,6 +330,7 @@ async function seed() {
         passwordHash,
         role: Role.OPS_MANAGER,
         isActive: true,
+        tenantId,
       });
       await userRepo.save(opsUser);
       console.log('   ✅ Created: ops@chapters.studio');
@@ -311,6 +341,7 @@ async function seed() {
     console.log('\n========================================');
     console.log('🎉 Seed completed successfully!');
     console.log('========================================\n');
+    console.log('Tenant: Chapters Studio HQ (chapters-studio-hq)');
     console.log('Login credentials:');
     console.log('  Admin:    admin@chapters.studio / [SEED_ADMIN_PASSWORD]');
     console.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');

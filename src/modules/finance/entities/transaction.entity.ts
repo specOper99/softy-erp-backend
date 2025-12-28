@@ -1,16 +1,10 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../../common/enums';
 
-@Entity('transactions')
-export class Transaction {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 
+@Entity('transactions')
+export class Transaction extends BaseTenantEntity {
   @Column({
     type: 'enum',
     enum: TransactionType,
@@ -39,7 +33,4 @@ export class Transaction {
 
   @Column({ name: 'transaction_date', type: 'timestamptz' })
   transactionDate: Date;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
 }

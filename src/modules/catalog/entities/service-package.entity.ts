@@ -1,19 +1,10 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { PackageItem } from './package-item.entity';
 
 @Entity('service_packages')
-export class ServicePackage {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class ServicePackage extends BaseTenantEntity {
   @Column()
   name: string;
 
@@ -25,12 +16,6 @@ export class ServicePackage {
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
 
   @OneToMany(() => PackageItem, (item) => item.servicePackage)
   packageItems: PackageItem[];

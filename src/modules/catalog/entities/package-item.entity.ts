@@ -1,19 +1,10 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { ServicePackage } from './service-package.entity';
 import { TaskType } from './task-type.entity';
 
 @Entity('package_items')
-export class PackageItem {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class PackageItem extends BaseTenantEntity {
   @Column({ name: 'package_id' })
   packageId: string;
 
@@ -22,9 +13,6 @@ export class PackageItem {
 
   @Column({ type: 'integer', default: 1 })
   quantity: number;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
 
   @ManyToOne(() => ServicePackage, (pkg) => pkg.packageItems, {
     onDelete: 'CASCADE',

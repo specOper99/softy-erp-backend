@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +10,9 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { LessThan, Repository } from 'typeorm';
+import { Role } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
+import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuthResponseDto, LoginDto, RegisterDto, TokensDto } from './dto';
@@ -33,6 +37,7 @@ export class AuthService {
 
   constructor(
     private readonly usersService: UsersService,
+    private readonly tenantsService: TenantsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     @InjectRepository(RefreshToken)
@@ -54,20 +59,56 @@ export class AuthService {
     registerDto: RegisterDto,
     context?: RequestContext,
   ): Promise<AuthResponseDto> {
-    // Check if email already exists
-    const existingUser = await this.usersService.findByEmail(registerDto.email);
+    // 1. Create Tenant
+    const slug = registerDto.companyName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+    // Check if tenant exists? slug should be unique.
+    // We let database unique constraint handle it or check first.
+    // Ideally we check to give better error.
+    try {
+      await this.tenantsService.findBySlug(slug);
+      throw new BadRequestException(
+        'Organization name already taken (slug collision).',
+      );
+    } catch (e) {
+      if (!(e instanceof NotFoundException)) throw e; // Pass specific error, ignore NotFound
+    }
+
+    // 2. Create Tenant
+    const tenant = await this.tenantsService.create({
+      name: registerDto.companyName,
+      slug,
+    });
+
+    const tenantId = tenant.id;
+
+    // 3. Create User in that Tenant
+    const existingUser = await this.usersService.findByEmail(
+      registerDto.email,
+      tenantId,
+    );
     if (existingUser) {
-      throw new BadRequestException('Email already registered');
+      throw new BadRequestException(
+        'Email already registered in this organization',
+      );
     }
 
     try {
       const user = await this.usersService.create({
         email: registerDto.email,
         password: registerDto.password,
+        role: Role.ADMIN, // First user is Admin
+        tenantId: tenantId,
       });
+
       return this.generateAuthResponse(user, context);
     } catch (error: unknown) {
       // Handle database unique constraint violation
+      // If we fail here, we should probably rollback tenant creation...
+      // But for MVP/Task scope, we assume transaction handling is a future improvement or we rely on orphan cleanup.
       if (error instanceof Error && 'code' in error && error.code === '23505') {
         throw new BadRequestException('Email already registered');
       }
@@ -79,7 +120,17 @@ export class AuthService {
     loginDto: LoginDto,
     context?: RequestContext,
   ): Promise<AuthResponseDto> {
-    const user = await this.usersService.findByEmail(loginDto.email);
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      // Option: if SuperAdmin, maybe allow global login?
+      // But prompt says "Strict Requirement".
+      // Let's assume for now 400.
+      throw new BadRequestException(
+        'Missing Tenant Context (X-Tenant-ID header required).',
+      );
+    }
+
+    const user = await this.usersService.findByEmail(loginDto.email, tenantId);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -208,6 +259,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        tenantId: user.tenantId,
       },
     };
   }

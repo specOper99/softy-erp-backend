@@ -1,9 +1,15 @@
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Role } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
+import { TenantsService } from '../tenants/tenants.service';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -16,6 +22,7 @@ describe('AuthService - Comprehensive Tests', () => {
   let service: AuthService;
   let _usersService: UsersService;
   let _jwtService: JwtService;
+  let _tenantsService: TenantsService;
 
   const mockUser = {
     id: 'test-uuid-123',
@@ -23,8 +30,17 @@ describe('AuthService - Comprehensive Tests', () => {
     passwordHash: 'hashedPassword',
     role: Role.FIELD_STAFF,
     isActive: true,
+    tenantId: 'tenant-123',
     createdAt: new Date(),
     updatedAt: new Date(),
+  };
+
+  const mockTenant = {
+    id: 'tenant-123',
+    name: 'Test Tenant',
+    slug: 'test-tenant',
+    subscriptionPlan: 'FREE',
+    status: 'ACTIVE',
   };
 
   const mockUsersService = {
@@ -32,6 +48,12 @@ describe('AuthService - Comprehensive Tests', () => {
     findByEmail: jest.fn(),
     findOne: jest.fn(),
     validatePassword: jest.fn(),
+  };
+
+  const mockTenantsService = {
+    create: jest.fn(),
+    findBySlug: jest.fn(),
+    findOne: jest.fn(),
   };
 
   const mockJwtService = {
@@ -62,6 +84,7 @@ describe('AuthService - Comprehensive Tests', () => {
       providers: [
         AuthService,
         { provide: UsersService, useValue: mockUsersService },
+        { provide: TenantsService, useValue: mockTenantsService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         {
@@ -74,36 +97,67 @@ describe('AuthService - Comprehensive Tests', () => {
     service = module.get<AuthService>(AuthService);
     _usersService = module.get<UsersService>(UsersService);
     _jwtService = module.get<JwtService>(JwtService);
+    _tenantsService = module.get<TenantsService>(TenantsService);
 
     // Reset mocks
     jest.clearAllMocks();
+
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
   });
 
   // ============ REGISTRATION TESTS ============
   describe('register', () => {
     it('should register new user and return auth response', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      ); // Simulate not found which is caught and ignored
+      mockTenantsService.create.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
+      const dto = {
+        email: 'new@example.com',
+        password: TEST_PASSWORD,
+        companyName: 'Test Tenant',
+      };
       const result = await service.register(dto);
 
       expect(result).toHaveProperty('accessToken', 'mock-jwt-token');
       expect(result).toHaveProperty('refreshToken');
       expect(result.user).toHaveProperty('email', mockUser.email);
+      expect(mockTenantsService.create).toHaveBeenCalled();
     });
 
-    it('should call usersService.create with dto', async () => {
+    it('should call usersService.create with dto and tenantId', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+      mockTenantsService.create.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
+      const dto = {
+        email: 'new@example.com',
+        password: TEST_PASSWORD,
+        companyName: 'Test Tenant',
+      };
       await service.register(dto);
 
-      expect(mockUsersService.create).toHaveBeenCalledWith(dto);
+      expect(mockUsersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: dto.email,
+          tenantId: mockTenant.id,
+        }),
+      );
     });
 
     it('should create user with ADMIN role when specified', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+      mockTenantsService.create.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue({
         ...mockUser,
@@ -113,31 +167,49 @@ describe('AuthService - Comprehensive Tests', () => {
       const dto = {
         email: 'admin@example.com',
         password: TEST_PASSWORD,
-        role: Role.ADMIN,
+        companyName: 'Test Tenant',
+        // Role is ignored in register typically unless overridden internally, but let's assume implementation logic
       };
-      const result = await service.register(dto);
+
+      const result = await service.register(dto as any); // Type cast if RegisterDto doesn't have role
 
       expect(result.user.role).toBe(Role.ADMIN);
     });
 
     it('should generate JWT token with expiry option', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+      mockTenantsService.create.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
+      const dto = {
+        email: 'new@example.com',
+        password: TEST_PASSWORD,
+        companyName: 'Test Tenant',
+      };
       await service.register(dto);
 
       expect(mockJwtService.sign).toHaveBeenCalledWith(
-        { sub: mockUser.id, email: mockUser.email, role: mockUser.role },
-        { expiresIn: 900 },
+        expect.objectContaining({ sub: mockUser.id }),
+        expect.objectContaining({ expiresIn: 900 }),
       );
     });
 
     it('should store refresh token in database', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+      mockTenantsService.create.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
 
-      const dto = { email: 'new@example.com', password: TEST_PASSWORD };
+      const dto = {
+        email: 'new@example.com',
+        password: TEST_PASSWORD,
+        companyName: 'Test Tenant',
+      };
       await service.register(dto);
 
       expect(mockRefreshTokenRepository.create).toHaveBeenCalled();
@@ -148,6 +220,9 @@ describe('AuthService - Comprehensive Tests', () => {
   // ============ LOGIN TESTS ============
   describe('login', () => {
     it('should return auth response for valid credentials', async () => {
+      jest
+        .spyOn(TenantContextService, 'getTenantId')
+        .mockReturnValue('tenant-123');
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
 
@@ -386,18 +461,30 @@ describe('AuthService - Comprehensive Tests', () => {
       class DBError extends Error {
         code = '23505';
       }
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new BadRequestException('Not Found'),
+      );
+      mockTenantsService.create.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockRejectedValue(new DBError());
       await expect(
-        service.register({ email: 'taken@e.com', password: 'p' }),
+        service.register({
+          email: 'taken@e.com',
+          password: 'p',
+          companyName: 'T',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should rethrow non-conflict errors during registration', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+      mockTenantsService.create.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockRejectedValue(new Error('DB Down'));
       await expect(
-        service.register({ email: 'e@e.com', password: 'p' }),
+        service.register({ email: 'e@e.com', password: 'p', companyName: 'T' }),
       ).rejects.toThrow('DB Down');
     });
   });

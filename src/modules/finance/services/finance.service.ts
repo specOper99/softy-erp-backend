@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../../common/enums';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreateTransactionDto, TransactionFilterDto } from '../dto';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 import { Transaction } from '../entities/transaction.entity';
@@ -18,9 +19,11 @@ export class FinanceService {
 
   // Transaction Methods
   async createTransaction(dto: CreateTransactionDto): Promise<Transaction> {
+    const tenantId = TenantContextService.getTenantId();
     const transaction = this.transactionRepository.create({
       ...dto,
       transactionDate: new Date(dto.transactionDate),
+      tenantId,
     });
     return this.transactionRepository.save(transaction);
   }
@@ -37,14 +40,18 @@ export class FinanceService {
       transactionDate: Date;
     },
   ): Promise<Transaction> {
-    const transaction = manager.create(Transaction, data);
+    const tenantId = TenantContextService.getTenantId();
+    const transaction = manager.create(Transaction, { ...data, tenantId });
     return manager.save(transaction);
   }
 
   async findAllTransactions(
     filter?: TransactionFilterDto,
   ): Promise<Transaction[]> {
+    const tenantId = TenantContextService.getTenantId();
     const queryBuilder = this.transactionRepository.createQueryBuilder('t');
+
+    queryBuilder.where('t.tenantId = :tenantId', { tenantId });
 
     if (filter?.type) {
       queryBuilder.andWhere('t.type = :type', { type: filter.type });
@@ -61,7 +68,8 @@ export class FinanceService {
   }
 
   async findTransactionById(id: string): Promise<Transaction | null> {
-    return this.transactionRepository.findOne({ where: { id } });
+    const tenantId = TenantContextService.getTenantId();
+    return this.transactionRepository.findOne({ where: { id, tenantId } });
   }
 
   async getTransactionSummary(): Promise<{
@@ -70,8 +78,10 @@ export class FinanceService {
     totalPayroll: number;
     netBalance: number;
   }> {
+    const tenantId = TenantContextService.getTenantId();
     const result = await this.transactionRepository
       .createQueryBuilder('t')
+      .where('t.tenantId = :tenantId', { tenantId })
       .select('t.type', 'type')
       .addSelect('SUM(t.amount)', 'total')
       .groupBy('t.type')
@@ -106,12 +116,16 @@ export class FinanceService {
 
   // Wallet Methods
   async getOrCreateWallet(userId: string): Promise<EmployeeWallet> {
-    let wallet = await this.walletRepository.findOne({ where: { userId } });
+    const tenantId = TenantContextService.getTenantId();
+    let wallet = await this.walletRepository.findOne({
+      where: { userId, tenantId },
+    });
     if (!wallet) {
       wallet = this.walletRepository.create({
         userId,
         pendingBalance: 0,
         payableBalance: 0,
+        tenantId,
       });
       wallet = await this.walletRepository.save(wallet);
     }
@@ -119,14 +133,19 @@ export class FinanceService {
   }
 
   async getWalletByUserId(userId: string): Promise<EmployeeWallet | null> {
+    const tenantId = TenantContextService.getTenantId();
     return this.walletRepository.findOne({
-      where: { userId },
+      where: { userId, tenantId },
       relations: ['user'],
     });
   }
 
   async getAllWallets(): Promise<EmployeeWallet[]> {
-    return this.walletRepository.find({ relations: ['user'] });
+    const tenantId = TenantContextService.getTenantId();
+    return this.walletRepository.find({
+      where: { tenantId },
+      relations: ['user'],
+    });
   }
 
   async addPendingCommission(
@@ -134,12 +153,16 @@ export class FinanceService {
     userId: string,
     amount: number,
   ): Promise<EmployeeWallet> {
-    let wallet = await manager.findOne(EmployeeWallet, { where: { userId } });
+    const tenantId = TenantContextService.getTenantId();
+    let wallet = await manager.findOne(EmployeeWallet, {
+      where: { userId, tenantId },
+    });
     if (!wallet) {
       wallet = manager.create(EmployeeWallet, {
         userId,
         pendingBalance: 0,
         payableBalance: 0,
+        tenantId,
       });
     }
     wallet.pendingBalance = Number(wallet.pendingBalance) + Number(amount);
@@ -151,7 +174,10 @@ export class FinanceService {
     userId: string,
     amount: number,
   ): Promise<EmployeeWallet> {
-    const wallet = await manager.findOne(EmployeeWallet, { where: { userId } });
+    const tenantId = TenantContextService.getTenantId();
+    const wallet = await manager.findOne(EmployeeWallet, {
+      where: { userId, tenantId },
+    });
     if (!wallet) {
       throw new Error(`Wallet not found for user ${userId}`);
     }
@@ -164,7 +190,10 @@ export class FinanceService {
     manager: EntityManager,
     userId: string,
   ): Promise<EmployeeWallet> {
-    const wallet = await manager.findOne(EmployeeWallet, { where: { userId } });
+    const tenantId = TenantContextService.getTenantId();
+    const wallet = await manager.findOne(EmployeeWallet, {
+      where: { userId, tenantId },
+    });
     if (!wallet) {
       throw new Error(`Wallet not found for user ${userId}`);
     }

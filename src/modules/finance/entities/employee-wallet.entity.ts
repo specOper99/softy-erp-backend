@@ -1,19 +1,10 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  JoinColumn,
-  OneToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
-@Entity('employee_wallets')
-export class EmployeeWallet {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 
+@Entity('employee_wallets')
+export class EmployeeWallet extends BaseTenantEntity {
   @Column({ name: 'user_id', unique: true })
   userId: string;
 
@@ -34,12 +25,6 @@ export class EmployeeWallet {
     default: 0,
   })
   payableBalance: number;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
 
   @OneToOne(() => User)
   @JoinColumn({ name: 'user_id' })

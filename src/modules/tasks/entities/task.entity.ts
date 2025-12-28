@@ -1,23 +1,19 @@
 import {
   Column,
-  CreateDateColumn,
   DeleteDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 import { TaskStatus } from '../../../common/enums';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TaskType } from '../../catalog/entities/task-type.entity';
 import { User } from '../../users/entities/user.entity';
 
-@Entity('tasks')
-export class Task {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 
+@Entity('tasks')
+export class Task extends BaseTenantEntity {
   @Column({ name: 'booking_id' })
   bookingId: string;
 
@@ -51,12 +47,6 @@ export class Task {
 
   @Column({ type: 'text', nullable: true })
   notes: string;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;

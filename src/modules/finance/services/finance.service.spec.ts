@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../../common/enums';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { FinanceService } from './finance.service';
@@ -39,7 +40,9 @@ describe('FinanceService - Comprehensive Tests', () => {
       ),
     findOne: jest.fn(),
     createQueryBuilder: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+
       orderBy: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([mockTransaction]),
       select: jest.fn().mockReturnThis(),
@@ -96,6 +99,10 @@ describe('FinanceService - Comprehensive Tests', () => {
         return Promise.resolve({ ...mockWallet });
       return Promise.resolve(null);
     });
+
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
   });
 
   // ============ TRANSACTION CRUD TESTS ============
@@ -245,6 +252,7 @@ describe('FinanceService - Comprehensive Tests', () => {
         userId: 'new-user-uuid',
         pendingBalance: 0,
         payableBalance: 0,
+        tenantId: 'tenant-123',
       });
     });
   });
