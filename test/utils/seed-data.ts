@@ -36,7 +36,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
   let admin = await userRepo.findOne({ where: { email: adminEmail } });
   if (!admin) {
     const passwordHash = await bcrypt.hash(
-      process.env.SEED_ADMIN_PASSWORD || 'password123',
+      process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!',
       10,
     );
     admin = userRepo.create({
@@ -54,7 +54,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
   let staff = await userRepo.findOne({ where: { email: staffEmail } });
   if (!staff) {
     const passwordHash = await bcrypt.hash(
-      process.env.SEED_STAFF_PASSWORD || 'password123',
+      process.env.SEED_STAFF_PASSWORD || 'ChaptersERP123!',
       10,
     );
     staff = userRepo.create({
