@@ -16,7 +16,9 @@ const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 if (missingEnvVars.length > 0) {
   console.error('❌ Missing required environment variables:');
   missingEnvVars.forEach((envVar) => console.error(`   - ${envVar}`));
-  console.error('\nPlease set these in your .env file before running the seeder.');
+  console.error(
+    '\nPlease set these in your .env file before running the seeder.',
+  );
   process.exit(1);
 }
 
@@ -290,7 +292,10 @@ async function seed() {
       where: { email: 'ops@chapters.studio' },
     });
     if (!existingOps) {
-      const passwordHash = await bcrypt.hash(process.env.SEED_OPS_PASSWORD!, 10);
+      const passwordHash = await bcrypt.hash(
+        process.env.SEED_OPS_PASSWORD!,
+        10,
+      );
       const opsUser = userRepo.create({
         email: 'ops@chapters.studio',
         passwordHash,
@@ -309,9 +314,15 @@ async function seed() {
     console.log('Login credentials:');
     console.log('  Admin:    admin@chapters.studio / [SEED_ADMIN_PASSWORD]');
     console.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');
-    console.log('  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]');
-    console.log('            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]');
-    console.log('            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]\n');
+    console.log(
+      '  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]',
+    );
+    console.log(
+      '            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]',
+    );
+    console.log(
+      '            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]\n',
+    );
   } catch (error) {
     console.error('❌ Seed failed:', error);
     process.exit(1);

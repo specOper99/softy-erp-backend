@@ -105,11 +105,11 @@ import authConfig from './config/auth.config';
     // Apply rate limiting globally (disabled in test environment)
     ...(process.env.NODE_ENV !== 'test'
       ? [
-        {
-          provide: APP_GUARD,
-          useClass: ThrottlerGuard,
-        },
-      ]
+          {
+            provide: APP_GUARD,
+            useClass: ThrottlerGuard,
+          },
+        ]
       : []),
     // Graceful shutdown handler
     ShutdownService,

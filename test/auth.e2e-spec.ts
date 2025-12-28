@@ -4,11 +4,12 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
+import { MailService } from '../src/modules/mail/mail.service';
 
 // Mock ThrottlerGuard to always allow requests in tests
 class MockThrottlerGuard extends ThrottlerGuard {
-  protected override async handleRequest(): Promise<boolean> {
-    return true;
+  protected override handleRequest(): Promise<boolean> {
+    return Promise.resolve(true);
   }
 }
 
@@ -24,7 +25,9 @@ describe('Auth & Users E2E Tests', () => {
 
     // Validate required environment variables (for tests using seeded users)
     if (!adminPassword) {
-      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
+      throw new Error(
+        'Missing required environment variable: SEED_ADMIN_PASSWORD',
+      );
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -32,6 +35,12 @@ describe('Auth & Users E2E Tests', () => {
     })
       .overrideGuard(ThrottlerGuard)
       .useClass(MockThrottlerGuard)
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -146,7 +155,6 @@ describe('Auth & Users E2E Tests', () => {
           email: 'admin@chapters.studio',
           password: process.env.SEED_ADMIN_PASSWORD,
         });
-
 
       const adminToken = adminLogin.body.data.accessToken;
 

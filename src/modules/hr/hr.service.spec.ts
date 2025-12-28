@@ -277,10 +277,14 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should catch and log email failures during payroll', async () => {
       mockQueryRunner.manager.find.mockResolvedValue([
-        { ...mockProfile, user: { email: 'fail@e.com' } }
+        { ...mockProfile, user: { email: 'fail@e.com' } },
       ]);
-      mockFinanceService.createTransactionWithManager.mockResolvedValue({ id: 'tx-1' });
-      mockMailService.sendPayrollNotification.mockRejectedValue(new Error('Email fail'));
+      mockFinanceService.createTransactionWithManager.mockResolvedValue({
+        id: 'tx-1',
+      });
+      mockMailService.sendPayrollNotification.mockRejectedValue(
+        new Error('Email fail'),
+      );
 
       const result = await service.runPayroll();
       expect(result.totalEmployees).toBe(1);
@@ -288,7 +292,9 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should return transaction IDs', async () => {
       mockQueryRunner.manager.find.mockResolvedValue([mockProfile]);
-      mockFinanceService.createTransactionWithManager.mockResolvedValue({ id: 'txn-uuid-123' });
+      mockFinanceService.createTransactionWithManager.mockResolvedValue({
+        id: 'txn-uuid-123',
+      });
       const result = await service.runPayroll();
       expect(result.transactionIds).toContain('txn-uuid-123');
     });
@@ -378,12 +384,14 @@ describe('HrService - Comprehensive Tests', () => {
 
   describe('runScheduledPayroll', () => {
     it('should call runPayroll and log results', async () => {
-      const runPayrollSpy = jest.spyOn(service, 'runPayroll').mockResolvedValue({
-        totalEmployees: 1,
-        totalPayout: 100,
-        transactionIds: ['tx-1'],
-        processedAt: new Date(),
-      });
+      const runPayrollSpy = jest
+        .spyOn(service, 'runPayroll')
+        .mockResolvedValue({
+          totalEmployees: 1,
+          totalPayout: 100,
+          transactionIds: ['tx-1'],
+          processedAt: new Date(),
+        });
       await service.runScheduledPayroll();
       expect(runPayrollSpy).toHaveBeenCalled();
     });

@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -279,7 +276,6 @@ describe('AuthService - Comprehensive Tests', () => {
         UnauthorizedException,
       );
     });
-
   });
 
   // ============ LOGOUT TESTS ============
@@ -378,25 +374,31 @@ describe('AuthService - Comprehensive Tests', () => {
       };
       mockRefreshTokenRepository.findOne.mockResolvedValue(revokedToken);
 
-      await expect(service.refreshTokens('revoked-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshTokens('revoked-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(mockRefreshTokenRepository.update).toHaveBeenCalled();
     });
   });
 
   describe('register conflict handling', () => {
     it('should throw BadRequestException on database unique constraint error', async () => {
-      class DBError extends Error { code = '23505'; }
+      class DBError extends Error {
+        code = '23505';
+      }
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockRejectedValue(new DBError());
-      await expect(service.register({ email: 'taken@e.com', password: 'p' }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.register({ email: 'taken@e.com', password: 'p' }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should rethrow non-conflict errors during registration', async () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockRejectedValue(new Error('DB Down'));
-      await expect(service.register({ email: 'e@e.com', password: 'p' }))
-        .rejects.toThrow('DB Down');
+      await expect(
+        service.register({ email: 'e@e.com', password: 'p' }),
+      ).rejects.toThrow('DB Down');
     });
   });
 });

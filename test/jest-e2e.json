@@ -18,6 +18,7 @@
     "<rootDir>/../"
   ],
   "setupFilesAfterEnv": [
-    "<rootDir>/jest-setup.ts"
+    "<rootDir>/jest-setup.ts",
+    "<rootDir>/jest-e2e-setup.ts"
   ]
 }

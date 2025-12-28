@@ -11,10 +11,12 @@ import {
 } from '../src/common/enums';
 import { TransformInterceptor } from '../src/common/interceptors';
 
+import { MailService } from '../src/modules/mail/mail.service';
+
 // Mock ThrottlerGuard to always allow requests in tests
 class MockThrottlerGuard extends ThrottlerGuard {
-  protected override async handleRequest(): Promise<boolean> {
-    return true;
+  protected override handleRequest(): Promise<boolean> {
+    return Promise.resolve(true);
   }
 }
 
@@ -42,6 +44,12 @@ describe('Workflow Integration Tests (E2E)', () => {
     })
       .overrideGuard(ThrottlerGuard)
       .useClass(MockThrottlerGuard)
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -180,9 +188,9 @@ describe('Workflow Integration Tests (E2E)', () => {
       const transactions = res.body.data || res.body;
       const bookingTransaction = Array.isArray(transactions)
         ? transactions.find(
-          (t: any) =>
-            t.referenceId === bookingId && t.type === TransactionType.INCOME,
-        )
+            (t: any) =>
+              t.referenceId === bookingId && t.type === TransactionType.INCOME,
+          )
         : undefined;
       expect(bookingTransaction).toBeDefined();
     });
@@ -286,7 +294,9 @@ describe('Workflow Integration Tests (E2E)', () => {
       expect(res.status).toBe(200);
       // Handle wrapped response format { data: [...] }
       const transactions = res.body.data || res.body;
-      expect(Array.isArray(transactions) ? transactions.length : 0).toBeGreaterThan(0);
+      expect(
+        Array.isArray(transactions) ? transactions.length : 0,
+      ).toBeGreaterThan(0);
     });
   });
 

@@ -270,7 +270,9 @@ describe('CatalogService', () => {
       it('should delete a task type', async () => {
         mockTaskTypeRepository.findOne.mockResolvedValue(mockTaskType);
         await service.deleteTaskType('uuid');
-        expect(mockTaskTypeRepository.remove).toHaveBeenCalledWith(mockTaskType);
+        expect(mockTaskTypeRepository.remove).toHaveBeenCalledWith(
+          mockTaskType,
+        );
       });
     });
   });

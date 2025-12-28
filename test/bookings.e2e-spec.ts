@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
+import { MailService } from '../src/modules/mail/mail.service';
 
 describe('Bookings Workflow E2E Tests', () => {
   let app: INestApplication;
@@ -16,12 +17,21 @@ describe('Bookings Workflow E2E Tests', () => {
 
     // Validate required environment variable
     if (!adminPassword) {
-      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
+      throw new Error(
+        'Missing required environment variable: SEED_ADMIN_PASSWORD',
+      );
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
@@ -105,9 +115,7 @@ describe('Bookings Workflow E2E Tests', () => {
         .expect(200);
 
       const tasks = response.body.data || response.body;
-      const bookingTasks = tasks.filter(
-        (t: any) => t.bookingId === bookingId,
-      );
+      const bookingTasks = tasks.filter((t: any) => t.bookingId === bookingId);
       expect(bookingTasks.length).toBeGreaterThan(0);
       expect(bookingTasks[0].status).toBe('PENDING');
     });
