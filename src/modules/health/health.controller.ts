@@ -14,6 +14,7 @@ import {
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 
 @ApiTags('Health')
 @Controller('health')
@@ -24,6 +25,8 @@ export class HealthController {
     private db: TypeOrmHealthIndicator,
     private memory: MemoryHealthIndicator,
     private disk: DiskHealthIndicator,
+    private s3: S3HealthIndicator,
+    private smtp: SmtpHealthIndicator,
   ) {}
 
   @Get()
@@ -37,6 +40,21 @@ export class HealthController {
       () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
       // RSS memory < 300MB
       () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+    ]);
+  }
+
+  @Get('detailed')
+  @HealthCheck()
+  @ApiOperation({
+    summary: 'Detailed health check including external services',
+  })
+  checkDetailed() {
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
+      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+      () => this.s3.isHealthy('storage_s3'),
+      () => this.smtp.isHealthy('email_smtp'),
     ]);
   }
 
