@@ -11,25 +11,23 @@ jest.mock('@css-inline/css-inline', () => ({
 
 jest.mock('@nestjs-modules/mailer', () => ({
   MailerModule: {
-    forRoot: jest.fn().mockReturnValue({ module: class { }, providers: [] }),
+    forRoot: jest.fn().mockReturnValue({ module: class {}, providers: [] }),
     forRootAsync: jest
       .fn()
-      .mockReturnValue({ module: class { }, providers: [] }),
+      .mockReturnValue({ module: class {}, providers: [] }),
   },
-  MailerService: class { },
+  MailerService: class {},
 }));
 
 jest.mock('@nestjs-modules/mailer/dist/adapters/handlebars.adapter', () => ({
-  HandlebarsAdapter: class { },
+  HandlebarsAdapter: class {},
 }));
 
 jest.mock('@sentry/nestjs/setup', () => ({
   SentryModule: {
-    forRoot: jest.fn().mockReturnValue({ module: class { }, providers: [] }),
+    forRoot: jest.fn().mockReturnValue({ module: class {}, providers: [] }),
   },
 }));
-
-
 
 // Load environment variables from .env file
 import * as dotenv from 'dotenv';

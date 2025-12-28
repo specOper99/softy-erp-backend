@@ -99,7 +99,7 @@
   "overrides": {
     "nodemailer": "^7.0.12",
     "glob": "^10.5.0",
-    "mjml": "^4.18.0 "
+    "mjml": "file:./scripts/dummy-mjml"
   },
   "jest": {
     "moduleFileExtensions": [

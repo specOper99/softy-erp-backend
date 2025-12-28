@@ -1,0 +1,6 @@
+{
+    "name": "mjml",
+    "version": "4.15.3",
+    "description": "Dummy MJML package to exclude dependencies",
+    "main": "index.js"
+}
