@@ -7,7 +7,7 @@ describe('BookingsController', () => {
   let controller: BookingsController;
   let service: BookingsService;
 
-  const mockBooking = { id: 'uuid', status: BookingStatus.PENDING };
+  const mockBooking = { id: 'uuid', status: BookingStatus.DRAFT };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

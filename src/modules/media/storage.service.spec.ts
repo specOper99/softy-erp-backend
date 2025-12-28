@@ -26,8 +26,10 @@ describe('StorageService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key) => mockConfig[key]),
-            getOrThrow: jest.fn((key) => mockConfig[key]),
+            get: jest.fn((key: keyof typeof mockConfig) => mockConfig[key]),
+            getOrThrow: jest.fn(
+              (key: keyof typeof mockConfig) => mockConfig[key],
+            ),
           },
         },
       ],

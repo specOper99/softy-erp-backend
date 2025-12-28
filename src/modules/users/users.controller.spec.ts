@@ -40,7 +40,7 @@ describe('UsersController', () => {
       const dto = {
         email: 'new@example.com',
         password: 'password',
-        role: Role.STAFF,
+        role: Role.FIELD_STAFF,
       };
       await controller.create(dto);
       expect(service.create).toHaveBeenCalledWith(dto);
