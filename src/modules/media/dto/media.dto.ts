@@ -32,3 +32,33 @@ export class PresignedUploadDto {
   @IsUUID()
   taskId?: string;
 }
+
+export class LinkAttachmentDto {
+  @ApiProperty({ description: 'External URL to link as attachment' })
+  @IsString()
+  url: string;
+
+  @ApiPropertyOptional({ description: 'Display name of the file' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'MIME type of the file' })
+  @IsString()
+  @IsOptional()
+  mimeType?: string;
+
+  @ApiPropertyOptional({ description: 'Size of the file in bytes' })
+  @IsOptional()
+  size?: number;
+
+  @ApiPropertyOptional({ description: 'Associated booking ID' })
+  @IsUUID()
+  @IsOptional()
+  bookingId?: string;
+
+  @ApiPropertyOptional({ description: 'Associated task ID' })
+  @IsUUID()
+  @IsOptional()
+  taskId?: string;
+}

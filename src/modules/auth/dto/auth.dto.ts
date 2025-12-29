@@ -12,9 +12,10 @@ export class LoginDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'password123' })
+  @ApiProperty({ example: 'MyPassword123!' })
   @IsString()
-  @MinLength(6)
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  // Note: Don't apply regex validation on login - it reveals password rules
   password: string;
 }
 
