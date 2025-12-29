@@ -73,13 +73,6 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:
-  postgres_data:
-  minio_data:
-  redis_data:
-  prometheus_data:
-  grafana_data:
-
   # Prometheus for metrics (optional)
   prometheus:
     image: prom/prometheus:latest
@@ -109,3 +102,10 @@ volumes:
       - prometheus
     profiles:
       - monitoring
+
+volumes:
+  postgres_data:
+  minio_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
