@@ -67,6 +67,16 @@ describe('AccountLockoutService', () => {
   });
 
   describe('recordFailedAttempt', () => {
+    it('should initialize attempts if none exist', async () => {
+      mockCacheManager.get.mockResolvedValue(null);
+      await service.recordFailedAttempt('test@test.com');
+      expect(mockCacheManager.set).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ attempts: 1 }),
+        expect.any(Number),
+      );
+    });
+
     it('should increment attempts', async () => {
       mockCacheManager.get.mockResolvedValue({ attempts: 1 });
       await service.recordFailedAttempt('test@test.com');

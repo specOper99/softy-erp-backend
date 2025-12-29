@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { AccountLockoutService } from './services/account-lockout.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -30,7 +31,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, AccountLockoutService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

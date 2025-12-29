@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
-import { LessThan, Repository } from 'typeorm';
+import { DataSource, LessThan, MoreThan, Repository } from 'typeorm';
 import { Role } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { TenantsService } from '../tenants/tenants.service';
@@ -17,11 +17,13 @@ import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuthResponseDto, LoginDto, RegisterDto, TokensDto } from './dto';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { AccountLockoutService } from './services/account-lockout.service';
 
-interface TokenPayload {
+export interface TokenPayload {
   sub: string;
   email: string;
   role: string;
+  tenantId: string;
 }
 
 interface RequestContext {
@@ -42,6 +44,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    private readonly dataSource: DataSource,
+    private readonly lockoutService: AccountLockoutService,
   ) {
     // Access token: 15 minutes by default
     this.accessTokenExpiresIn = this.configService.get<number>(
@@ -59,15 +63,13 @@ export class AuthService {
     registerDto: RegisterDto,
     context?: RequestContext,
   ): Promise<AuthResponseDto> {
-    // 1. Create Tenant
+    // 1. Generate slug and validate
     const slug = registerDto.companyName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
     // Check if tenant exists? slug should be unique.
-    // We let database unique constraint handle it or check first.
-    // Ideally we check to give better error.
     try {
       await this.tenantsService.findBySlug(slug);
       throw new BadRequestException(
@@ -77,42 +79,61 @@ export class AuthService {
       if (!(e instanceof NotFoundException)) throw e; // Pass specific error, ignore NotFound
     }
 
-    // 2. Create Tenant
-    const tenant = await this.tenantsService.create({
-      name: registerDto.companyName,
-      slug,
-    });
-
-    const tenantId = tenant.id;
-
-    // 3. Create User in that Tenant
-    const existingUser = await this.usersService.findByEmail(
-      registerDto.email,
-      tenantId,
-    );
-    if (existingUser) {
-      throw new BadRequestException(
-        'Email already registered in this organization',
-      );
-    }
+    // 2. Use transaction to ensure atomicity of tenant + user creation
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
-      const user = await this.usersService.create({
-        email: registerDto.email,
-        password: registerDto.password,
-        role: Role.ADMIN, // First user is Admin
-        tenantId: tenantId,
-      });
+      // Create Tenant within transaction
+      const tenant = await this.tenantsService.createWithManager(
+        queryRunner.manager,
+        {
+          name: registerDto.companyName,
+          slug,
+        },
+      );
+
+      const tenantId = tenant.id;
+
+      // Check for existing user in this tenant
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+        tenantId,
+      );
+      if (existingUser) {
+        throw new BadRequestException(
+          'Email already registered in this organization',
+        );
+      }
+
+      // Create User within transaction
+      const user = await this.usersService.createWithManager(
+        queryRunner.manager,
+        {
+          email: registerDto.email,
+          password: registerDto.password,
+          role: Role.ADMIN, // First user is Admin
+          tenantId: tenantId,
+        },
+      );
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
 
       return this.generateAuthResponse(user, context);
     } catch (error: unknown) {
+      // Rollback the transaction on any error
+      await queryRunner.rollbackTransaction();
+
       // Handle database unique constraint violation
-      // If we fail here, we should probably rollback tenant creation...
-      // But for MVP/Task scope, we assume transaction handling is a future improvement or we rely on orphan cleanup.
       if (error instanceof Error && 'code' in error && error.code === '23505') {
         throw new BadRequestException('Email already registered');
       }
       throw error;
+    } finally {
+      // Release the query runner
+      await queryRunner.release();
     }
   }
 
@@ -122,16 +143,23 @@ export class AuthService {
   ): Promise<AuthResponseDto> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      // Option: if SuperAdmin, maybe allow global login?
-      // But prompt says "Strict Requirement".
-      // Let's assume for now 400.
       throw new BadRequestException(
         'Missing Tenant Context (X-Tenant-ID header required).',
       );
     }
 
+    // Check if account is locked out
+    const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
+    if (lockoutStatus.locked) {
+      const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
+      throw new UnauthorizedException(
+        `Account temporarily locked. Try again in ${remainingSecs} seconds.`,
+      );
+    }
+
     const user = await this.usersService.findByEmail(loginDto.email, tenantId);
     if (!user) {
+      await this.lockoutService.recordFailedAttempt(loginDto.email);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -144,8 +172,12 @@ export class AuthService {
       loginDto.password,
     );
     if (!isPasswordValid) {
+      await this.lockoutService.recordFailedAttempt(loginDto.email);
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Clear failed attempts on successful login
+    await this.lockoutService.clearAttempts(loginDto.email);
 
     return this.generateAuthResponse(user, context);
   }
@@ -228,7 +260,7 @@ export class AuthService {
       where: {
         userId,
         isRevoked: false,
-        expiresAt: LessThan(new Date()),
+        expiresAt: MoreThan(new Date()),
       },
       order: { createdAt: 'DESC' },
     });
@@ -272,6 +304,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      tenantId: user.tenantId,
     };
 
     // Generate access token (short-lived)

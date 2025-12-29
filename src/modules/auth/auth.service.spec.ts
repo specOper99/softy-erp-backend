@@ -246,6 +246,35 @@ describe('AuthService - Comprehensive Tests', () => {
     });
   });
 
+  it('should throw BadRequestException if tenant/slug already exists', async () => {
+    mockTenantsService.findBySlug.mockResolvedValue(mockTenant); // Tenant found
+    const dto = {
+      email: 'new@example.com',
+      password: TEST_PASSWORD,
+      companyName: 'Test Tenant',
+    };
+    await expect(service.register(dto)).rejects.toThrow(
+      'Organization name already taken',
+    );
+  });
+
+  it('should throw BadRequestException if user already exists in tenant', async () => {
+    mockTenantsService.findBySlug.mockRejectedValue(
+      new NotFoundException('Not Found'),
+    );
+    mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
+    mockUsersService.findByEmail.mockResolvedValue(mockUser); // User found
+
+    const dto = {
+      email: 'new@example.com',
+      password: TEST_PASSWORD,
+      companyName: 'Test Tenant',
+    };
+    await expect(service.register(dto)).rejects.toThrow(
+      'Email already registered in this organization',
+    );
+  });
+
   // ============ LOGIN TESTS ============
   describe('login', () => {
     it('should return auth response for valid credentials', async () => {
@@ -520,6 +549,128 @@ describe('AuthService - Comprehensive Tests', () => {
       await expect(
         service.register({ email: 'e@e.com', password: 'p', companyName: 'T' }),
       ).rejects.toThrow('DB Down');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should throw UnauthorizedException if user is inactive in validateUser', async () => {
+      const inactiveUser = { ...mockUser, isActive: false };
+      mockUsersService.findOne.mockResolvedValue(inactiveUser);
+      await expect(service.validateUser({ sub: 'u-1' } as any)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should handled undefined affected rows in logoutAllSessions', async () => {
+      mockRefreshTokenRepository.update.mockResolvedValue({});
+      const result = await service.logoutAllSessions('u-1');
+      expect(result).toBe(0);
+    });
+
+    it('should handle undefined affected rows in cleanupExpiredTokens', async () => {
+      mockRefreshTokenRepository.delete.mockResolvedValue({});
+      const result = await service.cleanupExpiredTokens();
+      expect(result).toBe(0);
+    });
+
+    it('should use fallback for userAgent if context missing', async () => {
+      mockUsersService.createWithManager.mockResolvedValue(mockUser);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+      mockUsersService.findByEmail.mockResolvedValue(null);
+
+      await service.register(
+        { email: 'e2@e.com', password: 'p', companyName: 'c2' },
+        undefined,
+      ); // No context
+
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userAgent: null,
+          ipAddress: null,
+        }),
+      );
+    });
+
+    it('should throw BadRequestException if login missing tenant context', async () => {
+      jest
+        .spyOn(TenantContextService, 'getTenantId')
+        .mockReturnValue(undefined);
+      await expect(
+        service.login({ email: 'a@a.com', password: 'p' }),
+      ).rejects.toThrow('Missing Tenant Context');
+    });
+
+    it('should throw UnauthorizedException if account is locked out', async () => {
+      jest
+        .spyOn(TenantContextService, 'getTenantId')
+        .mockReturnValue('tenant-1');
+      (
+        service['lockoutService'].isLockedOut as jest.Mock
+      ).mockResolvedValueOnce({
+        locked: true,
+        remainingMs: 5000,
+      });
+
+      await expect(
+        service.login({ email: 'a@a.com', password: 'p' }),
+      ).rejects.toThrow('Account temporarily locked');
+    });
+
+    it('should handle undefined remainingMs when locked out', async () => {
+      jest
+        .spyOn(TenantContextService, 'getTenantId')
+        .mockReturnValue('tenant-1');
+      (
+        service['lockoutService'].isLockedOut as jest.Mock
+      ).mockResolvedValueOnce({
+        locked: true,
+        // remainingMs undefined
+      });
+
+      await expect(
+        service.login({ email: 'a@a.com', password: 'p' }),
+      ).rejects.toThrow('Account temporarily locked');
+    });
+
+    it('should throw BadRequestException on email collision (23505) during register', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
+      mockUsersService.findByEmail.mockResolvedValue(null);
+      const error = new Error('Collision');
+      (error as any).code = '23505';
+      mockUsersService.createWithManager.mockRejectedValue(error);
+
+      await expect(
+        service.register({ email: 'e@e.com', password: 'p', companyName: 'c' }),
+      ).rejects.toThrow('Email already registered');
+    });
+
+    it('should use provided context values', async () => {
+      mockUsersService.createWithManager.mockResolvedValue(mockUser);
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
+      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockTenantsService.findBySlug.mockResolvedValue(null);
+      // Wait, findBySlug needs to throw NotFound to pass checks
+      mockTenantsService.findBySlug.mockRejectedValue(
+        new NotFoundException('Not Found'),
+      );
+
+      await service.register(
+        { email: 'e3@e.com', password: 'p', companyName: 'c3' },
+        { userAgent: 'test-agent', ipAddress: '1.2.3.4' },
+      );
+
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userAgent: 'test-agent',
+          ipAddress: '1.2.3.4',
+        }),
+      );
     });
   });
 });
