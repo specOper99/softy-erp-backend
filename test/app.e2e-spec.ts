@@ -7,7 +7,7 @@ import { seedTestDatabase } from './utils/seed-data';
 
 describe('AppController (e2e)', () => {
   let tenantId: string;
-
+  let app: INestApplication;
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
