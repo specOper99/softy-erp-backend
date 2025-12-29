@@ -364,6 +364,22 @@ describe('FinanceService - Comprehensive Tests', () => {
         service.moveToPayable(mockManager as any, 'invalid-user', 50.0),
       ).rejects.toThrow('Wallet not found');
     });
+
+    it('should throw BadRequestException when transfer exceeds pending balance', async () => {
+      const walletCopy = {
+        ...mockWallet,
+        pendingBalance: 30, // Only 30 available
+        payableBalance: 200,
+      };
+      const mockManager = {
+        findOne: jest.fn().mockResolvedValue(walletCopy),
+      };
+
+      // Trying to transfer 50 when only 30 is available
+      await expect(
+        service.moveToPayable(mockManager as any, 'user-uuid-123', 50.0),
+      ).rejects.toThrow('Insufficient pending balance');
+    });
   });
 
   describe('resetPayableBalance', () => {

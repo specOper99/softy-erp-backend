@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../../common/enums';
@@ -187,8 +191,19 @@ export class FinanceService {
     if (!wallet) {
       throw new NotFoundException(`Wallet not found for user ${userId}`);
     }
-    wallet.pendingBalance = Number(wallet.pendingBalance) - Number(amount);
-    wallet.payableBalance = Number(wallet.payableBalance) + Number(amount);
+
+    // Validate sufficient pending balance before transfer
+    const currentPending = Number(wallet.pendingBalance);
+    const transferAmount = Number(amount);
+
+    if (transferAmount > currentPending) {
+      throw new BadRequestException(
+        `Insufficient pending balance: ${currentPending.toFixed(2)} < ${transferAmount.toFixed(2)}`,
+      );
+    }
+
+    wallet.pendingBalance = currentPending - transferAmount;
+    wallet.payableBalance = Number(wallet.payableBalance) + transferAmount;
     return manager.save(wallet);
   }
 
