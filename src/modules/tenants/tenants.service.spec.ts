@@ -17,6 +17,8 @@ describe('TenantsService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     version: 1,
+    subscriptionPlan: 'FREE',
+    status: 'ACTIVE',
   } as Tenant;
 
   const mockRepository = {
@@ -55,6 +57,20 @@ describe('TenantsService', () => {
       const result = await service.create(createDto);
       expect(repository.create).toHaveBeenCalledWith(createDto);
       expect(repository.save).toHaveBeenCalled();
+      expect(result).toEqual(mockTenant);
+    });
+  });
+
+  describe('createWithManager', () => {
+    it('should create and save using manager', async () => {
+      const managerMock = {
+        create: jest.fn().mockReturnValue(mockTenant),
+        save: jest.fn().mockResolvedValue(mockTenant),
+      } as any;
+      const dto = { name: 'T', slug: 't' };
+      const result = await service.createWithManager(managerMock, dto);
+      expect(managerMock.create).toHaveBeenCalledWith(Tenant, dto);
+      expect(managerMock.save).toHaveBeenCalledWith(mockTenant);
       expect(result).toEqual(mockTenant);
     });
   });

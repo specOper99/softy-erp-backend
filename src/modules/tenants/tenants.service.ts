@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
 import { Tenant } from './entities/tenant.entity';
 
@@ -14,6 +14,14 @@ export class TenantsService {
   async create(createTenantDto: CreateTenantDto): Promise<Tenant> {
     const tenant = this.tenantRepository.create(createTenantDto);
     return this.tenantRepository.save(tenant);
+  }
+
+  async createWithManager(
+    manager: EntityManager,
+    createTenantDto: CreateTenantDto,
+  ): Promise<Tenant> {
+    const tenant = manager.create(Tenant, createTenantDto);
+    return manager.save(tenant);
   }
 
   async findAll(): Promise<Tenant[]> {
