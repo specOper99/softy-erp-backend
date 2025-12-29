@@ -5,7 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
-
+import { TenantGuard } from './common/guards/tenant.guard';
 // Config
 import { databaseConfig } from './config';
 import { validate } from './config/env-validation';
@@ -137,6 +137,8 @@ import authConfig from './config/auth.config';
       : []),
     // Graceful shutdown handler
     ShutdownService,
+
+    { provide: APP_GUARD, useClass: TenantGuard },
   ],
 })
 export class AppModule implements NestModule {
