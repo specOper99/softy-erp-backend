@@ -1,37 +1,80 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
 import { TenantContextService } from '../services/tenant-context.service';
 
+interface JwtPayload {
+  sub: string;
+  email: string;
+  role: string;
+  tenantId?: string;
+}
+
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
-    // 1. Try to get tenantId from Header (e.g., from Gateway/Frontend)
+  private readonly logger = new Logger(TenantMiddleware.name);
+
+  use(req: Request, _res: Response, next: NextFunction) {
+    // 1. Try to get tenantId from Header (for unauthenticated requests like login)
     const tenantIdHeader = req.headers['x-tenant-id'] as string;
 
-    // 2. Alternatively, if we decode JWT here we could use it,
-    // but often AuthGuard runs AFTER Middleware.
-    // For now, we rely on the header or we will enhance this later to Peek at JWT.
+    // 2. Try to extract tenantId from JWT (preferred for authenticated requests)
+    const tenantIdFromJwt = this.extractTenantIdFromJwt(req);
 
-    // NOTE: In a strict environment, we might Block request if no tenantId found.
-    // For Public APIs (login/register), we might allow missing tenantId or handle specific logic.
-    // We will assume that if tenantId is missing, it might be a public route or User will provide it.
-
-    // However, the prompt says "Extraction: Extract the tenantId from the JWT Payload ... OR the X-Tenant-ID header."
-
-    // If we assume JWT is present in Authorization header: Bearer <token>
-    // We could decode it without verifying signature just to get metadata,
-    // but the Guard will verify it later.
-
-    const tenantId = tenantIdHeader;
+    // Priority: JWT tenantId > Header tenantId (JWT is more secure, prevents spoofing)
+    // For authenticated requests, JWT should be the source of truth
+    const tenantId = tenantIdFromJwt || tenantIdHeader;
 
     if (!tenantId) {
-      // Fallback or Public Route
-      // We do not block here yet, but we set the context if available.
+      // No tenant context - allow for public routes (register, health checks)
+      // Protected routes will enforce tenant via guards
       return next();
+    }
+
+    // Log warning if header differs from JWT (potential spoofing attempt)
+    if (
+      tenantIdHeader &&
+      tenantIdFromJwt &&
+      tenantIdHeader !== tenantIdFromJwt
+    ) {
+      this.logger.warn(
+        `Tenant ID mismatch: header=${tenantIdHeader}, jwt=${tenantIdFromJwt}. Using JWT.`,
+      );
     }
 
     TenantContextService.run(tenantId, () => {
       next();
     });
+  }
+
+  /**
+   * Extracts tenantId from JWT without full verification.
+   * The AuthGuard will perform full JWT verification later.
+   * This is safe because we only read metadata - no authorization decision is made here.
+   */
+  private extractTenantIdFromJwt(req: Request): string | undefined {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return undefined;
+    }
+
+    const token = authHeader.substring(7);
+    try {
+      // Decode JWT without verification (base64 decode the payload)
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        return undefined;
+      }
+
+      const payloadBase64 = parts[1];
+      const payloadJson = Buffer.from(payloadBase64, 'base64url').toString(
+        'utf8',
+      );
+      const payload = JSON.parse(payloadJson) as JwtPayload;
+
+      return payload.tenantId;
+    } catch {
+      // Invalid JWT format - ignore, let AuthGuard handle
+      return undefined;
+    }
   }
 }
