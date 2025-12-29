@@ -21,7 +21,7 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column()
   email: string;
 
   @Column({ name: 'tenant_id', nullable: true }) // Nullable for migration, but strict later
