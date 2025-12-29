@@ -86,6 +86,12 @@ describe('HealthController', () => {
       expect(result.status).toBe('ok');
       expect(healthCheckService.check).toHaveBeenCalled();
     });
+
+    it('should call detailed health check', async () => {
+      const result = await controller.checkDetailed();
+      expect(result.status).toBe('ok');
+      expect(healthCheckService.check).toHaveBeenCalled();
+    });
   });
 
   describe('liveness', () => {

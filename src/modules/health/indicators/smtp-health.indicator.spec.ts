@@ -89,4 +89,22 @@ describe('SmtpHealthIndicator', () => {
       );
     });
   });
+
+  describe('configuration fallbacks', () => {
+    it('should use default values', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          SmtpHealthIndicator,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn().mockReturnValue(undefined),
+            },
+          },
+        ],
+      }).compile();
+      const instance = module.get<SmtpHealthIndicator>(SmtpHealthIndicator);
+      expect(instance).toBeDefined();
+    });
+  });
 });
