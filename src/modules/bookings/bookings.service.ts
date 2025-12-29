@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -26,6 +27,8 @@ import { Booking } from './entities/booking.entity';
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
@@ -122,47 +125,75 @@ export class BookingsService {
   /**
    * WORKFLOW 1: Booking Confirmation
    * Transactional steps:
-   * 1. Update booking status to CONFIRMED
-   * 2. Generate Tasks from ServicePackage items
-   * 3. Create INCOME transaction in Finance
-   * 4. Rollback all on failure
+   * 1. Acquire pessimistic lock on booking
+   * 2. Update booking status to CONFIRMED
+   * 3. Generate Tasks from ServicePackage items (bulk insert)
+   * 4. Create INCOME transaction in Finance
+   * 5. Rollback all on failure
    */
   async confirmBooking(id: string): Promise<ConfirmBookingResponseDto> {
-    const booking = await this.findOne(id);
-
-    if (booking.status !== BookingStatus.DRAFT) {
-      throw new BadRequestException(
-        `Booking is already ${booking.status}. Only DRAFT bookings can be confirmed.`,
-      );
-    }
+    const tenantId = TenantContextService.getTenantId();
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: Update booking status to CONFIRMED
+      // Step 1: Acquire pessimistic lock to prevent race conditions
+      // Step 1: Acquire pessimistic lock to prevent race conditions
+      // Note: We MUST NOT include relations here because "FOR UPDATE" cannot be
+      // applied to the nullable side of an outer join (which TypeORM uses for relations)
+      const bookingLock = await queryRunner.manager.findOne(Booking, {
+        where: { id, tenantId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!bookingLock) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      // Step 2: Fetch actual data with relations now that we have the lock
+      const booking = await queryRunner.manager.findOne(Booking, {
+        where: { id, tenantId },
+        relations: [
+          'servicePackage',
+          'servicePackage.packageItems',
+          'servicePackage.packageItems.taskType',
+        ],
+      });
+
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      if (booking.status !== BookingStatus.DRAFT) {
+        throw new BadRequestException(
+          `Booking is already ${booking.status}. Only DRAFT bookings can be confirmed.`,
+        );
+      }
+
+      // Step 2: Update booking status to CONFIRMED
       booking.status = BookingStatus.CONFIRMED;
       await queryRunner.manager.save(booking);
 
-      // Step 2: Generate Tasks from package items
+      // Step 3: Generate Tasks from package items (bulk insert for performance)
       const packageItems = booking.servicePackage?.packageItems || [];
-      const createdTasks: Task[] = [];
+      const tasksToCreate: Partial<Task>[] = [];
 
       for (const item of packageItems) {
         for (let i = 0; i < item.quantity; i++) {
-          const task = queryRunner.manager.create(Task, {
+          tasksToCreate.push({
             bookingId: booking.id,
             taskTypeId: item.taskTypeId,
             status: TaskStatus.PENDING,
             commissionSnapshot: item.taskType?.defaultCommissionAmount || 0,
             dueDate: booking.eventDate,
-            tenantId: booking.tenantId, // Inherit tenant from booking
+            tenantId: booking.tenantId,
           });
-          const savedTask = await queryRunner.manager.save(task);
-          createdTasks.push(savedTask);
         }
       }
+
+      const createdTasks = await queryRunner.manager.save(Task, tasksToCreate);
 
       // Step 3: Create INCOME transaction
       const transaction =
@@ -205,7 +236,12 @@ export class BookingsService {
           totalPrice: Number(booking.totalPrice),
           bookingId: booking.id,
         })
-        .catch((err) => console.error('Failed to send booking email:', err));
+        .catch((err) =>
+          this.logger.error(
+            `Failed to send booking confirmation for ${booking.id}`,
+            err,
+          ),
+        );
 
       return {
         booking,

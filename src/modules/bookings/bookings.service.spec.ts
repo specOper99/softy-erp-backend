@@ -85,8 +85,16 @@ describe('BookingsService - Comprehensive Tests', () => {
     rollbackTransaction: jest.fn(),
     release: jest.fn(),
     manager: {
-      save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+      save: jest.fn().mockImplementation((EntityClass, data) => {
+        if (Array.isArray(data)) {
+          return Promise.resolve(
+            data.map((item, i) => ({ id: `task-${i}`, ...item })),
+          );
+        }
+        return Promise.resolve(data);
+      }),
       create: jest.fn().mockImplementation((Entity, data) => data),
+      findOne: jest.fn(),
     },
   };
 
@@ -129,6 +137,16 @@ describe('BookingsService - Comprehensive Tests', () => {
         return Promise.resolve({ ...mockBooking });
       return Promise.resolve(null);
     });
+
+    // Mock queryRunner.manager.findOne for pessimistic locking
+    mockQueryRunner.manager.findOne.mockImplementation(
+      (EntityClass, options) => {
+        if (options?.where?.id === 'booking-uuid-123') {
+          return Promise.resolve({ ...mockBooking, tenantId: 'tenant-123' });
+        }
+        return Promise.resolve(null);
+      },
+    );
 
     jest
       .spyOn(TenantContextService, 'getTenantId')
@@ -297,6 +315,20 @@ describe('BookingsService - Comprehensive Tests', () => {
   // ============ BOOKING CONFIRMATION WORKFLOW TESTS ============
   describe('confirmBooking', () => {
     it('should confirm draft booking and create tasks', async () => {
+      mockQueryRunner.manager.findOne.mockReset();
+      // Lock call
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockBooking,
+        tenantId: 'tenant-123',
+        status: BookingStatus.DRAFT,
+      });
+      // Fetch with relations
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockBooking,
+        tenantId: 'tenant-123',
+        status: BookingStatus.DRAFT,
+      });
+
       const result = await service.confirmBooking('booking-uuid-123');
       expect(result.booking.status).toBe(BookingStatus.CONFIRMED);
       expect(result.transactionId).toBe('txn-uuid-123');
@@ -304,42 +336,92 @@ describe('BookingsService - Comprehensive Tests', () => {
     });
 
     it('should create correct number of tasks based on package items', async () => {
+      // Lock call
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockBooking,
+        tenantId: 'tenant-123',
+        status: BookingStatus.DRAFT,
+      });
+      // Fetch with relations
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockBooking,
+        tenantId: 'tenant-123',
+        status: BookingStatus.DRAFT,
+      });
+
       const result = await service.confirmBooking('booking-uuid-123');
       // 2 tasks from first item (quantity 2) + 1 task from second item (quantity 1) = 3
       expect(result.tasksCreated).toBe(3);
     });
 
     it('should reject confirming already confirmed booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValueOnce({
+      mockQueryRunner.manager.findOne.mockReset();
+      const confirmedBooking = {
         ...mockBooking,
+        tenantId: 'tenant-123',
         status: BookingStatus.CONFIRMED,
-      });
+      };
+
+      // Call 1: Lock
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(confirmedBooking);
+      // Call 2: Relations
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(confirmedBooking);
+
       await expect(service.confirmBooking('booking-uuid-123')).rejects.toThrow(
         BadRequestException,
       );
     });
 
     it('should reject confirming cancelled booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValueOnce({
+      mockQueryRunner.manager.findOne.mockReset();
+      const cancelledBooking = {
         ...mockBooking,
+        tenantId: 'tenant-123',
         status: BookingStatus.CANCELLED,
-      });
+      };
+
+      // Call 1: Lock
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(cancelledBooking);
+      // Call 2: Relations
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(cancelledBooking);
+
       await expect(service.confirmBooking('booking-uuid-123')).rejects.toThrow(
         BadRequestException,
       );
     });
 
     it('should reject confirming completed booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValueOnce({
+      mockQueryRunner.manager.findOne.mockReset();
+      const completedBooking = {
         ...mockBooking,
+        tenantId: 'tenant-123',
         status: BookingStatus.COMPLETED,
-      });
+      };
+
+      // Call 1: Lock
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(completedBooking);
+      // Call 2: Relations
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(completedBooking);
+
       await expect(service.confirmBooking('booking-uuid-123')).rejects.toThrow(
         BadRequestException,
       );
     });
 
     it('should rollback on transaction failure', async () => {
+      // Lock call
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockBooking,
+        tenantId: 'tenant-123',
+        status: BookingStatus.DRAFT,
+      });
+      // Fetch with relations
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockBooking,
+        tenantId: 'tenant-123',
+        status: BookingStatus.DRAFT,
+      });
+
       mockFinanceService.createTransactionWithManager.mockRejectedValueOnce(
         new Error('Transaction failed'),
       );
@@ -350,6 +432,7 @@ describe('BookingsService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for non-existent booking', async () => {
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(null);
       await expect(service.confirmBooking('invalid-id')).rejects.toThrow(
         NotFoundException,
       );
