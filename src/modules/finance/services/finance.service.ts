@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../../common/enums';
@@ -67,9 +67,15 @@ export class FinanceService {
     return queryBuilder.orderBy('t.transactionDate', 'DESC').getMany();
   }
 
-  async findTransactionById(id: string): Promise<Transaction | null> {
+  async findTransactionById(id: string): Promise<Transaction> {
     const tenantId = TenantContextService.getTenantId();
-    return this.transactionRepository.findOne({ where: { id, tenantId } });
+    const transaction = await this.transactionRepository.findOne({
+      where: { id, tenantId },
+    });
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${id} not found`);
+    }
+    return transaction;
   }
 
   async getTransactionSummary(): Promise<{
@@ -179,7 +185,7 @@ export class FinanceService {
       where: { userId, tenantId },
     });
     if (!wallet) {
-      throw new Error(`Wallet not found for user ${userId}`);
+      throw new NotFoundException(`Wallet not found for user ${userId}`);
     }
     wallet.pendingBalance = Number(wallet.pendingBalance) - Number(amount);
     wallet.payableBalance = Number(wallet.payableBalance) + Number(amount);
@@ -195,7 +201,7 @@ export class FinanceService {
       where: { userId, tenantId },
     });
     if (!wallet) {
-      throw new Error(`Wallet not found for user ${userId}`);
+      throw new NotFoundException(`Wallet not found for user ${userId}`);
     }
     wallet.payableBalance = 0;
     return manager.save(wallet);
