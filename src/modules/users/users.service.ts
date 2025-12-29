@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities/user.entity';
@@ -31,6 +31,24 @@ export class UsersService {
       newValues: { email: savedUser.email, role: savedUser.role },
     });
 
+    return savedUser;
+  }
+
+  async createWithManager(
+    manager: EntityManager,
+    createUserDto: CreateUserDto & { tenantId: string },
+  ): Promise<User> {
+    const passwordHash = await bcrypt.hash(createUserDto.password, 10);
+    const user = manager.create(User, {
+      email: createUserDto.email,
+      passwordHash,
+      role: createUserDto.role,
+      tenantId: createUserDto.tenantId,
+    });
+    const savedUser = await manager.save(user);
+
+    // Note: Audit logging is done outside transaction to avoid
+    // complications if the transaction rolls back
     return savedUser;
   }
 
