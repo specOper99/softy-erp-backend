@@ -1,6 +1,7 @@
 import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as CircuitBreaker from 'opossum';
 
 export interface BookingEmailData {
   clientName: string;
@@ -33,12 +34,22 @@ export interface PayrollEmailData {
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly isEnabled: boolean;
+  private readonly companyName: string;
+  private readonly companyUrl: string;
 
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
+    @Inject('CIRCUIT_BREAKER_MAIL')
+    private readonly breaker: CircuitBreaker,
   ) {
     this.isEnabled = !!this.configService.get('MAIL_USER');
+    this.companyName = this.configService.get('COMPANY_NAME', 'Soft-y');
+    this.companyUrl = this.configService.get(
+      'COMPANY_URL',
+      'https://soft-y.com',
+    );
+
     if (!this.isEnabled) {
       this.logger.warn('Email sending is disabled (MAIL_USER not configured)');
     }
@@ -54,19 +65,23 @@ export class MailService {
     }
 
     try {
-      await this.mailerService.sendMail({
-        to: data.clientEmail,
-        subject: `Booking Confirmed - ${data.packageName}`,
-        template: 'booking-confirmation',
-        context: {
-          clientName: data.clientName,
-          eventDate: this.formatDate(data.eventDate),
-          packageName: data.packageName,
-          totalPrice: this.formatCurrency(data.totalPrice),
-          bookingId: data.bookingId,
-          year: new Date().getFullYear(),
-        },
-      });
+      await this.breaker.fire(() =>
+        this.mailerService.sendMail({
+          to: data.clientEmail,
+          subject: `Booking Confirmed - ${data.packageName}`,
+          template: 'booking-confirmation',
+          context: {
+            clientName: data.clientName,
+            eventDate: this.formatDate(data.eventDate),
+            packageName: data.packageName,
+            totalPrice: this.formatCurrency(data.totalPrice),
+            bookingId: data.bookingId,
+            year: new Date().getFullYear(),
+            companyName: this.companyName,
+            companyUrl: this.companyUrl,
+          },
+        }),
+      );
       this.logger.log(`Booking confirmation sent to ${data.clientEmail}`);
     } catch (error) {
       this.logger.error(
@@ -86,19 +101,23 @@ export class MailService {
     }
 
     try {
-      await this.mailerService.sendMail({
-        to: data.employeeEmail,
-        subject: `New Task Assigned: ${data.taskType}`,
-        template: 'task-assignment',
-        context: {
-          employeeName: data.employeeName,
-          taskType: data.taskType,
-          clientName: data.clientName,
-          eventDate: this.formatDate(data.eventDate),
-          commission: this.formatCurrency(data.commission),
-          year: new Date().getFullYear(),
-        },
-      });
+      await this.breaker.fire(() =>
+        this.mailerService.sendMail({
+          to: data.employeeEmail,
+          subject: `New Task Assigned: ${data.taskType}`,
+          template: 'task-assignment',
+          context: {
+            employeeName: data.employeeName,
+            taskType: data.taskType,
+            clientName: data.clientName,
+            eventDate: this.formatDate(data.eventDate),
+            commission: this.formatCurrency(data.commission),
+            year: new Date().getFullYear(),
+            companyName: this.companyName,
+            companyUrl: this.companyUrl,
+          },
+        }),
+      );
       this.logger.log(`Task assignment sent to ${data.employeeEmail}`);
     } catch (error) {
       this.logger.error(
@@ -118,19 +137,23 @@ export class MailService {
     }
 
     try {
-      await this.mailerService.sendMail({
-        to: data.employeeEmail,
-        subject: 'Payroll Processed - Payment Details',
-        template: 'payroll-notification',
-        context: {
-          employeeName: data.employeeName,
-          baseSalary: this.formatCurrency(data.baseSalary),
-          commission: this.formatCurrency(data.commission),
-          totalPayout: this.formatCurrency(data.totalPayout),
-          payrollDate: this.formatDate(data.payrollDate),
-          year: new Date().getFullYear(),
-        },
-      });
+      await this.breaker.fire(() =>
+        this.mailerService.sendMail({
+          to: data.employeeEmail,
+          subject: 'Payroll Processed - Payment Details',
+          template: 'payroll-notification',
+          context: {
+            employeeName: data.employeeName,
+            baseSalary: this.formatCurrency(data.baseSalary),
+            commission: this.formatCurrency(data.commission),
+            totalPayout: this.formatCurrency(data.totalPayout),
+            payrollDate: this.formatDate(data.payrollDate),
+            year: new Date().getFullYear(),
+            companyName: this.companyName,
+            companyUrl: this.companyUrl,
+          },
+        }),
+      );
       this.logger.log(`Payroll notification sent to ${data.employeeEmail}`);
     } catch (error) {
       this.logger.error(

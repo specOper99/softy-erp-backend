@@ -21,10 +21,9 @@ import { MailService } from './mail.service';
           },
         },
         defaults: {
-          from: configService.get(
-            'MAIL_FROM',
-            '"Chapters Studio" <noreply@chapters.studio>',
-          ),
+          from:
+            configService.get('MAIL_FROM') ||
+            `"${configService.get('MAIL_FROM_NAME', 'SaaS App')}" <${configService.get('MAIL_FROM_ADDRESS', 'noreply@example.com')}>`,
         },
         template: {
           dir: join(__dirname, 'templates'),
