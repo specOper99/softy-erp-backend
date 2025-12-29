@@ -39,11 +39,32 @@ describe('MetricsController', () => {
 
       metricsSpy.mockRestore();
     });
+    it('should handle errors from register.metrics', async () => {
+      const mockRes = {
+        set: jest.fn(),
+        send: jest.fn(),
+      } as unknown as Response;
+
+      const metricsSpy = jest
+        .spyOn(register, 'metrics')
+        .mockRejectedValue(new Error('Metrics Error'));
+
+      await expect(controller.getMetrics(mockRes)).rejects.toThrow(
+        'Metrics Error',
+      );
+
+      expect(mockRes.set).toHaveBeenCalledWith(
+        'Content-Type',
+        expect.any(String),
+      );
+
+      metricsSpy.mockRestore();
+    });
   });
 
   describe('health', () => {
-    it('should return healthy status', async () => {
-      const result = await controller.health();
+    it('should return healthy status', () => {
+      const result = controller.health();
       expect(result.status).toBe('healthy');
       expect(result.timestamp).toBeDefined();
     });
