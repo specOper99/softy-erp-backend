@@ -34,6 +34,13 @@ describe('DashboardController', () => {
       await controller.getSummary();
       expect(service.getRevenueSummary).toHaveBeenCalled();
     });
+
+    it('should propagate errors', async () => {
+      service.getRevenueSummary = jest
+        .fn()
+        .mockRejectedValue(new Error('Summary Error'));
+      await expect(controller.getSummary()).rejects.toThrow('Summary Error');
+    });
   });
 
   describe('getStaffPerformance', () => {
@@ -41,12 +48,28 @@ describe('DashboardController', () => {
       await controller.getStaffPerformance();
       expect(service.getStaffPerformance).toHaveBeenCalled();
     });
+
+    it('should propagate errors', async () => {
+      service.getStaffPerformance = jest
+        .fn()
+        .mockRejectedValue(new Error('Perf Error'));
+      await expect(controller.getStaffPerformance()).rejects.toThrow(
+        'Perf Error',
+      );
+    });
   });
 
   describe('getPackageStats', () => {
     it('should call service.getPackageStats', async () => {
       await controller.getPackageStats();
       expect(service.getPackageStats).toHaveBeenCalled();
+    });
+
+    it('should propagate errors', async () => {
+      service.getPackageStats = jest
+        .fn()
+        .mockRejectedValue(new Error('Pkg Error'));
+      await expect(controller.getPackageStats()).rejects.toThrow('Pkg Error');
     });
   });
 });

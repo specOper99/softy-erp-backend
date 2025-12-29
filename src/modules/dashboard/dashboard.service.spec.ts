@@ -89,6 +89,16 @@ describe('DashboardService', () => {
         { month: '2023-02', revenue: 1500, payouts: 300, net: 1200 },
       ]);
     });
+    it('should handle null values in revenue stats', async () => {
+      const mockStats = [{ month: '2023-01', revenue: null, payouts: null }];
+      mockQueryBuilder.getRawMany.mockResolvedValue(mockStats);
+
+      const result = await service.getRevenueSummary();
+
+      expect(result).toEqual([
+        { month: '2023-01', revenue: 0, payouts: 0, net: 0 },
+      ]);
+    });
   });
 
   describe('getStaffPerformance', () => {
@@ -113,6 +123,23 @@ describe('DashboardService', () => {
         { staffName: 'John Doe', completedTasks: 10, totalCommission: 500 },
       ]);
     });
+
+    it('should handle null values in staff performance', async () => {
+      const mockStats = [
+        {
+          staffName: null,
+          completedTasks: null,
+          totalCommission: null,
+        },
+      ];
+      mockQueryBuilder.getRawMany.mockResolvedValue(mockStats);
+
+      const result = await service.getStaffPerformance();
+
+      expect(result).toEqual([
+        { staffName: 'Unknown Staff', completedTasks: 0, totalCommission: 0 },
+      ]);
+    });
   });
 
   describe('getPackageStats', () => {
@@ -134,6 +161,27 @@ describe('DashboardService', () => {
           packageName: 'Wedding Package',
           bookingCount: 5,
           totalRevenue: 5000,
+        },
+      ]);
+    });
+
+    it('should handle null values in package stats', async () => {
+      const mockStats = [
+        {
+          packageName: 'Pkg',
+          bookingCount: null,
+          totalRevenue: null,
+        },
+      ];
+      mockQueryBuilder.getRawMany.mockResolvedValue(mockStats);
+
+      const result = await service.getPackageStats();
+
+      expect(result).toEqual([
+        {
+          packageName: 'Pkg',
+          bookingCount: 0,
+          totalRevenue: 0,
         },
       ]);
     });
