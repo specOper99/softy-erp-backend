@@ -48,7 +48,42 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: jest.fn().mockResolvedValue('http://mock-signed-url'),
 }));
 
-// Logic to ensure REDIS_URL is not set for E2E tests if it wasn't already deleted
-if (process.env.REDIS_URL) {
-  delete process.env.REDIS_URL;
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// 1. Load base .env file (if not already loaded)
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// 2. Load .env.test file with overrides
+dotenv.config({
+  path: path.resolve(__dirname, '../.env.test'),
+  override: true,
+});
+
+// Ensure NODE_ENV is set to test
+process.env.NODE_ENV = 'test';
+
+// Verify critical test overrides
+if (process.env.DISABLE_RATE_LIMITING !== 'true') {
+  console.warn(
+    'WARNING: DISABLE_RATE_LIMITING is not true. E2E tests may fail with 429 errors.',
+  );
 }
+
+// Logic to ensure REDIS_URL is not set for E2E tests if it wasn't already deleted or empty
+if (process.env.REDIS_URL && process.env.REDIS_URL.trim() !== '') {
+  // If .env.test didn't empty it, we forcibly unset it to prevent leakage
+  // However, if .env.test explicitly set it to something valid for tests, we should respect it?
+  // For now, consistent behavior with previous setup: kill it to rely on mock.
+  // But wait, if user wants to use a test redis, they would put it in .env.test.
+  // So we should ONLY delete if it equals the production/default one?
+  // Safer to just comment this out if we trust .env.test, OR keep it but respect empty string.
+  // Current mock setup mocks 'cache-manager-redis-yet' ENTIRELY.
+  // So REDIS_URL presence implies the App might try to connect real redis if the mock failed or if other modules use it.
+  // The previous setup DELETED it.
+  // I will check if .env.test set it to empty string (which is what I did in the file).
+  // If it is empty string, we are good.
+}
+
+// We rely on the mock for redis, so getting rid of the env var completely is safe to avoid accidental connection attempts by non-mocked parts.
+delete process.env.REDIS_URL;

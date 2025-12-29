@@ -231,8 +231,8 @@ describe('Workflow Integration Tests (E2E)', () => {
             .patch(`/api/v1/tasks/${taskId}/assign`)
             .set('Authorization', `Bearer ${adminToken}`)
             .set('X-Tenant-ID', (global as any).testTenantId)
-
-            .send({ userId: staffUserId });
+            .send({ userId: staffUserId })
+            .expect(200);
         }
       }
     });
@@ -261,6 +261,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .patch(`/api/v1/tasks/${taskId}/complete`)
         .set('Authorization', `Bearer ${adminToken}`)
         .set('X-Tenant-ID', (global as any).testTenantId);
+
       expect(res.status).toBe(200);
       expect(res.body.data.walletUpdated).toBe(true);
       expect(res.body.data.commissionAccrued).toBeGreaterThan(0);
