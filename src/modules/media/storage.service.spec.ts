@@ -26,8 +26,8 @@ describe('StorageService', () => {
     MINIO_ENDPOINT: 'http://localhost:9000',
     MINIO_BUCKET: 'test-bucket',
     MINIO_REGION: 'us-east-1',
-    MINIO_ACCESS_KEY: 'access',
-    MINIO_SECRET_KEY: 'secret',
+    MINIO_ACCESS_KEY: 'test-access-key',
+    MINIO_SECRET_KEY: 'test-secret-key-placeholder-32-chars',
     MINIO_PUBLIC_URL: 'http://public-url',
   };
 

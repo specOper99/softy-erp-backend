@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import {
   DiskHealthIndicator,
   HealthCheckService,
@@ -69,6 +70,15 @@ describe('HealthController', () => {
               .mockResolvedValue({ email_smtp: { status: 'up' } }),
           },
         },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'TEST_ERROR_KEY') return 'secret';
+              return null;
+            }),
+          },
+        },
       ],
     }).compile();
 
@@ -108,16 +118,6 @@ describe('HealthController', () => {
   });
 
   describe('testError', () => {
-    const originalEnv = process.env;
-
-    beforeEach(() => {
-      process.env = { ...originalEnv, TEST_ERROR_KEY: 'secret' };
-    });
-
-    afterEach(() => {
-      process.env = originalEnv;
-    });
-
     it('should throw error if key matches', () => {
       expect(() => controller.testError('secret')).toThrow(
         'This is a test error',

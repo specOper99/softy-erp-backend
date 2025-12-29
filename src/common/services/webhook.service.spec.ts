@@ -40,7 +40,7 @@ describe('WebhookService', () => {
     const tenantId = 'tenant-1';
     const config: WebhookConfig = {
       url: 'https://example.com/webhook',
-      secret: 'test-secret',
+      secret: 'test-webhook-secret-placeholder',
       events: ['booking.created'],
     };
 

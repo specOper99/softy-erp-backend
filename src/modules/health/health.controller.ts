@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Query,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   DiskHealthIndicator,
@@ -27,6 +28,7 @@ export class HealthController {
     private disk: DiskHealthIndicator,
     private s3: S3HealthIndicator,
     private smtp: SmtpHealthIndicator,
+    private configService: ConfigService,
   ) {}
 
   @Get()
@@ -86,7 +88,8 @@ export class HealthController {
     description: 'Secret key to authorize the error test',
   })
   testError(@Query('key') key: string) {
-    const secretKey = process.env.TEST_ERROR_KEY || 'test-error-secret';
+    const secretKey =
+      this.configService.get<string>('TEST_ERROR_KEY') || 'test-error-secret';
 
     if (!key) {
       throw new HttpException('Missing key parameter', HttpStatus.BAD_REQUEST);

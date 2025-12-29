@@ -24,8 +24,8 @@ describe('S3HealthIndicator', () => {
     S3_BUCKET: 'test-bucket',
     S3_ENDPOINT: 'http://localhost:9000',
     S3_REGION: 'us-east-1',
-    S3_ACCESS_KEY: 'access',
-    S3_SECRET_KEY: 'secret',
+    S3_ACCESS_KEY: 'test-access-key',
+    S3_SECRET_KEY: 'test-secret-key-placeholder',
   };
 
   beforeEach(async () => {

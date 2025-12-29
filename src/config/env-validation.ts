@@ -95,20 +95,64 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SEED_ADMIN_PASSWORD?: string;
+
+  // Rate Limiting
+  @IsNumber()
+  @IsOptional()
+  RATE_LIMIT_SOFT: number = 50;
+
+  @IsNumber()
+  @IsOptional()
+  RATE_LIMIT_HARD: number = 100;
+
+  @IsNumber()
+  @IsOptional()
+  RATE_LIMIT_WINDOW_MS: number = 60000;
+
+  @IsNumber()
+  @IsOptional()
+  RATE_LIMIT_BLOCK_MS: number = 900000;
+
+  @IsNumber()
+  @IsOptional()
+  RATE_LIMIT_DELAY_MS: number = 500;
+
+  // Auth Extras
+  @IsNumber()
+  @IsOptional()
+  JWT_ACCESS_EXPIRES_SECONDS: number = 900;
+
+  @IsNumber()
+  @IsOptional()
+  JWT_REFRESH_EXPIRES_DAYS: number = 7;
+  // Vault Configuration
+  @IsString()
+  @IsOptional()
+  VAULT_ADDR?: string;
+
+  @IsString()
+  @IsOptional()
+  VAULT_TOKEN?: string;
+
+  @IsString()
+  @IsOptional()
+  VAULT_ROLE_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  VAULT_SECRET_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  VAULT_SECRET_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  VAULT_ENABLED?: string;
 }
 
 export function validate(config: Record<string, any>) {
   const isProd = config.NODE_ENV === 'production';
-
-  // SECURITY: Require JWT_SECRET in production
-  if (
-    isProd &&
-    (typeof config.JWT_SECRET !== 'string' || config.JWT_SECRET.length < 32)
-  ) {
-    throw new Error(
-      'JWT_SECRET must be at least 32 characters in production environment',
-    );
-  }
 
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
@@ -118,15 +162,31 @@ export function validate(config: Record<string, any>) {
     skipMissingProperties: !isProd, // Skip missing props in non-prod
   });
 
-  // Filter JWT_SECRET errors in non-production (allow short/missing secrets for dev/test)
   if (errors.length > 0) {
+    // Filter out JWT_SECRET errors for non-production environments to allow easier local development/testing
     const filteredErrors = errors.filter((e) => {
       if (!isProd && e.property === 'JWT_SECRET') return false;
       return true;
     });
 
     if (filteredErrors.length > 0) {
-      throw new Error(filteredErrors.toString());
+      // Create a more readable error summary
+      const errorSummary = filteredErrors
+        .map((e) => {
+          const constraints = Object.values(e.constraints || {}).join(', ');
+          return `${e.property}: ${constraints}`;
+        })
+        .join('; ');
+      throw new Error(`Configuration validation failed: ${errorSummary}`);
+    }
+  }
+
+  // Final security enforcement for production
+  if (isProd) {
+    if (!validatedConfig.JWT_SECRET || validatedConfig.JWT_SECRET.length < 32) {
+      throw new Error(
+        'SECURITY: JWT_SECRET must be at least 32 characters in production environments.',
+      );
     }
   }
 

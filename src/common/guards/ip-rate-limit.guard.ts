@@ -8,6 +8,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Cache } from 'cache-manager';
 import type { Request } from 'express';
 
@@ -36,23 +37,23 @@ export class IpRateLimitGuard implements CanActivate {
   private readonly blockDurationMs: number;
   private readonly progressiveDelayMs: number;
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private configService: ConfigService,
+  ) {
     // 50 requests per minute soft limit (starts slowing down)
-    this.softLimit = parseInt(process.env.RATE_LIMIT_SOFT || '50', 10);
+    this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
     // 100 requests per minute hard limit (blocks IP)
-    this.hardLimit = parseInt(process.env.RATE_LIMIT_HARD || '100', 10);
+    this.hardLimit = this.configService.get<number>('RATE_LIMIT_HARD') || 100;
     // 1 minute window
-    this.windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
+    this.windowMs =
+      this.configService.get<number>('RATE_LIMIT_WINDOW_MS') || 60000;
     // 15 minute block duration
-    this.blockDurationMs = parseInt(
-      process.env.RATE_LIMIT_BLOCK_MS || '900000',
-      10,
-    );
+    this.blockDurationMs =
+      this.configService.get<number>('RATE_LIMIT_BLOCK_MS') || 900000;
     // 500ms progressive delay per request over soft limit
-    this.progressiveDelayMs = parseInt(
-      process.env.RATE_LIMIT_DELAY_MS || '500',
-      10,
-    );
+    this.progressiveDelayMs =
+      this.configService.get<number>('RATE_LIMIT_DELAY_MS') || 500;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
