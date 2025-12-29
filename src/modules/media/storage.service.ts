@@ -1,12 +1,14 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  GetObjectCommandOutput,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as CircuitBreaker from 'opossum';
 import { Readable } from 'stream';
 
 export interface UploadedFile {
@@ -23,7 +25,11 @@ export class StorageService implements OnModuleInit {
   private endpoint: string;
   private publicUrl: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject('CIRCUIT_BREAKER_S3')
+    private readonly breaker: CircuitBreaker,
+  ) {}
 
   onModuleInit() {
     this.endpoint = this.configService.get(
@@ -64,7 +70,7 @@ export class StorageService implements OnModuleInit {
       ContentType: mimeType,
     });
 
-    await this.s3Client.send(command);
+    await this.breaker.fire(() => this.s3Client.send(command));
 
     return {
       key,
@@ -97,7 +103,7 @@ export class StorageService implements OnModuleInit {
       Key: key,
     });
 
-    await this.s3Client.send(command);
+    await this.breaker.fire(() => this.s3Client.send(command));
     this.logger.log(`Deleted file: ${key}`);
   }
 
@@ -110,7 +116,9 @@ export class StorageService implements OnModuleInit {
       Key: key,
     });
 
-    const response = await this.s3Client.send(command);
+    const response = (await this.breaker.fire(() =>
+      this.s3Client.send(command),
+    )) as GetObjectCommandOutput;
     return response.Body as Readable;
   }
 

@@ -68,6 +68,31 @@ describe('MediaController', () => {
       });
       expect(result).toBe(expectedResult);
     });
+
+    it('should upload a file with minimal dto', async () => {
+      const file = {
+        buffer: Buffer.from('test'),
+        originalname: 'test.png',
+        mimetype: 'image/png',
+        size: 100,
+      } as Express.Multer.File;
+      const dto: any = {}; // Empty DTO
+      const expectedResult = { id: 'file-id', url: 'http://url' };
+
+      mockMediaService.uploadFile.mockResolvedValue(expectedResult);
+
+      const result = await controller.uploadFile(file, dto);
+
+      expect(service.uploadFile).toHaveBeenCalledWith({
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        bookingId: undefined,
+        taskId: undefined,
+      });
+      expect(result).toBe(expectedResult);
+    });
   });
 
   describe('getPresignedUploadUrl', () => {
@@ -89,31 +114,53 @@ describe('MediaController', () => {
       );
       expect(result).toBe(expectedResult);
     });
+
+    it('should return presigned url with optional fields', async () => {
+      const dto: PresignedUploadDto = {
+        filename: 'test.png',
+        mimeType: 'image/png',
+        bookingId: 'b-1',
+        taskId: 't-1',
+      };
+      mockMediaService.getPresignedUploadUrl.mockResolvedValue({});
+      await controller.getPresignedUploadUrl(dto);
+      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith(
+        'test.png',
+        'image/png',
+        'b-1',
+        't-1',
+      );
+    });
   });
 
   describe('confirmUpload', () => {
-    it('should confirm upload', async () => {
-      const id = '123';
-      const size = 1000;
-      const expectedResult = { id, size };
-      mockMediaService.confirmUpload.mockResolvedValue(expectedResult);
+    it('should return confirmed attachment', async () => {
+      const mockAttachment = { id: 'file-id', size: 1000 } as any;
+      mockMediaService.confirmUpload.mockResolvedValue(mockAttachment);
 
-      const result = await controller.confirmUpload(id, size);
+      const result = await controller.confirmUpload('file-id', 1000);
 
-      expect(service.confirmUpload).toHaveBeenCalledWith(id, size);
-      expect(result).toBe(expectedResult);
+      expect(service.confirmUpload).toHaveBeenCalledWith('file-id', 1000);
+      expect(result).toBe(mockAttachment);
     });
   });
 
   describe('create', () => {
     it('should create attachment link', async () => {
       const data = { url: 'http://external' };
-      const expectedResult = { id: '1', ...data };
+      const expectedResult = { id: '1', ...data } as any;
       mockMediaService.create.mockResolvedValue(expectedResult);
 
       const result = await controller.create(data);
       expect(service.create).toHaveBeenCalledWith(data);
       expect(result).toBe(expectedResult);
+    });
+
+    it('should propagate errors', async () => {
+      mockMediaService.create.mockRejectedValue(new Error('Create Error'));
+      await expect(controller.create({ url: 'http://u' })).rejects.toThrow(
+        'Create Error',
+      );
     });
   });
 
@@ -125,6 +172,11 @@ describe('MediaController', () => {
       expect(service.findAll).toHaveBeenCalled();
       expect(result).toBe(expectedResult);
     });
+
+    it('should propagate errors', async () => {
+      mockMediaService.findAll.mockRejectedValue(new Error('FindAll Error'));
+      await expect(controller.findAll()).rejects.toThrow('FindAll Error');
+    });
   });
 
   describe('findOne', () => {
@@ -134,6 +186,11 @@ describe('MediaController', () => {
       const result = await controller.findOne('1');
       expect(service.findOne).toHaveBeenCalledWith('1');
       expect(result).toBe(expectedResult);
+    });
+
+    it('should propagate errors', async () => {
+      mockMediaService.findOne.mockRejectedValue(new Error('FindOne Error'));
+      await expect(controller.findOne('1')).rejects.toThrow('FindOne Error');
     });
   });
 
@@ -145,6 +202,15 @@ describe('MediaController', () => {
       expect(service.getDownloadUrl).toHaveBeenCalledWith('1');
       expect(result).toEqual({ url });
     });
+
+    it('should propagate errors', async () => {
+      mockMediaService.getDownloadUrl.mockRejectedValue(
+        new Error('Download Error'),
+      );
+      await expect(controller.getDownloadUrl('1')).rejects.toThrow(
+        'Download Error',
+      );
+    });
   });
 
   describe('findByBooking', () => {
@@ -154,6 +220,15 @@ describe('MediaController', () => {
       const result = await controller.findByBooking('1');
       expect(service.findByBooking).toHaveBeenCalledWith('1');
       expect(result).toBe(expectedResult);
+    });
+
+    it('should propagate errors', async () => {
+      mockMediaService.findByBooking.mockRejectedValue(
+        new Error('Booking Error'),
+      );
+      await expect(controller.findByBooking('1')).rejects.toThrow(
+        'Booking Error',
+      );
     });
   });
 
@@ -165,6 +240,11 @@ describe('MediaController', () => {
       expect(service.findByTask).toHaveBeenCalledWith('1');
       expect(result).toBe(expectedResult);
     });
+
+    it('should propagate errors', async () => {
+      mockMediaService.findByTask.mockRejectedValue(new Error('Task Error'));
+      await expect(controller.findByTask('1')).rejects.toThrow('Task Error');
+    });
   });
 
   describe('remove', () => {
@@ -172,6 +252,11 @@ describe('MediaController', () => {
       mockMediaService.remove.mockResolvedValue(undefined);
       await controller.remove('1');
       expect(service.remove).toHaveBeenCalledWith('1');
+    });
+
+    it('should propagate errors', async () => {
+      mockMediaService.remove.mockRejectedValue(new Error('Remove Error'));
+      await expect(controller.remove('1')).rejects.toThrow('Remove Error');
     });
   });
 });
