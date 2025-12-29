@@ -74,6 +74,36 @@ describe('StorageService', () => {
       expect(mockSend).toHaveBeenCalled();
       expect(result.url).toContain('test-bucket/test-key');
     });
+
+    it('should accept all whitelisted MIME types', async () => {
+      const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'video/mp4',
+        'video/webm',
+        'application/pdf',
+      ];
+      const buffer = Buffer.from('test');
+      const key = 'test-key';
+
+      for (const mimeType of allowedTypes) {
+        mockSend.mockClear();
+        const result = await service.uploadFile(buffer, key, mimeType);
+        expect(result.url).toBeDefined();
+      }
+    });
+
+    it('should reject unsupported MIME types', async () => {
+      const buffer = Buffer.from('test');
+      const key = 'test-key';
+      const unsupportedType = 'application/x-executable';
+
+      await expect(
+        service.uploadFile(buffer, key, unsupportedType),
+      ).rejects.toThrow('Unsupported file type');
+    });
   });
 
   describe('generateKey', () => {

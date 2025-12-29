@@ -3,7 +3,9 @@ import {
   Controller,
   Delete,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Post,
   UploadedFile,
   UseGuards,
@@ -18,7 +20,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CreateAttachmentDto, PresignedUploadDto } from './dto';
+import {
+  CreateAttachmentDto,
+  LinkAttachmentDto,
+  PresignedUploadDto,
+} from './dto';
 import { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
 
@@ -27,10 +33,13 @@ import { MediaService } from './media.service';
 @Controller('media')
 @UseGuards(JwtAuthGuard)
 export class MediaController {
+  // Security: 10MB file size limit
+  private static readonly MAX_FILE_SIZE = 10 * 1024 * 1024;
+
   constructor(private readonly mediaService: MediaService) {}
 
   @Post('upload')
-  @ApiOperation({ summary: 'Upload a file directly' })
+  @ApiOperation({ summary: 'Upload a file directly (max 10MB)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -42,9 +51,19 @@ export class MediaController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    }),
+  )
   async uploadFile(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 })],
+        fileIsRequired: true,
+      }),
+    )
+    file: Express.Multer.File,
     @Body() dto: CreateAttachmentDto,
   ): Promise<Attachment> {
     return this.mediaService.uploadFile({
@@ -83,8 +102,8 @@ export class MediaController {
 
   @Post()
   @ApiOperation({ summary: 'Link an external URL as an attachment' })
-  async create(@Body() data: Partial<Attachment>): Promise<Attachment> {
-    return this.mediaService.create(data);
+  async create(@Body() dto: LinkAttachmentDto): Promise<Attachment> {
+    return this.mediaService.create(dto);
   }
 
   @Get()

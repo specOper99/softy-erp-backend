@@ -6,7 +6,13 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as CircuitBreaker from 'opossum';
 import { Readable } from 'stream';
@@ -30,6 +36,19 @@ export class StorageService implements OnModuleInit {
     @Inject('CIRCUIT_BREAKER_S3')
     private readonly breaker: CircuitBreaker,
   ) {}
+
+  // Security: MIME type whitelist to prevent malicious file uploads
+  private readonly ALLOWED_MIME_TYPES = new Set([
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ]);
 
   onModuleInit() {
     this.endpoint = this.configService.get(
@@ -63,6 +82,13 @@ export class StorageService implements OnModuleInit {
     key: string,
     mimeType: string,
   ): Promise<UploadedFile> {
+    // Security: Validate MIME type against whitelist
+    if (!this.ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw new BadRequestException(
+        `Unsupported file type: ${mimeType}. Allowed types: ${[...this.ALLOWED_MIME_TYPES].join(', ')}`,
+      );
+    }
+
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
