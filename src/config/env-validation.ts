@@ -46,8 +46,7 @@ class EnvironmentVariables {
 
   @IsString()
   @MinLength(32)
-  @IsOptional()
-  JWT_SECRET: string = 'a_very_long_secret_for_jwt_auth_nest_js_erp';
+  JWT_SECRET?: string;
 
   @IsString()
   @IsOptional()
@@ -99,16 +98,28 @@ class EnvironmentVariables {
 }
 
 export function validate(config: Record<string, any>) {
+  const isProd = config.NODE_ENV === 'production';
+
+  // SECURITY: Require JWT_SECRET in production
+  if (
+    isProd &&
+    (typeof config.JWT_SECRET !== 'string' || config.JWT_SECRET.length < 32)
+  ) {
+    throw new Error(
+      'JWT_SECRET must be at least 32 characters in production environment',
+    );
+  }
+
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });
+
   const errors = validateSync(validatedConfig, {
-    skipMissingProperties: false,
+    skipMissingProperties: !isProd, // Skip missing props in non-prod
   });
 
-  // Support short secrets for tests if not in production
+  // Filter JWT_SECRET errors in non-production (allow short/missing secrets for dev/test)
   if (errors.length > 0) {
-    const isProd = config.NODE_ENV === 'production';
     const filteredErrors = errors.filter((e) => {
       if (!isProd && e.property === 'JWT_SECRET') return false;
       return true;
@@ -118,5 +129,6 @@ export function validate(config: Record<string, any>) {
       throw new Error(filteredErrors.toString());
     }
   }
+
   return validatedConfig;
 }
