@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { Role } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
@@ -69,6 +70,11 @@ describe('UsersService - Comprehensive Tests', () => {
       }
       return Promise.resolve(null);
     });
+
+    // Mock TenantContextService for tenant filter tests
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
   });
 
   // ============ CREATE USER TESTS ============
@@ -165,6 +171,17 @@ describe('UsersService - Comprehensive Tests', () => {
       mockRepository.find.mockResolvedValueOnce(users);
       const result = await service.findAll();
       expect(result.length).toBe(2);
+    });
+
+    it('should filter by tenant ID to prevent cross-tenant data leakage', async () => {
+      await service.findAll();
+      expect(mockRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: expect.any(String),
+          }),
+        }),
+      );
     });
   });
 

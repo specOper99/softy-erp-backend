@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { EntityManager, Repository } from 'typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities/user.entity';
@@ -53,7 +54,9 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
+    const tenantId = TenantContextService.getTenantId();
     return this.userRepository.find({
+      where: { tenantId },
       relations: ['profile', 'wallet'],
     });
   }
