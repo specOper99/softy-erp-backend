@@ -176,6 +176,30 @@ describe('HrService - Comprehensive Tests', () => {
     });
   });
 
+  it('should throw ConflictException if profile already exists', async () => {
+    const dto = {
+      userId: 'user-uuid-123',
+      firstName: 'John',
+      baseSalary: 2000.0,
+    };
+    mockProfileRepository.save.mockRejectedValueOnce({ code: '23505' });
+    await expect(service.createProfile(dto)).rejects.toThrow(
+      'Profile already exists',
+    );
+  });
+
+  it('should throw generic error on failure', async () => {
+    const dto = {
+      userId: 'user-uuid-123',
+      firstName: 'John',
+      baseSalary: 2000.0,
+    };
+    mockProfileRepository.save.mockRejectedValueOnce(
+      new Error('Database error'),
+    );
+    await expect(service.createProfile(dto)).rejects.toThrow('Database error');
+  });
+
   describe('findAllProfiles', () => {
     it('should return all profiles with user relations', async () => {
       const result = await service.findAllProfiles();

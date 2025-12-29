@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -31,28 +36,39 @@ export class HrService {
 
   // Profile Methods
   async createProfile(dto: CreateProfileDto): Promise<Profile> {
-    // Also create wallet for the user
-    await this.financeService.getOrCreateWallet(dto.userId);
+    try {
+      // Also create wallet for the user
+      await this.financeService.getOrCreateWallet(dto.userId);
 
-    const profile = this.profileRepository.create({
-      ...dto,
-      hireDate: dto.hireDate ? new Date(dto.hireDate) : null,
-    });
-    const savedProfile = await this.profileRepository.save(profile);
+      const profile = this.profileRepository.create({
+        ...dto,
+        hireDate: dto.hireDate ? new Date(dto.hireDate) : null,
+      });
+      const savedProfile = await this.profileRepository.save(profile);
 
-    await this.auditService.log({
-      action: 'CREATE',
-      entityName: 'Profile',
-      entityId: savedProfile.id,
-      newValues: {
-        userId: dto.userId,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        baseSalary: dto.baseSalary,
-      },
-    });
+      await this.auditService.log({
+        action: 'CREATE',
+        entityName: 'Profile',
+        entityId: savedProfile.id,
+        newValues: {
+          userId: dto.userId,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          baseSalary: dto.baseSalary,
+        },
+      });
 
-    return savedProfile;
+      return savedProfile;
+    } catch (e) {
+      if ((e as { code?: string }).code === '23505') {
+        this.logger.warn(`Profile already exists for user ${dto.userId}`);
+        throw new ConflictException(
+          `Profile already exists for user ${dto.userId}`,
+        );
+      }
+      this.logger.error('Failed to create profile', e);
+      throw e;
+    }
   }
 
   async findAllProfiles(): Promise<Profile[]> {
