@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chapters-studio-erp
+  labels:
+    app: chapters-studio-erp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chapters-studio-erp
+  template:
+    metadata:
+      labels:
+        app: chapters-studio-erp
+    spec:
+      containers:
+        - name: app
+          image: chapters-studio-erp:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: erp-secrets
+            - configMapRef:
+                name: erp-config
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chapters-studio-erp
+spec:
+  selector:
+    app: chapters-studio-erp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
