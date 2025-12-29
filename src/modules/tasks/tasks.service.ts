@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,11 +11,14 @@ import { TenantContextService } from '../../common/services/tenant-context.servi
 import { AuditService } from '../audit/audit.service';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
+import { User } from '../users/entities/user.entity';
 import { AssignTaskDto, CompleteTaskResponseDto, UpdateTaskDto } from './dto';
 import { Task } from './entities/task.entity';
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
@@ -78,36 +82,101 @@ export class TasksService {
   }
 
   async assignTask(id: string, dto: AssignTaskDto): Promise<Task> {
-    const task = await this.findOne(id);
-    const oldUserId = task.assignedUserId;
-    task.assignedUserId = dto.userId;
-    const savedTask = await this.taskRepository.save(task);
+    const tenantId = TenantContextService.getTenantId();
 
-    await this.auditService.log({
-      action: 'UPDATE',
-      entityName: 'Task',
-      entityId: task.id,
-      oldValues: { assignedUserId: oldUserId },
-      newValues: { assignedUserId: task.assignedUserId },
-      notes: 'Task reassigned.',
-    });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Fetch task details for email
-    const fullTask = await this.findOne(savedTask.id);
-    if (fullTask.assignedUser && fullTask.taskType && fullTask.booking) {
-      this.mailService
-        .sendTaskAssignment({
-          employeeName: `${fullTask.assignedUser.email.split('@')[0]}`, // Fallback since Profile isn't here
-          employeeEmail: fullTask.assignedUser.email,
-          taskType: fullTask.taskType.name,
-          clientName: fullTask.booking.clientName,
-          eventDate: fullTask.booking.eventDate,
-          commission: Number(fullTask.commissionSnapshot || 0),
-        })
-        .catch((err) => console.error('Failed to send assignment email:', err));
+    try {
+      // Step 1: Acquire lock
+      // Note: We MUST NOT include relations here because "FOR UPDATE" cannot be
+      // applied to the nullable side of an outer join (which TypeORM uses for relations)
+      const taskLock = await queryRunner.manager.findOne(Task, {
+        where: { id, tenantId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!taskLock) {
+        throw new NotFoundException(`Task with ID ${id} not found`);
+      }
+
+      // Step 2: Fetch actual data with relations
+      const task = await queryRunner.manager.findOne(Task, {
+        where: { id, tenantId },
+        relations: ['booking', 'taskType', 'assignedUser'],
+      });
+
+      if (!task) {
+        throw new NotFoundException(`Task with ID ${id} not found`);
+      }
+
+      const oldUserId = task.assignedUserId;
+      task.assignedUserId = dto.userId;
+
+      // Step 2: Update task
+      const savedTask = await queryRunner.manager.save(task);
+
+      // Step 3: Accrue Pending Commission
+      // We credit the *new* user's wallet with pending balance
+      const commissionAmount = Number(task.commissionSnapshot) || 0;
+      if (commissionAmount > 0 && dto.userId) {
+        await this.financeService.addPendingCommission(
+          queryRunner.manager,
+          dto.userId,
+          commissionAmount,
+        );
+      }
+
+      // Step 4: Audit Log
+      await this.auditService.log(
+        {
+          action: 'UPDATE',
+          entityName: 'Task',
+          entityId: task.id,
+          oldValues: { assignedUserId: oldUserId },
+          newValues: { assignedUserId: task.assignedUserId },
+          notes: `Task reassigned to user ${dto.userId}. Pending commission: ${commissionAmount}`,
+        },
+        queryRunner.manager,
+      );
+
+      // Fetch user details for email BEFORE commit to ensure data integrity and avoid post-commit errors
+      // Use string 'User' to avoid circular dependency issues
+      const newUser = (await queryRunner.manager.findOne('User', {
+        where: { id: dto.userId },
+      })) as User;
+
+      await queryRunner.commitTransaction();
+
+      // Send email (after commit success)
+      if (newUser && task.taskType && task.booking) {
+        this.mailService
+          .sendTaskAssignment({
+            employeeName: newUser.email.split('@')[0],
+            employeeEmail: newUser.email,
+            taskType: task.taskType.name,
+            clientName: task.booking.clientName,
+            eventDate: task.booking.eventDate,
+            commission: Number(task.commissionSnapshot || 0),
+          })
+          .catch((err) =>
+            this.logger.error(
+              `Failed to send task assignment for ${savedTask.id}`,
+              err,
+            ),
+          );
+      }
+
+      return savedTask;
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
-
-    return savedTask;
   }
 
   async startTask(id: string): Promise<Task> {
@@ -136,35 +205,59 @@ export class TasksService {
   /**
    * WORKFLOW 2: Task Completion
    * Transactional steps:
-   * 1. Update task status to COMPLETED
-   * 2. Set completed_at timestamp
-   * 3. Move commission_snapshot to EmployeeWallet.payable_balance
-   * 4. Rollback all on failure
+   * 1. Acquire pessimistic lock on task
+   * 2. Update task status to COMPLETED
+   * 3. Set completed_at timestamp
+   * 4. Move commission_snapshot to EmployeeWallet.payable_balance
+   * 5. Rollback all on failure
    */
   async completeTask(id: string): Promise<CompleteTaskResponseDto> {
-    const task = await this.findOne(id);
-
-    if (task.status === TaskStatus.COMPLETED) {
-      throw new BadRequestException('Task is already completed');
-    }
-
-    if (!task.assignedUserId) {
-      throw new BadRequestException('Cannot complete task: no user assigned');
-    }
+    const tenantId = TenantContextService.getTenantId();
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: Update task status to COMPLETED
+      // Step 1: Acquire pessimistic lock to prevent race conditions
+      // Step 1: Acquire pessimistic lock to prevent race conditions
+      // Note: We MUST NOT include relations here because "FOR UPDATE" cannot be
+      // applied to the nullable side of an outer join (which TypeORM uses for relations)
+      const taskLock = await queryRunner.manager.findOne(Task, {
+        where: { id, tenantId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!taskLock) {
+        throw new NotFoundException(`Task with ID ${id} not found`);
+      }
+
+      // Step 2: Fetch actual data with relations now that we have the lock
+      const task = await queryRunner.manager.findOne(Task, {
+        where: { id, tenantId },
+        relations: ['booking', 'taskType', 'assignedUser'],
+      });
+
+      if (!task) {
+        throw new NotFoundException(`Task with ID ${id} not found`);
+      }
+
+      if (task.status === TaskStatus.COMPLETED) {
+        throw new BadRequestException('Task is already completed');
+      }
+
+      if (!task.assignedUserId) {
+        throw new BadRequestException('Cannot complete task: no user assigned');
+      }
+
+      // Step 2: Update task status to COMPLETED
       const oldStatus = task.status;
       task.status = TaskStatus.COMPLETED;
       task.completedAt = new Date();
       await queryRunner.manager.save(task);
 
-      // Step 2: Move commission to payable balance
-      const commissionAmount = Number(task.commissionSnapshot);
+      // Step 3: Move commission to payable balance (NaN-safe)
+      const commissionAmount = Number(task.commissionSnapshot) || 0;
       let walletUpdated = false;
 
       if (commissionAmount > 0) {
@@ -176,7 +269,7 @@ export class TasksService {
         walletUpdated = true;
       }
 
-      // Step 3: Audit Log
+      // Step 4: Audit Log
       await this.auditService.log(
         {
           action: 'STATUS_CHANGE',
