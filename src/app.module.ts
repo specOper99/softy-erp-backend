@@ -8,6 +8,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
 
 // Config
 import { databaseConfig } from './config';
+import { validate } from './config/env-validation';
 
 // Common
 import { AppCacheModule } from './common/cache/cache.module';
@@ -28,9 +29,11 @@ import { HealthModule } from './modules/health/health.module';
 import { HrModule } from './modules/hr/hr.module';
 import { MailModule } from './modules/mail/mail.module';
 import { MediaModule } from './modules/media/media.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { UsersModule } from './modules/users/users.module';
 
+import { ResilienceModule } from './common/resilience/resilience.module';
 import authConfig from './config/auth.config';
 
 @Module({
@@ -42,6 +45,7 @@ import authConfig from './config/auth.config';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, authConfig],
+      validate,
     }),
 
     // Structured Logging with Winston
@@ -103,6 +107,21 @@ import authConfig from './config/auth.config';
     MediaModule,
     HealthModule,
     TenantsModule,
+    MetricsModule,
+    ResilienceModule.forRoot([
+      {
+        name: 's3',
+        timeout: 5000,
+        errorThresholdPercentage: 50,
+        resetTimeout: 30000,
+      },
+      {
+        name: 'mail',
+        timeout: 10000,
+        errorThresholdPercentage: 50,
+        resetTimeout: 60000,
+      },
+    ]),
   ],
   providers: [
     // Apply rate limiting globally (disabled in test environment)
