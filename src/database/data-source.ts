@@ -13,6 +13,7 @@ import { Transaction } from '../modules/finance/entities/transaction.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
 import { Attachment } from '../modules/media/entities/attachment.entity';
 import { Task } from '../modules/tasks/entities/task.entity';
+import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
@@ -23,6 +24,7 @@ export const dataSourceOptions: DataSourceOptions = {
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
   entities: [
+    Tenant,
     User,
     Profile,
     ServicePackage,
