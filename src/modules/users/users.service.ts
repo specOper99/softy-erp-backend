@@ -54,13 +54,13 @@ export class UsersService {
     return savedUser;
   }
 
-  async findAll(query: PaginationDto = {}): Promise<User[]> {
+  async findAll(query: PaginationDto = new PaginationDto()): Promise<User[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.userRepository.find({
       where: { tenantId },
       relations: ['profile', 'wallet'],
-      skip: query.skip,
-      take: query.limit ?? 20,
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 

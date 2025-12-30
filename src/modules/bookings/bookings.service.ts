@@ -68,14 +68,16 @@ export class BookingsService {
     return this.bookingRepository.save(booking);
   }
 
-  async findAll(query: PaginationDto = {}): Promise<Booking[]> {
+  async findAll(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<Booking[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.bookingRepository.find({
       where: { tenantId },
       relations: ['servicePackage'],
       order: { createdAt: 'DESC' },
-      skip: query.skip,
-      take: query.limit ?? 20,
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 

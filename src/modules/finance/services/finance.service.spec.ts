@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../../common/enums';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { TransactionFilterDto } from '../dto';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { FinanceService } from './finance.service';
@@ -197,22 +198,24 @@ describe('FinanceService - Comprehensive Tests', () => {
   // ============ TRANSACTION QUERY TESTS ============
   describe('findAllTransactions', () => {
     it('should return all transactions without filters', async () => {
-      const result = await service.findAllTransactions({});
+      const result = await service.findAllTransactions(
+        new TransactionFilterDto(),
+      );
       expect(result.length).toBeGreaterThan(0);
     });
 
     it('should filter by transaction type', async () => {
-      await service.findAllTransactions({
-        type: TransactionType.INCOME,
-      });
+      const filter = new TransactionFilterDto();
+      filter.type = TransactionType.INCOME;
+      await service.findAllTransactions(filter);
       expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalled();
     });
 
     it('should filter by date range', async () => {
-      await service.findAllTransactions({
-        startDate: '2024-01-01',
-        endDate: '2024-12-31',
-      });
+      const filter = new TransactionFilterDto();
+      filter.startDate = '2024-01-01';
+      filter.endDate = '2024-12-31';
+      await service.findAllTransactions(filter);
       expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalled();
     });
   });

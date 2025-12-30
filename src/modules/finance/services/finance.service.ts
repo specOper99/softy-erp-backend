@@ -70,8 +70,9 @@ export class FinanceService {
 
     return queryBuilder
       .orderBy('t.transactionDate', 'DESC')
-      .skip(filter?.skip)
-      .take(filter?.limit ?? 20)
+      .orderBy('t.transactionDate', 'DESC')
+      .skip(filter?.getSkip())
+      .take(filter?.getTake())
       .getMany();
   }
 
