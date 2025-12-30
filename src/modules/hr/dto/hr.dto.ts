@@ -7,6 +7,7 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 
 export class CreateProfileDto {
   @ApiProperty()
@@ -26,6 +27,7 @@ export class CreateProfileDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   jobTitle?: string;
 
   @ApiProperty({ example: 2000.0 })
@@ -63,6 +65,7 @@ export class UpdateProfileDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   jobTitle?: string;
 
   @ApiPropertyOptional()
