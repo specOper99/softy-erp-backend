@@ -31,42 +31,69 @@ export async function seedTestDatabase(dataSource: DataSource) {
   }
   const tenantId = tenant.id;
 
-  // 2. Create Admin
+  // 2. Create/Update Admin
   const adminEmail = 'admin@chapters.studio';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+
   let admin = await userRepo.findOne({ where: { email: adminEmail } });
   if (!admin) {
-    const passwordHash = await bcrypt.hash(
-      process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!',
-      10,
-    );
     admin = userRepo.create({
       email: adminEmail,
-      passwordHash,
+      passwordHash: adminPasswordHash,
       role: Role.ADMIN,
       isActive: true,
       tenantId,
     });
     admin = await userRepo.save(admin);
+  } else {
+    admin.passwordHash = adminPasswordHash;
+    admin.tenantId = tenantId;
+    admin = await userRepo.save(admin);
   }
 
-  // 3. Create Staff
+  // Sync admin profile/wallet if they exist
+  await profileRepo.update({ userId: admin.id }, { tenantId });
+  const adminWallet = await walletRepo.findOne({ where: { userId: admin.id } });
+  if (adminWallet) {
+    await walletRepo.update({ id: adminWallet.id }, { tenantId });
+  } else {
+    await walletRepo.save(
+      walletRepo.create({
+        userId: admin.id,
+        pendingBalance: 0,
+        payableBalance: 0,
+        tenantId,
+      }),
+    );
+  }
+
+  // 3. Create/Update Staff
   const staffEmail = 'john.photographer@chapters.studio';
+  const staffPassword = process.env.SEED_STAFF_PASSWORD || 'ChaptersERP123!';
+  const staffPasswordHash = await bcrypt.hash(staffPassword, 10);
+
   let staff = await userRepo.findOne({ where: { email: staffEmail } });
   if (!staff) {
-    const passwordHash = await bcrypt.hash(
-      process.env.SEED_STAFF_PASSWORD || 'ChaptersERP123!',
-      10,
-    );
     staff = userRepo.create({
       email: staffEmail,
-      passwordHash,
+      passwordHash: staffPasswordHash,
       role: Role.FIELD_STAFF,
       isActive: true,
       tenantId,
     });
     staff = await userRepo.save(staff);
+  } else {
+    staff.passwordHash = staffPasswordHash;
+    staff.tenantId = tenantId;
+    staff = await userRepo.save(staff);
+  }
 
-    // Profile
+  // Sync staff profile/wallet
+  const staffProfile = await profileRepo.findOne({
+    where: { userId: staff.id },
+  });
+  if (!staffProfile) {
     await profileRepo.save(
       profileRepo.create({
         userId: staff.id,
@@ -74,10 +101,17 @@ export async function seedTestDatabase(dataSource: DataSource) {
         lastName: 'Doe',
         jobTitle: 'Photographer',
         baseSalary: 2000,
+        tenantId,
       }),
     );
+  } else {
+    await profileRepo.update({ id: staffProfile.id }, { tenantId });
+  }
 
-    // Wallet
+  const staffWallet = await walletRepo.findOne({
+    where: { userId: staff.id },
+  });
+  if (!staffWallet) {
     await walletRepo.save(
       walletRepo.create({
         userId: staff.id,
@@ -86,6 +120,8 @@ export async function seedTestDatabase(dataSource: DataSource) {
         tenantId,
       }),
     );
+  } else {
+    await walletRepo.update({ id: staffWallet.id }, { tenantId });
   }
 
   // 4. Create Task Types

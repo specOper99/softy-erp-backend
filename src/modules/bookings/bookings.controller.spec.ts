@@ -47,7 +47,7 @@ describe('BookingsController', () => {
 
   describe('findAll', () => {
     it('should call service.findAll', async () => {
-      await controller.findAll();
+      await controller.findAll({} as any);
       expect(service.findAll).toHaveBeenCalled();
     });
   });

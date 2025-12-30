@@ -61,14 +61,32 @@ describe('FinanceService - Comprehensive Tests', () => {
   };
 
   const mockWalletRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
-    save: jest.fn().mockImplementation((wallet) => Promise.resolve(wallet)),
-    findOne: jest.fn(),
     find: jest.fn().mockResolvedValue([mockWallet]),
+    findOne: jest.fn(),
+  };
+
+  const mockQueryRunner = {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      findOne: jest.fn(),
+      create: jest.fn().mockImplementation((entity, data) => data),
+      save: jest
+        .fn()
+        .mockImplementation((data) =>
+          Promise.resolve({ id: 'wallet-uuid-123', ...data }),
+        ),
+    },
   };
 
   const mockDataSource = {
-    createQueryRunner: jest.fn(),
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    transaction: jest
+      .fn()
+      .mockImplementation((cb) => cb(mockQueryRunner.manager)),
   };
 
   beforeEach(async () => {
@@ -98,11 +116,22 @@ describe('FinanceService - Comprehensive Tests', () => {
       return Promise.resolve(null);
     });
 
-    mockWalletRepository.findOne.mockImplementation(({ where }) => {
-      if (where.userId === 'user-uuid-123')
+    const repoFindOneImpl = (options: any) => {
+      const where = options?.where;
+      if (where?.userId === 'user-uuid-123')
         return Promise.resolve({ ...mockWallet });
       return Promise.resolve(null);
-    });
+    };
+
+    const managerFindOneImpl = (_entity: any, options: any) => {
+      const where = options?.where;
+      if (where?.userId === 'user-uuid-123')
+        return Promise.resolve({ ...mockWallet });
+      return Promise.resolve(null);
+    };
+
+    mockWalletRepository.findOne.mockImplementation(repoFindOneImpl);
+    mockQueryRunner.manager.findOne.mockImplementation(managerFindOneImpl);
 
     jest
       .spyOn(TenantContextService, 'getTenantId')
@@ -251,16 +280,19 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     it('should create new wallet if not exists', async () => {
-      mockWalletRepository.findOne.mockResolvedValueOnce(null);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(null);
 
       await service.getOrCreateWallet('new-user-uuid');
 
-      expect(mockWalletRepository.create).toHaveBeenCalledWith({
-        userId: 'new-user-uuid',
-        pendingBalance: 0,
-        payableBalance: 0,
-        tenantId: 'tenant-123',
-      });
+      expect(mockQueryRunner.manager.create).toHaveBeenCalledWith(
+        EmployeeWallet,
+        expect.objectContaining({
+          userId: 'new-user-uuid',
+          pendingBalance: 0,
+          payableBalance: 0,
+          tenantId: 'tenant-123',
+        }),
+      );
     });
   });
 

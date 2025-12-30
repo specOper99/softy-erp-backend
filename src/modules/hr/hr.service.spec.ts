@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
 import { FinanceService } from '../finance/services/finance.service';
@@ -11,7 +12,6 @@ import { HrService } from './hr.service';
 
 describe('HrService - Comprehensive Tests', () => {
   let service: HrService;
-
   const mockProfile = {
     id: 'profile-uuid-123',
     userId: 'user-uuid-123',
@@ -24,7 +24,16 @@ describe('HrService - Comprehensive Tests', () => {
     phone: '+1234567890',
     createdAt: new Date(),
     updatedAt: new Date(),
-    user: { id: 'user-uuid-123', email: 'john@example.com' },
+    user: {
+      id: 'user-uuid-123',
+      email: 'john@example.com',
+      wallet: {
+        id: 'wallet-uuid-123',
+        userId: 'user-uuid-123',
+        pendingBalance: 50.0,
+        payableBalance: 150.0,
+      },
+    },
   };
 
   const mockWallet = {
@@ -52,6 +61,7 @@ describe('HrService - Comprehensive Tests', () => {
 
   const mockFinanceService = {
     getOrCreateWallet: jest.fn().mockResolvedValue(mockWallet),
+    getOrCreateWalletWithManager: jest.fn().mockResolvedValue(mockWallet),
     createTransactionWithManager: jest
       .fn()
       .mockResolvedValue({ id: 'txn-uuid-123' }),
@@ -77,6 +87,12 @@ describe('HrService - Comprehensive Tests', () => {
     manager: {
       find: jest.fn().mockResolvedValue([mockProfile]),
       findOne: jest.fn().mockResolvedValue(mockWallet),
+      create: jest.fn().mockImplementation((entity, data) => data),
+      save: jest
+        .fn()
+        .mockImplementation((data) =>
+          Promise.resolve({ id: 'profile-uuid-123', ...data }),
+        ),
     },
   };
 
@@ -105,6 +121,11 @@ describe('HrService - Comprehensive Tests', () => {
 
     service = module.get<HrService>(HrService);
 
+    // Mock TenantContextService
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('test-tenant-id');
+
     // Reset mocks
     jest.clearAllMocks();
 
@@ -127,9 +148,9 @@ describe('HrService - Comprehensive Tests', () => {
         baseSalary: 2000.0,
       };
       const result = await service.createProfile(dto);
-      expect(mockFinanceService.getOrCreateWallet).toHaveBeenCalledWith(
-        'user-uuid-123',
-      );
+      expect(
+        mockFinanceService.getOrCreateWalletWithManager,
+      ).toHaveBeenCalled();
       expect(result).toHaveProperty('id');
     });
 
@@ -182,7 +203,7 @@ describe('HrService - Comprehensive Tests', () => {
       firstName: 'John',
       baseSalary: 2000.0,
     };
-    mockProfileRepository.save.mockRejectedValueOnce({ code: '23505' });
+    mockQueryRunner.manager.save.mockRejectedValueOnce({ code: '23505' });
     await expect(service.createProfile(dto)).rejects.toThrow(
       'Profile already exists',
     );
@@ -194,7 +215,7 @@ describe('HrService - Comprehensive Tests', () => {
       firstName: 'John',
       baseSalary: 2000.0,
     };
-    mockProfileRepository.save.mockRejectedValueOnce(
+    mockQueryRunner.manager.save.mockRejectedValueOnce(
       new Error('Database error'),
     );
     await expect(service.createProfile(dto)).rejects.toThrow('Database error');
@@ -205,6 +226,7 @@ describe('HrService - Comprehensive Tests', () => {
       const result = await service.findAllProfiles();
       expect(result).toEqual([mockProfile]);
       expect(mockProfileRepository.find).toHaveBeenCalledWith({
+        where: { tenantId: 'test-tenant-id' },
         relations: ['user'],
       });
     });
@@ -301,7 +323,14 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should catch and log email failures during payroll', async () => {
       mockQueryRunner.manager.find.mockResolvedValue([
-        { ...mockProfile, user: { email: 'fail@e.com' } },
+        {
+          ...mockProfile,
+          user: {
+            ...mockProfile.user,
+            email: 'fail@e.com',
+            wallet: { payableBalance: 100 },
+          },
+        },
       ]);
       mockFinanceService.createTransactionWithManager.mockResolvedValue({
         id: 'tx-1',
@@ -330,12 +359,12 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should skip employees with zero payout', async () => {
       mockQueryRunner.manager.find.mockResolvedValueOnce([
-        { ...mockProfile, baseSalary: 0 },
+        {
+          ...mockProfile,
+          baseSalary: 0,
+          user: { wallet: { payableBalance: 0 } },
+        },
       ]);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        ...mockWallet,
-        payableBalance: 0,
-      });
 
       await service.runPayroll();
       expect(
@@ -344,26 +373,34 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should handle employees without wallets', async () => {
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(null);
+      mockQueryRunner.manager.find.mockResolvedValueOnce([
+        { ...mockProfile, user: { ...mockProfile.user, wallet: null } },
+      ]);
       const result = await service.runPayroll();
       // Should still process with just base salary
       expect(result.totalPayout).toBe(2000);
     });
 
     it('should process multiple employees', async () => {
+      const employee1 = {
+        ...mockProfile,
+        user: { ...mockProfile.user, wallet: { payableBalance: 150 } },
+      };
       const employee2 = {
         ...mockProfile,
         id: 'profile-2',
         userId: 'user-2',
         baseSalary: 3000,
+        user: {
+          id: 'user-2',
+          email: 'u2@e.com',
+          wallet: { payableBalance: 100 },
+        },
       };
       mockQueryRunner.manager.find.mockResolvedValueOnce([
-        mockProfile,
+        employee1,
         employee2,
       ]);
-      mockQueryRunner.manager.findOne
-        .mockResolvedValueOnce(mockWallet)
-        .mockResolvedValueOnce({ ...mockWallet, payableBalance: 100 });
 
       const result = await service.runPayroll();
       expect(result.totalEmployees).toBe(2);
@@ -380,6 +417,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should rollback on wallet reset failure', async () => {
+      mockQueryRunner.manager.find.mockResolvedValueOnce([mockProfile]);
       mockFinanceService.resetPayableBalance.mockRejectedValueOnce(
         new Error('Wallet reset failed'),
       );
@@ -394,12 +432,12 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should handle high salary and commission values', async () => {
       mockQueryRunner.manager.find.mockResolvedValueOnce([
-        { ...mockProfile, baseSalary: 999999.99 },
+        {
+          ...mockProfile,
+          baseSalary: 999999.99,
+          user: { ...mockProfile.user, wallet: { payableBalance: 99999.99 } },
+        },
       ]);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        ...mockWallet,
-        payableBalance: 99999.99,
-      });
 
       const result = await service.runPayroll();
       expect(result.totalPayout).toBe(1099999.98);

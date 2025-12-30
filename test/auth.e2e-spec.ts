@@ -1,11 +1,13 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
+import { User } from '../src/modules/users/entities/user.entity';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests
@@ -168,15 +170,35 @@ describe('Auth & Users E2E Tests', () => {
 
   describe('Protected Routes', () => {
     it('should access protected route with admin token', async () => {
-      // Login as seeded admin user (has proper role)
+      // 1. First register a proper admin user for this test run
+      const adminEmail = `admin-${Date.now()}@example.com`;
+      const adminPassword = 'AdminPassword123!';
+      const adminReg = await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .send({
+          email: adminEmail,
+          password: adminPassword,
+          companyName: `Admin Corp ${Date.now()}`,
+        });
+
+      expect(adminReg.status).toBe(201);
+      const adminId = adminReg.body.data.user.id;
+      const adminTenantId = adminReg.body.data.user.tenantId;
+
+      // 2. Manually elevate user to ADMIN role in database
+      const userRepo = app.get(getRepositoryToken(User));
+      await userRepo.update(adminId, { role: 'ADMIN' });
+
+      // 3. Login as the newly created admin
       const adminLogin = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .set('X-Tenant-ID', (global as any).testTenantId)
-
+        .set('X-Tenant-ID', adminTenantId)
         .send({
-          email: 'admin@chapters.studio',
-          password: process.env.SEED_ADMIN_PASSWORD,
+          email: adminEmail,
+          password: adminPassword,
         });
+
+      expect(adminLogin.status).toBe(200);
 
       const adminToken = adminLogin.body.data.accessToken;
 

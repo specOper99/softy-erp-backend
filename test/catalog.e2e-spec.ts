@@ -69,7 +69,7 @@ describe('Catalog Module E2E Tests', () => {
       .set('X-Tenant-ID', tenantId)
       .send({
         email: 'admin@chapters.studio',
-        password: adminPassword,
+        password: adminPassword || 'ChaptersERP123!',
       });
 
     accessToken = loginResponse.body.data?.accessToken;

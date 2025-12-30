@@ -140,8 +140,11 @@ export class FinanceService {
     userId: string,
   ): Promise<EmployeeWallet> {
     const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context missing');
+    }
     let wallet = await manager.findOne(EmployeeWallet, {
-      where: { userId, tenantId },
+      where: { userId },
       lock: { mode: 'pessimistic_write' },
     });
     if (!wallet) {
@@ -151,6 +154,9 @@ export class FinanceService {
         payableBalance: 0,
         tenantId,
       });
+      wallet = await manager.save(wallet);
+    } else if (wallet.tenantId !== tenantId) {
+      wallet.tenantId = tenantId;
       wallet = await manager.save(wallet);
     }
     return wallet;
@@ -178,8 +184,11 @@ export class FinanceService {
     amount: number,
   ): Promise<EmployeeWallet> {
     const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context missing');
+    }
     let wallet = await manager.findOne(EmployeeWallet, {
-      where: { userId, tenantId },
+      where: { userId },
       lock: { mode: 'pessimistic_write' },
     });
     if (!wallet) {
@@ -189,6 +198,8 @@ export class FinanceService {
         payableBalance: 0,
         tenantId,
       });
+    } else if (wallet.tenantId !== tenantId) {
+      wallet.tenantId = tenantId;
     }
     wallet.pendingBalance = Number(wallet.pendingBalance) + Number(amount);
     return manager.save(wallet);
