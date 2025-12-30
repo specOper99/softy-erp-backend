@@ -132,8 +132,8 @@ beforeAll(async () => {
     }
 
     // Load lazily so dotenv config above is applied first.
-    const { default: migrationDataSource } =
-      await import('../src/database/data-source.js');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const migrationDataSource = require('../src/database/data-source').default;
 
     try {
       if (!migrationDataSource.isInitialized) {
