@@ -7,10 +7,12 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums';
 import { RolesGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -33,8 +35,8 @@ export class BookingsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all bookings' })
-  findAll() {
-    return this.bookingsService.findAll();
+  findAll(@Query() query: PaginationDto) {
+    return this.bookingsService.findAll(query);
   }
 
   @Get(':id')

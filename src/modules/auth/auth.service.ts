@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -85,14 +86,29 @@ export class AuthService {
     await queryRunner.startTransaction();
 
     try {
-      // Create Tenant within transaction
-      const tenant = await this.tenantsService.createWithManager(
-        queryRunner.manager,
-        {
-          name: registerDto.companyName,
-          slug,
-        },
-      );
+      // Create Tenant within transaction (handle race condition)
+      let tenant;
+      try {
+        tenant = await this.tenantsService.createWithManager(
+          queryRunner.manager,
+          {
+            name: registerDto.companyName,
+            slug,
+          },
+        );
+      } catch (error: unknown) {
+        if (
+          error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          (error as { code: string }).code === '23505'
+        ) {
+          throw new ConflictException(
+            'Tenant with this name or slug already exists',
+          );
+        }
+        throw error;
+      }
 
       const tenantId = tenant.id;
 
@@ -124,16 +140,24 @@ export class AuthService {
       return this.generateAuthResponse(user, context);
     } catch (error: unknown) {
       // Rollback the transaction on any error
-      await queryRunner.rollbackTransaction();
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
 
       // Handle database unique constraint violation
-      if (error instanceof Error && 'code' in error && error.code === '23505') {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code: string }).code === '23505'
+      ) {
         throw new BadRequestException('Email already registered');
       }
       throw error;
     } finally {
       // Release the query runner
-      await queryRunner.release();
+      if (!queryRunner.isReleased) {
+        await queryRunner.release();
+      }
     }
   }
 

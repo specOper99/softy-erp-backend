@@ -27,12 +27,15 @@ export class SanitizeInterceptor implements NestInterceptor {
   /**
    * Recursively sanitize an object's string values
    */
-  private sanitizeObject(obj: unknown): any {
+  private sanitizeObject(obj: unknown, key?: string): any {
     if (obj === null || obj === undefined) {
       return obj;
     }
 
     if (typeof obj === 'string') {
+      if (key && ['password', 'passwordConfirm', 'oldPassword'].includes(key)) {
+        return obj;
+      }
       return this.escapeHtml(obj);
     }
 
@@ -43,9 +46,9 @@ export class SanitizeInterceptor implements NestInterceptor {
 
     if (typeof obj === 'object') {
       const sanitized: Record<string, any> = {};
-      for (const [key, value] of Object.entries(obj)) {
+      for (const [k, value] of Object.entries(obj)) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        sanitized[key] = this.sanitizeObject(value);
+        sanitized[k] = this.sanitizeObject(value, k);
       }
       return sanitized;
     }

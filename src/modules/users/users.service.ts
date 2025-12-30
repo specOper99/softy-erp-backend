@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { EntityManager, Repository } from 'typeorm';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
@@ -53,11 +54,13 @@ export class UsersService {
     return savedUser;
   }
 
-  async findAll(): Promise<User[]> {
+  async findAll(query: PaginationDto = {}): Promise<User[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.userRepository.find({
       where: { tenantId },
       relations: ['profile', 'wallet'],
+      skip: query.skip,
+      take: query.limit ?? 20,
     });
   }
 

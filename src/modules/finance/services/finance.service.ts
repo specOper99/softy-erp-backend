@@ -68,7 +68,11 @@ export class FinanceService {
       });
     }
 
-    return queryBuilder.orderBy('t.transactionDate', 'DESC').getMany();
+    return queryBuilder
+      .orderBy('t.transactionDate', 'DESC')
+      .skip(filter?.skip)
+      .take(filter?.limit ?? 20)
+      .getMany();
   }
 
   async findTransactionById(id: string): Promise<Transaction> {
@@ -166,6 +170,7 @@ export class FinanceService {
     const tenantId = TenantContextService.getTenantId();
     let wallet = await manager.findOne(EmployeeWallet, {
       where: { userId, tenantId },
+      lock: { mode: 'pessimistic_write' },
     });
     if (!wallet) {
       wallet = manager.create(EmployeeWallet, {
@@ -187,6 +192,7 @@ export class FinanceService {
     const tenantId = TenantContextService.getTenantId();
     const wallet = await manager.findOne(EmployeeWallet, {
       where: { userId, tenantId },
+      lock: { mode: 'pessimistic_write' },
     });
     if (!wallet) {
       throw new NotFoundException(`Wallet not found for user ${userId}`);
@@ -214,6 +220,7 @@ export class FinanceService {
     const tenantId = TenantContextService.getTenantId();
     const wallet = await manager.findOne(EmployeeWallet, {
       where: { userId, tenantId },
+      lock: { mode: 'pessimistic_write' },
     });
     if (!wallet) {
       throw new NotFoundException(`Wallet not found for user ${userId}`);

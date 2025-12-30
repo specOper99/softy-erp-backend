@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import {
   BookingStatus,
   ReferenceType,
@@ -67,12 +68,14 @@ export class BookingsService {
     return this.bookingRepository.save(booking);
   }
 
-  async findAll(): Promise<Booking[]> {
+  async findAll(query: PaginationDto = {}): Promise<Booking[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.bookingRepository.find({
       where: { tenantId },
       relations: ['servicePackage', 'tasks'],
       order: { createdAt: 'DESC' },
+      skip: query.skip,
+      take: query.limit ?? 20,
     });
   }
 

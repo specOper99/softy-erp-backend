@@ -8,6 +8,7 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ReferenceType, TransactionType } from '../../../common/enums';
 
 // Transaction DTOs
@@ -93,7 +94,7 @@ export class WalletResponseDto {
   updatedAt: Date;
 }
 
-export class TransactionFilterDto {
+export class TransactionFilterDto extends PaginationDto {
   @ApiPropertyOptional({ enum: TransactionType })
   @IsEnum(TransactionType)
   @IsOptional()

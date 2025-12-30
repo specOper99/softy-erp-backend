@@ -45,6 +45,8 @@ describe('FinanceService - Comprehensive Tests', () => {
       andWhere: jest.fn().mockReturnThis(),
 
       orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([mockTransaction]),
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
