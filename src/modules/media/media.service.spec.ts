@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
@@ -12,10 +12,24 @@ describe('MediaService', () => {
   let attachmentRepository: Repository<Attachment>;
   let storageService: StorageService;
 
+  const mockDataSource = {
+    manager: {
+      findOne: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
     jest
       .spyOn(TenantContextService, 'getTenantId')
       .mockReturnValue('tenant-123');
+
+    // Reset mocks
+    mockDataSource.manager.findOne.mockReset();
+    // By default, return valid entities for validation
+    mockDataSource.manager.findOne.mockResolvedValue({
+      id: 'valid-id',
+      tenantId: 'tenant-123',
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -48,6 +62,10 @@ describe('MediaService', () => {
               .mockResolvedValue('http://download-url'),
             deleteFile: jest.fn().mockResolvedValue(undefined),
           },
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();

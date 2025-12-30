@@ -383,6 +383,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
     it('should rotate tokens for valid refresh token', async () => {
       const mockToken = {
+        id: 'token-id',
         tokenHash: 'hash',
         userId: mockUser.id,
         isRevoked: false,
@@ -392,14 +393,23 @@ describe('AuthService - Comprehensive Tests', () => {
         user: mockUser,
       };
       mockRefreshTokenRepository.findOne.mockResolvedValue(mockToken);
+      mockRefreshTokenRepository.update.mockResolvedValue({ affected: 1 });
       mockUsersService.findOne.mockResolvedValue(mockUser);
 
       const result = await service.refreshTokens('valid-token');
 
       expect(result).toHaveProperty('accessToken', 'mock-jwt-token');
       expect(result).toHaveProperty('refreshToken');
-      expect(mockRefreshTokenRepository.save).toHaveBeenCalled();
-      expect(mockToken.isRevoked).toBe(true);
+      // Atomic update pattern: check update was called with correct args
+      expect(mockRefreshTokenRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: mockToken.id,
+          isRevoked: false,
+        }),
+        expect.objectContaining({
+          isRevoked: true,
+        }),
+      );
     });
 
     it('should throw UnauthorizedException if user not found or inactive during refresh', async () => {

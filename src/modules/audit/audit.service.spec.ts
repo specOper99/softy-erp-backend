@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
 
@@ -47,10 +48,24 @@ describe('AuditService', () => {
       entityId: 'user-123',
       notes: 'Test log',
     };
+    const testTenantId = 'tenant-123';
+
+    beforeEach(() => {
+      jest
+        .spyOn(TenantContextService, 'getTenantId')
+        .mockReturnValue(testTenantId);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
 
     it('should log using the injected repository when no manager provided', async () => {
       const result = await service.log(logData);
-      expect(repository.create).toHaveBeenCalledWith(logData);
+      expect(repository.create).toHaveBeenCalledWith({
+        ...logData,
+        tenantId: testTenantId,
+      });
       expect(repository.save).toHaveBeenCalled();
       expect(result).toEqual(mockAuditLog);
     });
@@ -67,7 +82,10 @@ describe('AuditService', () => {
       const result = await service.log(logData, mockManager);
 
       expect(mockManager.getRepository).toHaveBeenCalledWith(AuditLog);
-      expect(mockManagerRepo.create).toHaveBeenCalledWith(logData);
+      expect(mockManagerRepo.create).toHaveBeenCalledWith({
+        ...logData,
+        tenantId: testTenantId,
+      });
       expect(mockManagerRepo.save).toHaveBeenCalled();
       expect(result).toEqual(mockAuditLog);
     });

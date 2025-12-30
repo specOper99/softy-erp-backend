@@ -37,6 +37,7 @@ describe('TasksService - Comprehensive Tests', () => {
   const mockFinanceService = {
     moveToPayable: jest.fn().mockResolvedValue({}),
     addPendingCommission: jest.fn().mockResolvedValue({}),
+    subtractPendingCommission: jest.fn().mockResolvedValue({}),
   };
 
   const mockMailService = {
@@ -113,6 +114,8 @@ describe('TasksService - Comprehensive Tests', () => {
         relations: ['booking', 'taskType', 'assignedUser'],
         order: { createdAt: 'DESC' },
         where: { tenantId: 'tenant-123' },
+        skip: 0,
+        take: 20,
       });
     });
 
@@ -200,6 +203,29 @@ describe('TasksService - Comprehensive Tests', () => {
   // ============ ASSIGN TASK TESTS ============
   describe('assignTask', () => {
     it('should assign task to user', async () => {
+      // Mock the locking call
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+      });
+      // Mock the second call for relations
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        booking: { clientName: 'Client' },
+        taskType: { name: 'Type' },
+      });
+      // Mock user validation (User lookup)
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'new-user-id',
+        tenantId: 'tenant-123',
+      });
+      // Mock user fetch for email
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'new-user-id',
+        email: 'new@example.com',
+      });
+
       const result = await service.assignTask('task-uuid-123', {
         userId: 'new-user-id',
       });
@@ -221,6 +247,11 @@ describe('TasksService - Comprehensive Tests', () => {
         booking: { clientName: 'Client' },
         taskType: { name: 'Type' },
       });
+      // Mock user validation (User lookup)
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'new-user-id',
+        tenantId: 'tenant-123',
+      });
       // Mock the user fetch for email
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({
         id: 'new-user-id',
@@ -231,6 +262,7 @@ describe('TasksService - Comprehensive Tests', () => {
         userId: 'new-user-id',
       });
       expect(result.assignedUserId).toBe('new-user-id');
+      expect(mockFinanceService.subtractPendingCommission).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for non-existent task', async () => {

@@ -23,12 +23,23 @@ export async function seedTestDatabase(dataSource: DataSource) {
     where: { slug: 'chapters-studio-hq' },
   });
   if (!tenant) {
-    tenant = tenantRepo.create({
-      name: 'Chapters Studio HQ',
-      slug: 'chapters-studio-hq',
-    });
-    tenant = await tenantRepo.save(tenant);
+    try {
+      tenant = tenantRepo.create({
+        name: 'Chapters Studio HQ',
+        slug: 'chapters-studio-hq',
+      });
+      tenant = await tenantRepo.save(tenant);
+    } catch {
+      tenant = await tenantRepo.findOne({
+        where: { slug: 'chapters-studio-hq' },
+      });
+    }
   }
+
+  if (!tenant) {
+    throw new Error('Failed to seed/find test tenant');
+  }
+
   const tenantId = tenant.id;
 
   // 2. Create/Update Admin
@@ -38,34 +49,66 @@ export async function seedTestDatabase(dataSource: DataSource) {
 
   let admin = await userRepo.findOne({ where: { email: adminEmail } });
   if (!admin) {
-    admin = userRepo.create({
-      email: adminEmail,
-      passwordHash: adminPasswordHash,
-      role: Role.ADMIN,
-      isActive: true,
-      tenantId,
-    });
-    admin = await userRepo.save(admin);
+    try {
+      admin = userRepo.create({
+        email: adminEmail,
+        passwordHash: adminPasswordHash,
+        role: Role.ADMIN,
+        isActive: true,
+        tenantId,
+      });
+      admin = await userRepo.save(admin);
+    } catch {
+      admin = await userRepo.findOne({ where: { email: adminEmail } });
+    }
   } else {
     admin.passwordHash = adminPasswordHash;
     admin.tenantId = tenantId;
     admin = await userRepo.save(admin);
   }
 
+  if (!admin) {
+    throw new Error('Failed to seed/find admin user');
+  }
+
   // Sync admin profile/wallet if they exist
-  await profileRepo.update({ userId: admin.id }, { tenantId });
+  const existingAdminProfile = await profileRepo.findOne({
+    where: { userId: admin.id },
+  });
+  if (existingAdminProfile) {
+    await profileRepo.update({ id: existingAdminProfile.id }, { tenantId });
+  } else {
+    try {
+      await profileRepo.save(
+        profileRepo.create({
+          userId: admin.id,
+          firstName: 'Admin',
+          lastName: 'User',
+          baseSalary: 0,
+          tenantId,
+        }),
+      );
+    } catch {
+      // Profile already exists
+    }
+  }
+
   const adminWallet = await walletRepo.findOne({ where: { userId: admin.id } });
   if (adminWallet) {
     await walletRepo.update({ id: adminWallet.id }, { tenantId });
   } else {
-    await walletRepo.save(
-      walletRepo.create({
-        userId: admin.id,
-        pendingBalance: 0,
-        payableBalance: 0,
-        tenantId,
-      }),
-    );
+    try {
+      await walletRepo.save(
+        walletRepo.create({
+          userId: admin.id,
+          pendingBalance: 0,
+          payableBalance: 0,
+          tenantId,
+        }),
+      );
+    } catch {
+      // Wallet already exists
+    }
   }
 
   // 3. Create/Update Staff
@@ -75,18 +118,26 @@ export async function seedTestDatabase(dataSource: DataSource) {
 
   let staff = await userRepo.findOne({ where: { email: staffEmail } });
   if (!staff) {
-    staff = userRepo.create({
-      email: staffEmail,
-      passwordHash: staffPasswordHash,
-      role: Role.FIELD_STAFF,
-      isActive: true,
-      tenantId,
-    });
-    staff = await userRepo.save(staff);
+    try {
+      staff = userRepo.create({
+        email: staffEmail,
+        passwordHash: staffPasswordHash,
+        role: Role.FIELD_STAFF,
+        isActive: true,
+        tenantId,
+      });
+      staff = await userRepo.save(staff);
+    } catch {
+      staff = await userRepo.findOne({ where: { email: staffEmail } });
+    }
   } else {
     staff.passwordHash = staffPasswordHash;
     staff.tenantId = tenantId;
     staff = await userRepo.save(staff);
+  }
+
+  if (!staff) {
+    throw new Error('Failed to seed/find staff user');
   }
 
   // Sync staff profile/wallet
@@ -94,16 +145,20 @@ export async function seedTestDatabase(dataSource: DataSource) {
     where: { userId: staff.id },
   });
   if (!staffProfile) {
-    await profileRepo.save(
-      profileRepo.create({
-        userId: staff.id,
-        firstName: 'John',
-        lastName: 'Doe',
-        jobTitle: 'Photographer',
-        baseSalary: 2000,
-        tenantId,
-      }),
-    );
+    try {
+      await profileRepo.save(
+        profileRepo.create({
+          userId: staff.id,
+          firstName: 'John',
+          lastName: 'Doe',
+          jobTitle: 'Photographer',
+          baseSalary: 2000,
+          tenantId,
+        }),
+      );
+    } catch {
+      // Profile already exists
+    }
   } else {
     await profileRepo.update({ id: staffProfile.id }, { tenantId });
   }
@@ -112,14 +167,18 @@ export async function seedTestDatabase(dataSource: DataSource) {
     where: { userId: staff.id },
   });
   if (!staffWallet) {
-    await walletRepo.save(
-      walletRepo.create({
-        userId: staff.id,
-        pendingBalance: 0,
-        payableBalance: 0,
-        tenantId,
-      }),
-    );
+    try {
+      await walletRepo.save(
+        walletRepo.create({
+          userId: staff.id,
+          pendingBalance: 0,
+          payableBalance: 0,
+          tenantId,
+        }),
+      );
+    } catch {
+      // Wallet already exists
+    }
   } else {
     await walletRepo.update({ id: staffWallet.id }, { tenantId });
   }
@@ -130,14 +189,24 @@ export async function seedTestDatabase(dataSource: DataSource) {
     where: { name: taskTypeName, tenantId },
   });
   if (!taskType) {
-    taskType = await taskTypeRepo.save(
-      taskTypeRepo.create({
-        name: taskTypeName,
-        description: 'Photos',
-        defaultCommissionAmount: 100,
-        tenantId,
-      }),
-    );
+    try {
+      taskType = await taskTypeRepo.save(
+        taskTypeRepo.create({
+          name: taskTypeName,
+          description: 'Photos',
+          defaultCommissionAmount: 100,
+          tenantId,
+        }),
+      );
+    } catch {
+      taskType = await taskTypeRepo.findOne({
+        where: { name: taskTypeName, tenantId },
+      });
+    }
+  }
+
+  if (!taskType) {
+    throw new Error('Failed to seed/find task type');
   }
 
   // 5. Create Package
@@ -146,23 +215,33 @@ export async function seedTestDatabase(dataSource: DataSource) {
     where: { name: packageName, tenantId },
   });
   if (!pkg) {
-    pkg = await packageRepo.save(
-      packageRepo.create({
-        name: packageName,
-        description: 'Full Package',
-        price: 2000,
-        tenantId,
-      }),
-    );
+    try {
+      pkg = await packageRepo.save(
+        packageRepo.create({
+          name: packageName,
+          description: 'Full Package',
+          price: 2000,
+          tenantId,
+        }),
+      );
 
-    await packageItemRepo.save(
-      packageItemRepo.create({
-        packageId: pkg.id,
-        taskTypeId: taskType.id,
-        quantity: 2,
-        tenantId,
-      }),
-    );
+      await packageItemRepo.save(
+        packageItemRepo.create({
+          packageId: pkg.id,
+          taskTypeId: taskType.id,
+          quantity: 2,
+          tenantId,
+        }),
+      );
+    } catch {
+      pkg = await packageRepo.findOne({
+        where: { name: packageName, tenantId },
+      });
+    }
+  }
+
+  if (!pkg) {
+    throw new Error('Failed to seed/find package');
   }
 
   return { tenantId, admin, staff, pkg, taskType };

@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
+import { TenantsService } from '../tenants/tenants.service';
 import { Profile } from './entities/profile.entity';
 import { HrService } from './hr.service';
 
@@ -100,6 +101,12 @@ describe('HrService - Comprehensive Tests', () => {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
   };
 
+  const mockTenantsService = {
+    findAll: jest
+      .fn()
+      .mockResolvedValue([{ id: 'test-tenant-id', slug: 'test-tenant' }]),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -116,6 +123,7 @@ describe('HrService - Comprehensive Tests', () => {
         { provide: MailService, useValue: mockMailService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: TenantsService, useValue: mockTenantsService },
       ],
     }).compile();
 
@@ -136,6 +144,17 @@ describe('HrService - Comprehensive Tests', () => {
       }
       return Promise.resolve(null);
     });
+
+    // Mock queryRunner.manager.findOne for user validation
+    mockQueryRunner.manager.findOne.mockImplementation((entity, options) => {
+      if (entity === 'User' && options?.where?.id === 'user-uuid-123') {
+        return Promise.resolve({
+          id: 'user-uuid-123',
+          tenantId: 'test-tenant-id',
+        });
+      }
+      return Promise.resolve(mockWallet);
+    });
   });
 
   // ============ PROFILE CRUD TESTS ============
@@ -147,6 +166,18 @@ describe('HrService - Comprehensive Tests', () => {
         lastName: 'Doe',
         baseSalary: 2000.0,
       };
+
+      // Mock user validation
+      mockQueryRunner.manager.findOne.mockImplementation((entity, _options) => {
+        if (entity === 'User') {
+          return Promise.resolve({
+            id: 'user-uuid-123',
+            tenantId: 'test-tenant-id',
+          });
+        }
+        return Promise.resolve(mockWallet);
+      });
+
       const result = await service.createProfile(dto);
       expect(
         mockFinanceService.getOrCreateWalletWithManager,
@@ -459,7 +490,18 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should handle errors in scheduled payroll', async () => {
+      // Mock TenantContextService.run to execute the callback
+      jest
+        .spyOn(TenantContextService, 'run')
+        .mockImplementation((_tenantId, callback) => {
+          callback();
+        });
+      mockTenantsService.findAll.mockResolvedValue([
+        { id: 'tenant-1', slug: 'test' },
+      ]);
       jest.spyOn(service, 'runPayroll').mockRejectedValue(new Error('Failed'));
+
+      // Should not throw - errors are caught and logged
       await expect(service.runScheduledPayroll()).resolves.not.toThrow();
     });
   });

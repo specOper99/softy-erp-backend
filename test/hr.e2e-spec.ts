@@ -82,13 +82,23 @@ describe('HR Module E2E Tests', () => {
   describe('Employee Profiles', () => {
     describe('POST /api/v1/hr/profiles', () => {
       it('should fail if profile already exists for user (Admin)', async () => {
-        // Make this deterministic: create once, then verify duplicate is rejected.
+        // Create a dedicated user for this test to avoid conflicts with seeded data
+        const userRepo = app.get(DataSource).getRepository('User');
+        const newUser = await userRepo.save({
+          email: `profile-test-${Date.now()}@chapters.studio`,
+          passwordHash: 'hash',
+          role: 'ADMIN',
+          isActive: true,
+          tenantId,
+        });
+        const currentTestUserId = newUser.id;
+
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
           .set('Authorization', `Bearer ${accessToken}`)
           .set('X-Tenant-ID', tenantId)
           .send({
-            userId: testUserId,
+            userId: currentTestUserId,
             baseSalary: 7000,
           })
           .expect(201);
@@ -98,7 +108,7 @@ describe('HR Module E2E Tests', () => {
           .set('Authorization', `Bearer ${accessToken}`)
           .set('X-Tenant-ID', tenantId)
           .send({
-            userId: testUserId,
+            userId: currentTestUserId,
             baseSalary: 7000,
           })
           .expect(409);
