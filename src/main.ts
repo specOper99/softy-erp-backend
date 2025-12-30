@@ -43,12 +43,10 @@ async function bootstrap() {
 
   // CORS - Environment-based configuration
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim());
+  const isProd = process.env.NODE_ENV === 'production';
   app.enableCors({
-    origin:
-      process.env.NODE_ENV === 'production' && corsOrigins?.length
-        ? corsOrigins
-        : true, // Allow all in development
-    credentials: true,
+    origin: isProd ? (corsOrigins?.length ? corsOrigins : false) : true, // Allow all in development
+    credentials: !isProd || !!corsOrigins?.length,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
   });

@@ -14,6 +14,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 import * as CircuitBreaker from 'opossum';
 import { Readable } from 'stream';
 
@@ -110,7 +111,7 @@ export class StorageService implements OnModuleInit {
    */
   generateKey(originalName: string, prefix = 'uploads'): string {
     const timestamp = Date.now();
-    const randomPart = Math.random().toString(36).substring(2, 10);
+    const randomPart = randomBytes(16).toString('hex');
     const ext = originalName.split('.').pop() || '';
     const sanitizedName = originalName
       .replace(/\.[^/.]+$/, '') // Remove extension
@@ -184,6 +185,15 @@ export class StorageService implements OnModuleInit {
    * Extract storage key from URL
    */
   extractKeyFromUrl(url: string): string | null {
+    if (!url) {
+      return null;
+    }
+
+    // If we stored the raw key (e.g. "uploads/..."), just return it.
+    if (!/^https?:\/\//i.test(url)) {
+      return url;
+    }
+
     const match = url.match(new RegExp(`${this.bucket}/(.+)$`));
     return match ? match[1] : null;
   }

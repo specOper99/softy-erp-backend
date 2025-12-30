@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -15,6 +16,10 @@ export class Attachment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
+  tenantId: string | null;
+
   @Column()
   name: string;
 
@@ -27,10 +32,10 @@ export class Attachment {
   @Column({ type: 'int' })
   size: number;
 
-  @Column({ name: 'booking_id', nullable: true })
+  @Column({ name: 'booking_id', type: 'uuid', nullable: true })
   bookingId: string | null;
 
-  @Column({ name: 'task_id', nullable: true })
+  @Column({ name: 'task_id', type: 'uuid', nullable: true })
   taskId: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

@@ -15,11 +15,13 @@ import {
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { SkipTenant } from '../../common/decorators';
 import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 
 @ApiTags('Health')
 @Controller('health')
 @SkipThrottle() // Health checks should not be rate limited
+@SkipTenant()
 export class HealthController {
   constructor(
     private health: HealthCheckService,
@@ -88,8 +90,11 @@ export class HealthController {
     description: 'Secret key to authorize the error test',
   })
   testError(@Query('key') key: string) {
-    const secretKey =
-      this.configService.get<string>('TEST_ERROR_KEY') || 'test-error-secret';
+    const secretKey = this.configService.get<string>('TEST_ERROR_KEY');
+
+    if (!secretKey) {
+      throw new HttpException('Endpoint disabled', HttpStatus.NOT_FOUND);
+    }
 
     if (!key) {
       throw new HttpException('Missing key parameter', HttpStatus.BAD_REQUEST);

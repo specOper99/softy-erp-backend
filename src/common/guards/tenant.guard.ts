@@ -4,8 +4,10 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { Observable } from 'rxjs';
+import { SKIP_TENANT_KEY } from '../decorators/skip-tenant.decorator';
 import { TenantContextService } from '../services/tenant-context.service';
 
 /**
@@ -16,15 +18,18 @@ import { TenantContextService } from '../services/tenant-context.service';
  */
 @Injectable()
 export class TenantGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const path = request?.path ?? '';
-    const method = request?.method?.toUpperCase() ?? '';
+    const _request = context.switchToHttp().getRequest<Request>();
 
-    // Allow registration endpoint without tenant header
-    if (method === 'POST' && path === '/api/v1/auth/register') {
+    const skipTenant = this.reflector.getAllAndOverride<boolean>(
+      SKIP_TENANT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (skipTenant) {
       return true;
     }
 

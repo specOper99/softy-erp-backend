@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
 import { StorageService } from './storage.service';
@@ -12,6 +13,10 @@ describe('MediaService', () => {
   let storageService: StorageService;
 
   beforeEach(async () => {
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MediaService,
@@ -212,7 +217,7 @@ describe('MediaService', () => {
 
       const result = await service.findByBooking('b-id');
       expect(attachmentRepository.find).toHaveBeenCalledWith({
-        where: { bookingId: 'b-id' },
+        where: { bookingId: 'b-id', tenantId: 'tenant-123' },
         order: { createdAt: 'DESC' },
       });
       expect(result).toBe(mockAttachments);
@@ -228,7 +233,7 @@ describe('MediaService', () => {
 
       const result = await service.findByTask('t-id');
       expect(attachmentRepository.find).toHaveBeenCalledWith({
-        where: { taskId: 't-id' },
+        where: { taskId: 't-id', tenantId: 'tenant-123' },
         order: { createdAt: 'DESC' },
       });
       expect(result).toBe(mockAttachments);
@@ -248,7 +253,11 @@ describe('MediaService', () => {
   describe('findAll', () => {
     it('should call repository.find', async () => {
       await service.findAll();
-      expect(attachmentRepository.find).toHaveBeenCalled();
+      expect(attachmentRepository.find).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-123' },
+        relations: ['booking', 'task'],
+        order: { createdAt: 'DESC' },
+      });
     });
   });
 });

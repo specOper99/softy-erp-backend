@@ -36,6 +36,7 @@ export class IpRateLimitGuard implements CanActivate {
   private readonly windowMs: number;
   private readonly blockDurationMs: number;
   private readonly progressiveDelayMs: number;
+  private readonly trustProxyHeaders: boolean;
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -54,8 +55,6 @@ export class IpRateLimitGuard implements CanActivate {
     }
     // 50 requests per minute soft limit (starts slowing down)
     this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
-    // 50 requests per minute soft limit (starts slowing down)
-    this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
     // 100 requests per minute hard limit (blocks IP)
     this.hardLimit = this.configService.get<number>('RATE_LIMIT_HARD') || 100;
     // 1 minute window
@@ -67,6 +66,10 @@ export class IpRateLimitGuard implements CanActivate {
     // 500ms progressive delay per request over soft limit
     this.progressiveDelayMs =
       this.configService.get<number>('RATE_LIMIT_DELAY_MS') || 500;
+
+    // Only trust proxy headers when explicitly enabled
+    this.trustProxyHeaders =
+      this.configService.get<string>('TRUST_PROXY') === 'true';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -104,7 +107,8 @@ export class IpRateLimitGuard implements CanActivate {
       if (info.count > this.hardLimit) {
         info.blocked = true;
         info.blockedUntil = now + this.blockDurationMs;
-        await this.cacheManager.set(key, info, this.blockDurationMs);
+        const ttlSeconds = Math.ceil(this.blockDurationMs / 1000);
+        await this.cacheManager.set(key, info, ttlSeconds);
         this.logger.warn(
           `IP ${ip} blocked for exceeding rate limit (${info.count} requests)`,
         );
@@ -124,21 +128,23 @@ export class IpRateLimitGuard implements CanActivate {
     }
 
     // Update cache
-    const ttl = Math.ceil(this.windowMs / 1000);
-    await this.cacheManager.set(key, info, ttl * 1000);
+    const ttlSeconds = Math.ceil(this.windowMs / 1000);
+    await this.cacheManager.set(key, info, ttlSeconds);
 
     return true;
   }
 
   private getClientIp(request: Request): string {
     // Check various headers for proxied requests
-    const forwarded = request.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
-    }
-    const realIp = request.headers['x-real-ip'];
-    if (typeof realIp === 'string') {
-      return realIp;
+    if (this.trustProxyHeaders) {
+      const forwarded = request.headers['x-forwarded-for'];
+      if (typeof forwarded === 'string') {
+        return forwarded.split(',')[0].trim();
+      }
+      const realIp = request.headers['x-real-ip'];
+      if (typeof realIp === 'string') {
+        return realIp;
+      }
     }
     return request.ip || request.socket?.remoteAddress || 'unknown';
   }

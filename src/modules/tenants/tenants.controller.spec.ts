@@ -1,4 +1,6 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
 import { TenantsController } from './tenants.controller';
 import { TenantsService } from './tenants.service';
@@ -25,6 +27,10 @@ describe('TenantsController', () => {
   };
 
   beforeEach(async () => {
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TenantsController],
       providers: [
@@ -44,21 +50,20 @@ describe('TenantsController', () => {
   });
 
   describe('create', () => {
-    it('should create a tenant', async () => {
+    it('should reject tenant creation', () => {
       const createDto: CreateTenantDto = {
         name: 'Test Tenant',
         slug: 'test-tenant',
       };
-      const result = await controller.create(createDto);
-      expect(service.create).toHaveBeenCalledWith(createDto);
-      expect(result).toEqual(mockTenant);
+
+      expect(() => controller.create(createDto)).toThrow(ForbiddenException);
     });
   });
 
   describe('findAll', () => {
     it('should return an array of tenants', async () => {
       const result = await controller.findAll();
-      expect(service.findAll).toHaveBeenCalled();
+      expect(service.findOne).toHaveBeenCalledWith('tenant-123');
       expect(result).toEqual([mockTenant]);
     });
   });
@@ -69,6 +74,12 @@ describe('TenantsController', () => {
       expect(service.findOne).toHaveBeenCalledWith('tenant-123');
       expect(result).toEqual(mockTenant);
     });
+
+    it('should reject cross-tenant access', () => {
+      expect(() => controller.findOne('other-tenant')).toThrow(
+        ForbiddenException,
+      );
+    });
   });
 
   describe('update', () => {
@@ -78,13 +89,18 @@ describe('TenantsController', () => {
       expect(service.update).toHaveBeenCalledWith('tenant-123', updateDto);
       expect(result).toEqual(mockTenant);
     });
+
+    it('should reject cross-tenant updates', () => {
+      const updateDto: UpdateTenantDto = { name: 'Updated Tenant' };
+      expect(() => controller.update('other-tenant', updateDto)).toThrow(
+        ForbiddenException,
+      );
+    });
   });
 
   describe('remove', () => {
-    it('should remove a tenant', async () => {
-      const result = await controller.remove('tenant-123');
-      expect(service.remove).toHaveBeenCalledWith('tenant-123');
-      expect(result).toBeUndefined();
+    it('should reject tenant deletion', () => {
+      expect(() => controller.remove('tenant-123')).toThrow(ForbiddenException);
     });
   });
 });

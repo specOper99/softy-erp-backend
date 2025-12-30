@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskStatus, TransactionType } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Transaction } from '../finance/entities/transaction.entity';
 import { Profile } from '../hr/entities/profile.entity';
@@ -18,6 +19,7 @@ describe('DashboardService', () => {
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
     innerJoin: jest.fn().mockReturnThis(),
     leftJoin: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
@@ -31,6 +33,10 @@ describe('DashboardService', () => {
   };
 
   beforeEach(async () => {
+    jest
+      .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DashboardService,
@@ -116,6 +122,10 @@ describe('DashboardService', () => {
 
       expect(taskRepo.createQueryBuilder).toHaveBeenCalledWith('task');
       expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'task.tenantId = :tenantId',
+        { tenantId: 'tenant-123' },
+      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'task.status = :status',
         { status: TaskStatus.COMPLETED },
       );

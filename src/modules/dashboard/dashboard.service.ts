@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskStatus, TransactionType } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Transaction } from '../finance/entities/transaction.entity';
 import { Profile } from '../hr/entities/profile.entity';
@@ -26,6 +27,11 @@ export class DashboardService {
   ) {}
 
   async getRevenueSummary(): Promise<RevenueSummaryDto[]> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
+
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
     sixMonthsAgo.setDate(1);
@@ -42,7 +48,8 @@ export class DashboardService {
         'SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)',
         'payouts',
       )
-      .where('t.transactionDate >= :date', { date: sixMonthsAgo })
+      .where('t.tenantId = :tenantId', { tenantId })
+      .andWhere('t.transactionDate >= :date', { date: sixMonthsAgo })
       .setParameter('income', TransactionType.INCOME)
       .setParameter('payroll', TransactionType.PAYROLL)
       .groupBy('month')
@@ -58,6 +65,11 @@ export class DashboardService {
   }
 
   async getStaffPerformance(): Promise<StaffPerformanceDto[]> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
+
     const stats = await this.taskRepository
       .createQueryBuilder('task')
       .innerJoin('task.assignedUser', 'user')
@@ -65,7 +77,8 @@ export class DashboardService {
       .addSelect('COUNT(task.id)', 'completedTasks')
       .addSelect('SUM(task.commissionSnapshot)', 'totalCommission')
       .leftJoin(Profile, 'profile', 'profile.userId = user.id')
-      .where('task.status = :status', { status: TaskStatus.COMPLETED })
+      .where('task.tenantId = :tenantId', { tenantId })
+      .andWhere('task.status = :status', { status: TaskStatus.COMPLETED })
       .groupBy('staffName')
       .orderBy('totalCommission', 'DESC')
       .getRawMany<{
@@ -82,12 +95,18 @@ export class DashboardService {
   }
 
   async getPackageStats(): Promise<PackageStatsDto[]> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
+
     const stats = await this.bookingRepository
       .createQueryBuilder('b')
       .innerJoin('b.servicePackage', 'pkg')
       .select('pkg.name', 'packageName')
       .addSelect('COUNT(b.id)', 'bookingCount')
       .addSelect('SUM(b.totalPrice)', 'totalRevenue')
+      .where('b.tenantId = :tenantId', { tenantId })
       .groupBy('pkg.name')
       .orderBy('bookingCount', 'DESC')
       .getRawMany<{

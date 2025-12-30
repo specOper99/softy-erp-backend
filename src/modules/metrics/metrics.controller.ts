@@ -9,6 +9,7 @@ import {
   Histogram,
   register,
 } from 'prom-client';
+import { SkipTenant } from '../../common/decorators';
 
 // Initialize default metrics (CPU, memory, event loop, etc.)
 collectDefaultMetrics({ prefix: 'chapters_' });
@@ -42,6 +43,7 @@ export const dbQueryDuration = new Histogram({
 @ApiTags('Metrics')
 @Controller('metrics')
 @SkipThrottle() // Metrics should not be rate limited
+@SkipTenant() // Metrics are global, not tenant-specific
 export class MetricsController {
   @Get()
   @ApiOperation({ summary: 'Prometheus metrics endpoint' })

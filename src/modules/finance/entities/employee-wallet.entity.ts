@@ -1,11 +1,12 @@
-import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 
 @Entity('employee_wallets')
+@Index(['tenantId', 'userId'], { unique: true })
 export class EmployeeWallet extends BaseTenantEntity {
-  @Column({ name: 'user_id', unique: true })
+  @Column({ name: 'user_id' })
   userId: string;
 
   @Column({

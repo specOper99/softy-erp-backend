@@ -12,7 +12,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { CurrentUser } from '../../common/decorators';
+import { CurrentUser, SkipTenant } from '../../common/decorators';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import {
@@ -31,6 +31,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @SkipTenant()
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @ApiOperation({ summary: 'Register a new user' })
   async register(

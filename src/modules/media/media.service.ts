@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Attachment } from './entities/attachment.entity';
 import { StorageService } from './storage.service';
 
@@ -28,6 +29,10 @@ export class MediaService {
    */
   async uploadFile(params: UploadFileParams): Promise<Attachment> {
     const { buffer, originalName, mimeType, size, bookingId, taskId } = params;
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
 
     // Generate storage key and upload to MinIO
     const key = this.storageService.generateKey(originalName);
@@ -45,6 +50,7 @@ export class MediaService {
       size,
       bookingId: bookingId || null,
       taskId: taskId || null,
+      tenantId,
     });
 
     const savedAttachment = await this.attachmentRepository.save(attachment);
@@ -62,6 +68,11 @@ export class MediaService {
     bookingId?: string,
     taskId?: string,
   ): Promise<{ uploadUrl: string; attachment: Attachment }> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
+
     const key = this.storageService.generateKey(filename);
     const uploadUrl = await this.storageService.getPresignedUploadUrl(
       key,
@@ -71,11 +82,12 @@ export class MediaService {
     // Create attachment record with pending status
     const attachment = this.attachmentRepository.create({
       name: filename,
-      url: `${key}`, // Will be updated after upload confirmation
+      url: `${key}`, // store key; download uses presigned URL
       mimeType,
       size: 0, // Will be updated after upload confirmation
       bookingId: bookingId || null,
       taskId: taskId || null,
+      tenantId,
     });
 
     const savedAttachment = await this.attachmentRepository.save(attachment);
@@ -87,8 +99,12 @@ export class MediaService {
    * Confirm upload and update attachment with final URL
    */
   async confirmUpload(attachmentId: string, size: number): Promise<Attachment> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
     const attachment = await this.attachmentRepository.findOne({
-      where: { id: attachmentId },
+      where: { id: attachmentId, tenantId },
     });
 
     if (!attachment) {
@@ -106,20 +122,35 @@ export class MediaService {
    * Create attachment record with external URL (for legacy support)
    */
   async create(data: Partial<Attachment>): Promise<Attachment> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
+
     const attachment = this.attachmentRepository.create(data);
+    attachment.tenantId = attachment.tenantId ?? tenantId;
     return this.attachmentRepository.save(attachment);
   }
 
   async findAll(): Promise<Attachment[]> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
     return this.attachmentRepository.find({
+      where: { tenantId },
       relations: ['booking', 'task'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: string): Promise<Attachment> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
     const attachment = await this.attachmentRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
       relations: ['booking', 'task'],
     });
     if (!attachment) {
@@ -129,15 +160,23 @@ export class MediaService {
   }
 
   async findByBooking(bookingId: string): Promise<Attachment[]> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
     return this.attachmentRepository.find({
-      where: { bookingId },
+      where: { bookingId, tenantId },
       order: { createdAt: 'DESC' },
     });
   }
 
   async findByTask(taskId: string): Promise<Attachment[]> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
     return this.attachmentRepository.find({
-      where: { taskId },
+      where: { taskId, tenantId },
       order: { createdAt: 'DESC' },
     });
   }
@@ -161,8 +200,12 @@ export class MediaService {
    * Delete attachment and its file from storage
    */
   async remove(id: string): Promise<void> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing');
+    }
     const attachment = await this.attachmentRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
     });
     if (!attachment) {
       throw new NotFoundException(`Attachment with ID ${id} not found`);
