@@ -65,8 +65,9 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User> {
+    const tenantId = TenantContextService.getTenantId();
     const user = await this.userRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
       relations: ['profile', 'wallet'],
     });
     if (!user) {

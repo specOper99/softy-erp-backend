@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -8,6 +9,7 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
 import { FinanceService } from '../finance/services/finance.service';
@@ -36,30 +38,46 @@ export class HrService {
 
   // Profile Methods
   async createProfile(dto: CreateProfileDto): Promise<Profile> {
-    try {
-      // Also create wallet for the user
-      await this.financeService.getOrCreateWallet(dto.userId);
+    const tenantId = TenantContextService.getTenantId();
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-      const profile = this.profileRepository.create({
+    try {
+      // Step 1: Create wallet for the user within the profile transaction
+      await this.financeService.getOrCreateWalletWithManager(
+        queryRunner.manager,
+        dto.userId,
+      );
+
+      // Step 2: Create profile
+      const profile = queryRunner.manager.create(Profile, {
         ...dto,
+        tenantId,
         hireDate: dto.hireDate ? new Date(dto.hireDate) : null,
       });
-      const savedProfile = await this.profileRepository.save(profile);
+      const savedProfile = await queryRunner.manager.save(profile);
 
-      await this.auditService.log({
-        action: 'CREATE',
-        entityName: 'Profile',
-        entityId: savedProfile.id,
-        newValues: {
-          userId: dto.userId,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          baseSalary: dto.baseSalary,
+      // Step 3: Audit Log (outside transaction if preferred, but here included for consistency)
+      await this.auditService.log(
+        {
+          action: 'CREATE',
+          entityName: 'Profile',
+          entityId: savedProfile.id,
+          newValues: {
+            userId: dto.userId,
+            firstName: dto.firstName,
+            lastName: dto.lastName,
+            baseSalary: dto.baseSalary,
+          },
         },
-      });
+        queryRunner.manager,
+      );
 
+      await queryRunner.commitTransaction();
       return savedProfile;
     } catch (e) {
+      await queryRunner.rollbackTransaction();
       if ((e as { code?: string }).code === '23505') {
         this.logger.warn(`Profile already exists for user ${dto.userId}`);
         throw new ConflictException(
@@ -68,16 +86,23 @@ export class HrService {
       }
       this.logger.error('Failed to create profile', e);
       throw e;
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async findAllProfiles(): Promise<Profile[]> {
-    return this.profileRepository.find({ relations: ['user'] });
+    const tenantId = TenantContextService.getTenantId();
+    return this.profileRepository.find({
+      where: { tenantId },
+      relations: ['user'],
+    });
   }
 
   async findProfileById(id: string): Promise<Profile> {
+    const tenantId = TenantContextService.getTenantId();
     const profile = await this.profileRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
       relations: ['user'],
     });
     if (!profile) {
@@ -87,8 +112,9 @@ export class HrService {
   }
 
   async findProfileByUserId(userId: string): Promise<Profile | null> {
+    const tenantId = TenantContextService.getTenantId();
     return this.profileRepository.findOne({
-      where: { userId },
+      where: { userId, tenantId },
       relations: ['user'],
     });
   }
@@ -167,24 +193,28 @@ export class HrService {
   }
 
   async runPayroll(): Promise<PayrollRunResponseDto> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context required for payroll run');
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: Get all profiles with wallets
+      // Step 1: Optimized Fetch - Get profiles with wallets in ONE query to avoid N+1
+      // We use the profile repository to leverage TypeORM relations or a query builder
       const profiles = await queryRunner.manager.find(Profile, {
-        relations: ['user'],
+        where: { tenantId },
+        relations: ['user', 'user.wallet'],
       });
 
       const transactionIds: string[] = [];
       let totalPayout = 0;
 
       for (const profile of profiles) {
-        // Get employee's wallet
-        const wallet = await queryRunner.manager.findOne(EmployeeWallet, {
-          where: { userId: profile.userId },
-        });
+        const wallet = profile.user?.wallet;
 
         // Step 2: Calculate total payout
         const baseSalary = Number(profile.baseSalary) || 0;
@@ -248,13 +278,13 @@ export class HrService {
         {
           action: 'PAYROLL_RUN',
           entityName: 'Payroll',
-          entityId: new Date().toISOString().slice(0, 7), // e.g., "2024-12"
+          entityId: `${tenantId}-${new Date().toISOString().slice(0, 7)}`,
           newValues: {
             totalEmployees: profiles.length,
             totalPayout,
             transactionIds,
           },
-          notes: `Monthly payroll run completed for ${profiles.length} employees.`,
+          notes: `Monthly payroll run completed for ${profiles.length} employees in tenant ${tenantId}.`,
         },
         queryRunner.manager,
       );

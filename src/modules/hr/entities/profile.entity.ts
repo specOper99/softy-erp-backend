@@ -1,20 +1,15 @@
 import {
   Column,
-  CreateDateColumn,
   DeleteDateColumn,
   Entity,
   JoinColumn,
   OneToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('profiles')
-export class Profile {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class Profile extends BaseTenantEntity {
   @Column({ name: 'user_id', unique: true })
   userId: string;
 
@@ -44,12 +39,6 @@ export class Profile {
 
   @Column({ nullable: true })
   phone: string;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;

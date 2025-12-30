@@ -70,7 +70,6 @@ export class FinanceService {
 
     return queryBuilder
       .orderBy('t.transactionDate', 'DESC')
-      .orderBy('t.transactionDate', 'DESC')
       .skip(filter?.getSkip())
       .take(filter?.getTake())
       .getMany();
@@ -131,18 +130,28 @@ export class FinanceService {
 
   // Wallet Methods
   async getOrCreateWallet(userId: string): Promise<EmployeeWallet> {
+    return this.dataSource.transaction(async (manager) => {
+      return this.getOrCreateWalletWithManager(manager, userId);
+    });
+  }
+
+  async getOrCreateWalletWithManager(
+    manager: EntityManager,
+    userId: string,
+  ): Promise<EmployeeWallet> {
     const tenantId = TenantContextService.getTenantId();
-    let wallet = await this.walletRepository.findOne({
+    let wallet = await manager.findOne(EmployeeWallet, {
       where: { userId, tenantId },
+      lock: { mode: 'pessimistic_write' },
     });
     if (!wallet) {
-      wallet = this.walletRepository.create({
+      wallet = manager.create(EmployeeWallet, {
         userId,
         pendingBalance: 0,
         payableBalance: 0,
         tenantId,
       });
-      wallet = await this.walletRepository.save(wallet);
+      wallet = await manager.save(wallet);
     }
     return wallet;
   }
