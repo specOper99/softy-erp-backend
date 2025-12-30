@@ -307,6 +307,12 @@ describe('FinanceService - Comprehensive Tests', () => {
         50.0,
       );
       expect(result.pendingBalance).toBe(150); // 100 + 50
+      expect(mockManager.findOne).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          lock: { mode: 'pessimistic_write' },
+        }),
+      );
     });
 
     it('should create wallet if not exists', async () => {
@@ -353,8 +359,13 @@ describe('FinanceService - Comprehensive Tests', () => {
         'user-uuid-123',
         50.0,
       );
-      expect(result.pendingBalance).toBe(50); // 100 - 50
       expect(result.payableBalance).toBe(250); // 200 + 50
+      expect(mockManager.findOne).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          lock: { mode: 'pessimistic_write' },
+        }),
+      );
     });
 
     it('should throw error when wallet not found', async () => {

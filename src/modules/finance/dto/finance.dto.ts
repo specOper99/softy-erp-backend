@@ -8,6 +8,7 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ReferenceType, TransactionType } from '../../../common/enums';
 
@@ -25,6 +26,7 @@ export class CreateTransactionDto {
   @ApiPropertyOptional({ example: 'Booking Payment' })
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   category?: string;
 
   @ApiPropertyOptional()
@@ -40,6 +42,7 @@ export class CreateTransactionDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   description?: string;
 
   @ApiProperty()

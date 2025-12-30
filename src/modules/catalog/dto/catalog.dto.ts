@@ -11,6 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 
 // ServicePackage DTOs
 export class CreateServicePackageDto {
@@ -23,6 +24,7 @@ export class CreateServicePackageDto {
   })
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   description?: string;
 
   @ApiProperty({ example: 1500.0 })
@@ -40,6 +42,7 @@ export class UpdateServicePackageDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   description?: string;
 
   @ApiPropertyOptional()
@@ -63,6 +66,7 @@ export class CreateTaskTypeDto {
   @ApiPropertyOptional({ example: 'Event photography services' })
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   description?: string;
 
   @ApiProperty({ example: 100.0 })
@@ -80,6 +84,7 @@ export class UpdateTaskTypeDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   description?: string;
 
   @ApiPropertyOptional()

@@ -6,10 +6,6 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters';
-import {
-  SanitizeInterceptor,
-  TransformInterceptor,
-} from './common/interceptors';
 import { initTracing } from './common/telemetry/tracing';
 
 // Initialize OpenTelemetry tracing
@@ -41,8 +37,7 @@ async function bootstrap() {
 
   // Global interceptors (sanitize inputs, transform outputs)
   app.useGlobalInterceptors(
-    new SanitizeInterceptor(), // XSS prevention - sanitize all inputs
-    new TransformInterceptor(),
+    // SanitizeInterceptor removed in favor of  TransformInterceptor,(),
     new ClassSerializerInterceptor(app.get(Reflector)),
   );
 

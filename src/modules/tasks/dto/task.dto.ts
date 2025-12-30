@@ -6,6 +6,7 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { TaskStatus } from '../../../common/enums';
 
 export class AssignTaskDto {
@@ -33,6 +34,7 @@ export class UpdateTaskDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   notes?: string;
 }
 

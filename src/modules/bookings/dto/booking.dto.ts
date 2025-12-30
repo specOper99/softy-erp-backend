@@ -7,6 +7,7 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
+import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { BookingStatus } from '../../../common/enums';
 
 export class CreateBookingDto {
@@ -35,6 +36,7 @@ export class CreateBookingDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   notes?: string;
 }
 
@@ -62,6 +64,7 @@ export class UpdateBookingDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @SanitizeHtml()
   notes?: string;
 
   @ApiPropertyOptional({ enum: BookingStatus })
