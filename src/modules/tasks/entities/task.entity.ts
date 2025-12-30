@@ -2,6 +2,7 @@ import {
   Column,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
@@ -14,12 +15,15 @@ import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 
 @Entity('tasks')
 export class Task extends BaseTenantEntity {
+  @Index()
   @Column({ name: 'booking_id' })
   bookingId: string;
 
+  @Index()
   @Column({ name: 'task_type_id' })
   taskTypeId: string;
 
+  @Index()
   @Column({ name: 'assigned_user_id', nullable: true })
   assignedUserId: string | null;
 

@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -10,6 +11,7 @@ export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ name: 'user_id', nullable: true })
   userId: string; // The user who performed the action
 
@@ -19,6 +21,7 @@ export class AuditLog {
   @Column({ name: 'entity_name' })
   entityName: string; // e.g., 'Booking', 'Task'
 
+  @Index()
   @Column({ name: 'entity_id' })
   entityId: string;
 

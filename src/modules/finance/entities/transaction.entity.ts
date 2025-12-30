@@ -1,4 +1,4 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Index } from 'typeorm';
 import { ReferenceType, TransactionType } from '../../../common/enums';
 
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
@@ -17,6 +17,7 @@ export class Transaction extends BaseTenantEntity {
   @Column({ nullable: true })
   category: string;
 
+  @Index()
   @Column({ name: 'reference_id', type: 'uuid', nullable: true })
   referenceId: string | null;
 
