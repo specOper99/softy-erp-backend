@@ -71,7 +71,10 @@ jobs:
           DB_USERNAME: test_user
           DB_PASSWORD: test_password
           DB_DATABASE: test_db
-          JWT_SECRET: test-jwt-secret
+          JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+          VAULT_ENABLED: 'false'
+          DISABLE_RATE_LIMITING: 'true'
+          NODE_ENV: test
 
   build:
     name: Build

@@ -43,18 +43,20 @@ npm run start:dev
 - **Media** - File uploads via MinIO/S3
 
 ### Production Infrastructure
-- ✅ **Rate Limiting** - ThrottlerGuard with tiered limits
+- ✅ **Rate Limiting** - Advanced `IpRateLimitGuard` with progressive blocking
 - ✅ **Health Checks** - Terminus-based DB/memory checks
 - ✅ **Graceful Shutdown** - Clean connection closure
 - ✅ **Structured Logging** - Winston with JSON format
-- ✅ **Sensitive Data Filtering** - Auto-redacts passwords/tokens
+- ✅ **Log Sanitization** - Auto-redacts passwords/tokens/Vault secrets
 - ✅ **Correlation IDs** - X-Correlation-ID header tracking
 - ✅ **Database Migrations** - TypeORM migration support
+- ✅ **Performance Indexes** - Optimized DB indexes on foreign keys
 - ✅ **Backups** - pg_dump with MinIO upload
 - ✅ **Telemetry** - OpenTelemetry + Zipkin
 - ✅ **Load Testing** - k6 test scripts
 - ✅ **Sentry** - Error tracking & alerting
-- ✅ **Redis Cache** - In-memory caching layer
+- ✅ **Redis Cache** - Global caching interceptor
+- ✅ **HashiCorp Vault** - Secrets management integration
 - ✅ **Docker** - Multi-stage production image
 - ✅ **CI/CD** - GitHub Actions pipelines
 
@@ -182,6 +184,15 @@ Copy `.env.example` to `.env` and configure the following variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REDIS_URL` | redis://localhost:6379 | Redis connection URL |
+
+### HashiCorp Vault (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VAULT_ENABLED` | false | Enable Vault secret loading |
+| `VAULT_ADDR` | - | Vault server address (e.g., `http://localhost:8200`) |
+| `VAULT_TOKEN` | - | Vault authentication token |
+| `VAULT_SECRET_PATH` | - | Path to secrets (e.g., `secret/data/myapp`) |
 
 ### Backup & Seeding
 
