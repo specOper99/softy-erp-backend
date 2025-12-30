@@ -22,10 +22,6 @@ export class CreateUserDto {
   @IsEnum(Role)
   @IsOptional()
   role?: Role;
-
-  @IsString()
-  @IsOptional()
-  tenantId?: string;
 }
 
 export class UpdateUserDto {

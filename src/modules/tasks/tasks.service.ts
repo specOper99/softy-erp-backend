@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TaskStatus } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
@@ -28,12 +29,14 @@ export class TasksService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(): Promise<Task[]> {
+  async findAll(query: PaginationDto = new PaginationDto()): Promise<Task[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
       where: { tenantId },
       relations: ['booking', 'taskType', 'assignedUser'],
       order: { createdAt: 'DESC' },
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 
@@ -112,14 +115,35 @@ export class TasksService {
       }
 
       const oldUserId = task.assignedUserId;
+
+      // Step 3: Validate new user belongs to the same tenant (prevent cross-tenant assignment)
+      if (dto.userId) {
+        const newUser = await queryRunner.manager.findOne(User, {
+          where: { id: dto.userId, tenantId },
+        });
+        if (!newUser) {
+          throw new BadRequestException('User not found in tenant');
+        }
+      }
+
       task.assignedUserId = dto.userId;
 
-      // Step 2: Update task
+      // Step 4: Update task
       const savedTask = await queryRunner.manager.save(task);
 
-      // Step 3: Accrue Pending Commission
-      // We credit the *new* user's wallet with pending balance
+      // Step 5: Commission handling - reverse old, add new
       const commissionAmount = Number(task.commissionSnapshot) || 0;
+
+      // Reverse commission from old user if reassigning
+      if (oldUserId && oldUserId !== dto.userId && commissionAmount > 0) {
+        await this.financeService.subtractPendingCommission(
+          queryRunner.manager,
+          oldUserId,
+          commissionAmount,
+        );
+      }
+
+      // Add commission to new user
       if (commissionAmount > 0 && dto.userId) {
         await this.financeService.addPendingCommission(
           queryRunner.manager,
@@ -128,7 +152,7 @@ export class TasksService {
         );
       }
 
-      // Step 4: Audit Log
+      // Step 6: Audit Log
       await this.auditService.log(
         {
           action: 'UPDATE',
@@ -136,25 +160,29 @@ export class TasksService {
           entityId: task.id,
           oldValues: { assignedUserId: oldUserId },
           newValues: { assignedUserId: task.assignedUserId },
-          notes: `Task reassigned to user ${dto.userId}. Pending commission: ${commissionAmount}`,
+          notes:
+            oldUserId && oldUserId !== dto.userId
+              ? `Task reassigned from user ${oldUserId} to ${dto.userId}. Commission reversed and re-credited: ${commissionAmount}`
+              : `Task assigned to user ${dto.userId}. Pending commission: ${commissionAmount}`,
         },
         queryRunner.manager,
       );
 
-      // Fetch user details for email BEFORE commit to ensure data integrity and avoid post-commit errors
-      // Use string 'User' to avoid circular dependency issues
-      const newUser = (await queryRunner.manager.findOne('User', {
-        where: { id: dto.userId },
-      })) as User;
+      // Fetch user details for email
+      const emailUser = dto.userId
+        ? await queryRunner.manager.findOne(User, {
+            where: { id: dto.userId, tenantId },
+          })
+        : null;
 
       await queryRunner.commitTransaction();
 
       // Send email (after commit success)
-      if (newUser && task.taskType && task.booking) {
+      if (emailUser && task.taskType && task.booking) {
         this.mailService
           .sendTaskAssignment({
-            employeeName: newUser.email.split('@')[0],
-            employeeEmail: newUser.email,
+            employeeName: emailUser.email.split('@')[0],
+            employeeEmail: emailUser.email,
             taskType: task.taskType.name,
             clientName: task.booking.clientName,
             eventDate: task.booking.eventDate,

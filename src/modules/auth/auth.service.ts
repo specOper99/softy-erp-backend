@@ -227,10 +227,27 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    // Token rotation: revoke old token and issue new one
-    storedToken.isRevoked = true;
-    storedToken.lastUsedAt = new Date();
-    await this.refreshTokenRepository.save(storedToken);
+    // ATOMIC Token rotation: update with conditions and check affected rows
+    // This prevents race conditions where two concurrent requests could both succeed
+    const updateResult = await this.refreshTokenRepository.update(
+      {
+        id: storedToken.id,
+        isRevoked: false,
+        expiresAt: MoreThan(new Date()),
+      },
+      {
+        isRevoked: true,
+        lastUsedAt: new Date(),
+      },
+    );
+
+    // If no rows were affected, another request already rotated this token
+    if (updateResult.affected === 0) {
+      this.logger.warn(
+        `Refresh token race condition detected for user ${storedToken.userId}`,
+      );
+      throw new UnauthorizedException('Refresh token already used');
+    }
 
     // Generate new tokens
     const tokens = await this.generateTokens(user, context);

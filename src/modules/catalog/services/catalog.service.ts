@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import {
@@ -42,11 +43,15 @@ export class CatalogService {
     return savedPkg;
   }
 
-  async findAllPackages(): Promise<ServicePackage[]> {
+  async findAllPackages(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<ServicePackage[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.packageRepository.find({
       where: { tenantId },
       relations: ['packageItems', 'packageItems.taskType'],
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 
@@ -180,9 +185,15 @@ export class CatalogService {
     return savedTaskType;
   }
 
-  async findAllTaskTypes(): Promise<TaskType[]> {
+  async findAllTaskTypes(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<TaskType[]> {
     const tenantId = TenantContextService.getTenantId();
-    return this.taskTypeRepository.find({ where: { tenantId } });
+    return this.taskTypeRepository.find({
+      where: { tenantId },
+      skip: query.getSkip(),
+      take: query.getTake(),
+    });
   }
 
   async findTaskTypeById(id: string): Promise<TaskType> {

@@ -44,9 +44,17 @@ async function bootstrap() {
   // CORS - Environment-based configuration
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim());
   const isProd = process.env.NODE_ENV === 'production';
+
+  // Security: Harden CORS in production
+  if (isProd && (!corsOrigins || corsOrigins.length === 0 || !corsOrigins[0])) {
+    throw new Error(
+      'SECURITY: CORS_ORIGINS must be configured in production environments to prevent permissive access.',
+    );
+  }
+
   app.enableCors({
-    origin: isProd ? (corsOrigins?.length ? corsOrigins : false) : true, // Allow all in development
-    credentials: !isProd || !!corsOrigins?.length,
+    origin: isProd ? corsOrigins : true, // Allow all in development, strictly enforce in production
+    credentials: true, // Always allow credentials if origin is matched (standard practice for multi-tenant auth)
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
   });

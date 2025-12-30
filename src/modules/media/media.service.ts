@@ -1,11 +1,12 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Attachment } from './entities/attachment.entity';
 import { StorageService } from './storage.service';
@@ -27,7 +28,34 @@ export class MediaService {
     @InjectRepository(Attachment)
     private readonly attachmentRepository: Repository<Attachment>,
     private readonly storageService: StorageService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * Validate that bookingId and taskId belong to the current tenant
+   */
+  private async validateReferences(
+    tenantId: string,
+    bookingId?: string,
+    taskId?: string,
+  ): Promise<void> {
+    if (bookingId) {
+      const booking = await this.dataSource.manager.findOne('Booking', {
+        where: { id: bookingId, tenantId },
+      });
+      if (!booking) {
+        throw new BadRequestException('Booking not found in tenant');
+      }
+    }
+    if (taskId) {
+      const task = await this.dataSource.manager.findOne('Task', {
+        where: { id: taskId, tenantId },
+      });
+      if (!task) {
+        throw new BadRequestException('Task not found in tenant');
+      }
+    }
+  }
 
   /**
    * Upload a file and create an attachment record
@@ -36,8 +64,11 @@ export class MediaService {
     const { buffer, originalName, mimeType, size, bookingId, taskId } = params;
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('Tenant context missing');
     }
+
+    // Validate bookingId/taskId belong to tenant
+    await this.validateReferences(tenantId, bookingId, taskId);
 
     // Generate storage key and upload to MinIO
     const key = this.storageService.generateKey(originalName);
@@ -75,8 +106,11 @@ export class MediaService {
   ): Promise<{ uploadUrl: string; attachment: Attachment }> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('Tenant context missing');
     }
+
+    // Validate bookingId/taskId belong to tenant
+    await this.validateReferences(tenantId, bookingId, taskId);
 
     const key = this.storageService.generateKey(filename);
     const uploadUrl = await this.storageService.getPresignedUploadUrl(

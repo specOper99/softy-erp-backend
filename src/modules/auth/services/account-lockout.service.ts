@@ -76,9 +76,6 @@ export class AccountLockoutService {
     }
 
     info.attempts += 1;
-    this.logger.warn(
-      `Failed login attempt ${info.attempts}/${this.maxAttempts} for ${email}`,
-    );
 
     if (info.attempts >= this.maxAttempts) {
       info.lockedUntil = Date.now() + this.lockoutDurationMs;

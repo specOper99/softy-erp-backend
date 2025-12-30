@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditLog } from './entities/audit-log.entity';
 
 @Injectable()
@@ -25,7 +26,14 @@ export class AuditService {
     const repo = manager
       ? manager.getRepository(AuditLog)
       : this.auditRepository;
-    const entry = repo.create(data);
+
+    // Capture tenant context for scoped audit queries
+    const tenantId = TenantContextService.getTenantId();
+
+    const entry = repo.create({
+      ...data,
+      tenantId,
+    });
     return repo.save(entry);
   }
 }

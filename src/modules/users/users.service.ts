@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { EntityManager, Repository } from 'typeorm';
@@ -17,12 +21,17 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context missing');
+    }
+
     const passwordHash = await bcrypt.hash(createUserDto.password, 10);
     const user = this.userRepository.create({
       email: createUserDto.email,
       passwordHash,
       role: createUserDto.role,
-      tenantId: createUserDto['tenantId'], // Passed optionally or securely
+      tenantId,
     });
     const savedUser = await this.userRepository.save(user);
 

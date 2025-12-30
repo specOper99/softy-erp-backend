@@ -84,9 +84,6 @@ export class IpRateLimitGuard implements CanActivate {
     // Check if IP is blocked
     if (info?.blocked && info.blockedUntil && info.blockedUntil > now) {
       const remainingSecs = Math.ceil((info.blockedUntil - now) / 1000);
-      this.logger.warn(
-        `Blocked IP ${ip} attempted access. Remaining: ${remainingSecs}s`,
-      );
       throw new HttpException(
         `Too many requests. IP blocked for ${remainingSecs} seconds.`,
         HttpStatus.TOO_MANY_REQUESTS,
@@ -107,8 +104,8 @@ export class IpRateLimitGuard implements CanActivate {
       if (info.count > this.hardLimit) {
         info.blocked = true;
         info.blockedUntil = now + this.blockDurationMs;
-        const ttlSeconds = Math.ceil(this.blockDurationMs / 1000);
-        await this.cacheManager.set(key, info, ttlSeconds);
+        // cache-manager expects TTL in milliseconds
+        await this.cacheManager.set(key, info, this.blockDurationMs);
         this.logger.warn(
           `IP ${ip} blocked for exceeding rate limit (${info.count} requests)`,
         );
@@ -123,13 +120,11 @@ export class IpRateLimitGuard implements CanActivate {
         const delayMultiplier = info.count - this.softLimit;
         const delay = Math.min(delayMultiplier * this.progressiveDelayMs, 5000); // Max 5s delay
         await this.sleep(delay);
-        this.logger.debug(`IP ${ip} rate limited with ${delay}ms delay`);
       }
     }
 
-    // Update cache
-    const ttlSeconds = Math.ceil(this.windowMs / 1000);
-    await this.cacheManager.set(key, info, ttlSeconds);
+    // Update cache - cache-manager expects TTL in milliseconds
+    await this.cacheManager.set(key, info, this.windowMs);
 
     return true;
   }

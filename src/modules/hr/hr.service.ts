@@ -14,6 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
+import { TenantsService } from '../tenants/tenants.service';
 import {
   CreateProfileDto,
   PayrollRunResponseDto,
@@ -34,17 +35,30 @@ export class HrService {
     private readonly mailService: MailService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
+    private readonly tenantsService: TenantsService,
   ) {}
 
   // Profile Methods
   async createProfile(dto: CreateProfileDto): Promise<Profile> {
     const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context missing');
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: Create wallet for the user within the profile transaction
+      // Step 1: Validate user belongs to the same tenant
+      const user = await queryRunner.manager.findOne('User', {
+        where: { id: dto.userId, tenantId },
+      });
+      if (!user) {
+        throw new BadRequestException('User not found in tenant');
+      }
+
+      // Step 2: Create wallet for the user within the profile transaction
       await this.financeService.getOrCreateWalletWithManager(
         queryRunner.manager,
         dto.userId,
@@ -181,15 +195,39 @@ export class HrService {
    */
   @Cron('59 23 28 * *') // Run on 28th of each month at 23:59
   async runScheduledPayroll(): Promise<void> {
-    this.logger.log('Starting scheduled payroll run...');
-    try {
-      const result = await this.runPayroll();
-      this.logger.log(
-        `Payroll completed: ${result.totalEmployees} employees, $${result.totalPayout} total payout`,
-      );
-    } catch (error) {
-      this.logger.error('Payroll run failed', error);
+    this.logger.log('Starting scheduled payroll run for all tenants...');
+
+    // Iterate all tenants since cron jobs don't have HTTP request context
+    const tenants = await this.tenantsService.findAll();
+
+    for (const tenant of tenants) {
+      try {
+        // Run payroll within tenant context
+        await new Promise<void>((resolve, reject) => {
+          TenantContextService.run(tenant.id, () => {
+            this.runPayroll()
+              .then((result) => {
+                this.logger.log(
+                  `Payroll completed for tenant ${tenant.slug}: ${result.totalEmployees} employees, $${result.totalPayout} total`,
+                );
+                resolve();
+              })
+              .catch((error: unknown) => {
+                reject(
+                  error instanceof Error ? error : new Error(String(error)),
+                );
+              });
+          });
+        });
+      } catch (error) {
+        this.logger.error(
+          `Payroll run failed for tenant ${tenant.slug}`,
+          error,
+        );
+      }
     }
+
+    this.logger.log('Scheduled payroll run completed for all tenants');
   }
 
   async runPayroll(): Promise<PayrollRunResponseDto> {

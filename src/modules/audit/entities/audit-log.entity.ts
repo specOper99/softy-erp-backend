@@ -15,6 +15,10 @@ export class AuditLog {
   @Column({ name: 'user_id', nullable: true })
   userId: string; // The user who performed the action
 
+  @Index()
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
+  tenantId: string; // The tenant context for scoped audit queries
+
   @Column()
   action: string; // e.g., 'CREATE', 'UPDATE', 'DELETE', 'STATUS_CHANGE'
 

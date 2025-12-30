@@ -200,6 +200,33 @@ export class FinanceService {
     return manager.save(wallet);
   }
 
+  /**
+   * Subtract pending commission from a user's wallet.
+   * Used when reassigning a task to reverse the old user's commission.
+   */
+  async subtractPendingCommission(
+    manager: EntityManager,
+    userId: string,
+    amount: number,
+  ): Promise<EmployeeWallet> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context missing');
+    }
+    const wallet = await manager.findOne(EmployeeWallet, {
+      where: { userId, tenantId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!wallet) {
+      throw new NotFoundException(`Wallet not found for user ${userId}`);
+    }
+    wallet.pendingBalance = Math.max(
+      0,
+      Number(wallet.pendingBalance) - Number(amount),
+    );
+    return manager.save(wallet);
+  }
+
   async moveToPayable(
     manager: EntityManager,
     userId: string,
