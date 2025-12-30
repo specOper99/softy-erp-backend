@@ -3,7 +3,6 @@ import {
   ConflictException,
   Injectable,
   Logger,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -69,16 +68,6 @@ export class AuthService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
-
-    // Check if tenant exists? slug should be unique.
-    try {
-      await this.tenantsService.findBySlug(slug);
-      throw new BadRequestException(
-        'Organization name already taken (slug collision).',
-      );
-    } catch (e) {
-      if (!(e instanceof NotFoundException)) throw e; // Pass specific error, ignore NotFound
-    }
 
     // 2. Use transaction to ensure atomicity of tenant + user creation
     const queryRunner = this.dataSource.createQueryRunner();

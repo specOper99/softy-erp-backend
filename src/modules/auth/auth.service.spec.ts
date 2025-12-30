@@ -246,15 +246,23 @@ describe('AuthService - Comprehensive Tests', () => {
     });
   });
 
-  it('should throw BadRequestException if tenant/slug already exists', async () => {
-    mockTenantsService.findBySlug.mockResolvedValue(mockTenant); // Tenant found
+  it('should throw ConflictException if tenant/slug already exists', async () => {
+    const error = new Error('Constraint violation');
+    (error as any).code = '23505';
+    mockTenantsService.createWithManager.mockRejectedValue(error);
+
     const dto = {
       email: 'new@example.com',
       password: TEST_PASSWORD,
       companyName: 'Test Tenant',
     };
+    // The service wraps the 23505 error into a ConflictException
+    // We import ConflictException at the top of the file but we should ensure we are checking class or message
+    // Since expected message is 'Tenant with this name or slug already exists'
+    // But verify the class first.
+    // We need to import ConflictException if it's not imported. It is imported.
     await expect(service.register(dto)).rejects.toThrow(
-      'Organization name already taken',
+      'Tenant with this name or slug already exists',
     );
   });
 

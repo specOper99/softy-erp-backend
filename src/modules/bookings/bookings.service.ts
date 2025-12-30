@@ -72,7 +72,7 @@ export class BookingsService {
     const tenantId = TenantContextService.getTenantId();
     return this.bookingRepository.find({
       where: { tenantId },
-      relations: ['servicePackage', 'tasks'],
+      relations: ['servicePackage'],
       order: { createdAt: 'DESC' },
       skip: query.skip,
       take: query.limit ?? 20,

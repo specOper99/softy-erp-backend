@@ -33,7 +33,19 @@ export class SanitizeInterceptor implements NestInterceptor {
     }
 
     if (typeof obj === 'string') {
-      if (key && ['password', 'passwordConfirm', 'oldPassword'].includes(key)) {
+      if (
+        key &&
+        [
+          'password',
+          'passwordConfirm',
+          'oldPassword',
+          'newPassword',
+          'token',
+          'refreshToken',
+          'secret',
+          'apiKey',
+        ].includes(key)
+      ) {
         return obj;
       }
       return this.escapeHtml(obj);
