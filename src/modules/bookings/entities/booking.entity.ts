@@ -50,5 +50,5 @@ export class Booking extends BaseTenantEntity {
   servicePackage: ServicePackage;
 
   @OneToMany(() => Task, (task) => task.booking)
-  tasks: Task[];
+  tasks: Promise<Task[]>;
 }

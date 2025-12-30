@@ -24,8 +24,8 @@ export class TaskType extends BaseTenantEntity {
   isActive: boolean;
 
   @OneToMany(() => PackageItem, (item) => item.taskType)
-  packageItems: PackageItem[];
+  packageItems: Promise<PackageItem[]>;
 
   @OneToMany(() => Task, (task) => task.taskType)
-  tasks: Task[];
+  tasks: Promise<Task[]>;
 }

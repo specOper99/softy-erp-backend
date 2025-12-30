@@ -61,5 +61,5 @@ export class Task extends BaseTenantEntity {
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'assigned_user_id' })
-  assignedUser: User | null;
+  assignedUser: Promise<User | null>;
 }

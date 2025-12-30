@@ -57,5 +57,5 @@ export class User {
   wallet: EmployeeWallet;
 
   @OneToMany(() => Task, (task) => task.assignedUser)
-  tasks: Task[];
+  tasks: Promise<Task[]>;
 }

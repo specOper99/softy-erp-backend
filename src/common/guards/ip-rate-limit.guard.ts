@@ -41,6 +41,19 @@ export class IpRateLimitGuard implements CanActivate {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private configService: ConfigService,
   ) {
+    // Fallback cache manager for environments where CACHE_MANAGER is not provided (e.g., unit tests)
+    if (!this.cacheManager) {
+      this.cacheManager = {
+        async get<T>(_key: string): Promise<T | undefined> {
+          return await Promise.resolve(undefined);
+        },
+        async set(_key: string, _value: any, _ttl?: number): Promise<void> {
+          await Promise.resolve();
+        },
+      } as unknown as Cache;
+    }
+    // 50 requests per minute soft limit (starts slowing down)
+    this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
     // 50 requests per minute soft limit (starts slowing down)
     this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
     // 100 requests per minute hard limit (blocks IP)

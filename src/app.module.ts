@@ -1,24 +1,27 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
-import { TenantGuard } from './common/guards/tenant.guard';
 import { databaseConfig } from './config';
 import { validate } from './config/env-validation';
 import { vaultLoader } from './config/vault.loader';
 
-// Common
+// Common imports
+import { GlobalCacheInterceptor } from './common/cache/cache.interceptor';
 import { AppCacheModule } from './common/cache/cache.module';
+import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
+import { TenantGuard } from './common/guards/tenant.guard';
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
-import { ShutdownService } from './common/services/shutdown.service';
 import { TenantsModule } from './modules/tenants/tenants.module';
 
-// Modules
+// Feature module imports
+import { ResilienceModule } from './common/resilience/resilience.module';
+import authConfig from './config/auth.config';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
@@ -32,9 +35,6 @@ import { MediaModule } from './modules/media/media.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { UsersModule } from './modules/users/users.module';
-
-import { ResilienceModule } from './common/resilience/resilience.module';
-import authConfig from './config/auth.config';
 
 @Module({
   imports: [
@@ -131,14 +131,15 @@ import authConfig from './config/auth.config';
       ? [
           {
             provide: APP_GUARD,
-            useClass: ThrottlerGuard,
+            useClass: IpRateLimitGuard,
           },
         ]
       : []),
     // Graceful shutdown handler
-    ShutdownService,
 
     { provide: APP_GUARD, useClass: TenantGuard },
+
+    { provide: APP_INTERCEPTOR, useClass: GlobalCacheInterceptor },
   ],
 })
 export class AppModule implements NestModule {

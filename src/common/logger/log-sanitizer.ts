@@ -21,6 +21,9 @@ const SENSITIVE_KEYS = [
   'cvv',
   'ssn',
   'socialSecurity',
+  'roleId',
+  'role_id',
+  'vault',
 ];
 
 const REDACTED = '[REDACTED]';

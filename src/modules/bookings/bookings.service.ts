@@ -177,7 +177,8 @@ export class BookingsService {
       await queryRunner.manager.save(booking);
 
       // Step 3: Generate Tasks from package items (bulk insert for performance)
-      const packageItems = booking.servicePackage?.packageItems || [];
+      const packageItems = await (booking.servicePackage?.packageItems ??
+        Promise.resolve([]));
       const tasksToCreate: Partial<Task>[] = [];
 
       for (const item of packageItems) {
@@ -186,7 +187,9 @@ export class BookingsService {
             bookingId: booking.id,
             taskTypeId: item.taskTypeId,
             status: TaskStatus.PENDING,
-            commissionSnapshot: item.taskType?.defaultCommissionAmount || 0,
+            commissionSnapshot:
+              (item as { taskType?: { defaultCommissionAmount?: number } })
+                .taskType?.defaultCommissionAmount ?? 0,
             dueDate: booking.eventDate,
             tenantId: booking.tenantId,
           });
@@ -292,7 +295,8 @@ export class BookingsService {
     }
 
     // Check if all tasks are completed
-    const pendingTasks = booking.tasks?.filter(
+    const tasksArray = await booking.tasks;
+    const pendingTasks = tasksArray?.filter(
       (t) => t.status !== TaskStatus.COMPLETED,
     );
     if (pendingTasks && pendingTasks.length > 0) {

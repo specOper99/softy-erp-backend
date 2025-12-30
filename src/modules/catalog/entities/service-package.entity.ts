@@ -18,8 +18,8 @@ export class ServicePackage extends BaseTenantEntity {
   isActive: boolean;
 
   @OneToMany(() => PackageItem, (item) => item.servicePackage)
-  packageItems: PackageItem[];
+  packageItems: Promise<PackageItem[]>;
 
   @OneToMany(() => Booking, (booking) => booking.servicePackage)
-  bookings: Booking[];
+  bookings: Promise<Booking[]>;
 }
