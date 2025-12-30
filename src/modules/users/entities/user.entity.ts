@@ -24,7 +24,7 @@ export class User {
   @Column()
   email: string;
 
-  @Column({ name: 'tenant_id', nullable: true }) // Nullable for migration, but strict later
+  @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId: string;
 
   @Column({ name: 'password_hash' })

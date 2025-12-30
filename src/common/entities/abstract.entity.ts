@@ -11,7 +11,7 @@ export abstract class BaseTenantEntity {
   id: string;
 
   @Index()
-  @Column({ name: 'tenant_id' })
+  @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

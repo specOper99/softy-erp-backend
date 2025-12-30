@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -128,7 +133,12 @@ export class MediaService {
     }
 
     const attachment = this.attachmentRepository.create(data);
-    attachment.tenantId = attachment.tenantId ?? tenantId;
+    if (attachment.tenantId && attachment.tenantId !== tenantId) {
+      throw new ForbiddenException(
+        'Cross-tenant attachment write is not allowed',
+      );
+    }
+    attachment.tenantId = tenantId;
     return this.attachmentRepository.save(attachment);
   }
 

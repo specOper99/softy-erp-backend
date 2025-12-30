@@ -17,8 +17,8 @@ export class Attachment {
   id: string;
 
   @Index()
-  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
-  tenantId: string | null;
+  @Column({ name: 'tenant_id', type: 'uuid' })
+  tenantId: string;
 
   @Column()
   name: string;

@@ -82,7 +82,17 @@ describe('HR Module E2E Tests', () => {
   describe('Employee Profiles', () => {
     describe('POST /api/v1/hr/profiles', () => {
       it('should fail if profile already exists for user (Admin)', async () => {
-        // Admin profile is already created by seeder or registration in some flows.
+        // Make this deterministic: create once, then verify duplicate is rejected.
+        await request(app.getHttpServer())
+          .post('/api/v1/hr/profiles')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .set('X-Tenant-ID', tenantId)
+          .send({
+            userId: testUserId,
+            baseSalary: 7000,
+          })
+          .expect(201);
+
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
           .set('Authorization', `Bearer ${accessToken}`)
