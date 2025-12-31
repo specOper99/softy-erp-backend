@@ -10,6 +10,7 @@ import { CatalogService } from './services/catalog.service';
 
 describe('CatalogService', () => {
   let service: CatalogService;
+  let tenantIdSpy: jest.SpyInstance;
 
   const mockPackage = {
     id: 'pkg-uuid-123',
@@ -112,12 +113,13 @@ describe('CatalogService', () => {
 
     service = module.get<CatalogService>(CatalogService);
 
-    jest
+    tenantIdSpy = jest
       .spyOn(TenantContextService, 'getTenantId')
       .mockReturnValue('tenant-123');
   });
 
   afterEach(() => {
+    tenantIdSpy.mockRestore();
     jest.clearAllMocks();
   });
 

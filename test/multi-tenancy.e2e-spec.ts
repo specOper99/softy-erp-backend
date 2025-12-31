@@ -22,14 +22,12 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
   const tenantA_Email = `tenantA-${timestamp}@example.com`;
   const tenantA_Password = 'TestPassword123!';
   let tenantA_Token: string;
-  let tenantA_Id: string; // Declared
 
   // Tenant B
   const tenantB_Company = `Tenant B Inc ${timestamp}`;
   const tenantB_Email = `tenantB-${timestamp}@example.com`;
   const tenantB_Password = 'TestPassword123!';
   let tenantB_Token: string;
-  let tenantB_Id: string; // Declared
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -85,7 +83,6 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
     expect(response.body.data).toHaveProperty('accessToken');
     expect(response.body.data.user).toHaveProperty('tenantId');
     tenantA_Token = response.body.data.accessToken;
-    tenantA_Id = response.body.data.user.tenantId;
   });
 
   it('should register Tenant B and User B', async () => {
@@ -101,7 +98,6 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
     expect(response.body.data).toHaveProperty('accessToken');
     expect(response.body.data.user).toHaveProperty('tenantId');
     tenantB_Token = response.body.data.accessToken;
-    tenantB_Id = response.body.data.user.tenantId;
   });
 
   it('should verify Tenant A cannot see Tenant B data', async () => {
@@ -109,7 +105,6 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
     const pkgA = await request(app.getHttpServer())
       .post('/api/v1/packages')
       .set('Authorization', `Bearer ${tenantA_Token}`)
-      .set('X-Tenant-ID', tenantA_Id)
       .send({
         name: 'Package A Exclusive',
         price: 1000,
@@ -123,7 +118,6 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
     const pkgB = await request(app.getHttpServer())
       .post('/api/v1/packages')
       .set('Authorization', `Bearer ${tenantB_Token}`)
-      .set('X-Tenant-ID', tenantB_Id)
       .send({
         name: 'Package B Exclusive',
         price: 2000,
@@ -137,21 +131,18 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
     await request(app.getHttpServer())
       .get(`/api/v1/packages/${pkgB_Id}`)
       .set('Authorization', `Bearer ${tenantA_Token}`)
-      .set('X-Tenant-ID', tenantA_Id)
       .expect(404);
 
     // 4. User B should try to fetch Package A (should fail 404)
     await request(app.getHttpServer())
       .get(`/api/v1/packages/${pkgA_Id}`)
       .set('Authorization', `Bearer ${tenantB_Token}`)
-      .set('X-Tenant-ID', tenantB_Id)
       .expect(404);
 
     // 5. User A lists packages, should only see Package A
     const listA = await request(app.getHttpServer())
       .get('/api/v1/packages')
       .set('Authorization', `Bearer ${tenantA_Token}`)
-      .set('X-Tenant-ID', tenantA_Id)
       .expect(200);
 
     const idsA = listA.body.data.map((p: any) => p.id);
@@ -162,7 +153,6 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
     const listB = await request(app.getHttpServer())
       .get('/api/v1/packages')
       .set('Authorization', `Bearer ${tenantB_Token}`)
-      .set('X-Tenant-ID', tenantB_Id)
       .expect(200);
 
     const idsB = listB.body.data.map((p: any) => p.id);

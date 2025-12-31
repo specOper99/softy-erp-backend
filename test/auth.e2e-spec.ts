@@ -21,7 +21,6 @@ describe('Auth & Users E2E Tests', () => {
   let app: INestApplication;
   let _accessToken: string;
   let testEmail: string;
-  let createdTenantId: string;
   let _adminPassword: string;
   const testPassword = process.env.TEST_MOCK_PASSWORD || 'TestUser123!'; // OK for dynamically created test users
 
@@ -88,13 +87,11 @@ describe('Auth & Users E2E Tests', () => {
       expect(response.body.data).toHaveProperty('accessToken');
       expect(response.body.data).toHaveProperty('user');
       _accessToken = response.body.data.accessToken;
-      createdTenantId = response.body.data.user.tenantId;
     });
 
     it('should fail with invalid email', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/register')
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .send({
           email: 'invalid-email',
@@ -106,7 +103,6 @@ describe('Auth & Users E2E Tests', () => {
     it('should fail with short password', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/register')
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .send({
           email: 'valid@example.com',
@@ -118,7 +114,6 @@ describe('Auth & Users E2E Tests', () => {
     it('should fail with duplicate email', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/register')
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .send({
           email: testEmail,
@@ -132,7 +127,6 @@ describe('Auth & Users E2E Tests', () => {
     it('should login with valid credentials', async () => {
       const loginRes = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .set('X-Tenant-ID', createdTenantId)
         .send({
           email: testEmail,
           password: 'ComplexPass123!',
@@ -146,7 +140,6 @@ describe('Auth & Users E2E Tests', () => {
     it('should fail with invalid password', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .set('X-Tenant-ID', createdTenantId)
 
         .send({
           email: testEmail,
@@ -158,7 +151,6 @@ describe('Auth & Users E2E Tests', () => {
     it('should fail with non-existent user', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .set('X-Tenant-ID', createdTenantId)
 
         .send({
           email: 'nonexistent@example.com',
@@ -183,7 +175,6 @@ describe('Auth & Users E2E Tests', () => {
 
       expect(adminReg.status).toBe(201);
       const adminId = adminReg.body.data.user.id;
-      const adminTenantId = adminReg.body.data.user.tenantId;
 
       // 2. Manually elevate user to ADMIN role in database
       const userRepo = app.get(getRepositoryToken(User));
@@ -192,7 +183,6 @@ describe('Auth & Users E2E Tests', () => {
       // 3. Login as the newly created admin
       const adminLogin = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .set('X-Tenant-ID', adminTenantId)
         .send({
           email: adminEmail,
           password: adminPassword,
@@ -204,7 +194,6 @@ describe('Auth & Users E2E Tests', () => {
 
       await request(app.getHttpServer())
         .get('/api/v1/users')
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
@@ -217,7 +206,6 @@ describe('Auth & Users E2E Tests', () => {
     it('should reject access with invalid token', async () => {
       await request(app.getHttpServer())
         .get('/api/v1/users')
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);

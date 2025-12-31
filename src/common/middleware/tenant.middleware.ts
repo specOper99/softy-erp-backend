@@ -1,4 +1,5 @@
 import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { NextFunction, Request, Response } from 'express';
 import { TenantContextService } from '../services/tenant-context.service';
 
@@ -13,32 +14,16 @@ interface JwtPayload {
 export class TenantMiddleware implements NestMiddleware {
   private readonly logger = new Logger(TenantMiddleware.name);
 
+  constructor(private readonly jwtService: JwtService) {}
+
   use(req: Request, _res: Response, next: NextFunction) {
-    // 1. Try to get tenantId from Header (for unauthenticated requests like login)
-    const tenantIdHeader = req.headers['x-tenant-id'] as string;
-
-    // 2. Try to extract tenantId from JWT (preferred for authenticated requests)
-    const tenantIdFromJwt = this.extractTenantIdFromJwt(req);
-
-    // Priority: JWT tenantId > Header tenantId (JWT is more secure, prevents spoofing)
-    // For authenticated requests, JWT should be the source of truth
-    const tenantId = tenantIdFromJwt || tenantIdHeader;
+    // Rely solely on JWT for tenant identification for authenticated requests.
+    // Public routes (login/register) don't have a tenant context in the middleware
+    // but handle it at the service level.
+    const tenantId = this.extractTenantIdFromJwt(req);
 
     if (!tenantId) {
-      // No tenant context - allow for public routes (register, health checks)
-      // Protected routes will enforce tenant via guards
       return next();
-    }
-
-    // Log warning if header differs from JWT (potential spoofing attempt)
-    if (
-      tenantIdHeader &&
-      tenantIdFromJwt &&
-      tenantIdHeader !== tenantIdFromJwt
-    ) {
-      this.logger.warn(
-        `Tenant ID mismatch: header=${tenantIdHeader}, jwt=${tenantIdFromJwt}. Using JWT.`,
-      );
     }
 
     TenantContextService.run(tenantId, () => {
@@ -47,9 +32,8 @@ export class TenantMiddleware implements NestMiddleware {
   }
 
   /**
-   * Extracts tenantId from JWT without full verification.
-   * The AuthGuard will perform full JWT verification later.
-   * This is safe because we only read metadata - no authorization decision is made here.
+   * Extracts tenantId from JWT with full verification.
+   * If verification fails, returns undefined (trusted context only).
    */
   private extractTenantIdFromJwt(req: Request): string | undefined {
     const authHeader = req.headers.authorization;
@@ -59,21 +43,14 @@ export class TenantMiddleware implements NestMiddleware {
 
     const token = authHeader.substring(7);
     try {
-      // Decode JWT without verification (base64 decode the payload)
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        return undefined;
-      }
-
-      const payloadBase64 = parts[1];
-      const payloadJson = Buffer.from(payloadBase64, 'base64url').toString(
-        'utf8',
-      );
-      const payload = JSON.parse(payloadJson) as JwtPayload;
+      // Verify JWT signature to prevent spoofing
+      // Note: We don't check expiration here necessarily, but verify() usually does by default.
+      // If it's expired, verify() throws, so we won't extract tenantId, which is safer.
+      const payload = this.jwtService.verify<JwtPayload>(token);
 
       return payload.tenantId;
     } catch {
-      // Invalid JWT format - ignore, let AuthGuard handle
+      // Invalid signature or malformed token - ignore
       return undefined;
     }
   }

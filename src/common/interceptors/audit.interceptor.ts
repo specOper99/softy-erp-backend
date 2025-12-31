@@ -9,6 +9,7 @@ import type { Request } from 'express';
 import { Observable, tap } from 'rxjs';
 import { AuditService } from '../../modules/audit/audit.service';
 import { AUDIT_KEY, AuditOptions } from '../decorators/audit.decorator';
+import { TenantContextService } from '../services/tenant-context.service';
 
 interface User {
   sub?: string;
@@ -101,7 +102,7 @@ export class AuditInterceptor implements NestInterceptor {
       action: options.action,
       resource: options.resource,
       userId: user?.sub || 'anonymous',
-      tenantId: request.headers['x-tenant-id'] as string,
+      tenantId: TenantContextService.getTenantId() || 'N/A',
       correlationId: request.headers['x-correlation-id'] as string,
       method: request.method,
       path: request.path,

@@ -17,7 +17,6 @@ class MockThrottlerGuard extends ThrottlerGuard {
 describe('Tasks Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
-  let tenantId: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -54,13 +53,11 @@ describe('Tasks Module E2E Tests', () => {
     await app.init();
 
     const dataSource = app.get(DataSource);
-    const seedData = await seedTestDatabase(dataSource);
-    tenantId = seedData.tenantId;
+    await seedTestDatabase(dataSource);
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .set('X-Tenant-ID', tenantId)
       .send({
         email: 'admin@chapters.studio',
         password: adminPassword,
@@ -78,17 +75,13 @@ describe('Tasks Module E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks')
         .set('Authorization', `Bearer ${accessToken}`)
-        .set('X-Tenant-ID', tenantId)
         .expect(200);
 
       expect(response.body.data).toBeInstanceOf(Array);
     });
 
     it('should fail without authentication', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/tasks')
-        .set('X-Tenant-ID', tenantId)
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/tasks').expect(401);
     });
   });
 
@@ -97,7 +90,6 @@ describe('Tasks Module E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks/my-tasks')
         .set('Authorization', `Bearer ${accessToken}`)
-        .set('X-Tenant-ID', tenantId)
         .expect(200);
 
       expect(response.body.data).toBeInstanceOf(Array);
@@ -113,7 +105,6 @@ describe('Tasks Module E2E Tests', () => {
       const tasksResponse = await request(app.getHttpServer())
         .get('/api/v1/tasks')
         .set('Authorization', `Bearer ${accessToken}`)
-        .set('X-Tenant-ID', tenantId)
         .expect(200);
 
       // If there are tasks, test getting one by ID
@@ -123,7 +114,6 @@ describe('Tasks Module E2E Tests', () => {
         await request(app.getHttpServer())
           .get(`/api/v1/tasks/${taskId}`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
       }
     });
@@ -132,7 +122,6 @@ describe('Tasks Module E2E Tests', () => {
       await request(app.getHttpServer())
         .get('/api/v1/tasks/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${accessToken}`)
-        .set('X-Tenant-ID', tenantId)
         .expect(404);
     });
   });

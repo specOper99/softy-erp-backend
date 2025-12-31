@@ -17,7 +17,6 @@ class MockThrottlerGuard extends ThrottlerGuard {
 describe('Media Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
-  let tenantId: string;
   let createdAttachmentId: string;
 
   beforeAll(async () => {
@@ -55,13 +54,11 @@ describe('Media Module E2E Tests', () => {
     await app.init();
 
     const dataSource = app.get(DataSource);
-    const seedData = await seedTestDatabase(dataSource);
-    tenantId = seedData.tenantId;
+    await seedTestDatabase(dataSource);
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .set('X-Tenant-ID', tenantId)
       .send({
         email: 'admin@chapters.studio',
         password: adminPassword,
@@ -80,7 +77,6 @@ describe('Media Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/media')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .send({
             name: 'test-document.pdf',
             mimeType: 'application/pdf',
@@ -102,7 +98,6 @@ describe('Media Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/media')
-          .set('X-Tenant-ID', tenantId)
           .send({
             filename: 'unauthorized.pdf',
             mimeType: 'application/pdf',
@@ -116,7 +111,6 @@ describe('Media Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/media')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data).toBeInstanceOf(Array);
@@ -130,7 +124,6 @@ describe('Media Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get(`/api/v1/media/${createdAttachmentId}`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data.id).toBe(createdAttachmentId);
@@ -140,7 +133,6 @@ describe('Media Module E2E Tests', () => {
         await request(app.getHttpServer())
           .get('/api/v1/media/00000000-0000-0000-0000-000000000000')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(404);
       });
     });
@@ -150,7 +142,6 @@ describe('Media Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/media/presigned-upload')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .send({
             filename: 'upload-test.jpg',
             mimeType: 'image/jpeg',
@@ -169,7 +160,6 @@ describe('Media Module E2E Tests', () => {
         await request(app.getHttpServer())
           .delete(`/api/v1/media/${createdAttachmentId}`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
       });
     });

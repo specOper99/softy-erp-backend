@@ -11,7 +11,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { DataSource, LessThan, MoreThan, Repository } from 'typeorm';
 import { Role } from '../../common/enums';
-import { TenantContextService } from '../../common/services/tenant-context.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -154,13 +153,6 @@ export class AuthService {
     loginDto: LoginDto,
     context?: RequestContext,
   ): Promise<AuthResponseDto> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException(
-        'Missing Tenant Context (X-Tenant-ID header required).',
-      );
-    }
-
     // Check if account is locked out
     const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
     if (lockoutStatus.locked) {
@@ -170,7 +162,8 @@ export class AuthService {
       );
     }
 
-    const user = await this.usersService.findByEmail(loginDto.email, tenantId);
+    // Find user by email globally (without tenant context)
+    const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
       await this.lockoutService.recordFailedAttempt(loginDto.email);
       throw new UnauthorizedException('Invalid credentials');

@@ -56,7 +56,7 @@ async function bootstrap() {
     origin: isProd ? corsOrigins : true, // Allow all in development, strictly enforce in production
     credentials: true, // Always allow credentials if origin is matched (standard practice for multi-tenant auth)
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Swagger documentation

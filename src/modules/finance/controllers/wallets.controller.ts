@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
+import { NoCache } from '../../../common/decorators/no-cache.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
@@ -22,6 +23,7 @@ export class WalletsController {
   constructor(private readonly financeService: FinanceService) {}
 
   @Get()
+  @NoCache()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all employee wallets' })
   findAll(@Query() query: PaginationDto) {
@@ -29,6 +31,7 @@ export class WalletsController {
   }
 
   @Get('user/:userId')
+  @NoCache()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get wallet by user ID' })
   findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {

@@ -286,9 +286,6 @@ describe('AuthService - Comprehensive Tests', () => {
   // ============ LOGIN TESTS ============
   describe('login', () => {
     it('should return auth response for valid credentials', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-123');
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
 
@@ -612,19 +609,7 @@ describe('AuthService - Comprehensive Tests', () => {
       );
     });
 
-    it('should throw BadRequestException if login missing tenant context', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined);
-      await expect(
-        service.login({ email: 'a@a.com', password: 'p' }),
-      ).rejects.toThrow('Missing Tenant Context');
-    });
-
     it('should throw UnauthorizedException if account is locked out', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-1');
       (
         service['lockoutService'].isLockedOut as jest.Mock
       ).mockResolvedValueOnce({
@@ -638,9 +623,6 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should handle undefined remainingMs when locked out', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-1');
       (
         service['lockoutService'].isLockedOut as jest.Mock
       ).mockResolvedValueOnce({

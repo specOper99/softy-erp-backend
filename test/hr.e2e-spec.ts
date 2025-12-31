@@ -66,7 +66,6 @@ describe('HR Module E2E Tests', () => {
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .set('X-Tenant-ID', tenantId)
       .send({
         email: 'admin@chapters.studio',
         password: adminPassword,
@@ -96,7 +95,6 @@ describe('HR Module E2E Tests', () => {
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .send({
             userId: currentTestUserId,
             baseSalary: 7000,
@@ -106,7 +104,6 @@ describe('HR Module E2E Tests', () => {
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .send({
             userId: currentTestUserId,
             baseSalary: 7000,
@@ -117,7 +114,6 @@ describe('HR Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
-          .set('X-Tenant-ID', tenantId)
           .send({
             userId: testUserId,
             baseSalary: 3000,
@@ -131,7 +127,6 @@ describe('HR Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/hr/profiles')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data).toBeInstanceOf(Array);
@@ -145,7 +140,6 @@ describe('HR Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get(`/api/v1/hr/profiles/${createdProfileId}`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data.id).toBe(createdProfileId);
@@ -159,7 +153,6 @@ describe('HR Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .patch(`/api/v1/hr/profiles/${createdProfileId}`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .send({
             baseSalary: 6000,
           })
@@ -176,7 +169,6 @@ describe('HR Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/hr/payroll/run')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(201);
 
         expect(response.body.data).toHaveProperty('totalPayout');

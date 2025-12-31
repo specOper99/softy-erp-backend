@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
+import { TenantContextService } from '../services/tenant-context.service';
 
 interface LogContext {
   correlationId?: string;
@@ -36,7 +37,7 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
 
     const logContext: LogContext = {
       correlationId: request.headers['x-correlation-id'] as string,
-      tenantId: request.headers['x-tenant-id'] as string,
+      tenantId: TenantContextService.getTenantId(),
       method: request.method,
       url: request.url,
       userAgent: request.headers['user-agent'],

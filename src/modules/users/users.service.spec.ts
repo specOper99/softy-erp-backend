@@ -10,8 +10,9 @@ import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
 // Test password constants - not real credentials, used only for unit test mocking
-const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD!;
-const TEST_WRONG_PASSWORD = process.env.TEST_MOCK_PASSWORD_WRONG!;
+const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD || 'KeepTesting123!';
+const TEST_WRONG_PASSWORD =
+  process.env.TEST_MOCK_PASSWORD_WRONG || 'WrongPass123!';
 
 describe('UsersService - Comprehensive Tests', () => {
   let service: UsersService;

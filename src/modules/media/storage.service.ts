@@ -157,6 +157,13 @@ export class StorageService implements OnModuleInit {
     mimeType: string,
     expiresIn = 3600,
   ): Promise<string> {
+    // Security: Validate MIME type against whitelist
+    if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw new BadRequestException(
+        `Unsupported file type: ${mimeType}. Allowed types: ${[...StorageService.ALLOWED_MIME_TYPES].join(', ')}`,
+      );
+    }
+
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,

@@ -18,7 +18,6 @@ class MockThrottlerGuard extends ThrottlerGuard {
 describe('Finance Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
-  let tenantId: string;
   let createdTransactionId: string;
 
   beforeAll(async () => {
@@ -57,13 +56,11 @@ describe('Finance Module E2E Tests', () => {
 
     // Seed database and get tenant
     const dataSource = app.get(DataSource);
-    const seedData = await seedTestDatabase(dataSource);
-    tenantId = seedData.tenantId;
+    await seedTestDatabase(dataSource);
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .set('X-Tenant-ID', tenantId)
       .send({
         email: 'admin@chapters.studio',
         password: adminPassword,
@@ -83,7 +80,6 @@ describe('Finance Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/transactions')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .send({
             type: 'INCOME',
             amount: 1000,
@@ -106,7 +102,6 @@ describe('Finance Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/transactions')
-          .set('X-Tenant-ID', tenantId)
           .send({
             type: 'EXPENSE',
             amount: 500,
@@ -119,7 +114,6 @@ describe('Finance Module E2E Tests', () => {
         await request(app.getHttpServer())
           .post('/api/v1/transactions')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .send({
             type: 'INVALID_TYPE',
             amount: 100,
@@ -133,7 +127,6 @@ describe('Finance Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/transactions')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data).toBeInstanceOf(Array);
@@ -143,7 +136,6 @@ describe('Finance Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/transactions?type=INCOME')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data).toBeInstanceOf(Array);
@@ -158,7 +150,6 @@ describe('Finance Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get(`/api/v1/transactions/${createdTransactionId}`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data.id).toBe(createdTransactionId);
@@ -168,7 +159,6 @@ describe('Finance Module E2E Tests', () => {
         await request(app.getHttpServer())
           .get('/api/v1/transactions/ffffffff-ffff-ffff-ffff-ffffffffffff')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(404);
       });
     });
@@ -178,7 +168,6 @@ describe('Finance Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/transactions/summary')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data).toHaveProperty('totalIncome');
@@ -195,17 +184,13 @@ describe('Finance Module E2E Tests', () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/wallets')
           .set('Authorization', `Bearer ${accessToken}`)
-          .set('X-Tenant-ID', tenantId)
           .expect(200);
 
         expect(response.body.data).toBeInstanceOf(Array);
       });
 
       it('should fail without authentication', async () => {
-        await request(app.getHttpServer())
-          .get('/api/v1/wallets')
-          .set('X-Tenant-ID', tenantId)
-          .expect(401);
+        await request(app.getHttpServer()).get('/api/v1/wallets').expect(401);
       });
     });
   });

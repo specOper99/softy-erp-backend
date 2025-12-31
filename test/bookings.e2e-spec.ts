@@ -57,7 +57,6 @@ describe('Bookings Workflow E2E Tests', () => {
     // Login as seeded admin user
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .set('X-Tenant-ID', tenantId)
       .send({
         email: 'admin@chapters.studio',
         password: adminPassword,
@@ -67,8 +66,7 @@ describe('Bookings Workflow E2E Tests', () => {
     // Get existing package from seed data
     const packagesRes = await request(app.getHttpServer())
       .get('/api/v1/packages')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .set('X-Tenant-ID', tenantId);
+      .set('Authorization', `Bearer ${adminToken}`);
     packageId = packagesRes.body.data[0]?.id;
 
     // Store tenantId for tests
@@ -84,9 +82,6 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
-        .set('X-Tenant-ID', (global as any).testTenantId)
-
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .send({
           clientName: 'John Doe',
@@ -107,9 +102,6 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get(`/api/v1/bookings/${bookingId}`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .set('X-Tenant-ID', (global as any).testTenantId)
-
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .expect(200);
 
@@ -120,9 +112,6 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .set('X-Tenant-ID', (global as any).testTenantId)
-
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .expect(200);
 
@@ -135,9 +124,6 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks')
         .set('Authorization', `Bearer ${adminToken}`)
-        .set('X-Tenant-ID', (global as any).testTenantId)
-
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .expect(200);
 
@@ -151,9 +137,6 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/transactions')
         .set('Authorization', `Bearer ${adminToken}`)
-        .set('X-Tenant-ID', (global as any).testTenantId)
-
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .expect(200);
 
@@ -170,7 +153,6 @@ describe('Bookings Workflow E2E Tests', () => {
       await request(app.getHttpServer())
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .send({
           clientName: 'John',
@@ -183,7 +165,6 @@ describe('Bookings Workflow E2E Tests', () => {
       await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .set('X-Tenant-ID', (global as any).testTenantId)
 
         .expect(400);
     });
