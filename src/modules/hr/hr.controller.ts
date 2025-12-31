@@ -7,10 +7,12 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums';
 import { RolesGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -34,8 +36,8 @@ export class HrController {
   @Get('profiles')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all employee profiles' })
-  findAllProfiles() {
-    return this.hrService.findAllProfiles();
+  findAllProfiles(@Query() query: PaginationDto) {
+    return this.hrService.findAllProfiles(query);
   }
 
   @Get('profiles/:id')

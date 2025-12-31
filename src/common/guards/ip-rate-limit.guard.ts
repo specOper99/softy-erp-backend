@@ -57,12 +57,16 @@ export class IpRateLimitGuard implements CanActivate {
     this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
     // 100 requests per minute hard limit (blocks IP)
     this.hardLimit = this.configService.get<number>('RATE_LIMIT_HARD') || 100;
-    // 1 minute window
-    this.windowMs =
-      this.configService.get<number>('RATE_LIMIT_WINDOW_MS') || 60000;
-    // 15 minute block duration
-    this.blockDurationMs =
-      this.configService.get<number>('RATE_LIMIT_BLOCK_MS') || 900000;
+    // 1 minute window (default)
+    const windowSeconds =
+      this.configService.get<number>('RATE_LIMIT_WINDOW_SECONDS') || 60;
+    this.windowMs = windowSeconds * 1000;
+
+    // 15 minute block duration (default)
+    const blockSeconds =
+      this.configService.get<number>('RATE_LIMIT_BLOCK_SECONDS') || 900;
+    this.blockDurationMs = blockSeconds * 1000;
+
     // 500ms progressive delay per request over soft limit
     this.progressiveDelayMs =
       this.configService.get<number>('RATE_LIMIT_DELAY_MS') || 500;

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ReferenceType, TransactionType } from '../../../common/enums';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreateTransactionDto, TransactionFilterDto } from '../dto';
@@ -167,11 +168,15 @@ export class FinanceService {
     });
   }
 
-  async getAllWallets(): Promise<EmployeeWallet[]> {
+  async getAllWallets(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<EmployeeWallet[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.walletRepository.find({
       where: { tenantId },
       relations: ['user'],
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 

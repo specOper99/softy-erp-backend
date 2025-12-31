@@ -275,6 +275,8 @@ describe('MediaService', () => {
         where: { tenantId: 'tenant-123' },
         relations: ['booking', 'task'],
         order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 20,
       });
     });
   });

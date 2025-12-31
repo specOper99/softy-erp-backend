@@ -8,6 +8,7 @@ import {
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { ReferenceType, TransactionType } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
@@ -105,11 +106,15 @@ export class HrService {
     }
   }
 
-  async findAllProfiles(): Promise<Profile[]> {
+  async findAllProfiles(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<Profile[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.profileRepository.find({
       where: { tenantId },
       relations: ['user'],
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 

@@ -313,6 +313,12 @@ describe('FinanceService - Comprehensive Tests', () => {
     it('should return all wallets', async () => {
       const result = await service.getAllWallets();
       expect(result).toEqual([mockWallet]);
+      expect(mockWalletRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 20,
+        }),
+      );
     });
 
     it('should return empty array when no wallets exist', async () => {

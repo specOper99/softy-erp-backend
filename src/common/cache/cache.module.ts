@@ -15,16 +15,17 @@ import { redisStore } from 'cache-manager-redis-yet';
         // If Redis URL is configured, use Redis
         if (redisUrl) {
           return {
+            ttl: 60 * 1000, // 60 seconds default TTL (in ms)
             store: await redisStore({
               url: redisUrl,
-              ttl: 60000, // 60 seconds default TTL
+              ttl: 60 * 1000,
             }),
           };
         }
 
         // Fallback to in-memory cache
         return {
-          ttl: 60000, // 60 seconds
+          ttl: 60 * 1000, // 60 seconds (in ms)
           max: 100, // Maximum 100 items
         };
       },

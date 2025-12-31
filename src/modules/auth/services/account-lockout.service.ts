@@ -28,14 +28,11 @@ export class AccountLockoutService {
       'LOCKOUT_MAX_ATTEMPTS',
       5,
     );
-    this.lockoutDurationMs = this.configService.get<number>(
-      'LOCKOUT_DURATION_MS',
-      30 * 60 * 1000,
-    );
-    this.attemptWindowMs = this.configService.get<number>(
-      'LOCKOUT_WINDOW_MS',
-      15 * 60 * 1000,
-    );
+    this.lockoutDurationMs =
+      this.configService.get<number>('LOCKOUT_DURATION_SECONDS', 30 * 60) *
+      1000;
+    this.attemptWindowMs =
+      this.configService.get<number>('LOCKOUT_WINDOW_SECONDS', 15 * 60) * 1000;
   }
 
   /**

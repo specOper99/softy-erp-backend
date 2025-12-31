@@ -39,7 +39,7 @@ export class StorageService implements OnModuleInit {
   ) {}
 
   // Security: MIME type whitelist to prevent malicious file uploads
-  private readonly ALLOWED_MIME_TYPES = new Set([
+  public static readonly ALLOWED_MIME_TYPES = new Set([
     'image/jpeg',
     'image/png',
     'image/gif',
@@ -84,9 +84,9 @@ export class StorageService implements OnModuleInit {
     mimeType: string,
   ): Promise<UploadedFile> {
     // Security: Validate MIME type against whitelist
-    if (!this.ALLOWED_MIME_TYPES.has(mimeType)) {
+    if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
       throw new BadRequestException(
-        `Unsupported file type: ${mimeType}. Allowed types: ${[...this.ALLOWED_MIME_TYPES].join(', ')}`,
+        `Unsupported file type: ${mimeType}. Allowed types: ${[...StorageService.ALLOWED_MIME_TYPES].join(', ')}`,
       );
     }
 

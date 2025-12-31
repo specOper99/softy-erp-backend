@@ -185,6 +185,19 @@ export class BookingsService {
       const packageItems = await (booking.servicePackage?.packageItems ??
         Promise.resolve([]));
       const tasksToCreate: Partial<Task>[] = [];
+      const MAX_TASKS_PER_BOOKING = 500;
+
+      // Calculate total tasks to be created
+      const totalTasksCount = packageItems.reduce(
+        (sum, item) => sum + (item.quantity || 0),
+        0,
+      );
+
+      if (totalTasksCount > MAX_TASKS_PER_BOOKING) {
+        throw new BadRequestException(
+          `Cannot confirm booking: total tasks requested (${totalTasksCount}) exceeds the maximum allowed limit of ${MAX_TASKS_PER_BOOKING} per booking.`,
+        );
+      }
 
       for (const item of packageItems) {
         for (let i = 0; i < item.quantity; i++) {

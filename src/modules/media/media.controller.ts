@@ -7,6 +7,7 @@ import {
   Param,
   ParseFilePipe,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -19,6 +20,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   CreateAttachmentDto,
@@ -108,8 +110,8 @@ export class MediaController {
 
   @Get()
   @ApiOperation({ summary: 'Get all attachments' })
-  async findAll(): Promise<Attachment[]> {
-    return this.mediaService.findAll();
+  async findAll(@Query() query: PaginationDto): Promise<Attachment[]> {
+    return this.mediaService.findAll(query);
   }
 
   @Get(':id')

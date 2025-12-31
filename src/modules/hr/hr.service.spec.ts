@@ -259,6 +259,8 @@ describe('HrService - Comprehensive Tests', () => {
       expect(mockProfileRepository.find).toHaveBeenCalledWith({
         where: { tenantId: 'test-tenant-id' },
         relations: ['user'],
+        skip: 0,
+        take: 20,
       });
     });
 

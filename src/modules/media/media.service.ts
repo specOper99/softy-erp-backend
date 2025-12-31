@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Attachment } from './entities/attachment.entity';
 import { StorageService } from './storage.service';
@@ -112,6 +113,13 @@ export class MediaService {
     // Validate bookingId/taskId belong to tenant
     await this.validateReferences(tenantId, bookingId, taskId);
 
+    // Security: Validate MIME type against whitelist
+    if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw new BadRequestException(
+        `Unsupported file type: ${mimeType}. Allowed types: ${[...StorageService.ALLOWED_MIME_TYPES].join(', ')}`,
+      );
+    }
+
     const key = this.storageService.generateKey(filename);
     const uploadUrl = await this.storageService.getPresignedUploadUrl(
       key,
@@ -176,7 +184,9 @@ export class MediaService {
     return this.attachmentRepository.save(attachment);
   }
 
-  async findAll(): Promise<Attachment[]> {
+  async findAll(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<Attachment[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new Error('Tenant context missing');
@@ -185,6 +195,8 @@ export class MediaService {
       where: { tenantId },
       relations: ['booking', 'task'],
       order: { createdAt: 'DESC' },
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 

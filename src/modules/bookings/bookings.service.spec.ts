@@ -216,6 +216,12 @@ describe('BookingsService - Comprehensive Tests', () => {
     it('should return all bookings', async () => {
       const result = await service.findAll();
       expect(result).toEqual([mockBooking]);
+      expect(mockBookingRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 20,
+        }),
+      );
     });
 
     it('should return empty array when no bookings exist', async () => {
@@ -333,6 +339,40 @@ describe('BookingsService - Comprehensive Tests', () => {
       expect(result.booking.status).toBe(BookingStatus.CONFIRMED);
       expect(result.transactionId).toBe('txn-uuid-123');
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('should reject confirming booking if task count exceeds limit', async () => {
+      const largePackage = {
+        ...mockPackage,
+        packageItems: [
+          {
+            taskTypeId: 'task-type-1',
+            quantity: 501, // Over the 500 limit
+            taskType: { defaultCommissionAmount: 100 },
+          },
+        ],
+      };
+
+      // Mock booking with large package
+      mockQueryRunner.manager.findOne.mockReset();
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce({
+          ...mockBooking,
+          tenantId: 'tenant-123',
+          status: BookingStatus.DRAFT,
+        }) // Lock call
+        .mockResolvedValueOnce({
+          ...mockBooking,
+          tenantId: 'tenant-123',
+          status: BookingStatus.DRAFT,
+          servicePackage: largePackage,
+        }); // Relations call
+
+      const promise = service.confirmBooking('booking-uuid-123');
+      await expect(promise).rejects.toThrow(BadRequestException);
+      await expect(promise).rejects.toThrow(
+        /exceeds the maximum allowed limit/,
+      );
     });
 
     it('should create correct number of tasks based on package items', async () => {

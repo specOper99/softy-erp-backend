@@ -3,10 +3,12 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -22,8 +24,8 @@ export class WalletsController {
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all employee wallets' })
-  findAll() {
-    return this.financeService.getAllWallets();
+  findAll(@Query() query: PaginationDto) {
+    return this.financeService.getAllWallets(query);
   }
 
   @Get('user/:userId')

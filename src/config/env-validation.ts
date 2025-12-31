@@ -107,11 +107,11 @@ class EnvironmentVariables {
 
   @IsNumber()
   @IsOptional()
-  RATE_LIMIT_WINDOW_MS: number = 60000;
+  RATE_LIMIT_WINDOW_SECONDS: number = 60;
 
   @IsNumber()
   @IsOptional()
-  RATE_LIMIT_BLOCK_MS: number = 900000;
+  RATE_LIMIT_BLOCK_SECONDS: number = 900;
 
   @IsNumber()
   @IsOptional()
