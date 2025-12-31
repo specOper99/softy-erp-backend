@@ -4,6 +4,7 @@ import './instrument';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters';
 import { initTracing } from './common/telemetry/tracing';
@@ -13,6 +14,10 @@ initTracing();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security: Apply Helmet for HTTP security headers
+  // Sets: CSP, HSTS, X-Frame-Options, X-Content-Type-Options, etc.
+  app.use(helmet());
 
   // Enable graceful shutdown hooks (SIGTERM, SIGINT)
   app.enableShutdownHooks();
