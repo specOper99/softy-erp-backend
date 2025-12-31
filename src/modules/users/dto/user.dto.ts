@@ -6,16 +6,19 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import { PII } from '../../../common/decorators';
 import { Role } from '../../../common/enums';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
+  @PII()
   email: string;
 
   @ApiProperty({ example: 'password123', minLength: 6 })
   @IsString()
   @MinLength(6)
+  @PII()
   password: string;
 
   @ApiPropertyOptional({ enum: Role, default: Role.FIELD_STAFF })
@@ -28,6 +31,7 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsEmail()
   @IsOptional()
+  @PII()
   email?: string;
 
   @ApiPropertyOptional({ enum: Role })

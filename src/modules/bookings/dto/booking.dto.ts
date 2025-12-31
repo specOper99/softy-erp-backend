@@ -7,7 +7,7 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
-import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
+import { PII, SanitizeHtml } from '../../../common/decorators';
 import { BookingStatus } from '../../../common/enums';
 
 export class CreateBookingDto {
@@ -18,11 +18,13 @@ export class CreateBookingDto {
   @ApiPropertyOptional({ example: '+1234567890' })
   @IsString()
   @IsOptional()
+  @PII()
   clientPhone?: string;
 
   @ApiPropertyOptional({ example: 'john@example.com' })
   @IsEmail()
   @IsOptional()
+  @PII()
   clientEmail?: string;
 
   @ApiProperty({ example: '2024-12-31T18:00:00Z' })
@@ -49,11 +51,13 @@ export class UpdateBookingDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @PII()
   clientPhone?: string;
 
   @ApiPropertyOptional()
   @IsEmail()
   @IsOptional()
+  @PII()
   clientEmail?: string;
 
   @ApiPropertyOptional()

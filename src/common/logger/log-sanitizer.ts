@@ -1,29 +1,52 @@
 /**
  * Log Sanitizer - Redacts sensitive data from log output
+ * Includes PII (Personally Identifiable Information) patterns
  */
 import * as winston from 'winston';
 
 // Sensitive keys to redact (case-insensitive)
+// Includes PII fields per compliance requirements
 const SENSITIVE_KEYS = [
+  // Authentication & secrets
   'password',
   'passwordHash',
+  'password_hash',
   'secret',
   'token',
   'accessToken',
+  'access_token',
   'refreshToken',
+  'refresh_token',
   'authorization',
+  'bearer',
   'apiKey',
   'api_key',
+  'vault',
+  // PII - Personal identifiers
+  'email',
+  'phone',
+  'ssn',
+  'socialSecurity',
+  'social_security',
+  // PII - Financial
   'creditCard',
   'credit_card',
   'cardNumber',
   'card_number',
   'cvv',
-  'ssn',
-  'socialSecurity',
-  'roleId',
-  'role_id',
-  'vault',
+  'accountNumber',
+  'account_number',
+  'routingNumber',
+  'routing_number',
+  // PII - Date of birth
+  'dob',
+  'dateOfBirth',
+  'date_of_birth',
+  'birthDate',
+  'birth_date',
+  // Network identifiers
+  'ipAddress',
+  'ip_address',
 ];
 
 const REDACTED = '[REDACTED]';

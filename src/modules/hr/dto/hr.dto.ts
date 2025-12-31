@@ -7,7 +7,7 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
-import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
+import { PII, SanitizeHtml } from '../../../common/decorators';
 
 export class CreateProfileDto {
   @ApiProperty()
@@ -43,11 +43,13 @@ export class CreateProfileDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @PII()
   bankAccount?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @PII()
   phone?: string;
 }
 
@@ -82,11 +84,13 @@ export class UpdateProfileDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @PII()
   bankAccount?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @PII()
   phone?: string;
 }
 
