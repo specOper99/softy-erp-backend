@@ -124,6 +124,7 @@
     "mjml": "file:./scripts/dummy-mjml"
   },
   "jest": {
+    "maxWorkers": 2,
     "moduleFileExtensions": [
       "js",
       "json",
