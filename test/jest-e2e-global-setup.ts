@@ -73,6 +73,11 @@ export default async () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const migrationDataSource = require('../src/database/data-source').default;
 
+  const registeredEntities = migrationDataSource.options.entities.map(
+    (e: any) => (typeof e === 'function' ? e.name : e),
+  );
+  console.log('E2E Migration DataSource Entities:', registeredEntities);
+
   try {
     if (!migrationDataSource.isInitialized) {
       await migrationDataSource.initialize();

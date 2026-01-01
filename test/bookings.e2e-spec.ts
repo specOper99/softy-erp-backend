@@ -11,6 +11,7 @@ describe('Bookings Workflow E2E Tests', () => {
   let app: INestApplication;
   let adminToken: string;
   let packageId: string;
+  let clientId: string;
   let bookingId: string;
 
   beforeAll(async () => {
@@ -78,15 +79,27 @@ describe('Bookings Workflow E2E Tests', () => {
   });
 
   describe('Complete Booking Workflow', () => {
+    it('Step 0: Create Client', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/clients')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          name: 'John Doe',
+          email: 'john@example.com',
+          phone: '+1234567890',
+        })
+        .expect(201);
+
+      clientId = response.body.data.id;
+      expect(clientId).toBeDefined();
+    });
+
     it('Step 1: Create Booking (DRAFT)', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
-
         .send({
-          clientName: 'John Doe',
-          clientPhone: '+1234567890',
-          clientEmail: 'john@example.com',
+          clientId,
           eventDate: new Date(
             Date.now() + 30 * 24 * 60 * 60 * 1000,
           ).toISOString(),
@@ -95,6 +108,7 @@ describe('Bookings Workflow E2E Tests', () => {
         .expect(201);
 
       expect(response.body.data.status).toBe('DRAFT');
+      expect(response.body.data.clientId).toBe(clientId);
       bookingId = response.body.data.id;
     });
 
@@ -102,20 +116,23 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get(`/api/v1/bookings/${bookingId}`)
         .set('Authorization', `Bearer ${adminToken}`)
-
         .expect(200);
 
-      expect(response.body.data.clientName).toBe('John Doe');
+      expect(response.body.data.clientId).toBe(clientId);
+      expect(response.body.data.client.name).toBe('John Doe');
     });
 
     it('Step 3: Confirm Booking (creates tasks + income)', async () => {
       const response = await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
         .set('Authorization', `Bearer ${adminToken}`)
-
         .expect(200);
 
       expect(response.body.data.booking.status).toBe('CONFIRMED');
+      console.log(
+        'E2E DEBUG: Confirm response:',
+        JSON.stringify(response.body.data, null, 2),
+      );
       expect(response.body.data.tasksCreated).toBeGreaterThan(0);
       expect(response.body.data).toHaveProperty('transactionId');
     });
@@ -124,7 +141,6 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks')
         .set('Authorization', `Bearer ${adminToken}`)
-
         .expect(200);
 
       const tasks = response.body.data || response.body;
@@ -137,13 +153,17 @@ describe('Bookings Workflow E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/transactions')
         .set('Authorization', `Bearer ${adminToken}`)
-
         .expect(200);
 
       const transactions = response.body.data || response.body;
-      const incomeTransaction = transactions.find(
-        (t: any) => t.type === 'INCOME' && t.referenceId === bookingId,
+      console.log(
+        'E2E DEBUG: All transactions:',
+        JSON.stringify(transactions, null, 2),
       );
+      const incomeTransaction = transactions.find(
+        (t: any) => t.type === 'INCOME' && t.bookingId === bookingId,
+      );
+      console.log('E2E DEBUG: Looking for bookingId:', bookingId);
       expect(incomeTransaction).toBeDefined();
     });
   });
@@ -153,9 +173,8 @@ describe('Bookings Workflow E2E Tests', () => {
       await request(app.getHttpServer())
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${adminToken}`)
-
         .send({
-          clientName: 'John',
+          clientId,
           // Missing eventDate and packageId
         })
         .expect(400);

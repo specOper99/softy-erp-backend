@@ -11,17 +11,12 @@ import { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { Task } from '../../tasks/entities/task.entity';
 
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { Client } from './client.entity';
 
 @Entity('bookings')
 export class Booking extends BaseTenantEntity {
-  @Column({ name: 'client_name' })
-  clientName: string;
-
-  @Column({ name: 'client_phone', nullable: true })
-  clientPhone: string;
-
-  @Column({ name: 'client_email', nullable: true })
-  clientEmail: string;
+  @Column({ name: 'client_id' })
+  clientId: string;
 
   @Column({ name: 'event_date', type: 'timestamptz' })
   eventDate: Date;
@@ -45,10 +40,14 @@ export class Booking extends BaseTenantEntity {
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
 
-  @ManyToOne(() => ServicePackage, (pkg) => pkg.bookings)
+  @ManyToOne('Client', 'bookings')
+  @JoinColumn({ name: 'client_id' })
+  client: Client;
+
+  @ManyToOne('ServicePackage', 'bookings')
   @JoinColumn({ name: 'package_id' })
   servicePackage: ServicePackage;
 
-  @OneToMany(() => Task, (task) => task.booking)
+  @OneToMany('Task', 'booking')
   tasks: Promise<Task[]>;
 }

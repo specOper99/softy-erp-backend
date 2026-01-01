@@ -1,31 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { PII, SanitizeHtml } from '../../../common/decorators';
+import { SanitizeHtml } from '../../../common/decorators';
 import { BookingStatus } from '../../../common/enums';
 
 export class CreateBookingDto {
-  @ApiProperty({ example: 'John Doe' })
-  @IsString()
-  clientName: string;
-
-  @ApiPropertyOptional({ example: '+1234567890' })
-  @IsString()
-  @IsOptional()
-  @PII()
-  clientPhone?: string;
-
-  @ApiPropertyOptional({ example: 'john@example.com' })
-  @IsEmail()
-  @IsOptional()
-  @PII()
-  clientEmail?: string;
+  @ApiProperty({ description: 'Client ID' })
+  @IsUUID()
+  clientId: string;
 
   @ApiProperty({ example: '2024-12-31T18:00:00Z' })
   @IsDateString()
@@ -44,21 +31,9 @@ export class CreateBookingDto {
 
 export class UpdateBookingDto {
   @ApiPropertyOptional()
-  @IsString()
+  @IsUUID()
   @IsOptional()
-  clientName?: string;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  @PII()
-  clientPhone?: string;
-
-  @ApiPropertyOptional()
-  @IsEmail()
-  @IsOptional()
-  @PII()
-  clientEmail?: string;
+  clientId?: string;
 
   @ApiPropertyOptional()
   @IsDateString()
@@ -82,13 +57,10 @@ export class BookingResponseDto {
   id: string;
 
   @ApiProperty()
-  clientName: string;
+  clientId: string;
 
   @ApiPropertyOptional()
-  clientPhone: string;
-
-  @ApiPropertyOptional()
-  clientEmail: string;
+  client?: any; // Will be typed as ClientResponseDto if needed
 
   @ApiProperty()
   eventDate: Date;

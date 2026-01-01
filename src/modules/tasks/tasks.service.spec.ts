@@ -23,7 +23,11 @@ describe('TasksService - Comprehensive Tests', () => {
     dueDate: new Date('2024-12-31'),
     completedAt: null,
     notes: 'Test task',
-    booking: { id: 'booking-uuid-123', clientName: 'John Doe' },
+    booking: {
+      id: 'booking-uuid-123',
+      clientId: 'client-123',
+      client: { name: 'John Doe' },
+    },
     taskType: { id: 'task-type-uuid-123', name: 'Photography' },
     assignedUser: { id: 'user-uuid-123', email: 'user@example.com' },
   };
@@ -111,7 +115,7 @@ describe('TasksService - Comprehensive Tests', () => {
       const result = await service.findAll();
       expect(result).toEqual([mockTask]);
       expect(mockTaskRepository.find).toHaveBeenCalledWith({
-        relations: ['booking', 'taskType', 'assignedUser'],
+        relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
         order: { createdAt: 'DESC' },
         where: { tenantId: 'tenant-123' },
         skip: 0,
@@ -212,7 +216,11 @@ describe('TasksService - Comprehensive Tests', () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({
         ...mockTask,
         tenantId: 'tenant-123',
-        booking: { clientName: 'Client' },
+        booking: {
+          id: 'booking-uuid-123',
+          clientId: 'client-123',
+          client: { name: 'Client' },
+        },
         taskType: { name: 'Type' },
       });
       // Mock user validation (User lookup)
@@ -244,7 +252,11 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         assignedUserId: 'original-user',
         tenantId: 'tenant-123',
-        booking: { clientName: 'Client' },
+        booking: {
+          id: 'booking-uuid-123',
+          clientId: 'client-123',
+          client: { name: 'Client' },
+        },
         taskType: { name: 'Type' },
       });
       // Mock user validation (User lookup)

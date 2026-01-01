@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { ReferenceType, TransactionType } from '../../../common/enums';
+import { TransactionType } from '../../../common/enums';
 
 // Transaction DTOs
 export class CreateTransactionDto {
@@ -32,12 +32,17 @@ export class CreateTransactionDto {
   @ApiPropertyOptional()
   @IsUUID()
   @IsOptional()
-  referenceId?: string;
+  bookingId?: string;
 
-  @ApiPropertyOptional({ enum: ReferenceType })
-  @IsEnum(ReferenceType)
+  @ApiPropertyOptional()
+  @IsUUID()
   @IsOptional()
-  referenceType?: ReferenceType;
+  taskId?: string;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  payoutId?: string;
 
   @ApiPropertyOptional()
   @IsString()
@@ -64,10 +69,13 @@ export class TransactionResponseDto {
   category: string;
 
   @ApiPropertyOptional()
-  referenceId: string | null;
+  bookingId: string | null;
 
-  @ApiPropertyOptional({ enum: ReferenceType })
-  referenceType: ReferenceType | null;
+  @ApiPropertyOptional()
+  taskId: string | null;
+
+  @ApiPropertyOptional()
+  payoutId: string | null;
 
   @ApiPropertyOptional()
   description: string;

@@ -9,10 +9,11 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import { ReferenceType, TransactionType } from '../../common/enums';
+import { TransactionType } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
+import { Payout } from '../finance/entities/payout.entity';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
@@ -270,7 +271,17 @@ export class HrService {
           continue; // Skip if no payout
         }
 
-        // Step 3: Create PAYROLL transaction
+        // Step 3: Create Payout record
+        const payout = queryRunner.manager.create(Payout, {
+          amount: totalAmount,
+          payoutDate: new Date(),
+          status: 'COMPLETED',
+          tenantId,
+          notes: `Monthly payroll for ${profile.firstName || ''} ${profile.lastName || ''}`,
+        });
+        const savedPayout = await queryRunner.manager.save(payout);
+
+        // Step 4: Create PAYROLL transaction
         const transaction =
           await this.financeService.createTransactionWithManager(
             queryRunner.manager,
@@ -278,8 +289,7 @@ export class HrService {
               type: TransactionType.PAYROLL,
               amount: totalAmount,
               category: 'Monthly Payroll',
-              referenceId: profile.userId,
-              referenceType: ReferenceType.PAYROLL,
+              payoutId: savedPayout.id,
               description: `Payroll for ${profile.firstName || ''} ${profile.lastName || ''}: Salary $${baseSalary} + Commission $${commissionPayable}`,
               transactionDate: new Date(),
             },
@@ -288,7 +298,7 @@ export class HrService {
         transactionIds.push(transaction.id);
         totalPayout += totalAmount;
 
-        // Step 4: Reset payable balance to 0
+        // Step 5: Reset payable balance to 0
         if (wallet && commissionPayable > 0) {
           await this.financeService.resetPayableBalance(
             queryRunner.manager,

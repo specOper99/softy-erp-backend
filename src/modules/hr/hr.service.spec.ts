@@ -89,11 +89,14 @@ describe('HrService - Comprehensive Tests', () => {
       find: jest.fn().mockResolvedValue([mockProfile]),
       findOne: jest.fn().mockResolvedValue(mockWallet),
       create: jest.fn().mockImplementation((entity, data) => data),
-      save: jest
-        .fn()
-        .mockImplementation((data) =>
-          Promise.resolve({ id: 'profile-uuid-123', ...data }),
-        ),
+      save: jest.fn().mockImplementation((data) => {
+        if (Array.isArray(data)) {
+          return Promise.resolve(
+            data.map((item, i) => ({ id: `id-${i}`, ...item })),
+          );
+        }
+        return Promise.resolve({ id: 'payout-uuid-123', ...data });
+      }),
     },
   };
 
@@ -346,7 +349,13 @@ describe('HrService - Comprehensive Tests', () => {
       expect(mockQueryRunner.startTransaction).toHaveBeenCalled();
       expect(
         mockFinanceService.createTransactionWithManager,
-      ).toHaveBeenCalled();
+      ).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          type: 'PAYROLL',
+          payoutId: 'payout-uuid-123',
+        }),
+      );
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
 
       // Total = baseSalary (2000) + payableBalance (150) = 2150

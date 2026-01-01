@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { ReferenceType, TransactionType } from '../../../common/enums';
+import { TransactionType } from '../../../common/enums';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreateTransactionDto, TransactionFilterDto } from '../dto';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
@@ -39,8 +39,9 @@ export class FinanceService {
       type: TransactionType;
       amount: number;
       category?: string;
-      referenceId?: string;
-      referenceType?: ReferenceType;
+      bookingId?: string;
+      taskId?: string;
+      payoutId?: string;
       description?: string;
       transactionDate: Date;
     },

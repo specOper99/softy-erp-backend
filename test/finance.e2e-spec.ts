@@ -88,15 +88,64 @@ describe('Finance Module E2E Tests', () => {
             transactionDate: new Date().toISOString(),
           });
 
-        if (response.status !== 201) {
-          console.log('Transaction Creation Failed Debug:', response.body);
-        }
-
         expect(response.status).toBe(201);
         expect(response.body.data).toHaveProperty('id');
         expect(response.body.data.amount).toBe(1000);
         expect(response.body.data.type).toBe('INCOME');
         createdTransactionId = response.body.data.id;
+      });
+
+      it('should create a transaction with bookingId', async () => {
+        // We assume a booking exists from seed or we just use a dummy UUID since E2E DB allows it if not enforced by FK (but it IS enforced by TypeORM relations usually if defined as such, however Transaction has @ManyToOne but might be nullable).
+        // Create a client for this test to avoid shared state issues
+        const clientRes = await request(app.getHttpServer())
+          .post('/api/v1/clients')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            name: 'Finance Test Client',
+            email: `finance.test.${Date.now()}@example.com`,
+            phone: '+1234567890',
+          })
+          .expect(201);
+        const testClientId = clientRes.body.data.id;
+
+        // Get a package
+        const packagesRes = await request(app.getHttpServer())
+          .get('/api/v1/packages')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+        const packageId = packagesRes.body.data[0]?.id;
+
+        // Create a booking
+        const bookingRes = await request(app.getHttpServer())
+          .post('/api/v1/bookings')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            clientId: testClientId,
+            eventDate: new Date().toISOString(),
+            packageId: packageId,
+          })
+          .expect(201);
+        const bookingId = bookingRes.body.data.id;
+
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/transactions')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            type: 'INCOME',
+            amount: 500,
+            description: 'Manual booking payment',
+            category: 'BOOKING',
+            bookingId: bookingId,
+            transactionDate: new Date().toISOString(),
+          });
+
+        console.log(
+          'E2E DEBUG: Transaction create response:',
+          JSON.stringify(response.body.data, null, 2),
+        );
+        expect(response.status).toBe(201);
+        expect(response.body.data.bookingId).toBe(bookingId);
       });
 
       it('should fail without authentication', async () => {

@@ -7,12 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import {
-  BookingStatus,
-  ReferenceType,
-  TaskStatus,
-  TransactionType,
-} from '../../common/enums';
+import { BookingStatus, TaskStatus, TransactionType } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
@@ -22,9 +17,11 @@ import { Task } from '../tasks/entities/task.entity';
 import {
   ConfirmBookingResponseDto,
   CreateBookingDto,
+  CreateClientDto,
   UpdateBookingDto,
 } from './dto';
 import { Booking } from './entities/booking.entity';
+import { Client } from './entities/client.entity';
 
 @Injectable()
 export class BookingsService {
@@ -35,6 +32,8 @@ export class BookingsService {
     private readonly bookingRepository: Repository<Booking>,
     @InjectRepository(ServicePackage)
     private readonly packageRepository: Repository<ServicePackage>,
+    @InjectRepository(Client)
+    private readonly clientRepository: Repository<Client>,
     private readonly financeService: FinanceService,
     private readonly mailService: MailService,
     private readonly auditService: AuditService,
@@ -54,9 +53,7 @@ export class BookingsService {
     }
 
     const booking = this.bookingRepository.create({
-      clientName: dto.clientName,
-      clientPhone: dto.clientPhone,
-      clientEmail: dto.clientEmail,
+      clientId: dto.clientId,
       eventDate: new Date(dto.eventDate),
       packageId: dto.packageId,
       notes: dto.notes,
@@ -74,7 +71,7 @@ export class BookingsService {
     const tenantId = TenantContextService.getTenantId();
     return this.bookingRepository.find({
       where: { tenantId },
-      relations: ['servicePackage'],
+      relations: ['servicePackage', 'client'],
       order: { createdAt: 'DESC' },
       skip: query.getSkip(),
       take: query.getTake(),
@@ -86,6 +83,7 @@ export class BookingsService {
     const booking = await this.bookingRepository.findOne({
       where: { id, tenantId },
       relations: [
+        'client',
         'servicePackage',
         'servicePackage.packageItems',
         'servicePackage.packageItems.taskType',
@@ -161,6 +159,7 @@ export class BookingsService {
       const booking = await queryRunner.manager.findOne(Booking, {
         where: { id, tenantId },
         relations: [
+          'client',
           'servicePackage',
           'servicePackage.packageItems',
           'servicePackage.packageItems.taskType',
@@ -224,9 +223,8 @@ export class BookingsService {
             type: TransactionType.INCOME,
             amount: Number(booking.totalPrice),
             category: 'Booking Payment',
-            referenceId: booking.id,
-            referenceType: ReferenceType.BOOKING,
-            description: `Booking confirmed: ${booking.clientName} - ${booking.servicePackage?.name}`,
+            bookingId: booking.id,
+            description: `Booking confirmed: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name}`,
             transactionDate: new Date(),
           },
         );
@@ -250,8 +248,8 @@ export class BookingsService {
       // Send confirmation email (async, don't block response)
       this.mailService
         .sendBookingConfirmation({
-          clientName: booking.clientName,
-          clientEmail: booking.clientEmail || '',
+          clientName: booking.client?.name || 'Client',
+          clientEmail: booking.client?.email || '',
           eventDate: booking.eventDate,
           packageName: booking.servicePackage?.name || 'Service Package',
           totalPrice: Number(booking.totalPrice),
@@ -335,5 +333,34 @@ export class BookingsService {
     });
 
     return savedBooking;
+  }
+
+  // Client Management Methods
+  async createClient(dto: CreateClientDto): Promise<Client> {
+    const tenantId = TenantContextService.getTenantId();
+    const client = this.clientRepository.create({
+      ...dto,
+      tenantId,
+    });
+    return this.clientRepository.save(client);
+  }
+
+  async findAllClients(_query: any): Promise<Client[]> {
+    const tenantId = TenantContextService.getTenantId();
+    return this.clientRepository.find({
+      where: { tenantId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findClientById(id: string): Promise<Client> {
+    const tenantId = TenantContextService.getTenantId();
+    const client = await this.clientRepository.findOne({
+      where: { id, tenantId },
+    });
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${id} not found`);
+    }
+    return client;
   }
 }

@@ -172,6 +172,18 @@ describe('HR Module E2E Tests', () => {
           .expect(201);
 
         expect(response.body.data).toHaveProperty('totalPayout');
+        expect(response.body.data).toHaveProperty('transactionIds');
+        expect(Array.isArray(response.body.data.transactionIds)).toBe(true);
+
+        if (response.body.data.transactionIds.length > 0) {
+          const txnId = response.body.data.transactionIds[0];
+          const txnRes = await request(app.getHttpServer())
+            .get(`/api/v1/transactions/${txnId}`)
+            .set('Authorization', `Bearer ${accessToken}`)
+            .expect(200);
+
+          expect(txnRes.body.data.payoutId).toBeDefined();
+        }
       });
     });
   });

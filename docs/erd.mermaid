@@ -1,0 +1,68 @@
+erDiagram
+    TENANT ||--o{ USER : contains
+    TENANT ||--o{ BOOKING : owns
+    TENANT ||--o{ CLIENT : manages
+    TENANT ||--o{ PAYOUT : records
+    TENANT ||--o{ TRANSACTION : tracks
+
+    CLIENT ||--o{ BOOKING : "places"
+    
+    BOOKING ||--o{ TASK : "generates"
+    BOOKING ||--o{ TRANSACTION : "related"
+    
+    TASK ||--o{ TRANSACTION : "generates commission"
+    
+    PAYOUT ||--o{ TRANSACTION : "groups"
+    
+    USER ||--o{ PROFILE : "has"
+    USER ||--o{ TASK : "is assigned"
+    USER ||--o{ TRANSACTION : "receives (payroll)"
+    
+    CLIENT {
+        uuid id PK
+        uuid tenantId FK
+        string name
+        string email
+        string phone
+        text notes
+    }
+
+    BOOKING {
+        uuid id PK
+        uuid tenantId FK
+        uuid clientId FK
+        datetime eventDate
+        string status
+        decimal totalPrice
+    }
+
+    TRANSACTION {
+        uuid id PK
+        uuid tenantId FK
+        uuid bookingId FK "Nullable"
+        uuid taskId FK "Nullable"
+        uuid payoutId FK "Nullable"
+        decimal amount
+        string type "INCOME|EXPENSE|PAYROLL"
+        string category
+        text description
+        datetime transactionDate
+    }
+
+    PAYOUT {
+        uuid id PK
+        uuid tenantId FK
+        decimal amount
+        datetime payoutDate
+        string status
+        text notes
+    }
+
+    TASK {
+        uuid id PK
+        uuid tenantId FK
+        uuid bookingId FK
+        uuid assignedUserId FK
+        string status
+        decimal commissionSnapshot
+    }

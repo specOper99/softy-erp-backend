@@ -10,6 +10,7 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TaskStatus } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
+import { Client } from '../bookings/entities/client.entity';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
 import { User } from '../users/entities/user.entity';
@@ -33,7 +34,7 @@ export class TasksService {
     const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
       where: { tenantId },
-      relations: ['booking', 'taskType', 'assignedUser'],
+      relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
       order: { createdAt: 'DESC' },
       skip: query.getSkip(),
       take: query.getTake(),
@@ -44,7 +45,7 @@ export class TasksService {
     const tenantId = TenantContextService.getTenantId();
     const task = await this.taskRepository.findOne({
       where: { id, tenantId },
-      relations: ['booking', 'taskType', 'assignedUser'],
+      relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
     });
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
@@ -56,7 +57,7 @@ export class TasksService {
     const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
       where: { bookingId, tenantId },
-      relations: ['taskType', 'assignedUser'],
+      relations: ['taskType', 'assignedUser', 'booking', 'booking.client'],
     });
   }
 
@@ -64,7 +65,7 @@ export class TasksService {
     const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
       where: { assignedUserId: userId, tenantId },
-      relations: ['booking', 'taskType'],
+      relations: ['booking', 'booking.client', 'taskType'],
       order: { dueDate: 'ASC' },
     });
   }
@@ -175,6 +176,13 @@ export class TasksService {
           })
         : null;
 
+      // Ensure booking and client are loaded for the email
+      if (task.booking && !task.booking.client) {
+        task.booking.client = (await queryRunner.manager.findOne(Client, {
+          where: { id: task.booking.clientId, tenantId },
+        })) as Client;
+      }
+
       await queryRunner.commitTransaction();
 
       // Send email (after commit success)
@@ -184,7 +192,7 @@ export class TasksService {
             employeeName: emailUser.email.split('@')[0],
             employeeEmail: emailUser.email,
             taskType: task.taskType.name,
-            clientName: task.booking.clientName,
+            clientName: task.booking.client?.name || 'Client',
             eventDate: task.booking.eventDate,
             commission: Number(task.commissionSnapshot || 0),
           })

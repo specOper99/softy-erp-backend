@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { ReferenceType, TransactionType } from '../../../common/enums';
+import { TransactionType } from '../../../common/enums';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { TransactionFilterDto } from '../dto';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
@@ -17,8 +17,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     type: TransactionType.INCOME,
     amount: 1500.0,
     category: 'Booking Payment',
-    referenceId: 'booking-uuid-123',
-    referenceType: ReferenceType.BOOKING,
+    bookingId: 'booking-uuid-123',
     description: 'Test transaction',
     transactionDate: new Date(),
     createdAt: new Date(),
@@ -179,12 +178,11 @@ describe('FinanceService - Comprehensive Tests', () => {
         type: TransactionType.INCOME,
         amount: 1500.0,
         category: 'Booking Payment',
-        referenceId: 'booking-uuid-123',
-        referenceType: ReferenceType.BOOKING,
+        bookingId: 'booking-uuid-123',
         transactionDate: '2024-12-31T00:00:00Z',
       };
       const result = await service.createTransaction(dto);
-      expect(result.referenceId).toBe('booking-uuid-123');
+      expect(result.bookingId).toBe('booking-uuid-123');
     });
 
     it('should create transaction with description', async () => {
@@ -505,8 +503,7 @@ describe('FinanceService - Comprehensive Tests', () => {
         type: TransactionType.INCOME,
         amount: 1500.0,
         category: 'Booking Payment',
-        referenceId: 'booking-123',
-        referenceType: ReferenceType.BOOKING,
+        bookingId: 'booking-123',
         transactionDate: new Date(),
       };
 
@@ -514,7 +511,7 @@ describe('FinanceService - Comprehensive Tests', () => {
         mockManager as any,
         dto,
       );
-      expect(result.referenceId).toBe('booking-123');
+      expect(result.bookingId).toBe('booking-123');
     });
   });
 });

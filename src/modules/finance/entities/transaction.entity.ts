@@ -1,9 +1,18 @@
-import { Column, Entity, Index } from 'typeorm';
-import { ReferenceType, TransactionType } from '../../../common/enums';
-
+import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { TransactionType } from '../../../common/enums';
+import { Booking } from '../../bookings/entities/booking.entity';
+import { Task } from '../../tasks/entities/task.entity';
+import { Payout } from './payout.entity';
 
 @Entity('transactions')
+@Check(
+  `("booking_id" IS NOT NULL AND "task_id" IS NULL AND "payout_id" IS NULL) OR ` +
+    `("booking_id" IS NULL AND "task_id" IS NOT NULL AND "payout_id" IS NULL) OR ` +
+    `("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NOT NULL) OR ` +
+    `("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NULL)`,
+)
+@Index(['tenantId', 'id'], { unique: true })
 export class Transaction extends BaseTenantEntity {
   @Column({
     type: 'enum',
@@ -17,21 +26,33 @@ export class Transaction extends BaseTenantEntity {
   @Column({ nullable: true })
   category: string;
 
-  @Index()
-  @Column({ name: 'reference_id', type: 'uuid', nullable: true })
-  referenceId: string | null;
+  @Column({ name: 'booking_id', type: 'uuid', nullable: true })
+  bookingId: string | null;
 
-  @Column({
-    name: 'reference_type',
-    type: 'enum',
-    enum: ReferenceType,
-    nullable: true,
-  })
-  referenceType: ReferenceType | null;
+  @Column({ name: 'task_id', type: 'uuid', nullable: true })
+  taskId: string | null;
+
+  @Column({ name: 'payout_id', type: 'uuid', nullable: true })
+  payoutId: string | null;
 
   @Column({ type: 'text', nullable: true })
   description: string;
 
   @Column({ name: 'transaction_date', type: 'timestamptz' })
   transactionDate: Date;
+
+  @ManyToOne('Booking', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'booking_id' })
+  booking: Booking | null;
+
+  @ManyToOne('Task', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'task_id' })
+  task: Task | null;
+
+  @ManyToOne('Payout', 'transactions', {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'payout_id' })
+  payout: Payout | null;
 }

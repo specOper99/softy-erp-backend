@@ -69,9 +69,10 @@ describe('Workflow Integration Tests (E2E)', () => {
 
     _dataSource = moduleFixture.get(DataSource);
 
-    // Seed Test DB and Get Tenant ID
-    const { tenantId } = await seedTestDatabase(_dataSource);
+    // Seed Test DB and Get Tenant ID and Client
+    const { tenantId, client } = await seedTestDatabase(_dataSource);
     (global as any).testTenantId = tenantId;
+    (global as any).testClientId = client.id;
 
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
@@ -122,9 +123,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
 
         .send({
-          clientName: 'Integration Test Client',
-          clientEmail: 'test@integration.com',
-          clientPhone: '+1234567890',
+          clientId: (global as any).testClientId,
           eventDate: eventDate.toISOString(),
           packageId: packageId,
           notes: 'E2E workflow test booking',
@@ -192,7 +191,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       const bookingTransaction = Array.isArray(transactions)
         ? transactions.find(
             (t: any) =>
-              t.referenceId === bookingId && t.type === TransactionType.INCOME,
+              t.bookingId === bookingId && t.type === TransactionType.INCOME,
           )
         : undefined;
       expect(bookingTransaction).toBeDefined();

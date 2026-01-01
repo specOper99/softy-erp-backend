@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Role } from '../../src/common/enums';
+import { Client } from '../../src/modules/bookings/entities/client.entity';
 import { PackageItem } from '../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
 import { TaskType } from '../../src/modules/catalog/entities/task-type.entity';
@@ -17,6 +18,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const taskTypeRepo = dataSource.getRepository(TaskType);
   const packageRepo = dataSource.getRepository(ServicePackage);
   const packageItemRepo = dataSource.getRepository(PackageItem);
+  const clientRepo = dataSource.getRepository(Client);
 
   // 1. Create Tenant
   let tenant = await tenantRepo.findOne({
@@ -244,5 +246,54 @@ export async function seedTestDatabase(dataSource: DataSource) {
     throw new Error('Failed to seed/find package');
   }
 
-  return { tenantId, admin, staff, pkg, taskType };
+  // 6. Create Client
+  console.log('SEED DEBUG: Starting Client seeding phase');
+  const clientEmail = 'test.client@example.com';
+  try {
+    console.log('SEED DEBUG: Finding client by email:', clientEmail);
+    let client = await clientRepo.findOne({
+      where: { email: clientEmail, tenantId },
+    });
+    console.log(
+      'SEED DEBUG: Client search result:',
+      client ? 'Found' : 'Not Found',
+    );
+    if (!client) {
+      console.log('SEED DEBUG: Creating new client object');
+      try {
+        client = await clientRepo.save(
+          clientRepo.create({
+            name: 'Test Client',
+            email: clientEmail,
+            phone: '+1234567890',
+            tenantId,
+          }),
+        );
+        console.log('SEED DEBUG: Client saved successfully');
+      } catch (saveError: any) {
+        console.error(
+          'SEED DEBUG: Client save failed:',
+          saveError.message || saveError,
+        );
+        console.log('SEED DEBUG: Retrying client find after save failure');
+        client = (await clientRepo.findOne({
+          where: { email: clientEmail, tenantId },
+        })) as Client;
+        console.log(
+          'SEED DEBUG: Client retry find result:',
+          client ? 'Found' : 'Not Found',
+        );
+      }
+    }
+
+    console.log('SEED DEBUG: Seeding finished successfully');
+    return { tenantId, admin, staff, pkg, taskType, client };
+  } catch (outerError: any) {
+    console.error(
+      'SEED DEBUG: CRITICAL ERROR IN SEEDER:',
+      outerError.message || outerError,
+    );
+    if (outerError.stack) console.error(outerError.stack);
+    throw outerError;
+  }
 }

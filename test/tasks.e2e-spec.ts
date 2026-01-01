@@ -111,10 +111,15 @@ describe('Tasks Module E2E Tests', () => {
       if (tasksResponse.body.data?.length > 0) {
         const taskId = tasksResponse.body.data[0].id;
 
-        await request(app.getHttpServer())
+        const response = await request(app.getHttpServer())
           .get(`/api/v1/tasks/${taskId}`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
+
+        // Success: booking and its client should be present if it's a booking task
+        if (response.body.data.booking) {
+          expect(response.body.data.booking).toHaveProperty('client');
+        }
       }
     });
 

@@ -10,6 +10,7 @@ import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
 import { BookingsService } from './bookings.service';
 import { Booking } from './entities/booking.entity';
+import { Client } from './entities/client.entity';
 
 describe('BookingsService - Comprehensive Tests', () => {
   let service: BookingsService;
@@ -33,11 +34,17 @@ describe('BookingsService - Comprehensive Tests', () => {
     ],
   };
 
+  const mockClient = {
+    id: 'client-uuid-123',
+    name: 'John Doe',
+    email: 'john@example.com',
+    phone: '+1234567890',
+  };
+
   const mockBooking = {
     id: 'booking-uuid-123',
-    clientName: 'John Doe',
-    clientPhone: '+1234567890',
-    clientEmail: 'john@example.com',
+    clientId: 'client-uuid-123',
+    client: mockClient,
     eventDate: new Date('2024-12-31'),
     status: BookingStatus.DRAFT,
     totalPrice: 1500.0,
@@ -114,6 +121,10 @@ describe('BookingsService - Comprehensive Tests', () => {
           provide: getRepositoryToken(ServicePackage),
           useValue: mockPackageRepository,
         },
+        {
+          provide: getRepositoryToken(Client),
+          useValue: mockBookingRepository, // Reuse mockBookingRepository for basic mock behavior
+        },
         { provide: FinanceService, useValue: mockFinanceService },
         { provide: MailService, useValue: mockMailService },
         { provide: AuditService, useValue: mockAuditService },
@@ -157,8 +168,7 @@ describe('BookingsService - Comprehensive Tests', () => {
   describe('create', () => {
     it('should create booking with valid package', async () => {
       const dto = {
-        clientName: 'John Doe',
-        clientPhone: '+1234567890',
+        clientId: 'client-uuid-123',
         eventDate: '2024-12-31T18:00:00Z',
         packageId: 'pkg-uuid-123',
       };
@@ -169,27 +179,16 @@ describe('BookingsService - Comprehensive Tests', () => {
 
     it('should throw NotFoundException for non-existent package', async () => {
       const dto = {
-        clientName: 'John Doe',
+        clientId: 'client-uuid-123',
         eventDate: '2024-12-31T18:00:00Z',
         packageId: 'invalid-pkg',
       };
       await expect(service.create(dto)).rejects.toThrow(NotFoundException);
     });
 
-    it('should create booking with optional client email', async () => {
-      const dto = {
-        clientName: 'John Doe',
-        clientEmail: 'john@example.com',
-        eventDate: '2024-12-31T18:00:00Z',
-        packageId: 'pkg-uuid-123',
-      };
-      const result = await service.create(dto);
-      expect(result).toBeDefined();
-    });
-
     it('should create booking with notes', async () => {
       const dto = {
-        clientName: 'John Doe',
+        clientId: 'client-uuid-123',
         eventDate: '2024-12-31T18:00:00Z',
         packageId: 'pkg-uuid-123',
         notes: 'Special requirements',
@@ -202,7 +201,7 @@ describe('BookingsService - Comprehensive Tests', () => {
       const futureDate = new Date();
       futureDate.setFullYear(futureDate.getFullYear() + 1);
       const dto = {
-        clientName: 'Future Client',
+        clientId: 'client-uuid-123',
         eventDate: futureDate.toISOString(),
         packageId: 'pkg-uuid-123',
       };
@@ -234,7 +233,7 @@ describe('BookingsService - Comprehensive Tests', () => {
   describe('findOne', () => {
     it('should return booking by valid id', async () => {
       const result = await service.findOne('booking-uuid-123');
-      expect(result.clientName).toBe('John Doe');
+      expect(result.clientId).toBe('client-uuid-123');
     });
 
     it('should throw NotFoundException for invalid id', async () => {
@@ -246,9 +245,9 @@ describe('BookingsService - Comprehensive Tests', () => {
 
   // ============ UPDATE BOOKING TESTS ============
   describe('update', () => {
-    it('should update draft booking client name', async () => {
+    it('should update draft booking notes', async () => {
       await service.update('booking-uuid-123', {
-        clientName: 'Jane Doe',
+        notes: 'Updated notes',
       });
       expect(mockBookingRepository.save).toHaveBeenCalled();
     });
@@ -273,13 +272,13 @@ describe('BookingsService - Comprehensive Tests', () => {
         status: BookingStatus.CONFIRMED,
       });
       await expect(
-        service.update('booking-uuid-123', { clientName: 'Test' }),
+        service.update('booking-uuid-123', { notes: 'Test' }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException for non-existent booking', async () => {
       await expect(
-        service.update('invalid-id', { clientName: 'Test' }),
+        service.update('invalid-id', { notes: 'Test' }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -338,6 +337,15 @@ describe('BookingsService - Comprehensive Tests', () => {
       const result = await service.confirmBooking('booking-uuid-123');
       expect(result.booking.status).toBe(BookingStatus.CONFIRMED);
       expect(result.transactionId).toBe('txn-uuid-123');
+      expect(
+        mockFinanceService.createTransactionWithManager,
+      ).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          bookingId: 'booking-uuid-123',
+          type: 'INCOME',
+        }),
+      );
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
     });
 
