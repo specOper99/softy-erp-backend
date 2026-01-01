@@ -74,9 +74,33 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
 
     if (dataType && dataType !== 'uuid') {
       await this.assertNoInvalidTenantId(queryRunner, table);
+
+      // For 'users' table: drop dependent composite FKs before type change
+      if (table === 'users') {
+        await queryRunner.query(
+          `ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "FK_wallet_user_composite"`,
+        );
+        await queryRunner.query(
+          `ALTER TABLE "profiles" DROP CONSTRAINT IF EXISTS "FK_profile_user_composite"`,
+        );
+        await queryRunner.query(
+          `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_user_composite"`,
+        );
+        await queryRunner.query(
+          `DROP INDEX IF EXISTS "public"."IDX_user_composite_tenant"`,
+        );
+      }
+
       await queryRunner.query(
         `ALTER TABLE "${table}" ALTER COLUMN "tenant_id" TYPE uuid USING ("tenant_id"::text)::uuid`,
       );
+
+      // For 'users' table: recreate composite index ONLY (FKs will be recreated after all tables are converted)
+      if (table === 'users') {
+        await queryRunner.query(
+          `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_user_composite_tenant" ON "users" ("id", "tenant_id")`,
+        );
+      }
     }
 
     await this.assertNoNullTenantId(queryRunner, table);
@@ -153,6 +177,22 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "IDX_attachments_tenant" ON "attachments" ("tenant_id")`,
     );
+
+    // Recreate composite FK constraints now that all tables have uuid tenant_id
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_wallet_user_composite') THEN
+          ALTER TABLE "employee_wallets" ADD CONSTRAINT "FK_wallet_user_composite" FOREIGN KEY ("user_id", "tenant_id") REFERENCES "users"("id", "tenant_id");
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_profile_user_composite') THEN
+          ALTER TABLE "profiles" ADD CONSTRAINT "FK_profile_user_composite" FOREIGN KEY ("user_id", "tenant_id") REFERENCES "users"("id", "tenant_id");
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_task_user_composite') THEN
+          ALTER TABLE "tasks" ADD CONSTRAINT "FK_task_user_composite" FOREIGN KEY ("assigned_user_id", "tenant_id") REFERENCES "users"("id", "tenant_id");
+        END IF;
+      END $$;
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
