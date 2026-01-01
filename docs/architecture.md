@@ -1,95 +1,71 @@
 # System Architecture
 
 ## Overview
-The Chapters Studio ERP is a monolithic NestJS application designed for scalability and modularity. It follows a layered architecture, separating core infrastructure concerns from feature-specific business logic.
+The Chapters Studio ERP is a robust NestJS application designed for high security and scalability. It follows a modular monolith approach with strict domain-driven boundaries and defense-in-depth security.
 
 ## High-Level Structure
-The codebase is organized into three main layers:
 
-1.  **Core / Infrastructure (Root)**:
-    -   `AppModule`: The root module that ties everything together.
-    -   Global Configuration (Config, TypeORM, Throttler, Logger).
-    -   Global Interceptors and Guards (`GlobalCacheInterceptor`, `IpRateLimitGuard`).
+1.  **Core / Infrastructure**:
+    -   `AppModule`: Root module.
+    -   **Observability**: Integrated Winston logging, OpenTelemetry tracing, and Promethous metrics.
+    -   **Security**: `Helmet` integration and strict CORS policies.
 
 2.  **Common Layer (`src/common`)**:
-    -   Shared utilities, guards, decorators, filters, and middleware.
-    -   **Resilience**: Circuit breakers and retry strategies.
-    -   **Cache**: Redis caching modules.
-    -   **Domain**: Shared interfaces (e.g., `IUser`, `ITask`).
+    -   **Tenant Context**: AsyncLocalStorage based context management.
+    -   **Guards**: `JwtAuthGuard`, `RolesGuard`, and `IpRateLimitGuard`.
+    -   **Decorators**: `@PII` for log masking and `@SanitizeHtml` for XSS protection.
+    -   **Resilience**: Circuit breakers for external SMTP and S3 calls.
 
 3.  **Feature Modules (`src/modules`)**:
-    -   Domain-specific modules encapsulating business logic, controllers, and services.
-    -   Examples: `Auth`, `Users`, `Tenants`, `Finance`, `Projects`.
+    -   Self-contained modules with dedicated DTOs, Controllers, Services, and Entities.
+    -   Modules communicate via services or internal events.
 
-## Module Dependency Graph
+## The Security Shield
 
-The following diagram illustrates the high-level relationships between the core application structure and its feature modules.
+We implement multiple layers of security to protect tenant data:
+
+### Layer 1: Edge Security
+- **Rate Limiting**: IP-based throttling at the global level.
+- **Header Hardening**: `Helmet` removes `X-Powered-By` and adds CSP, HSTS, and other security headers.
+
+### Layer 2: Authentication & Authorization
+- **JWT-Only**: No client-side tenant selection. Identity and scope are sealed in the JWT.
+- **Account Lockout**: Brute-force protection on the login endpoint.
+- **RBAC**: Role-based access control enforced via high-level decorators.
+
+### Layer 3: Application Logic
+- **HTML Sanitization**: Automatic parsing and sanitization of user-provided content.
+- **PII Masking**: Sensitive data is identified in DTOs and masked before reaching logs.
+- **Pessimistic Locking**: Financial operations (wallets, transactions) use `pessimistic_write` locks to prevent race conditions.
+
+### Layer 4: Data Persistence
+- **Composite FK Constraints**: Database-level enforcement of tenant boundaries.
+- **UUIDs**: All IDs are UUID v4 to prevent enumeration attacks.
+- **Audit Logs**: Comprehensive tenant-scoped audit trails for all mutating operations.
+
+## Resilience Mechanisms
+
+- **Health Checks**: `/health/live` and `/health/ready` endpoints monitoring DB, Redis, Disk, and Memory.
+- **Graceful Shutdown**: All connections (DB, Redis, S3) are drained before the process terminates.
+- **Backup**: Automated PostgreSQL backups uploaded to MinIO/S3.
+
+## Infrastructure Diagram
 
 ```mermaid
 graph TD
-    subgraph Core "Core Infrastructure"
-        AppModule
-        Config[Configuration & Env]
-        DB[Database / TypeORM]
-        Cache[Redis / CacheModule]
-        Logger[Winston Logger]
-        Guards[Global Guards\n(Tenant, RateLimit)]
-    end
-
-    subgraph Common "Shared / Common"
-        CommonUtils[Utilities & Helpers]
-        Resilience[Resilience Module]
-        BaseDomain[Domain Interfaces]
-    end
-
-    subgraph Features "Feature Modules"
-        Auth[Auth Module]
-        Users[Users Module]
-        Tenants[Tenants Module]
-        Finance[Finance Module]
-        Tasks[Tasks Module]
-        Media[Media Module]
-        Mail[Mail Module]
-        Dashboard[Dashboard Module]
-        Audit[Audit Module]
-        Hr[HR Module]
-        Catalog[Catalog Module]
-        Bookings[Bookings Module]
-        Health[Health Module]
-        Metrics[Metrics Module]
-    end
-
-    %% Core dependencies
-    AppModule --> Config
-    AppModule --> DB
-    AppModule --> Cache
-    AppModule --> Logger
-    AppModule --> Guards
-
-    %% Feature Module Aggregation
-    AppModule --> Features
-
-    %% Feature Dependencies on Common
-    Features --> Common
+    Client[Web/Mobile Client] --> LB[Load Balancer]
+    LB --> Helmet[Helmet/CORS Filter]
+    Helmet --> App[NestJS Application]
     
-    %% Specific Feature Interactions (examples)
-    Auth --> Users
-    Tasks --> Users
-    Finance --> Users
-    Dashboard --> Finance
-    Dashboard --> Tasks
-    Dashboard --> Users
-    Tenants --> Users
+    subgraph Storage
+        App --> PG[(PostgreSQL)]
+        App --> Redis[(Redis Cache)]
+        App --> MinIO[(MinIO/S3 Object Store)]
+    end
     
-    %% Common Dependencies
-    Guards -.-> CommonUtils
-    Resilience -.-> Logger
+    subgraph Management
+        App --> Vault[HashiCorp Vault]
+        App --> OTEL[OTEL Collector]
+        OTEL --> Zipkin[Zipkin/Jaeger]
+    end
 ```
-
-## Resilience & Security Mechanisms
-
--   **Rate Limiting**: Implemented via `IpRateLimitGuard` (Token Bucket / Sliding Window) to prevent abuse.
--   **Caching**: `GlobalCacheInterceptor` caches GET requests using Redis to reduce DB load.
--   **Circuit Breakers**: `ResilienceModule` wraps external calls (S3, Email) to handle failures gracefully.
--   **Secrets**: HashiCorp Vault is used for active secret retrieval at startup.
--   **Tenant Isolation**: `TenantGuard` and `TenantMiddleware` ensure request context is bound to a specific tenant.

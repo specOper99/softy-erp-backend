@@ -42,23 +42,21 @@ npm run start:dev
 - **HR** - Employee profiles and payroll
 - **Media** - File uploads via MinIO/S3
 
-### Production Infrastructure
-- ✅ **Rate Limiting** - Advanced `IpRateLimitGuard` with progressive blocking
-- ✅ **Health Checks** - Terminus-based DB/memory checks
-- ✅ **Graceful Shutdown** - Clean connection closure
-- ✅ **Structured Logging** - Winston with JSON format
-- ✅ **Log Sanitization** - Auto-redacts passwords/tokens/Vault secrets
-- ✅ **Correlation IDs** - X-Correlation-ID header tracking
-- ✅ **Database Migrations** - TypeORM migration support
-- ✅ **Performance Indexes** - Optimized DB indexes on foreign keys
-- ✅ **Backups** - pg_dump with MinIO upload
-- ✅ **Telemetry** - OpenTelemetry + Zipkin
-- ✅ **Load Testing** - k6 test scripts
-- ✅ **Sentry** - Error tracking & alerting
-- ✅ **Redis Cache** - Global caching interceptor
-- ✅ **HashiCorp Vault** - Secrets management integration
-- ✅ **Docker** - Multi-stage production image
-- ✅ **CI/CD** - GitHub Actions pipelines
+### Production Infrastructure & Security Hardening
+- 🛡️ **Composite FK Constraints** - Database-level tenant isolation enforcing cross-tenant referential integrity.
+- 🛡️ **Helmet Security** - Essential HTTP security headers applied globally.
+- 🛡️ **JWT-Only Auth** - Removed header-based tenant identification; tenant scope derived solely from verified JWTs.
+- 🛡️ **PII Masking** - Specialized `@PII` decorator ensuring sensitive fields (emails, phones) are masked in structured logs.
+- 🛡️ **Stored XSS Protection** - `@SanitizeHtml` decorator for automatic sanitization of user-provided content.
+- 🛡️ **Account Lockout** - Progressive account locking to thwart brute-force attacks.
+- 🛡️ **Rate Limiting** - Advanced `IpRateLimitGuard` with IP-based throttling.
+- ✅ **Health Checks** - Terminus-based DB, Redis, and Memory probes.
+- ✅ **Structured Logging** - Winston-based JSON logs including correlation IDs and tenant context.
+- ✅ **Telemetry** - OpenTelemetry + Zipkin for distributed tracing.
+- ✅ **Database Migrations** - Robust TypeORM migration system for schema evolution.
+- ✅ **Secrets Management** - Integrated support for HashiCorp Vault.
+- ✅ **Docker** - Optimized multi-stage production images using `node:alpine`.
+- ✅ **CI/CD** - Automated pipelines for Lint, Test, and Container publishing.
 
 ## 🛠 Scripts
 
