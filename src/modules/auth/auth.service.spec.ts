@@ -266,7 +266,7 @@ describe('AuthService - Comprehensive Tests', () => {
     );
   });
 
-  it('should throw BadRequestException if user already exists in tenant', async () => {
+  it('should throw ConflictException if user already exists', async () => {
     mockTenantsService.findBySlug.mockRejectedValue(
       new NotFoundException('Not Found'),
     );
@@ -279,7 +279,7 @@ describe('AuthService - Comprehensive Tests', () => {
       companyName: 'Test Tenant',
     };
     await expect(service.register(dto)).rejects.toThrow(
-      'Email already registered in this organization',
+      'Email already registered',
     );
   });
 

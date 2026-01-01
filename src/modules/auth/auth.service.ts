@@ -100,15 +100,12 @@ export class AuthService {
 
       const tenantId = tenant.id;
 
-      // Check for existing user in this tenant
+      // Global-unique email model: email cannot exist in any tenant
       const existingUser = await this.usersService.findByEmail(
         registerDto.email,
-        tenantId,
       );
       if (existingUser) {
-        throw new BadRequestException(
-          'Email already registered in this organization',
-        );
+        throw new ConflictException('Email already registered');
       }
 
       // Create User within transaction

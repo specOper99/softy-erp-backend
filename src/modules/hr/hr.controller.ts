@@ -36,7 +36,7 @@ export class HrController {
   @Get('profiles')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all employee profiles' })
-  findAllProfiles(@Query() query: PaginationDto) {
+  findAllProfiles(@Query() query: PaginationDto = new PaginationDto()) {
     return this.hrService.findAllProfiles(query);
   }
 

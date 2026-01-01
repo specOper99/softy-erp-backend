@@ -15,6 +15,7 @@ import { Role } from '../../common/enums';
 import { RolesGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BookingsService } from './bookings.service';
+import { CreateClientDto } from './dto/client.dto';
 
 @ApiTags('Clients')
 @ApiBearerAuth()
@@ -26,7 +27,7 @@ export class ClientsController {
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Create a new client' })
-  create(@Body() dto: any) {
+  create(@Body() dto: CreateClientDto) {
     // We'll reuse BookingsService or add methods there.
     // For simplicity of this task, I'll add a createClient method to BookingsService.
     return this.bookingsService.createClient(dto);

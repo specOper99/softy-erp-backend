@@ -110,7 +110,9 @@ export class MediaController {
 
   @Get()
   @ApiOperation({ summary: 'Get all attachments' })
-  async findAll(@Query() query: PaginationDto): Promise<Attachment[]> {
+  async findAll(
+    @Query() query: PaginationDto = new PaginationDto(),
+  ): Promise<Attachment[]> {
     return this.mediaService.findAll(query);
   }
 

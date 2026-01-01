@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -33,7 +34,20 @@ export class UsersService {
       role: createUserDto.role,
       tenantId,
     });
-    const savedUser = await this.userRepository.save(user);
+    let savedUser: User;
+    try {
+      savedUser = await this.userRepository.save(user);
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error as { code: string }).code === '23505'
+      ) {
+        throw new ConflictException('Email already registered');
+      }
+      throw error;
+    }
 
     await this.auditService.log({
       action: 'CREATE',
@@ -86,9 +100,8 @@ export class UsersService {
   }
 
   async findByEmail(email: string, tenantId?: string): Promise<User | null> {
-    const where: { email: string; tenantId?: string } = { email };
-    if (tenantId) where.tenantId = tenantId;
-    return this.userRepository.findOne({ where });
+    void tenantId;
+    return this.userRepository.findOne({ where: { email } });
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {

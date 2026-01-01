@@ -26,7 +26,7 @@ export class WalletsController {
   @NoCache()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all employee wallets' })
-  findAll(@Query() query: PaginationDto) {
+  findAll(@Query() query: PaginationDto = new PaginationDto()) {
     return this.financeService.getAllWallets(query);
   }
 
