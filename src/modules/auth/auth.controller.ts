@@ -62,6 +62,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @SkipTenant()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   async refreshTokens(
