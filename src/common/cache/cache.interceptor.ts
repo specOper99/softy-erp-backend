@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Cache } from 'cache-manager';
+import * as crypto from 'crypto';
 import { Request } from 'express';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -53,7 +54,8 @@ export class GlobalCacheInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const key = `cache:${tenantId}:${method}:${url}`;
+    const userKeyPart = this.getUserCacheKeyPart(request);
+    const key = `cache:${tenantId}:${userKeyPart}:${method}:${url}`;
 
     try {
       const cachedResponse = await this.cacheManager.get(key);
@@ -85,5 +87,34 @@ export class GlobalCacheInterceptor implements NestInterceptor {
         });
       }),
     );
+  }
+
+  private getUserCacheKeyPart(request: Request): string {
+    const user = request.user as unknown;
+
+    if (user && typeof user === 'object') {
+      const maybeUser = user as Record<string, unknown>;
+      const id = maybeUser.id;
+      const sub = maybeUser.sub;
+
+      if (typeof id === 'string' && id.length > 0) {
+        return `user:${id}`;
+      }
+      if (typeof sub === 'string' && sub.length > 0) {
+        return `user:${sub}`;
+      }
+    }
+
+    const authHeader = request.headers.authorization;
+    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const tokenHash =
+        token.length > 0
+          ? crypto.createHash('sha256').update(token).digest('hex')
+          : 'empty';
+      return `token:${tokenHash}`;
+    }
+
+    return 'anon';
   }
 }
