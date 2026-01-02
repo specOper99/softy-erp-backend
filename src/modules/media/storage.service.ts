@@ -201,7 +201,7 @@ export class StorageService implements OnModuleInit {
       return url;
     }
 
-    const match = url.match(new RegExp(`${this.bucket}/(.+)$`));
+    const match = new RegExp(`${this.bucket}/(.+)$`).exec(url);
     return match ? match[1] : null;
   }
 }
