@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -13,7 +14,6 @@ import { TenantContextService } from '../../common/services/tenant-context.servi
 import { AuditService } from '../audit/audit.service';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceService } from '../finance/services/finance.service';
-import { MailService } from '../mail/mail.service';
 import { Task } from '../tasks/entities/task.entity';
 import {
   ConfirmBookingResponseDto,
@@ -23,6 +23,7 @@ import {
 } from './dto';
 import { Booking } from './entities/booking.entity';
 import { Client } from './entities/client.entity';
+import { BookingConfirmedEvent } from './events/booking-confirmed.event';
 
 @Injectable()
 export class BookingsService {
@@ -36,10 +37,10 @@ export class BookingsService {
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
     private readonly financeService: FinanceService,
-    private readonly mailService: MailService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
@@ -157,7 +158,10 @@ export class BookingsService {
         throw new NotFoundException(`Booking with ID ${id} not found`);
       }
 
-      // Step 2: Fetch actual data with relations now that we have the lock
+      // Step 2: Fetch actual data with relations.
+      // We use the same queryRunner.manager which holds the lock from Step 1.
+      // We explicitly re-apply the lock to ensure the relation fetch is also protected
+      // if the database/ORM supports it, or at least to document the intent.
       const booking = await queryRunner.manager.findOne(Booking, {
         where: { id, tenantId },
         relations: [
@@ -250,22 +254,18 @@ export class BookingsService {
       // Commit transaction
       await queryRunner.commitTransaction();
 
-      // Send confirmation email (async, don't block response)
-      this.mailService
-        .sendBookingConfirmation({
-          clientName: booking.client?.name || 'Client',
-          clientEmail: booking.client?.email || '',
-          eventDate: booking.eventDate,
-          packageName: booking.servicePackage?.name || 'Service Package',
-          totalPrice: Number(booking.totalPrice),
-          bookingId: booking.id,
-        })
-        .catch((err) =>
-          this.logger.error(
-            `Failed to send booking confirmation for ${booking.id}`,
-            err,
-          ),
-        );
+      // Emit domain event for side effects (webhooks, emails, etc.)
+      this.eventBus.publish(
+        new BookingConfirmedEvent(
+          booking.id,
+          booking.tenantId,
+          booking.client?.email || '',
+          booking.client?.name || 'Client',
+          booking.servicePackage?.name || 'Service Package',
+          Number(booking.totalPrice),
+          booking.eventDate,
+        ),
+      );
 
       return {
         booking,
@@ -317,7 +317,10 @@ export class BookingsService {
 
     // Check if all tasks are completed
     const tasksArray = await booking.tasks;
-    const pendingTasks = tasksArray?.filter(
+    if (!tasksArray) {
+      throw new BadRequestException('No tasks found for this booking');
+    }
+    const pendingTasks = tasksArray.filter(
       (t) => t.status !== TaskStatus.COMPLETED,
     );
     if (pendingTasks && pendingTasks.length > 0) {

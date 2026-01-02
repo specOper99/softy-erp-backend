@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -133,6 +134,10 @@ describe('BookingsService - Comprehensive Tests', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue(500) },
+        },
+        {
+          provide: EventBus,
+          useValue: { publish: jest.fn() },
         },
       ],
     }).compile();
