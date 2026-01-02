@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../../common/decorators';
+import { Cacheable, Roles } from '../../../common/decorators';
 import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -32,12 +32,14 @@ export class TaskTypesController {
   }
 
   @Get()
+  @Cacheable()
   @ApiOperation({ summary: 'Get all task types' })
   findAll() {
     return this.catalogService.findAllTaskTypes();
   }
 
   @Get(':id')
+  @Cacheable()
   @ApiOperation({ summary: 'Get task type by ID' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.catalogService.findTaskTypeById(id);

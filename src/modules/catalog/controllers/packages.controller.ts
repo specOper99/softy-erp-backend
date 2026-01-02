@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../../common/decorators';
+import { Cacheable, Roles } from '../../../common/decorators';
 import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -36,12 +36,14 @@ export class PackagesController {
   }
 
   @Get()
+  @Cacheable()
   @ApiOperation({ summary: 'Get all service packages' })
   findAll() {
     return this.catalogService.findAllPackages();
   }
 
   @Get(':id')
+  @Cacheable()
   @ApiOperation({ summary: 'Get service package by ID' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.catalogService.findPackageById(id);

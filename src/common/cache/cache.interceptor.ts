@@ -13,6 +13,7 @@ import * as crypto from 'crypto';
 import { Request } from 'express';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { CACHEABLE_KEY } from '../decorators/cacheable.decorator';
 import { NO_CACHE_KEY } from '../decorators/no-cache.decorator';
 import { TenantContextService } from '../services/tenant-context.service';
 
@@ -38,11 +39,20 @@ export class GlobalCacheInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    // Check for @NoCache decorator
-    const noCache = this.reflector.get<boolean>(
-      NO_CACHE_KEY,
+    // Safe default: caching is opt-in via @Cacheable()
+    const cacheable = this.reflector.getAllAndOverride<boolean>(CACHEABLE_KEY, [
       context.getHandler(),
-    );
+      context.getClass(),
+    ]);
+    if (!cacheable) {
+      return next.handle();
+    }
+
+    // Check for @NoCache decorator
+    const noCache = this.reflector.getAllAndOverride<boolean>(NO_CACHE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (noCache) {
       return next.handle();
     }
