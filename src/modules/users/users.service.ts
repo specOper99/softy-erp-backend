@@ -116,20 +116,27 @@ export class UsersService {
       updateUserDto.role !== undefined ||
       updateUserDto.isActive !== undefined
     ) {
+      // Determine audit note based on what changed
+      let auditNote: string | undefined;
+      if (
+        updateUserDto.role !== undefined &&
+        updateUserDto.role !== oldValues.role
+      ) {
+        auditNote = `Role changed from ${oldValues.role} to ${savedUser.role}`;
+      } else if (
+        updateUserDto.isActive !== undefined &&
+        updateUserDto.isActive !== oldValues.isActive
+      ) {
+        auditNote = `Account ${savedUser.isActive ? 'activated' : 'deactivated'}`;
+      }
+
       await this.auditService.log({
         action: 'UPDATE',
         entityName: 'User',
         entityId: id,
         oldValues,
         newValues: { role: savedUser.role, isActive: savedUser.isActive },
-        notes:
-          updateUserDto.role !== undefined &&
-          updateUserDto.role !== oldValues.role
-            ? `Role changed from ${oldValues.role} to ${savedUser.role}`
-            : updateUserDto.isActive !== undefined &&
-                updateUserDto.isActive !== oldValues.isActive
-              ? `Account ${savedUser.isActive ? 'activated' : 'deactivated'}`
-              : undefined,
+        notes: auditNote,
       });
     }
 
