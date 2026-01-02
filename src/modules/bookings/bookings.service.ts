@@ -124,7 +124,7 @@ export class BookingsService {
       new BookingUpdatedEvent(
         savedBooking.id,
         savedBooking.tenantId,
-        dto,
+        { ...dto } as Record<string, unknown>, // Cast to satisfy Record<string, unknown>
         new Date(),
       ),
     );
