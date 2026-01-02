@@ -197,14 +197,19 @@ export class WebhookService {
     const webhooks = await this.webhookRepository.find({
       where: { tenantId: event.tenantId, isActive: true },
     });
+    console.log(
+      `Debug: emit found ${webhooks.length} webhooks for tenant ${event.tenantId} event ${event.type}`,
+    );
 
     const deliveries = webhooks.map(async (webhook) => {
+      console.error(`Debug: Processing webhook ${webhook.id}`);
       if (
         !webhook.events.includes(event.type) &&
         !webhook.events.includes('*')
       ) {
         return;
       }
+      console.error('Debug: Match found, proceeding to queue/inline');
 
       if (this.webhookQueue) {
         // Enqueue for background processing

@@ -112,9 +112,11 @@ export class AuditInterceptor implements NestInterceptor {
       ...(options.includeBody &&
       typeof request.body === 'object' &&
       request.body !== null
-        ? { requestBody: this.sanitizeBody(request.body) }
+        ? { requestBody: this.sanitizeData(request.body) }
         : {}),
-      ...(response !== undefined ? { responseData: response } : {}),
+      ...(options.includeResponse && response !== undefined
+        ? { responseData: this.sanitizeData(response) }
+        : {}),
       ...(error ? { error } : {}),
       timestamp: new Date().toISOString(),
     };
@@ -135,16 +137,40 @@ export class AuditInterceptor implements NestInterceptor {
     }
   }
 
-  private sanitizeBody(body: unknown): unknown {
-    if (!body || typeof body !== 'object') return undefined;
+  private sanitizeData(data: unknown): unknown {
+    if (!data || typeof data !== 'object') return data;
 
-    const sanitized = { ...body } as Record<string, unknown>;
-    // Remove sensitive fields
-    delete sanitized.password;
-    delete sanitized.currentPassword;
-    delete sanitized.newPassword;
-    delete sanitized.token;
-    delete sanitized.refreshToken;
+    if (Array.isArray(data)) {
+      return data.map((item) => this.sanitizeData(item));
+    }
+
+    const sanitized = { ...data } as Record<string, unknown>;
+    const sensitiveKeys = [
+      'password',
+      'currentPassword',
+      'newPassword',
+      'token',
+      'refreshToken',
+      'accessToken',
+      'secret',
+      'clientSecret',
+      'apiKey',
+      'authorization',
+    ];
+
+    for (const key of Object.keys(sanitized)) {
+      if (
+        sensitiveKeys.some((k) => key.toLowerCase().includes(k.toLowerCase()))
+      ) {
+        sanitized[key] = '[REDACTED]';
+      } else if (
+        typeof sanitized[key] === 'object' &&
+        sanitized[key] !== null
+      ) {
+        sanitized[key] = this.sanitizeData(sanitized[key]);
+      }
+    }
+
     return sanitized;
   }
 
