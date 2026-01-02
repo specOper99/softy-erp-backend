@@ -137,16 +137,37 @@ export class StorageService implements OnModuleInit {
   /**
    * Get a file stream from MinIO
    */
+  /**
+   * Type guard to ensure S3 response is valid
+   */
+  private isGetObjectOutput(output: unknown): output is GetObjectCommandOutput {
+    return (
+      typeof output === 'object' &&
+      output !== null &&
+      'Body' in output &&
+      (output as GetObjectCommandOutput).Body instanceof Readable
+    );
+  }
+
+  /**
+   * Get a file stream from MinIO
+   */
   async getFileStream(key: string): Promise<Readable> {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: key,
     });
 
-    const response = (await this.breaker.fire(() =>
-      this.s3Client.send(command),
-    )) as GetObjectCommandOutput;
-    return response.Body as Readable;
+    const response = await this.breaker.fire(() => this.s3Client.send(command));
+
+    if (!this.isGetObjectOutput(response)) {
+      throw new Error('Invalid S3 response: Body is not a Readable stream');
+    }
+
+    if (response.Body instanceof Readable) {
+      return response.Body;
+    }
+    throw new Error('Invalid S3 response: Body is not a Readable stream');
   }
 
   /**

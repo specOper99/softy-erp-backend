@@ -83,7 +83,7 @@ export class MailService {
         const result = await operation();
         return { result, retried };
       } catch (error) {
-        lastError = error as Error;
+        lastError = error instanceof Error ? error : new Error(String(error));
         if (attempt < this.maxRetries) {
           retried = true;
           const delay = this.retryDelayMs * Math.pow(2, attempt);

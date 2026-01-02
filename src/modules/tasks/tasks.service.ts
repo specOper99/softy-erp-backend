@@ -33,13 +33,18 @@ export class TasksService {
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<Task[]> {
     const tenantId = TenantContextService.getTenantId();
-    return this.taskRepository.find({
-      where: { tenantId },
-      relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
-      order: { createdAt: 'DESC' },
-      skip: query.getSkip(),
-      take: query.getTake(),
-    });
+    const qb = this.taskRepository.createQueryBuilder('task');
+
+    qb.leftJoinAndSelect('task.booking', 'booking')
+      .leftJoinAndSelect('booking.client', 'client')
+      .leftJoinAndSelect('task.taskType', 'taskType')
+      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
+      .where('task.tenantId = :tenantId', { tenantId })
+      .orderBy('task.createdAt', 'DESC')
+      .skip(query.getSkip())
+      .take(query.getTake());
+
+    return qb.getMany();
   }
 
   async findOne(id: string): Promise<Task> {
@@ -245,9 +250,15 @@ export class TasksService {
     tenantId: string,
   ): Promise<void> {
     if (task.booking && !task.booking.client) {
-      task.booking.client = (await manager.findOne(Client, {
+      const client = await manager.findOne(Client, {
         where: { id: task.booking.clientId, tenantId },
-      })) as Client;
+      });
+      if (!client) {
+        throw new NotFoundException(
+          `Action Interrupted: Client data is missing for Booking ${task.bookingId}`,
+        );
+      }
+      task.booking.client = client;
     }
   }
 
