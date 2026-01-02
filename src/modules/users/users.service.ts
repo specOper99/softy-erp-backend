@@ -99,8 +99,7 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string, tenantId?: string): Promise<User | null> {
-    void tenantId;
+  async findByEmail(email: string, _tenantId?: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
   }
 
