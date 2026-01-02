@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
+import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser, SkipTenant } from '../../common/decorators';
 import { User } from '../users/entities/user.entity';
@@ -32,7 +32,7 @@ export class AuthController {
 
   @Post('register')
   @SkipTenant()
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 5, ttl: minutes(1) } }) // 5 attempts per minute
   @ApiOperation({ summary: 'Register a new user' })
   async register(
     @Body() registerDto: RegisterDto,
@@ -47,7 +47,7 @@ export class AuthController {
 
   @Post('login')
   @SkipTenant()
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 5, ttl: minutes(1) } }) // 5 attempts per minute
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
   async login(

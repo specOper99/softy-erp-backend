@@ -14,7 +14,7 @@ import {
   MemoryHealthIndicator,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
 import { SkipTenant } from '../../common/decorators';
 import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 
@@ -80,7 +80,7 @@ export class HealthController {
 
   @Get('test-error')
   @SkipThrottle({ default: false }) // Re-enable throttling for this endpoint
-  @Throttle({ default: { limit: 3, ttl: 60000 } }) // Only 3 attempts per minute
+  @Throttle({ default: { limit: 3, ttl: minutes(1) } }) // Only 3 attempts per minute
   @ApiOperation({
     summary: 'Test endpoint to trigger an error (for Sentry testing)',
   })

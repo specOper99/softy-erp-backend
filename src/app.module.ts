@@ -2,7 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { minutes, seconds, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { databaseConfig } from './config';
@@ -58,17 +58,17 @@ import { UsersModule } from './modules/users/users.module';
     ThrottlerModule.forRoot([
       {
         name: 'short',
-        ttl: 1000, // 1 second
+        ttl: seconds(1),
         limit: 3, // 3 requests per second
       },
       {
         name: 'medium',
-        ttl: 10000, // 10 seconds
+        ttl: seconds(10),
         limit: 20, // 20 requests per 10 seconds
       },
       {
         name: 'long',
-        ttl: 60000, // 1 minute
+        ttl: minutes(1),
         limit: 100, // 100 requests per minute
       },
     ]),
