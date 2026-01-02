@@ -26,7 +26,7 @@ describe('TasksService - Comprehensive Tests', () => {
     taskTypeId: 'task-type-uuid-123',
     assignedUserId: 'user-uuid-123',
     status: TaskStatus.PENDING,
-    commissionSnapshot: 100.0,
+    commissionSnapshot: 100,
     dueDate: new Date('2024-12-31'),
     completedAt: null,
     notes: 'Test task',
@@ -150,7 +150,7 @@ describe('TasksService - Comprehensive Tests', () => {
   describe('findOne', () => {
     it('should return task by valid id', async () => {
       const result = await service.findOne('task-uuid-123');
-      expect(result.commissionSnapshot).toBe(100.0);
+      expect(result.commissionSnapshot).toBe(100);
     });
 
     it('should throw NotFoundException for invalid id', async () => {
@@ -369,11 +369,11 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         tenantId: 'tenant-123',
         status: TaskStatus.IN_PROGRESS,
-        commissionSnapshot: 100.0, // Ensure logic sees 100
+        commissionSnapshot: 100, // Ensure logic sees 100
       });
 
       const result = await service.completeTask('task-uuid-123', adminUser);
-      expect(result.commissionAccrued).toBe(100.0);
+      expect(result.commissionAccrued).toBe(100);
       expect(result.walletUpdated).toBe(true);
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
     });
@@ -388,11 +388,11 @@ describe('TasksService - Comprehensive Tests', () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({
         ...mockTask,
         status: TaskStatus.PENDING,
-        commissionSnapshot: 100.0,
+        commissionSnapshot: 100,
       });
 
       const result = await service.completeTask('task-uuid-123', adminUser);
-      expect(result.commissionAccrued).toBe(100.0);
+      expect(result.commissionAccrued).toBe(100);
     });
 
     it('should reject completing already completed task', async () => {
