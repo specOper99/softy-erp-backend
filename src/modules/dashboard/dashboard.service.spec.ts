@@ -25,6 +25,7 @@ describe('DashboardService', () => {
     groupBy: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     setParameter: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
     getRawMany: jest.fn(),
   };
 

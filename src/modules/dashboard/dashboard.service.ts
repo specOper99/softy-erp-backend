@@ -81,6 +81,7 @@ export class DashboardService {
       .andWhere('task.status = :status', { status: TaskStatus.COMPLETED })
       .groupBy('staffName')
       .orderBy('totalCommission', 'DESC')
+      .take(50)
       .getRawMany<{
         staffName: string;
         completedTasks: string;
@@ -109,6 +110,7 @@ export class DashboardService {
       .where('b.tenantId = :tenantId', { tenantId })
       .groupBy('pkg.name')
       .orderBy('bookingCount', 'DESC')
+      .take(50)
       .getRawMany<{
         packageName: string;
         bookingCount: string;
