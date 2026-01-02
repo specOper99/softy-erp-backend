@@ -38,7 +38,8 @@ export class IpRateLimitGuard implements CanActivate {
   private readonly trustProxyHeaders: boolean;
 
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Pick<Cache, 'get' | 'set'>,
     private readonly configService: ConfigService,
   ) {
     // Fallback cache manager for environments where CACHE_MANAGER is not provided (e.g., unit tests)
@@ -47,10 +48,10 @@ export class IpRateLimitGuard implements CanActivate {
         async get<T>(_key: string): Promise<T | undefined> {
           return await Promise.resolve(undefined);
         },
-        async set(_key: string, _value: unknown, _ttl?: number): Promise<void> {
-          await Promise.resolve();
+        async set<T>(_key: string, value: T, _ttl?: number): Promise<T> {
+          return Promise.resolve(value);
         },
-      } as unknown as Cache;
+      };
     }
     // 50 requests per minute soft limit (starts slowing down)
     this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
