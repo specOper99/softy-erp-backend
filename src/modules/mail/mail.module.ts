@@ -2,7 +2,9 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CqrsModule } from '@nestjs/cqrs';
 import { join } from 'path';
+import { BookingConfirmedMailHandler } from './handlers/booking-confirmed.handler';
 import { MailService } from './mail.service';
 
 @Module({
@@ -34,8 +36,9 @@ import { MailService } from './mail.service';
         },
       }),
     }),
+    CqrsModule,
   ],
-  providers: [MailService],
+  providers: [MailService, BookingConfirmedMailHandler],
   exports: [MailService],
 })
 export class MailModule {}

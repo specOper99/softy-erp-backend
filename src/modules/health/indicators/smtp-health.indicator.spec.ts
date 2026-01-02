@@ -40,8 +40,9 @@ describe('SmtpHealthIndicator', () => {
         setTimeout: jest.fn(),
         connect: jest.fn(),
         destroy: jest.fn(),
+        removeAllListeners: jest.fn(),
       };
-      mockSocket.on = jest.fn((event, cb) => {
+      mockSocket.once = jest.fn((event, cb) => {
         if (event === 'connect') setTimeout(() => cb(), 10);
         return mockSocket;
       });
@@ -59,8 +60,9 @@ describe('SmtpHealthIndicator', () => {
         setTimeout: jest.fn(),
         connect: jest.fn(),
         destroy: jest.fn(),
+        removeAllListeners: jest.fn(),
       };
-      mockSocket.on = jest.fn((event, cb) => {
+      mockSocket.once = jest.fn((event, cb) => {
         if (event === 'error')
           setTimeout(() => cb(new Error('Connection refused')), 10);
         return mockSocket;
@@ -77,8 +79,9 @@ describe('SmtpHealthIndicator', () => {
         setTimeout: jest.fn(),
         connect: jest.fn(),
         destroy: jest.fn(),
+        removeAllListeners: jest.fn(),
       };
-      mockSocket.on = jest.fn((event, cb) => {
+      mockSocket.once = jest.fn((event, cb) => {
         if (event === 'timeout') setTimeout(() => cb(), 10);
         return mockSocket;
       });

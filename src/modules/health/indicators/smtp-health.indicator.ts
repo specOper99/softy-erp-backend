@@ -19,21 +19,26 @@ export class SmtpHealthIndicator extends HealthIndicator {
   }
 
   async isHealthy(key: string): Promise<HealthIndicatorResult> {
+    const socket = new net.Socket();
+    const timeout = 5000;
+
     return new Promise((resolve, reject) => {
-      const socket = new net.Socket();
-      const timeout = 5000; // 5 second timeout
+      const cleanup = () => {
+        socket.removeAllListeners();
+        socket.destroy();
+      };
 
       socket.setTimeout(timeout);
 
-      socket.on('connect', () => {
-        socket.destroy();
+      socket.once('connect', () => {
+        cleanup();
         resolve(
           this.getStatus(key, true, { host: this.host, port: this.port }),
         );
       });
 
-      socket.on('timeout', () => {
-        socket.destroy();
+      socket.once('timeout', () => {
+        cleanup();
         reject(
           new HealthCheckError(
             `${key} check failed`,
@@ -42,8 +47,8 @@ export class SmtpHealthIndicator extends HealthIndicator {
         );
       });
 
-      socket.on('error', (error) => {
-        socket.destroy();
+      socket.once('error', (error) => {
+        cleanup();
         reject(
           new HealthCheckError(
             `${key} check failed`,
@@ -52,7 +57,19 @@ export class SmtpHealthIndicator extends HealthIndicator {
         );
       });
 
-      socket.connect(this.port, this.host);
+      try {
+        socket.connect(this.port, this.host);
+      } catch (error) {
+        cleanup();
+        reject(
+          new HealthCheckError(
+            `${key} check failed`,
+            this.getStatus(key, false, {
+              message: error instanceof Error ? error.message : String(error),
+            }),
+          ),
+        );
+      }
     });
   }
 }

@@ -2,6 +2,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as CircuitBreaker from 'opossum';
+import sanitizeHtml from 'sanitize-html';
 
 export interface BookingEmailData {
   clientName: string;
@@ -114,7 +115,7 @@ export class MailService {
             to: data.clientEmail,
             subject: `Booking Confirmed - ${data.packageName}`,
             template: 'booking-confirmation',
-            context: {
+            context: this.sanitizeContext({
               clientName: data.clientName,
               eventDate: this.formatDate(data.eventDate),
               packageName: data.packageName,
@@ -123,7 +124,7 @@ export class MailService {
               year: new Date().getFullYear(),
               companyName: this.companyName,
               companyUrl: this.companyUrl,
-            },
+            }),
           }),
         ),
       `Booking confirmation to ${data.clientEmail}`,
@@ -166,7 +167,7 @@ export class MailService {
             to: data.employeeEmail,
             subject: `New Task Assigned: ${data.taskType}`,
             template: 'task-assignment',
-            context: {
+            context: this.sanitizeContext({
               employeeName: data.employeeName,
               taskType: data.taskType,
               clientName: data.clientName,
@@ -175,7 +176,7 @@ export class MailService {
               year: new Date().getFullYear(),
               companyName: this.companyName,
               companyUrl: this.companyUrl,
-            },
+            }),
           }),
         ),
       `Task assignment to ${data.employeeEmail}`,
@@ -216,7 +217,7 @@ export class MailService {
             to: data.employeeEmail,
             subject: 'Payroll Processed - Payment Details',
             template: 'payroll-notification',
-            context: {
+            context: this.sanitizeContext({
               employeeName: data.employeeName,
               baseSalary: this.formatCurrency(data.baseSalary),
               commission: this.formatCurrency(data.commission),
@@ -225,7 +226,7 @@ export class MailService {
               year: new Date().getFullYear(),
               companyName: this.companyName,
               companyUrl: this.companyUrl,
-            },
+            }),
           }),
         ),
       `Payroll notification to ${data.employeeEmail}`,
@@ -264,5 +265,31 @@ export class MailService {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
+  }
+
+  /**
+   * Recursively sanitize all string values in an object to prevent XSS in email templates
+   */
+  private sanitizeContext<T>(context: T): T {
+    if (typeof context !== 'object' || context === null) {
+      if (typeof context === 'string') {
+        return sanitizeHtml(context) as unknown as T;
+      }
+      return context;
+    }
+
+    if (Array.isArray(context)) {
+      const arr = context as unknown[];
+      return arr.map((item) => this.sanitizeContext(item)) as unknown as T;
+    }
+
+    const sanitized = {} as Record<string, unknown>;
+    const obj = context as Record<string, unknown>;
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        sanitized[key] = this.sanitizeContext(obj[key]);
+      }
+    }
+    return sanitized as T;
   }
 }
