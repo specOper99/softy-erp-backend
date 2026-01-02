@@ -31,7 +31,7 @@ export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
   private readonly webhooks: Map<string, WebhookConfig[]> = new Map();
 
-  constructor(private configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Register a webhook endpoint for a tenant

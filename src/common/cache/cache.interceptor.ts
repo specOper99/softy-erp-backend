@@ -22,8 +22,8 @@ export class GlobalCacheInterceptor implements NestInterceptor {
   private readonly logger = new Logger(GlobalCacheInterceptor.name);
 
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    private reflector: Reflector,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly reflector: Reflector,
   ) {}
 
   async intercept(

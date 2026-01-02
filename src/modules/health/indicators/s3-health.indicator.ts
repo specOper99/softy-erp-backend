@@ -12,7 +12,7 @@ export class S3HealthIndicator extends HealthIndicator {
   private s3Client: S3Client;
   private bucketName: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     super();
     this.bucketName =
       this.configService.get<string>('S3_BUCKET') || 'chapters-media';

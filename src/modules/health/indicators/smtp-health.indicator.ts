@@ -12,7 +12,7 @@ export class SmtpHealthIndicator extends HealthIndicator {
   private host: string;
   private port: number;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     super();
     this.host = this.configService.get<string>('SMTP_HOST') || 'localhost';
     this.port = this.configService.get<number>('SMTP_PORT') || 587;

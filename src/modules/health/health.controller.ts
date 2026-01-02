@@ -24,13 +24,13 @@ import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 @SkipTenant()
 export class HealthController {
   constructor(
-    private health: HealthCheckService,
-    private db: TypeOrmHealthIndicator,
-    private memory: MemoryHealthIndicator,
-    private disk: DiskHealthIndicator,
-    private s3: S3HealthIndicator,
-    private smtp: SmtpHealthIndicator,
-    private configService: ConfigService,
+    private readonly health: HealthCheckService,
+    private readonly db: TypeOrmHealthIndicator,
+    private readonly memory: MemoryHealthIndicator,
+    private readonly disk: DiskHealthIndicator,
+    private readonly s3: S3HealthIndicator,
+    private readonly smtp: SmtpHealthIndicator,
+    private readonly configService: ConfigService,
   ) {}
 
   @Get()

@@ -20,8 +20,8 @@ export class AccountLockoutService {
   private readonly attemptWindowMs: number;
 
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    private configService: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly configService: ConfigService,
   ) {
     // Default: 5 attempts within 15 minutes, 30 minute lockout
     this.maxAttempts = this.configService.get<number>(

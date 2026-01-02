@@ -18,8 +18,8 @@ import { SetMetadata } from '@nestjs/common';
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
   constructor(
-    private reflector: Reflector,
-    private tenantsService: TenantsService,
+    private readonly reflector: Reflector,
+    private readonly tenantsService: TenantsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

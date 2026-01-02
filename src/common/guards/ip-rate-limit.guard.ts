@@ -39,7 +39,7 @@ export class IpRateLimitGuard implements CanActivate {
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {
     // Fallback cache manager for environments where CACHE_MANAGER is not provided (e.g., unit tests)
     if (!this.cacheManager) {
