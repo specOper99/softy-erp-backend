@@ -114,4 +114,127 @@ describe('WebhookService', () => {
       expect(loggerErrorSpy).toHaveBeenCalled();
     });
   });
+
+  describe('registerWebhook', () => {
+    const tenantId = 'tenant-1';
+
+    it('should persist valid HTTPS webhook URL', async () => {
+      const config: WebhookConfig = {
+        url: 'https://example.com/webhook',
+        secret: 'secret-123',
+        events: ['booking.created'],
+      };
+
+      mockWebhookRepository.create.mockReturnValue({
+        tenantId,
+        ...config,
+      });
+      mockWebhookRepository.save.mockResolvedValue({ id: 'webhook-1' });
+
+      await service.registerWebhook(tenantId, config);
+
+      expect(mockWebhookRepository.create).toHaveBeenCalledWith({
+        tenantId,
+        url: config.url,
+        secret: config.secret,
+        events: config.events,
+      });
+      expect(mockWebhookRepository.save).toHaveBeenCalled();
+    });
+
+    it('should persist valid HTTP webhook URL', async () => {
+      const config: WebhookConfig = {
+        url: 'http://localhost:3000/webhook',
+        secret: 'secret-123',
+        events: ['task.created'],
+      };
+
+      mockWebhookRepository.create.mockReturnValue({
+        tenantId,
+        ...config,
+      });
+      mockWebhookRepository.save.mockResolvedValue({ id: 'webhook-2' });
+
+      await service.registerWebhook(tenantId, config);
+
+      expect(mockWebhookRepository.save).toHaveBeenCalled();
+    });
+
+    it('should reject invalid URL format', async () => {
+      const config: WebhookConfig = {
+        url: 'not-a-valid-url',
+        secret: 'secret-123',
+        events: ['booking.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Invalid webhook URL',
+      );
+    });
+
+    it('should reject non-HTTP/HTTPS protocols', async () => {
+      const config: WebhookConfig = {
+        url: 'ftp://example.com/webhook',
+        secret: 'secret-123',
+        events: ['booking.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Invalid webhook URL',
+      );
+    });
+  });
+
+  describe('timeout handling', () => {
+    const tenantId = 'tenant-1';
+    const event: WebhookEvent = {
+      type: 'booking.created',
+      tenantId: tenantId,
+      payload: { id: '123' },
+      timestamp: new Date().toISOString(),
+    };
+
+    it('should handle request timeout with AbortError', async () => {
+      const abortError = new Error('Aborted');
+      abortError.name = 'AbortError';
+
+      global.fetch = jest.fn().mockRejectedValue(abortError);
+
+      const config = {
+        url: 'https://slow-server.com/webhook',
+        secret: 'test-secret',
+        events: ['booking.created'],
+        isActive: true,
+      };
+      mockWebhookRepository.find.mockResolvedValue([config]);
+
+      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+
+      await service.emit(event);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Webhook request timed out'),
+      );
+    });
+
+    it('should rethrow non-abort errors', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      const config = {
+        url: 'https://failing-server.com/webhook',
+        secret: 'test-secret',
+        events: ['booking.created'],
+        isActive: true,
+      };
+      mockWebhookRepository.find.mockResolvedValue([config]);
+
+      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+
+      await service.emit(event);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Network error'),
+      );
+    });
+  });
 });
