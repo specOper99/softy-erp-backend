@@ -13,6 +13,7 @@ import { MailService } from '../mail/mail.service';
 import { BookingsService } from './bookings.service';
 import { Booking } from './entities/booking.entity';
 import { Client } from './entities/client.entity';
+import { BookingUpdatedEvent } from './events/booking-updated.event';
 
 describe('BookingsService - Comprehensive Tests', () => {
   let service: BookingsService;
@@ -107,6 +108,10 @@ describe('BookingsService - Comprehensive Tests', () => {
     },
   };
 
+  const mockEventBus = {
+    publish: jest.fn(),
+  };
+
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
   };
@@ -137,7 +142,7 @@ describe('BookingsService - Comprehensive Tests', () => {
         },
         {
           provide: EventBus,
-          useValue: { publish: jest.fn() },
+          useValue: mockEventBus,
         },
       ],
     }).compile();
@@ -260,6 +265,10 @@ describe('BookingsService - Comprehensive Tests', () => {
         notes: 'Updated notes',
       });
       expect(mockBookingRepository.save).toHaveBeenCalled();
+      expect(mockBookingRepository.save).toHaveBeenCalled();
+      expect(mockEventBus.publish).toHaveBeenCalledWith(
+        expect.any(BookingUpdatedEvent),
+      );
     });
 
     it('should update draft booking notes', async () => {

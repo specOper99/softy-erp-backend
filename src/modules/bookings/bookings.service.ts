@@ -24,6 +24,7 @@ import {
 import { Booking } from './entities/booking.entity';
 import { Client } from './entities/client.entity';
 import { BookingConfirmedEvent } from './events/booking-confirmed.event';
+import { BookingUpdatedEvent } from './events/booking-updated.event';
 
 @Injectable()
 export class BookingsService {
@@ -117,7 +118,18 @@ export class BookingsService {
       eventDate: dto.eventDate ? new Date(dto.eventDate) : booking.eventDate,
     });
 
-    return this.bookingRepository.save(booking);
+    const savedBooking = await this.bookingRepository.save(booking);
+
+    this.eventBus.publish(
+      new BookingUpdatedEvent(
+        savedBooking.id,
+        savedBooking.tenantId,
+        dto,
+        new Date(),
+      ),
+    );
+
+    return savedBooking;
   }
 
   async remove(id: string): Promise<void> {
