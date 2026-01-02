@@ -24,25 +24,30 @@ class EnvironmentVariables {
   @IsOptional()
   PORT: number = 3000;
 
+  // Database (used by runtime config)
   @IsString()
   @IsOptional()
-  DATABASE_HOST?: string;
+  DB_HOST?: string;
 
   @IsNumber()
   @IsOptional()
-  DATABASE_PORT?: number;
+  DB_PORT?: number;
 
   @IsString()
   @IsOptional()
-  DATABASE_USER?: string;
+  DB_USERNAME?: string;
 
   @IsString()
   @IsOptional()
-  DATABASE_PASS?: string;
+  DB_PASSWORD?: string;
 
   @IsString()
   @IsOptional()
-  DATABASE_NAME?: string;
+  DB_DATABASE?: string;
+
+  @IsString()
+  @IsOptional()
+  DB_SYNCHRONIZE?: string;
 
   @IsString()
   @MinLength(32)
@@ -55,6 +60,11 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SENTRY_DSN?: string;
+
+  // Metrics (Prometheus)
+  @IsString()
+  @IsOptional()
+  METRICS_TOKEN?: string;
 
   @IsString()
   @IsOptional()
