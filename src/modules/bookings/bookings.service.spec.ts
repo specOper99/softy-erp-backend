@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -129,6 +130,10 @@ describe('BookingsService - Comprehensive Tests', () => {
         { provide: MailService, useValue: mockMailService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(500) },
+        },
       ],
     }).compile();
 

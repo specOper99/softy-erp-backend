@@ -52,6 +52,23 @@ export class UpdateBookingDto {
   status?: BookingStatus;
 }
 
+export class ClientResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  email: string;
+
+  @ApiProperty()
+  phone: string;
+
+  @ApiPropertyOptional()
+  notes?: string;
+}
+
 export class BookingResponseDto {
   @ApiProperty()
   id: string;
@@ -59,8 +76,8 @@ export class BookingResponseDto {
   @ApiProperty()
   clientId: string;
 
-  @ApiPropertyOptional()
-  client?: any; // Will be typed as ClientResponseDto if needed
+  @ApiPropertyOptional({ type: ClientResponseDto })
+  client?: ClientResponseDto;
 
   @ApiProperty()
   eventDate: Date;

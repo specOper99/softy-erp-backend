@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -38,6 +39,7 @@ export class BookingsService {
     private readonly mailService: MailService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
@@ -184,7 +186,10 @@ export class BookingsService {
       const packageItems = await (booking.servicePackage?.packageItems ??
         Promise.resolve([]));
       const tasksToCreate: Partial<Task>[] = [];
-      const MAX_TASKS_PER_BOOKING = 500;
+      const maxTasks = this.configService.get<number>(
+        'booking.maxTasksPerBooking',
+        500,
+      );
 
       // Calculate total tasks to be created
       const totalTasksCount = packageItems.reduce(
@@ -192,9 +197,9 @@ export class BookingsService {
         0,
       );
 
-      if (totalTasksCount > MAX_TASKS_PER_BOOKING) {
+      if (totalTasksCount > maxTasks) {
         throw new BadRequestException(
-          `Cannot confirm booking: total tasks requested (${totalTasksCount}) exceeds the maximum allowed limit of ${MAX_TASKS_PER_BOOKING} per booking.`,
+          `Cannot confirm booking: total tasks requested (${totalTasksCount}) exceeds the maximum allowed limit of ${maxTasks} per booking.`,
         );
       }
 
@@ -345,11 +350,15 @@ export class BookingsService {
     return this.clientRepository.save(client);
   }
 
-  async findAllClients(_query: any): Promise<Client[]> {
+  async findAllClients(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<Client[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.clientRepository.find({
       where: { tenantId },
       order: { createdAt: 'DESC' },
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 
