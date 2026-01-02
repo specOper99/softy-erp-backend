@@ -35,8 +35,13 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
     const response = context.switchToHttp().getResponse<Response>();
     const startTime = Date.now();
 
+    const correlationIdHeader = request.headers['x-correlation-id'];
+    const correlationId = Array.isArray(correlationIdHeader)
+      ? correlationIdHeader[0]
+      : correlationIdHeader;
+
     const logContext: LogContext = {
-      correlationId: request.headers['x-correlation-id'] as string,
+      correlationId,
       tenantId: TenantContextService.getTenantId(),
       method: request.method,
       url: request.url,
@@ -45,9 +50,10 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
     };
 
     // Extract user ID from JWT if available
-    const user = (request as unknown as { user: { sub: string } }).user;
-    if (user?.sub) {
-      logContext.userId = user.sub;
+    // Safe access to user property which might be added by middleware
+    const reqWithUser = request as { user?: { sub?: string } };
+    if (reqWithUser.user?.sub) {
+      logContext.userId = reqWithUser.user.sub;
     }
 
     return next.handle().pipe(
@@ -58,9 +64,16 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
           this.logRequest(logContext);
         },
         error: (error: unknown) => {
-          logContext.statusCode = (error as { status?: number }).status || 500;
+          const status =
+            error && typeof error === 'object' && 'status' in error
+              ? (error as { status: number }).status
+              : 500;
+          logContext.statusCode = status;
           logContext.duration = Date.now() - startTime;
-          this.logRequest(logContext, error as Error);
+          this.logRequest(
+            logContext,
+            error instanceof Error ? error : new Error(String(error)),
+          );
         },
       }),
     );

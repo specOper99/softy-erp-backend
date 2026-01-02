@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantsModule } from '../tenants/tenants.module';
@@ -25,7 +25,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
           secret: configService.get<string>('auth.jwtSecret'),
           signOptions: {
             expiresIn: configService.get<number>('auth.jwtAccessExpires'),
-          } as JwtSignOptions,
+          },
         };
       },
     }),
