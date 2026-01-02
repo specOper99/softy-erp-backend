@@ -127,14 +127,14 @@ import { UsersModule } from './modules/users/users.module';
     // Apply rate limiting globally
     // Use explicit DISABLE_RATE_LIMITING env var for test environments
     // to prevent accidental disabling if NODE_ENV=test leaks to production
-    ...(process.env.DISABLE_RATE_LIMITING !== 'true'
-      ? [
+    ...(process.env.DISABLE_RATE_LIMITING === 'true'
+      ? []
+      : [
           {
             provide: APP_GUARD,
             useClass: IpRateLimitGuard,
           },
-        ]
-      : []),
+        ]),
     // Graceful shutdown handler
 
     { provide: APP_GUARD, useClass: TenantGuard },
