@@ -19,6 +19,7 @@ export class BookingConfirmedWebhookHandler implements IEventHandler<BookingConf
       type: 'booking.confirmed',
       payload: {
         bookingId: event.bookingId,
+        clientEmail: event.clientEmail,
         clientName: event.clientName,
         packageName: event.packageName,
         totalPrice: event.totalPrice,
