@@ -63,6 +63,7 @@ export class AuthController {
 
   @Post('refresh')
   @SkipTenant()
+  @Throttle({ default: { limit: 10, ttl: minutes(1) } }) // 10 attempts per minute
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   async refreshTokens(
