@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
 import { minutes, seconds, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -35,6 +36,7 @@ import { MediaModule } from './modules/media/media.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { UsersModule } from './modules/users/users.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -47,6 +49,9 @@ import { UsersModule } from './modules/users/users.module';
       load: [vaultLoader, databaseConfig, authConfig],
       validate,
     }),
+
+    // CQRS Event Bus
+    CqrsModule.forRoot(),
 
     // Structured Logging with Winston
     LoggerModule,
@@ -107,6 +112,7 @@ import { UsersModule } from './modules/users/users.module';
     MediaModule,
     HealthModule,
     TenantsModule,
+    WebhooksModule,
     MetricsModule,
     ResilienceModule.forRoot([
       {
