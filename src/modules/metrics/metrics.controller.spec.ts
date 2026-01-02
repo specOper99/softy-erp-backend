@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { register } from 'prom-client';
 import { MetricsController } from './metrics.controller';
 
@@ -19,6 +19,12 @@ describe('MetricsController', () => {
   });
 
   describe('getMetrics', () => {
+    const originalEnv = process.env;
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
     it('should return metrics from register', async () => {
       const mockRes = {
         set: jest.fn(),
@@ -39,6 +45,70 @@ describe('MetricsController', () => {
 
       metricsSpy.mockRestore();
     });
+
+    it('should return 401 when METRICS_TOKEN is set and auth is missing', async () => {
+      process.env = { ...originalEnv, NODE_ENV: 'test', METRICS_TOKEN: 'abc' };
+
+      const mockRes = {
+        set: jest.fn(),
+        send: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+      } as unknown as Response;
+
+      const mockReq = {
+        headers: {},
+      } as unknown as Request;
+
+      await controller.getMetrics(mockRes, mockReq);
+
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
+    });
+
+    it('should return 401 when METRICS_TOKEN is set and auth is wrong', async () => {
+      process.env = { ...originalEnv, NODE_ENV: 'test', METRICS_TOKEN: 'abc' };
+
+      const mockRes = {
+        set: jest.fn(),
+        send: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+      } as unknown as Response;
+
+      const mockReq = {
+        headers: { authorization: 'Bearer wrong' },
+      } as unknown as Request;
+
+      await controller.getMetrics(mockRes, mockReq);
+
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
+    });
+
+    it('should return metrics when METRICS_TOKEN is set and auth is correct', async () => {
+      process.env = { ...originalEnv, NODE_ENV: 'test', METRICS_TOKEN: 'abc' };
+
+      const mockRes = {
+        set: jest.fn(),
+        send: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+      } as unknown as Response;
+
+      const mockReq = {
+        headers: { authorization: 'Bearer abc' },
+      } as unknown as Request;
+
+      const metricsSpy = jest
+        .spyOn(register, 'metrics')
+        .mockResolvedValue('test_metrics');
+
+      await controller.getMetrics(mockRes, mockReq);
+
+      expect(mockRes.status).not.toHaveBeenCalled();
+      expect(mockRes.send).toHaveBeenCalledWith('test_metrics');
+
+      metricsSpy.mockRestore();
+    });
+
     it('should handle errors from register.metrics', async () => {
       const mockRes = {
         set: jest.fn(),
