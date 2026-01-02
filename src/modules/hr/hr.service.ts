@@ -339,6 +339,8 @@ export class HrService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
+    // Step 1: Optimized Fetch - Get profiles with wallets in ONE query to avoid N+1
+    // We use the profile repository to leverage TypeORM relations or a query builder
 
     try {
       const profiles = await queryRunner.manager.find(Profile, {
@@ -353,6 +355,7 @@ export class HrService {
       let employeesProcessed = 0;
 
       for (const profile of profiles) {
+        // Step 2: Calculate total payout
         const wallet = profile.user?.wallet;
 
         const baseSalary = Number(profile.baseSalary) || 0;
@@ -362,10 +365,10 @@ export class HrService {
         const totalAmount = baseSalary + commissionPayable;
 
         if (totalAmount <= 0) {
-          continue;
+          continue; // Skip if no payout
         }
 
-        // Create Payout record
+        // Step 3: Create Payout record
         const payout = queryRunner.manager.create(Payout, {
           amount: totalAmount,
           payoutDate: new Date(),
@@ -375,7 +378,7 @@ export class HrService {
         });
         const savedPayout = await queryRunner.manager.save(payout);
 
-        // Create PAYROLL transaction
+        // Step 4: Create PAYROLL transaction
         const transaction =
           await this.financeService.createTransactionWithManager(
             queryRunner.manager,
@@ -393,7 +396,7 @@ export class HrService {
         totalPayout += totalAmount;
         employeesProcessed++;
 
-        // Reset payable balance
+        // Step 5: Reset payable balance to 0
         if (wallet && commissionPayable > 0) {
           await this.financeService.resetPayableBalance(
             queryRunner.manager,
