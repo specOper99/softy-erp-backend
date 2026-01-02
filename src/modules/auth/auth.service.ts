@@ -272,6 +272,10 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('User not found or inactive');
     }
+
+    if (!payload.tenantId || user.tenantId !== payload.tenantId) {
+      throw new UnauthorizedException('Invalid token tenant');
+    }
     return user;
   }
 

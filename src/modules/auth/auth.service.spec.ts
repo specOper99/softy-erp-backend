@@ -460,6 +460,21 @@ describe('AuthService - Comprehensive Tests', () => {
       expect(result).toEqual(mockUser);
     });
 
+    it('should throw UnauthorizedException for tenant mismatch', async () => {
+      mockUsersService.findOne.mockResolvedValue(mockUser);
+
+      const payload = {
+        sub: 'test-uuid-123',
+        email: 'test@example.com',
+        role: Role.FIELD_STAFF,
+        tenantId: 'tenant-other',
+      };
+
+      await expect(service.validateUser(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
     it('should throw UnauthorizedException for non-existent user', async () => {
       mockUsersService.findOne.mockResolvedValue(null);
 
