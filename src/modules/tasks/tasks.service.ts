@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -13,10 +14,11 @@ import { TenantContextService } from '../../common/services/tenant-context.servi
 import { AuditService } from '../audit/audit.service';
 import { Client } from '../bookings/entities/client.entity';
 import { FinanceService } from '../finance/services/finance.service';
-import { MailService } from '../mail/mail.service';
 import { User } from '../users/entities/user.entity';
 import { AssignTaskDto, CompleteTaskResponseDto, UpdateTaskDto } from './dto';
 import { Task } from './entities/task.entity';
+import { TaskAssignedEvent } from './events/task-assigned.event';
+import { TaskCompletedEvent } from './events/task-completed.event';
 
 @Injectable()
 export class TasksService {
@@ -26,9 +28,9 @@ export class TasksService {
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
     private readonly financeService: FinanceService,
-    private readonly mailService: MailService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
+    private readonly eventBus: EventBus,
   ) {}
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<Task[]> {
@@ -125,7 +127,7 @@ export class TasksService {
       const oldUserId = task.assignedUserId;
 
       // Step 3: Validate new user belongs to the same tenant
-      await this.validateUserInTenant(
+      const assignedUser = await this.validateUserInTenant(
         queryRunner.manager,
         dto.userId,
         tenantId,
@@ -159,13 +161,21 @@ export class TasksService {
 
       await queryRunner.commitTransaction();
 
-      // Send email notification (after commit)
-      await this.sendAssignmentEmail(
-        queryRunner.manager,
-        task,
-        dto.userId,
-        tenantId,
-      );
+      // Emit domain event (after commit)
+      if (assignedUser && task.taskType && task.booking) {
+        this.eventBus.publish(
+          new TaskAssignedEvent(
+            task.id,
+            tenantId,
+            assignedUser.email.split('@')[0], // name approximation or real name if available? Helper used email split.
+            assignedUser.email,
+            task.taskType.name,
+            task.booking.client?.name || 'Client',
+            task.booking.eventDate,
+            commissionAmount,
+          ),
+        );
+      }
 
       return savedTask;
     } catch (error) {
@@ -182,14 +192,15 @@ export class TasksService {
     manager: import('typeorm').EntityManager,
     userId: string | undefined,
     tenantId: string,
-  ): Promise<void> {
-    if (!userId) return;
+  ): Promise<User | null> {
+    if (!userId) return null;
     const user = await manager.findOne(User, {
       where: { id: userId, tenantId },
     });
     if (!user) {
       throw new BadRequestException('User not found in tenant');
     }
+    return user;
   }
 
   private async handleCommissionTransfer(
@@ -260,33 +271,6 @@ export class TasksService {
       }
       task.booking.client = client;
     }
-  }
-
-  private async sendAssignmentEmail(
-    manager: import('typeorm').EntityManager,
-    task: Task,
-    userId: string | undefined,
-    tenantId: string,
-  ): Promise<void> {
-    if (!userId || !task.taskType || !task.booking) return;
-
-    const emailUser = await manager.findOne(User, {
-      where: { id: userId, tenantId },
-    });
-    if (!emailUser) return;
-
-    this.mailService
-      .sendTaskAssignment({
-        employeeName: emailUser.email.split('@')[0],
-        employeeEmail: emailUser.email,
-        taskType: task.taskType.name,
-        clientName: task.booking.client?.name || 'Client',
-        eventDate: task.booking.eventDate,
-        commission: Number(task.commissionSnapshot || 0),
-      })
-      .catch((err) =>
-        this.logger.error(`Failed to send task assignment for ${task.id}`, err),
-      );
   }
 
   async startTask(id: string, user: User): Promise<Task> {
@@ -398,6 +382,20 @@ export class TasksService {
 
       // Commit transaction
       await queryRunner.commitTransaction();
+
+      // Emit domain event
+      const userId = task.assignedUserId;
+      if (userId) {
+        this.eventBus.publish(
+          new TaskCompletedEvent(
+            task.id,
+            tenantId || '', // Fallback or strict check needed. Assuming tenantId is available here.
+            task.completedAt || new Date(),
+            commissionAmount,
+            userId,
+          ),
+        );
+      }
 
       return {
         task,

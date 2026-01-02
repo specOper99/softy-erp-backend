@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -10,9 +11,10 @@ import { Role, TaskStatus } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { FinanceService } from '../finance/services/finance.service';
-import { MailService } from '../mail/mail.service';
 import { User } from '../users/entities/user.entity';
 import { Task } from './entities/task.entity';
+import { TaskAssignedEvent } from './events/task-assigned.event';
+import { TaskCompletedEvent } from './events/task-completed.event';
 import { TasksService } from './tasks.service';
 
 describe('TasksService - Comprehensive Tests', () => {
@@ -60,8 +62,8 @@ describe('TasksService - Comprehensive Tests', () => {
     subtractPendingCommission: jest.fn().mockResolvedValue({}),
   };
 
-  const mockMailService = {
-    sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+  const mockEventBus = {
+    publish: jest.fn(),
   };
 
   const mockAuditService = {
@@ -91,7 +93,7 @@ describe('TasksService - Comprehensive Tests', () => {
         TasksService,
         { provide: getRepositoryToken(Task), useValue: mockTaskRepository },
         { provide: FinanceService, useValue: mockFinanceService },
-        { provide: MailService, useValue: mockMailService },
+        { provide: EventBus, useValue: mockEventBus },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
       ],
@@ -263,10 +265,6 @@ describe('TasksService - Comprehensive Tests', () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({
         id: 'new-user-id',
         tenantId: 'tenant-123',
-      });
-      // Mock user fetch for email
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'new-user-id',
         email: 'new@example.com',
       });
 
@@ -274,6 +272,9 @@ describe('TasksService - Comprehensive Tests', () => {
         userId: 'new-user-id',
       });
       expect(result.assignedUserId).toBe('new-user-id');
+      expect(mockEventBus.publish).toHaveBeenCalledWith(
+        expect.any(TaskAssignedEvent),
+      );
     });
 
     it('should reassign task to different user', async () => {
@@ -299,10 +300,6 @@ describe('TasksService - Comprehensive Tests', () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({
         id: 'new-user-id',
         tenantId: 'tenant-123',
-      });
-      // Mock the user fetch for email
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'new-user-id',
         email: 'new@example.com',
       });
 
@@ -405,6 +402,9 @@ describe('TasksService - Comprehensive Tests', () => {
       expect(result.commissionAccrued).toBe(100);
       expect(result.walletUpdated).toBe(true);
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+      expect(mockEventBus.publish).toHaveBeenCalledWith(
+        expect.any(TaskCompletedEvent),
+      );
     });
 
     it('should complete pending task and accrue commission', async () => {
