@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
+import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
 
 export interface WebhookEvent {
@@ -43,6 +44,7 @@ export class WebhookService {
     @InjectRepository(Webhook)
     private readonly webhookRepository: Repository<Webhook>,
     private readonly configService: ConfigService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   /**
@@ -62,10 +64,13 @@ export class WebhookService {
       throw new BadRequestException('Invalid webhook URL');
     }
 
+    // Encrypt the secret before storing
+    const encryptedSecret = this.encryptionService.encrypt(config.secret);
+
     const webhook = this.webhookRepository.create({
       tenantId,
       url: config.url,
-      secret: config.secret,
+      secret: encryptedSecret,
       events: config.events,
     });
 
@@ -130,7 +135,13 @@ export class WebhookService {
     event: WebhookEvent,
   ): Promise<void> {
     const body = JSON.stringify(event);
-    const signature = this.createSignature(body, webhook.secret);
+
+    // Decrypt the secret for signature creation
+    const decryptedSecret = this.encryptionService.isEncrypted(webhook.secret)
+      ? this.encryptionService.decrypt(webhook.secret)
+      : webhook.secret; // Handle legacy unencrypted secrets
+
+    const signature = this.createSignature(body, decryptedSecret);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(

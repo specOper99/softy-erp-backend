@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
 import {
   WebhookConfig,
@@ -21,6 +22,16 @@ describe('WebhookService', () => {
     find: jest.fn(),
   };
 
+  const mockEncryptionService = {
+    encrypt: jest.fn().mockImplementation((s: string) => `encrypted:${s}`),
+    decrypt: jest
+      .fn()
+      .mockImplementation((s: string) => s.replace('encrypted:', '')),
+    isEncrypted: jest
+      .fn()
+      .mockImplementation((s: string) => s.startsWith('encrypted:')),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -30,6 +41,7 @@ describe('WebhookService', () => {
           provide: getRepositoryToken(Webhook),
           useValue: mockWebhookRepository,
         },
+        { provide: EncryptionService, useValue: mockEncryptionService },
       ],
     }).compile();
 
@@ -128,15 +140,17 @@ describe('WebhookService', () => {
       mockWebhookRepository.create.mockReturnValue({
         tenantId,
         ...config,
+        secret: 'encrypted:secret-123',
       });
       mockWebhookRepository.save.mockResolvedValue({ id: 'webhook-1' });
 
       await service.registerWebhook(tenantId, config);
 
+      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('secret-123');
       expect(mockWebhookRepository.create).toHaveBeenCalledWith({
         tenantId,
         url: config.url,
-        secret: config.secret,
+        secret: 'encrypted:secret-123',
         events: config.events,
       });
       expect(mockWebhookRepository.save).toHaveBeenCalled();
