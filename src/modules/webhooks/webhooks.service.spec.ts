@@ -1,6 +1,12 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { WebhookConfig, WebhookEvent, WebhookService } from './webhook.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Webhook } from './entities/webhook.entity';
+import {
+  WebhookConfig,
+  WebhookEvent,
+  WebhookService,
+} from './webhooks.service';
 
 describe('WebhookService', () => {
   let service: WebhookService;
@@ -9,11 +15,21 @@ describe('WebhookService', () => {
     get: jest.fn(),
   };
 
+  const mockWebhookRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    find: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WebhookService,
         { provide: ConfigService, useValue: mockConfigService },
+        {
+          provide: getRepositoryToken(Webhook),
+          useValue: mockWebhookRepository,
+        },
       ],
     }).compile();
 
@@ -52,7 +68,7 @@ describe('WebhookService', () => {
     };
 
     it('should send webhook if event type matches', async () => {
-      service.registerWebhook(tenantId, config);
+      mockWebhookRepository.find.mockResolvedValue([config]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -70,7 +86,7 @@ describe('WebhookService', () => {
 
     it('should send webhook if wildcard event is registered', async () => {
       const wildcardConfig = { ...config, events: ['*'] };
-      service.registerWebhook(tenantId, wildcardConfig);
+      mockWebhookRepository.find.mockResolvedValue([wildcardConfig]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalled();
@@ -78,7 +94,7 @@ describe('WebhookService', () => {
 
     it('should not send webhook if event type does not match', async () => {
       const unmatchedEvent: WebhookEvent = { ...event, type: 'task.created' };
-      service.registerWebhook(tenantId, config);
+      mockWebhookRepository.find.mockResolvedValue([config]);
       await service.emit(unmatchedEvent);
 
       expect(global.fetch).not.toHaveBeenCalled();
@@ -92,7 +108,7 @@ describe('WebhookService', () => {
         statusText: 'Internal Server Error',
       } as Response);
 
-      service.registerWebhook(tenantId, config);
+      mockWebhookRepository.find.mockResolvedValue([config]);
       await service.emit(event);
 
       expect(loggerErrorSpy).toHaveBeenCalled();
