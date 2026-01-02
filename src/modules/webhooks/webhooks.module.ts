@@ -1,3 +1,4 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -6,12 +7,23 @@ import { Webhook } from './entities/webhook.entity';
 import { BookingConfirmedWebhookHandler } from './handlers/booking-confirmed.handler';
 import { BookingUpdatedWebhookHandler } from './handlers/booking-updated.handler';
 import { TaskCompletedWebhookHandler } from './handlers/task-completed.handler';
+import {
+  WEBHOOK_QUEUE,
+  WebhookProcessor,
+} from './processors/webhook.processor';
 import { WebhookService } from './webhooks.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Webhook]), CqrsModule],
+  imports: [
+    TypeOrmModule.forFeature([Webhook]),
+    BullModule.registerQueue({
+      name: WEBHOOK_QUEUE,
+    }),
+    CqrsModule,
+  ],
   providers: [
     WebhookService,
+    WebhookProcessor,
     EncryptionService,
     BookingConfirmedWebhookHandler,
     BookingUpdatedWebhookHandler,

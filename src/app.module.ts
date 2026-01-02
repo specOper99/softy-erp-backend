@@ -19,6 +19,7 @@ import { TenantGuard } from './common/guards/tenant.guard';
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+import { QueueModule } from './common/queue/queue.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 
 // Feature module imports
@@ -59,6 +60,9 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
     // Caching (Redis or in-memory)
     AppCacheModule,
+
+    // Background job processing (BullMQ with Redis)
+    QueueModule,
 
     // Rate Limiting - Global: 60 requests per minute
     ThrottlerModule.forRoot([

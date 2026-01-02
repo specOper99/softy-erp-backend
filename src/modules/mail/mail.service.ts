@@ -1,8 +1,11 @@
 import { MailerService } from '@nestjs-modules/mailer';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Queue } from 'bullmq';
 import * as CircuitBreaker from 'opossum';
 import sanitizeHtml from 'sanitize-html';
+import { EMAIL_QUEUE, EmailJobData } from './processors/email.processor';
 
 export interface BookingEmailData {
   clientName: string;
@@ -56,6 +59,9 @@ export class MailService {
     private readonly configService: ConfigService,
     @Inject('CIRCUIT_BREAKER_MAIL')
     private readonly breaker: CircuitBreaker,
+    @Optional()
+    @InjectQueue(EMAIL_QUEUE)
+    private readonly emailQueue?: Queue<EmailJobData>,
   ) {
     this.isEnabled = !!this.configService.get('MAIL_USER');
     this.companyName = this.configService.get('COMPANY_NAME', 'Soft-y');
@@ -68,6 +74,96 @@ export class MailService {
       this.logger.warn('Email sending is disabled (MAIL_USER not configured)');
     }
   }
+
+  // ==================== QUEUE METHODS (async background processing) ====================
+
+  /**
+   * Queue a booking confirmation email for background processing
+   */
+  async queueBookingConfirmation(data: BookingEmailData): Promise<void> {
+    if (!this.emailQueue) {
+      // Fallback to direct send if queue not available
+      this.logger.warn('Email queue not available, sending directly');
+      await this.sendBookingConfirmation(data);
+      return;
+    }
+
+    await this.emailQueue.add(
+      'booking-confirmation',
+      {
+        type: 'booking-confirmation',
+        data: {
+          ...data,
+          eventDate: data.eventDate.toISOString(),
+        },
+      },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      },
+    );
+    this.logger.log(
+      `Queued booking confirmation email for ${data.clientEmail}`,
+    );
+  }
+
+  /**
+   * Queue a task assignment email for background processing
+   */
+  async queueTaskAssignment(data: TaskAssignmentEmailData): Promise<void> {
+    if (!this.emailQueue) {
+      this.logger.warn('Email queue not available, sending directly');
+      await this.sendTaskAssignment(data);
+      return;
+    }
+
+    await this.emailQueue.add(
+      'task-assignment',
+      {
+        type: 'task-assignment',
+        data: {
+          ...data,
+          eventDate: data.eventDate.toISOString(),
+        },
+      },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      },
+    );
+    this.logger.log(`Queued task assignment email for ${data.employeeEmail}`);
+  }
+
+  /**
+   * Queue a payroll notification email for background processing
+   */
+  async queuePayrollNotification(data: PayrollEmailData): Promise<void> {
+    if (!this.emailQueue) {
+      this.logger.warn('Email queue not available, sending directly');
+      await this.sendPayrollNotification(data);
+      return;
+    }
+
+    await this.emailQueue.add(
+      'payroll',
+      {
+        type: 'payroll',
+        data: {
+          ...data,
+          payrollDate: data.payrollDate.toISOString(),
+        },
+      },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      },
+    );
+    this.logger.log(
+      `Queued payroll notification email for ${data.employeeEmail}`,
+    );
+  }
+
+  // ==================== DIRECT SEND METHODS (used by processor) ====================
 
   /**
    * Retry helper with exponential backoff for transient failures

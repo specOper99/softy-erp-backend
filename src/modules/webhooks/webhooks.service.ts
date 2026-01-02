@@ -1,11 +1,19 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
 import { createHmac } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
+import { WEBHOOK_QUEUE, WebhookJobData } from './processors/webhook.processor';
 
 export interface WebhookEvent {
   type:
@@ -45,6 +53,9 @@ export class WebhookService {
     private readonly webhookRepository: Repository<Webhook>,
     private readonly configService: ConfigService,
     private readonly encryptionService: EncryptionService,
+    @Optional()
+    @InjectQueue(WEBHOOK_QUEUE)
+    private readonly webhookQueue?: Queue<WebhookJobData>,
   ) {}
 
   /**
@@ -81,7 +92,9 @@ export class WebhookService {
   }
 
   /**
-   * Emit an event to all registered webhooks for the tenant
+   * Emit an event to all registered webhooks for the tenant.
+   * If queue is available, jobs are enqueued for background processing.
+   * Otherwise falls back to inline delivery.
    */
   async emit(event: WebhookEvent): Promise<void> {
     const webhooks = await this.webhookRepository.find({
@@ -96,11 +109,40 @@ export class WebhookService {
         return;
       }
 
-      await this.sendWebhookWithRetry(webhook, event);
+      if (this.webhookQueue) {
+        // Enqueue for background processing
+        await this.webhookQueue.add(
+          `${event.type}-${webhook.id}`,
+          {
+            webhook: {
+              id: webhook.id,
+              tenantId: webhook.tenantId,
+              url: webhook.url,
+              secret: webhook.secret,
+              events: webhook.events,
+            },
+            event,
+          },
+          {
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 30000 },
+          },
+        );
+        this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
+      } else {
+        // Fallback to inline delivery
+        await this.sendWebhookWithRetry(webhook, event);
+      }
     });
 
-    // Use Promise.allSettled to ensure individual failures don't stop others
     await Promise.allSettled(deliveries);
+  }
+
+  /**
+   * Deliver webhook directly (called by processor or inline fallback)
+   */
+  async deliverWebhook(webhook: Webhook, event: WebhookEvent): Promise<void> {
+    await this.sendWebhookOnce(webhook, event);
   }
 
   /**
