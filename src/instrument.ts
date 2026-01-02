@@ -8,8 +8,8 @@ if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || 'development',
-    // Send default PII data like IP addresses
-    sendDefaultPii: true,
+    // Disable default PII collection for privacy compliance
+    sendDefaultPii: false,
     // Tracing sample rate (10% in production, 100% in dev)
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
   });

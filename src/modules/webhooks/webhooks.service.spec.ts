@@ -9,6 +9,15 @@ import {
   WebhookService,
 } from './webhooks.service';
 
+// Mock dns/promises
+jest.mock('node:dns/promises', () => ({
+  lookup: jest
+    .fn()
+    .mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+}));
+
+import { lookup } from 'node:dns/promises';
+
 describe('WebhookService', () => {
   let service: WebhookService;
 
@@ -33,6 +42,7 @@ describe('WebhookService', () => {
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WebhookService,
@@ -68,7 +78,7 @@ describe('WebhookService', () => {
     const tenantId = 'tenant-1';
     const config: WebhookConfig = {
       url: 'https://example.com/webhook',
-      secret: 'test-webhook-secret-placeholder',
+      secret: 'test-webhook-secret-placeholder-long',
       events: ['booking.created'],
     };
 
@@ -89,6 +99,7 @@ describe('WebhookService', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'X-Webhook-Signature': expect.any(String),
+            'X-Webhook-Timestamp': expect.any(String),
             'X-Webhook-Event': 'booking.created',
           }),
           body: JSON.stringify(event),
@@ -130,54 +141,36 @@ describe('WebhookService', () => {
   describe('registerWebhook', () => {
     const tenantId = 'tenant-1';
 
-    it('should persist valid HTTPS webhook URL', async () => {
+    it('should persist valid HTTPS webhook URL with sufficient secret', async () => {
       const config: WebhookConfig = {
         url: 'https://example.com/webhook',
-        secret: 'secret-123',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
         events: ['booking.created'],
       };
 
       mockWebhookRepository.create.mockReturnValue({
         tenantId,
         ...config,
-        secret: 'encrypted:secret-123',
+        secret: 'encrypted:' + config.secret,
       });
       mockWebhookRepository.save.mockResolvedValue({ id: 'webhook-1' });
 
       await service.registerWebhook(tenantId, config);
 
-      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('secret-123');
+      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith(config.secret);
       expect(mockWebhookRepository.create).toHaveBeenCalledWith({
         tenantId,
         url: config.url,
-        secret: 'encrypted:secret-123',
+        secret: 'encrypted:' + config.secret,
         events: config.events,
       });
-      expect(mockWebhookRepository.save).toHaveBeenCalled();
-    });
-
-    it('should persist valid HTTP webhook URL', async () => {
-      const config: WebhookConfig = {
-        url: 'http://localhost:3000/webhook',
-        secret: 'secret-123',
-        events: ['task.created'],
-      };
-
-      mockWebhookRepository.create.mockReturnValue({
-        tenantId,
-        ...config,
-      });
-      mockWebhookRepository.save.mockResolvedValue({ id: 'webhook-2' });
-
-      await service.registerWebhook(tenantId, config);
-
       expect(mockWebhookRepository.save).toHaveBeenCalled();
     });
 
     it('should reject invalid URL format', async () => {
       const config: WebhookConfig = {
         url: 'not-a-valid-url',
-        secret: 'secret-123',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
         events: ['booking.created'],
       };
 
@@ -189,12 +182,100 @@ describe('WebhookService', () => {
     it('should reject non-HTTP/HTTPS protocols', async () => {
       const config: WebhookConfig = {
         url: 'ftp://example.com/webhook',
-        secret: 'secret-123',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
         events: ['booking.created'],
       };
 
       await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
         'Invalid webhook URL',
+      );
+    });
+
+    it('should reject secrets shorter than minimum length', async () => {
+      const config: WebhookConfig = {
+        url: 'https://example.com/webhook',
+        secret: 'short-secret',
+        events: ['booking.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Webhook secret must be at least 32 characters',
+      );
+    });
+
+    it('should reject localhost URLs (SSRF prevention)', async () => {
+      const config: WebhookConfig = {
+        url: 'http://localhost:3000/webhook',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Webhook URL cannot point to localhost',
+      );
+    });
+
+    it('should reject 127.0.0.1 URLs (SSRF prevention)', async () => {
+      const config: WebhookConfig = {
+        url: 'http://127.0.0.1:3000/webhook',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Webhook URL cannot point to localhost',
+      );
+    });
+
+    it('should reject private IP ranges (10.x.x.x)', async () => {
+      const config: WebhookConfig = {
+        url: 'http://10.0.0.1/webhook',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Webhook URL cannot point to private IP addresses',
+      );
+    });
+
+    it('should reject private IP ranges (192.168.x.x)', async () => {
+      const config: WebhookConfig = {
+        url: 'http://192.168.1.1/webhook',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Webhook URL cannot point to private IP addresses',
+      );
+    });
+
+    it('should reject private IP ranges (172.16-31.x.x)', async () => {
+      const config: WebhookConfig = {
+        url: 'http://172.16.0.1/webhook',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Webhook URL cannot point to private IP addresses',
+      );
+    });
+
+    it('should reject URLs that DNS-resolve to private IPs', async () => {
+      (lookup as jest.Mock).mockResolvedValueOnce([
+        { address: '10.0.0.1', family: 4 },
+      ]);
+
+      const config: WebhookConfig = {
+        url: 'https://internal.example.com/webhook',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
+        'Webhook URL resolves to a private IP address',
       );
     });
   });
@@ -248,6 +329,36 @@ describe('WebhookService', () => {
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Network error'),
+      );
+    });
+  });
+
+  describe('webhook signature', () => {
+    it('should include timestamp in signature header', async () => {
+      const tenantId = 'tenant-1';
+      const config = {
+        url: 'https://example.com/webhook',
+        secret: 'encrypted:test-secret',
+        events: ['booking.created'],
+        isActive: true,
+      };
+      const event: WebhookEvent = {
+        type: 'booking.created',
+        tenantId: tenantId,
+        payload: { id: '123' },
+        timestamp: new Date().toISOString(),
+      };
+
+      mockWebhookRepository.find.mockResolvedValue([config]);
+      await service.emit(event);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        config.url,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'X-Webhook-Timestamp': expect.stringMatching(/^\d+$/),
+          }),
+        }),
       );
     });
   });

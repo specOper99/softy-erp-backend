@@ -74,6 +74,7 @@
     "node-vault": "^0.10.9",
     "nodemailer": "^7.0.12",
     "opossum": "^9.0.0",
+    "p-limit": "^7.2.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.3",
@@ -141,7 +142,7 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(uuid)/)"
+      "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
     ],
     "coverageProvider": "v8",
     "collectCoverageFrom": [

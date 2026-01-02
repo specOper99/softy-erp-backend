@@ -9,6 +9,9 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { createHmac } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+import pLimit from 'p-limit';
 import { Repository } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
@@ -39,7 +42,7 @@ export interface WebhookConfig {
 /**
  * Webhook service for sending event notifications to external systems.
  * Refactored for database persistence, exponential backoff retries,
- * URL validation, and request timeouts.
+ * URL validation, SSRF prevention, and request timeouts.
  */
 @Injectable()
 export class WebhookService {
@@ -47,6 +50,8 @@ export class WebhookService {
   private readonly MAX_RETRIES = WEBHOOK_CONSTANTS.MAX_RETRIES;
   private readonly INITIAL_RETRY_DELAY = WEBHOOK_CONSTANTS.INITIAL_RETRY_DELAY;
   private readonly WEBHOOK_TIMEOUT = WEBHOOK_CONSTANTS.TIMEOUT;
+  private readonly MIN_SECRET_LENGTH = WEBHOOK_CONSTANTS.MIN_SECRET_LENGTH;
+  private readonly concurrencyLimit = pLimit(WEBHOOK_CONSTANTS.MAX_CONCURRENCY);
 
   constructor(
     @InjectRepository(Webhook)
@@ -66,13 +71,24 @@ export class WebhookService {
     config: WebhookConfig,
   ): Promise<void> {
     // URL Validation
+    let url: URL;
     try {
-      const url = new URL(config.url);
+      url = new URL(config.url);
       if (!['http:', 'https:'].includes(url.protocol)) {
         throw new Error('Invalid protocol');
       }
     } catch {
       throw new BadRequestException('Invalid webhook URL');
+    }
+
+    // SSRF Prevention: Block private IPs and localhost
+    await this.validateUrlNotPrivate(url);
+
+    // Secret entropy validation
+    if (config.secret.length < this.MIN_SECRET_LENGTH) {
+      throw new BadRequestException(
+        `Webhook secret must be at least ${this.MIN_SECRET_LENGTH} characters`,
+      );
     }
 
     // Encrypt the secret before storing
@@ -92,9 +108,90 @@ export class WebhookService {
   }
 
   /**
+   * Validate that a URL does not point to private/internal resources (SSRF prevention)
+   */
+  private async validateUrlNotPrivate(url: URL): Promise<void> {
+    const hostname = url.hostname;
+
+    // Block localhost variants
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '0.0.0.0'
+    ) {
+      throw new BadRequestException('Webhook URL cannot point to localhost');
+    }
+
+    // If hostname is already an IP, validate it directly
+    if (isIP(hostname)) {
+      if (this.isPrivateIp(hostname)) {
+        throw new BadRequestException(
+          'Webhook URL cannot point to private IP addresses',
+        );
+      }
+      return;
+    }
+
+    // Resolve hostname and check all addresses
+    try {
+      const addresses = await lookup(hostname, { all: true });
+      for (const addr of addresses) {
+        if (this.isPrivateIp(addr.address)) {
+          throw new BadRequestException(
+            'Webhook URL resolves to a private IP address',
+          );
+        }
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // DNS resolution failed - could be a non-existent domain
+      this.logger.warn(
+        `DNS lookup failed for ${hostname}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Allow registration but log warning - infra egress controls should be the primary defense
+    }
+  }
+
+  /**
+   * Check if an IP address is in a private/reserved range
+   */
+  private isPrivateIp(ip: string): boolean {
+    // IPv4 private ranges
+    const ipv4PrivateRanges = [
+      /^127\./, // Loopback
+      /^10\./, // Class A private
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // Class B private
+      /^192\.168\./, // Class C private
+      /^169\.254\./, // Link-local
+      /^0\./, // Current network
+    ];
+
+    // IPv6 private ranges
+    const ipv6PrivateRanges = [
+      /^::1$/, // Loopback
+      /^fe80:/i, // Link-local
+      /^fc00:/i, // Unique local
+      /^fd00:/i, // Unique local
+    ];
+
+    for (const range of ipv4PrivateRanges) {
+      if (range.test(ip)) return true;
+    }
+
+    for (const range of ipv6PrivateRanges) {
+      if (range.test(ip)) return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Emit an event to all registered webhooks for the tenant.
    * If queue is available, jobs are enqueued for background processing.
-   * Otherwise falls back to inline delivery.
+   * Otherwise falls back to inline delivery with concurrency limit.
    */
   async emit(event: WebhookEvent): Promise<void> {
     const webhooks = await this.webhookRepository.find({
@@ -130,8 +227,10 @@ export class WebhookService {
         );
         this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
       } else {
-        // Fallback to inline delivery
-        await this.sendWebhookWithRetry(webhook, event);
+        // Fallback to inline delivery with concurrency limit
+        return this.concurrencyLimit(() =>
+          this.sendWebhookWithRetry(webhook, event),
+        );
       }
     });
 
@@ -146,7 +245,7 @@ export class WebhookService {
   }
 
   /**
-   * Send webhook with exponential backoff retry
+   * Send webhook with exponential backoff retry and jitter
    */
   private async sendWebhookWithRetry(
     webhook: Webhook,
@@ -163,7 +262,10 @@ export class WebhookService {
           );
           return;
         }
-        const delay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+        // Exponential backoff with jitter to prevent thundering herd
+        const baseDelay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+        const jitter = Math.random() * baseDelay; // Random jitter between 0 and baseDelay
+        const delay = baseDelay + jitter;
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
@@ -176,6 +278,7 @@ export class WebhookService {
     webhook: Webhook,
     event: WebhookEvent,
   ): Promise<void> {
+    const timestamp = Date.now().toString();
     const body = JSON.stringify(event);
 
     // Decrypt the secret for signature creation
@@ -183,7 +286,11 @@ export class WebhookService {
       ? this.encryptionService.decrypt(webhook.secret)
       : webhook.secret; // Handle legacy unencrypted secrets
 
-    const signature = this.createSignature(body, decryptedSecret);
+    // Include timestamp in signature to prevent replay attacks
+    const signature = this.createSignature(
+      `${timestamp}.${body}`,
+      decryptedSecret,
+    );
 
     const controller = new AbortController();
     const timeoutId = setTimeout(
@@ -197,6 +304,7 @@ export class WebhookService {
         headers: {
           'Content-Type': 'application/json',
           'X-Webhook-Signature': signature,
+          'X-Webhook-Timestamp': timestamp,
           'X-Webhook-Event': event.type,
         },
         body,
