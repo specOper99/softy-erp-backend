@@ -14,9 +14,9 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
+import { Readable } from 'node:stream';
 import * as CircuitBreaker from 'opossum';
-import { Readable } from 'stream';
 
 export interface UploadedFile {
   key: string;

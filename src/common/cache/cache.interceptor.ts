@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Cache } from 'cache-manager';
-import * as crypto from 'crypto';
 import { Request } from 'express';
+import * as crypto from 'node:crypto';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { CACHEABLE_KEY } from '../decorators/cacheable.decorator';

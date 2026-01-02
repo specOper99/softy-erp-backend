@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as crypto from 'crypto';
+import * as crypto from 'node:crypto';
 import { DataSource, LessThan, MoreThan, Repository } from 'typeorm';
 import { Role } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';

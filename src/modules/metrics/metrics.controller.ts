@@ -1,8 +1,8 @@
 import { Controller, Get, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import * as crypto from 'crypto';
 import type { Request, Response } from 'express';
+import * as crypto from 'node:crypto';
 import {
   collectDefaultMetrics,
   Counter,
