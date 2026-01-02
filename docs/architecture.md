@@ -7,7 +7,7 @@ The Chapters Studio ERP is a robust NestJS application designed for high securit
 
 1.  **Core / Infrastructure**:
     -   `AppModule`: Root module.
-    -   **Observability**: Integrated Winston logging, OpenTelemetry tracing, and Promethous metrics.
+    -   **Observability**: Integrated Winston logging, OpenTelemetry tracing, and Prometheus metrics (token-protected in production via `METRICS_TOKEN`).
     -   **Security**: `Helmet` integration and strict CORS policies.
 
 2.  **Common Layer (`src/common`)**:

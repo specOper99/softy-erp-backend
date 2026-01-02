@@ -23,10 +23,11 @@ npm run start:dev
 | Service | URL | Description |
 |---------|-----|-------------|
 | **API Server** | http://localhost:3000/api/v1 | REST API base |
-| **Swagger Docs** | http://localhost:3000/api/docs | Interactive API documentation |
+| **Swagger Docs** | http://localhost:3000/api/docs | Interactive API documentation (requires `ENABLE_SWAGGER=true`) |
 | **Health Check** | http://localhost:3000/api/v1/health | Full health status |
 | **Liveness Probe** | http://localhost:3000/api/v1/health/live | K8s liveness check |
 | **Readiness Probe** | http://localhost:3000/api/v1/health/ready | K8s readiness check |
+| **Prometheus Metrics** | http://localhost:3000/api/v1/metrics | Prometheus scrape endpoint (token-protected in production) |
 | **MinIO Console** | http://localhost:9001 | Object storage admin (minioadmin/minioadmin) |
 | **Zipkin UI** | http://localhost:9411 | Distributed tracing (optional) |
 
@@ -175,6 +176,7 @@ Copy `.env.example` to `.env` and configure the following variables:
 | `OTEL_ENABLED` | false | Enable OpenTelemetry tracing |
 | `ZIPKIN_ENDPOINT` | http://localhost:9411/api/v2/spans | Zipkin collector URL |
 | `SENTRY_DSN` | - | Sentry error tracking DSN |
+| `METRICS_TOKEN` | - | If set, `/api/v1/metrics` requires `Authorization: Bearer <token>` (in production, unset disables metrics with 404) |
 | `TEST_ERROR_KEY` | - | Key for triggering test errors |
 
 ### Redis Cache
