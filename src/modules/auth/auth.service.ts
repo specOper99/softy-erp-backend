@@ -237,9 +237,13 @@ export class AuthService {
 
       // If no rows were affected, another request already rotated this token
       if (updateResult.affected === 0) {
-        this.logger.warn(
-          `Refresh token race condition detected for user ${storedToken.userId}`,
-        );
+        this.logger.warn({
+          message: 'Refresh token race condition detected',
+          userId: storedToken.userId,
+          tokenId: storedToken.id,
+          attemptTime: new Date().toISOString(),
+          context: context,
+        });
         throw new UnauthorizedException('Refresh token already used');
       }
 
