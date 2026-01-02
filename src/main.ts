@@ -4,7 +4,6 @@ import './instrument';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import type { Express } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters';
@@ -13,13 +12,15 @@ import { initTracing } from './common/telemetry/tracing';
 // Initialize OpenTelemetry tracing
 initTracing();
 
+import { NestExpressApplication } from '@nestjs/platform-express';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // When behind a reverse proxy (e.g., Kubernetes ingress), enable proxy trust so req.ip is correct.
   // Keep this opt-in to avoid trusting spoofed X-Forwarded-* headers by default.
   if (process.env.TRUST_PROXY === 'true') {
-    (app.getHttpAdapter().getInstance() as Express).set('trust proxy', 1);
+    app.set('trust proxy', 1);
   }
 
   // Security: Apply Helmet for HTTP security headers
