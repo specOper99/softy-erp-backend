@@ -20,126 +20,88 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const packageItemRepo = dataSource.getRepository(PackageItem);
   const clientRepo = dataSource.getRepository(Client);
 
+  // Generate random suffix for isolation
+  const suffix = Date.now().toString().slice(-6);
+  const tenantSlug = `chapters-studio-${suffix}`;
+
   // 1. Create Tenant
   let tenant = await tenantRepo.findOne({
-    where: { slug: 'chapters-studio-hq' },
+    where: { slug: tenantSlug },
   });
   if (!tenant) {
-    try {
-      tenant = tenantRepo.create({
-        name: 'Chapters Studio HQ',
-        slug: 'chapters-studio-hq',
-      });
-      tenant = await tenantRepo.save(tenant);
-    } catch {
-      tenant = await tenantRepo.findOne({
-        where: { slug: 'chapters-studio-hq' },
-      });
-    }
-  }
-
-  if (!tenant) {
-    throw new Error('Failed to seed/find test tenant');
+    tenant = tenantRepo.create({
+      name: `Chapters Studio ${suffix}`,
+      slug: tenantSlug,
+    });
+    tenant = await tenantRepo.save(tenant);
   }
 
   const tenantId = tenant.id;
 
   // 2. Create/Update Admin
-  const adminEmail = 'admin@chapters.studio';
+  const adminEmail = `admin-${suffix}@chapters.studio`;
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
   const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
 
   let admin = await userRepo.findOne({ where: { email: adminEmail } });
   if (!admin) {
-    try {
-      admin = userRepo.create({
-        email: adminEmail,
-        passwordHash: adminPasswordHash,
-        role: Role.ADMIN,
-        isActive: true,
-        tenantId,
-      });
-      admin = await userRepo.save(admin);
-    } catch {
-      admin = await userRepo.findOne({ where: { email: adminEmail } });
-    }
-  } else {
-    admin.passwordHash = adminPasswordHash;
-    admin.tenantId = tenantId;
+    admin = userRepo.create({
+      email: adminEmail,
+      passwordHash: adminPasswordHash,
+      role: Role.ADMIN,
+      isActive: true,
+      tenantId,
+    });
     admin = await userRepo.save(admin);
-  }
-
-  if (!admin) {
-    throw new Error('Failed to seed/find admin user');
   }
 
   // Sync admin profile/wallet if they exist
   const existingAdminProfile = await profileRepo.findOne({
     where: { userId: admin.id },
   });
-  if (existingAdminProfile) {
-    await profileRepo.update({ id: existingAdminProfile.id }, { tenantId });
-  } else {
-    try {
-      await profileRepo.save(
-        profileRepo.create({
-          userId: admin.id,
-          firstName: 'Admin',
-          lastName: 'User',
-          baseSalary: 0,
-          tenantId,
-        }),
-      );
-    } catch {
-      // Profile already exists
-    }
+  if (!existingAdminProfile) {
+    await profileRepo.save(
+      profileRepo.create({
+        userId: admin.id,
+        firstName: 'Admin',
+        lastName: 'User',
+        baseSalary: 0,
+        tenantId,
+      }),
+    );
   }
 
   const adminWallet = await walletRepo.findOne({ where: { userId: admin.id } });
-  if (adminWallet) {
-    await walletRepo.update({ id: adminWallet.id }, { tenantId });
-  } else {
-    try {
-      await walletRepo.save(
-        walletRepo.create({
-          userId: admin.id,
-          pendingBalance: 0,
-          payableBalance: 0,
-          tenantId,
-        }),
-      );
-    } catch {
-      // Wallet already exists
-    }
+  if (!adminWallet) {
+    await walletRepo.save(
+      walletRepo.create({
+        userId: admin.id,
+        pendingBalance: 0,
+        payableBalance: 0,
+        tenantId,
+      }),
+    );
   }
 
   // 3. Create/Update Staff
-  const staffEmail = 'john.photographer@chapters.studio';
+  const staffEmail = `staff-${suffix}@chapters.studio`;
   const staffPassword = process.env.SEED_STAFF_PASSWORD || 'ChaptersERP123!';
   const staffPasswordHash = await bcrypt.hash(staffPassword, 10);
 
   let staff = await userRepo.findOne({ where: { email: staffEmail } });
   if (!staff) {
-    try {
-      staff = userRepo.create({
-        email: staffEmail,
-        passwordHash: staffPasswordHash,
-        role: Role.FIELD_STAFF,
-        isActive: true,
-        tenantId,
-      });
-      staff = await userRepo.save(staff);
-    } catch {
-      staff = await userRepo.findOne({ where: { email: staffEmail } });
-    }
-  } else {
-    staff.passwordHash = staffPasswordHash;
-    staff.tenantId = tenantId;
+    staff = userRepo.create({
+      email: staffEmail,
+      passwordHash: staffPasswordHash,
+      role: Role.FIELD_STAFF,
+      isActive: true,
+      tenantId,
+    });
     staff = await userRepo.save(staff);
   }
 
   if (!staff) {
-    throw new Error('Failed to seed/find staff user');
+    throw new Error('Failed to seed staff user');
   }
 
   // Sync staff profile/wallet

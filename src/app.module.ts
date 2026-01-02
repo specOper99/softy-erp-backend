@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
 import { minutes, seconds, ThrottlerModule } from '@nestjs/throttler';
@@ -12,7 +12,6 @@ import { validate } from './config/env-validation';
 import { vaultLoader } from './config/vault.loader';
 
 // Common imports
-import { GlobalCacheInterceptor } from './common/cache/cache.interceptor';
 import { AppCacheModule } from './common/cache/cache.module';
 import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
@@ -154,8 +153,6 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     // Graceful shutdown handler
 
     { provide: APP_GUARD, useClass: TenantGuard },
-
-    { provide: APP_INTERCEPTOR, useClass: GlobalCacheInterceptor },
   ],
 })
 export class AppModule implements NestModule {

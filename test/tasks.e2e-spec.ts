@@ -53,13 +53,13 @@ describe('Tasks Module E2E Tests', () => {
     await app.init();
 
     const dataSource = app.get(DataSource);
-    await seedTestDatabase(dataSource);
+    const seedData = await seedTestDatabase(dataSource);
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({
-        email: 'admin@chapters.studio',
+        email: seedData.admin.email,
         password: adminPassword,
       });
 

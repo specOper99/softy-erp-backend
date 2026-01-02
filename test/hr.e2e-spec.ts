@@ -67,7 +67,7 @@ describe('HR Module E2E Tests', () => {
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({
-        email: 'admin@chapters.studio',
+        email: seedData.admin.email,
         password: adminPassword,
       });
 

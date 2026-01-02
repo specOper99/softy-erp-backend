@@ -53,13 +53,14 @@ describe('Bookings Workflow E2E Tests', () => {
 
     // Seed Test DB and Get Tenant ID
     const dataSource = app.get(DataSource);
-    const { tenantId } = await seedTestDatabase(dataSource);
+    const seedData = await seedTestDatabase(dataSource);
+    const tenantId = seedData.tenantId;
 
     // Login as seeded admin user
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({
-        email: 'admin@chapters.studio',
+        email: seedData.admin.email,
         password: adminPassword,
       });
     adminToken = loginResponse.body.data.accessToken;

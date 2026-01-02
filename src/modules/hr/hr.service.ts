@@ -346,6 +346,7 @@ export class HrService {
       const profiles = await queryRunner.manager.find(Profile, {
         where: { tenantId },
         relations: ['user', 'user.wallet'],
+        order: { id: 'ASC' },
         skip,
         take,
       });

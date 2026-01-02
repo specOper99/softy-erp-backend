@@ -72,21 +72,22 @@ describe('Workflow Integration Tests (E2E)', () => {
     _dataSource = moduleFixture.get(DataSource);
 
     // Seed Test DB and Get Tenant ID and Client
-    const { tenantId, client } = await seedTestDatabase(_dataSource);
+    const seedData = await seedTestDatabase(_dataSource);
+    const { tenantId, client } = seedData;
     (global as unknown as { testTenantId: string }).testTenantId = tenantId;
     (global as unknown as { testClientId: string }).testClientId = client.id;
 
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .send({ email: 'admin@chapters.studio', password: adminPassword });
+      .send({ email: seedData.admin.email, password: adminPassword });
     adminToken = adminLoginRes.body.data.accessToken;
 
     // Login as staff (seeded user)
     const staffLoginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({
-        email: 'john.photographer@chapters.studio',
+        email: seedData.staff.email,
         password: staffPassword,
       });
     staffToken = staffLoginRes.body.data.accessToken;

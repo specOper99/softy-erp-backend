@@ -2,10 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BookingStatus } from '../../common/enums';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
+import { BookingWorkflowService } from './services/booking-workflow.service';
 
 describe('BookingsController', () => {
   let controller: BookingsController;
   let service: BookingsService;
+  let workflowService: BookingWorkflowService;
 
   const mockBooking = { id: 'uuid', status: BookingStatus.DRAFT };
 
@@ -26,11 +28,20 @@ describe('BookingsController', () => {
             completeBooking: jest.fn().mockResolvedValue(mockBooking),
           },
         },
+        {
+          provide: BookingWorkflowService,
+          useValue: {
+            confirmBooking: jest.fn().mockResolvedValue(mockBooking),
+          },
+        },
       ],
     }).compile();
 
     controller = module.get<BookingsController>(BookingsController);
     service = module.get<BookingsService>(BookingsService);
+    workflowService = module.get<BookingWorkflowService>(
+      BookingWorkflowService,
+    );
   });
 
   it('should be defined', () => {
@@ -75,9 +86,9 @@ describe('BookingsController', () => {
   });
 
   describe('confirm', () => {
-    it('should call service.confirmBooking', async () => {
+    it('should call workflowService.confirmBooking', async () => {
       await controller.confirm('uuid');
-      expect(service.confirmBooking).toHaveBeenCalledWith('uuid');
+      expect(workflowService.confirmBooking).toHaveBeenCalledWith('uuid');
     });
   });
 

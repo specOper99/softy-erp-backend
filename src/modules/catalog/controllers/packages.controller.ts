@@ -8,8 +8,10 @@ import {
   Patch,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { Cacheable, Roles } from '../../../common/decorators';
 import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
@@ -25,6 +27,7 @@ import { CatalogService } from '../services/catalog.service';
 @ApiBearerAuth()
 @Controller('packages')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(GlobalCacheInterceptor)
 export class PackagesController {
   constructor(private readonly catalogService: CatalogService) {}
 

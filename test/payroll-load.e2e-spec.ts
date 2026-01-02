@@ -4,6 +4,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { Role } from '../src/common/enums/role.enum';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { EmployeeWallet } from '../src/modules/finance/entities/employee-wallet.entity';
 import { Profile } from '../src/modules/hr/entities/profile.entity';

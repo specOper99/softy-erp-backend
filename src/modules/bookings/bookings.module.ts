@@ -9,14 +9,18 @@ import { ClientsController } from './clients.controller';
 import { Booking } from './entities/booking.entity';
 import { Client } from './entities/client.entity';
 
+import { AuditModule } from '../audit/audit.module';
+import { BookingWorkflowService } from './services/booking-workflow.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, ServicePackage, Client]),
     FinanceModule,
     MailModule,
+    AuditModule,
   ],
   controllers: [BookingsController, ClientsController],
-  providers: [BookingsService],
+  providers: [BookingsService, BookingWorkflowService],
   exports: [BookingsService],
 })
 export class BookingsModule {}

@@ -19,12 +19,17 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto, UpdateBookingDto } from './dto';
 
+import { BookingWorkflowService } from './services/booking-workflow.service';
+
 @ApiTags('Bookings')
 @ApiBearerAuth()
 @Controller('bookings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) {}
+  constructor(
+    private readonly bookingsService: BookingsService,
+    private readonly bookingWorkflowService: BookingWorkflowService,
+  ) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
@@ -68,7 +73,7 @@ export class BookingsController {
     summary: 'Confirm booking (generates tasks and records income)',
   })
   confirm(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingsService.confirmBooking(id);
+    return this.bookingWorkflowService.confirmBooking(id);
   }
 
   @Patch(':id/cancel')

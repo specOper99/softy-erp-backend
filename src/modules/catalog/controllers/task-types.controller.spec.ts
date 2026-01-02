@@ -1,4 +1,7 @@
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { CatalogService } from '../services/catalog.service';
 import { TaskTypesController } from './task-types.controller';
 
@@ -12,6 +15,7 @@ describe('TaskTypesController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TaskTypesController],
       providers: [
+        GlobalCacheInterceptor,
         {
           provide: CatalogService,
           useValue: {
@@ -20,6 +24,19 @@ describe('TaskTypesController', () => {
             createTaskType: jest.fn().mockResolvedValue(mockTaskType),
             updateTaskType: jest.fn().mockResolvedValue(mockTaskType),
             deleteTaskType: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: CacheUtilsService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+          },
+        },
+        {
+          provide: Reflector,
+          useValue: {
+            getAllAndOverride: jest.fn(),
           },
         },
       ],

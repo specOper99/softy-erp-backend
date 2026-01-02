@@ -253,22 +253,43 @@ export class TasksService {
   ): Promise<void> {
     if (commissionAmount <= 0) return;
 
-    // Reverse commission from old user if reassigning
-    if (oldUserId && oldUserId !== newUserId) {
-      await this.financeService.subtractPendingCommission(
-        manager,
-        oldUserId,
-        commissionAmount,
-      );
+    // Fix: Deadlock Prevention.
+    // We must acquire locks on the wallets in a deterministic order.
+    // We'll create a list of updates to perform, sort them by userId, and execute.
+
+    interface WalletUpdate {
+      userId: string;
+      action: 'subtract' | 'add';
     }
 
-    // Add commission to new user
+    const updates: WalletUpdate[] = [];
+
+    if (oldUserId && oldUserId !== newUserId) {
+      updates.push({ userId: oldUserId, action: 'subtract' });
+    }
+
     if (newUserId) {
-      await this.financeService.addPendingCommission(
-        manager,
-        newUserId,
-        commissionAmount,
-      );
+      updates.push({ userId: newUserId, action: 'add' });
+    }
+
+    // Sort by userId to ensure deterministic locking order
+    updates.sort((a, b) => a.userId.localeCompare(b.userId));
+
+    // Execute updates in order
+    for (const update of updates) {
+      if (update.action === 'subtract') {
+        await this.financeService.subtractPendingCommission(
+          manager,
+          update.userId,
+          commissionAmount,
+        );
+      } else {
+        await this.financeService.addPendingCommission(
+          manager,
+          update.userId,
+          commissionAmount,
+        );
+      }
     }
   }
 

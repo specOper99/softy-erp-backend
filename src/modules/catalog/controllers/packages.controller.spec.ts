@@ -1,4 +1,7 @@
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { CatalogService } from '../services/catalog.service';
 import { PackagesController } from './packages.controller';
 
@@ -12,6 +15,7 @@ describe('PackagesController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PackagesController],
       providers: [
+        GlobalCacheInterceptor,
         {
           provide: CatalogService,
           useValue: {
@@ -22,6 +26,19 @@ describe('PackagesController', () => {
             deletePackage: jest.fn().mockResolvedValue(undefined),
             addPackageItems: jest.fn().mockResolvedValue(mockPackage),
             removePackageItem: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: CacheUtilsService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+          },
+        },
+        {
+          provide: Reflector,
+          useValue: {
+            getAllAndOverride: jest.fn(),
           },
         },
       ],

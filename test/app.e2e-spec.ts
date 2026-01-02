@@ -1,10 +1,26 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { MailModule } from '../src/modules/mail/mail.module';
 import { MailService } from '../src/modules/mail/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
+
+@Module({
+  providers: [
+    {
+      provide: MailService,
+      useValue: {
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      },
+    },
+  ],
+  exports: [MailService],
+})
+class MockMailModule {}
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -12,12 +28,8 @@ describe('AppController (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(MailService)
-      .useValue({
-        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
-        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
-        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
-      })
+      .overrideModule(MailModule)
+      .useModule(MockMailModule)
       .compile();
 
     app = moduleFixture.createNestApplication();

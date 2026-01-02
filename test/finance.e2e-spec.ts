@@ -56,13 +56,13 @@ describe('Finance Module E2E Tests', () => {
 
     // Seed database and get tenant
     const dataSource = app.get(DataSource);
-    await seedTestDatabase(dataSource);
+    const seedData = await seedTestDatabase(dataSource);
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({
-        email: 'admin@chapters.studio',
+        email: seedData.admin.email,
         password: adminPassword,
       });
 
