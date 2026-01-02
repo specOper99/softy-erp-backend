@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { minutes, seconds, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
+import { RESILIENCE_CONSTANTS } from './common/constants';
 import { databaseConfig } from './config';
 import { validate } from './config/env-validation';
 import { vaultLoader } from './config/vault.loader';
@@ -117,18 +118,20 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     TenantsModule,
     WebhooksModule,
     MetricsModule,
+
+    // ... (in imports array)
     ResilienceModule.forRoot([
       {
         name: 's3',
-        timeout: 5000,
+        timeout: RESILIENCE_CONSTANTS.S3_TIMEOUT,
         errorThresholdPercentage: 50,
-        resetTimeout: 30000,
+        resetTimeout: RESILIENCE_CONSTANTS.RESET_TIMEOUT_Short,
       },
       {
         name: 'mail',
-        timeout: 10000,
+        timeout: RESILIENCE_CONSTANTS.MAIL_TIMEOUT,
         errorThresholdPercentage: 50,
-        resetTimeout: 60000,
+        resetTimeout: RESILIENCE_CONSTANTS.RESET_TIMEOUT_LONG,
       },
     ]),
   ],
