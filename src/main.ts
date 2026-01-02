@@ -1,7 +1,11 @@
 // IMPORTANT: Import instrument.ts FIRST for Sentry to work correctly
 import './instrument';
 
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import {
+  ClassSerializerInterceptor,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -31,7 +35,14 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Global prefix
-  app.setGlobalPrefix('api/v1');
+  // Global prefix
+  app.setGlobalPrefix('api');
+
+  // API Versioning
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
 
   // Validation pipe
   app.useGlobalPipes(
