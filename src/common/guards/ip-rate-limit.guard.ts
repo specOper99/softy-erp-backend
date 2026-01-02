@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Cache } from 'cache-manager';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 interface IpRateLimitInfo {
   count: number;
@@ -35,7 +35,6 @@ export class IpRateLimitGuard implements CanActivate {
   private readonly hardLimit: number;
   private readonly windowMs: number;
   private readonly blockDurationMs: number;
-  private readonly progressiveDelayMs: number;
   private readonly trustProxyHeaders: boolean;
 
   constructor(
@@ -67,10 +66,6 @@ export class IpRateLimitGuard implements CanActivate {
       this.configService.get<number>('RATE_LIMIT_BLOCK_SECONDS') || 900;
     this.blockDurationMs = blockSeconds * 1000;
 
-    // 500ms progressive delay per request over soft limit
-    this.progressiveDelayMs =
-      this.configService.get<number>('RATE_LIMIT_DELAY_MS') || 500;
-
     // Only trust proxy headers when explicitly enabled
     this.trustProxyHeaders =
       this.configService.get<string>('TRUST_PROXY') === 'true';
@@ -78,6 +73,7 @@ export class IpRateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
+    const response = context.switchToHttp().getResponse<Response>();
     const ip = this.getClientIp(request);
     const key = `ip_rate:${ip}`;
 
@@ -88,6 +84,7 @@ export class IpRateLimitGuard implements CanActivate {
     // Check if IP is blocked
     if (info?.blocked && info.blockedUntil && info.blockedUntil > now) {
       const remainingSecs = Math.ceil((info.blockedUntil - now) / 1000);
+      response?.setHeader?.('Retry-After', String(remainingSecs));
       throw new HttpException(
         `Too many requests. IP blocked for ${remainingSecs} seconds.`,
         HttpStatus.TOO_MANY_REQUESTS,
@@ -108,26 +105,41 @@ export class IpRateLimitGuard implements CanActivate {
       if (info.count > this.hardLimit) {
         info.blocked = true;
         info.blockedUntil = now + this.blockDurationMs;
-        // cache-manager expects TTL in milliseconds
         await this.cacheManager.set(key, info, this.blockDurationMs);
         this.logger.warn(
           `IP ${ip} blocked for exceeding rate limit (${info.count} requests)`,
         );
+
+        const remainingSecs = Math.ceil(this.blockDurationMs / 1000);
+        response?.setHeader?.('Retry-After', String(remainingSecs));
         throw new HttpException(
           `Rate limit exceeded. IP blocked for ${this.blockDurationMs / 60000} minutes.`,
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
 
-      // Check soft limit - apply progressive delay
+      // Check soft limit - reject instead of server-side sleeping (avoids self-DoS)
       if (info.count > this.softLimit) {
-        const delayMultiplier = info.count - this.softLimit;
-        const delay = Math.min(delayMultiplier * this.progressiveDelayMs, 5000); // Max 5s delay
-        await this.sleep(delay);
+        const windowRemainingMs = Math.max(
+          0,
+          this.windowMs - (now - info.firstRequest),
+        );
+        const retryAfterSeconds = Math.max(
+          1,
+          Math.ceil(windowRemainingMs / 1000),
+        );
+        response?.setHeader?.('Retry-After', String(retryAfterSeconds));
+        throw new HttpException(
+          {
+            message: 'Too many requests',
+            retryAfterSeconds,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
       }
     }
 
-    // Update cache - cache-manager expects TTL in milliseconds
+    // Update cache
     await this.cacheManager.set(key, info, this.windowMs);
 
     return true;
@@ -146,9 +158,5 @@ export class IpRateLimitGuard implements CanActivate {
       }
     }
     return request.ip || request.socket?.remoteAddress || 'unknown';
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

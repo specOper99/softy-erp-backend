@@ -14,10 +14,10 @@ describe('IpRateLimitGuard', () => {
           return 50;
         case 'RATE_LIMIT_HARD':
           return 100;
-        case 'RATE_LIMIT_WINDOW_MS':
-          return 60000;
-        case 'RATE_LIMIT_BLOCK_MS':
-          return 900000;
+        case 'RATE_LIMIT_WINDOW_SECONDS':
+          return 60;
+        case 'RATE_LIMIT_BLOCK_SECONDS':
+          return 900;
         case 'RATE_LIMIT_DELAY_MS':
           return 500;
         default:
@@ -50,12 +50,16 @@ describe('IpRateLimitGuard', () => {
   });
 
   const createMockContext = (ip: string) => {
+    const setHeader = jest.fn();
     return {
       switchToHttp: () => ({
         getRequest: () => ({
           ip,
           headers: {},
           socket: { remoteAddress: ip },
+        }),
+        getResponse: () => ({
+          setHeader,
         }),
       }),
     } as unknown as ExecutionContext;
@@ -85,5 +89,16 @@ describe('IpRateLimitGuard', () => {
       expect.objectContaining({ blocked: true }),
       expect.any(Number),
     );
+  });
+
+  it('should return 429 when soft limit exceeded (no server-side sleep)', async () => {
+    mockCacheManager.get.mockResolvedValue({
+      count: 50,
+      firstRequest: Date.now(),
+      blocked: false,
+    });
+    const context = createMockContext('127.0.0.1');
+
+    await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
   });
 });
