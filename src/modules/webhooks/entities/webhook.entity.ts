@@ -12,6 +12,6 @@ export class Webhook extends BaseTenantEntity {
   @Column('simple-array')
   events: string[];
 
-  @Column({ default: true })
+  @Column({ name: 'is_active', default: true })
   isActive: boolean;
 }
