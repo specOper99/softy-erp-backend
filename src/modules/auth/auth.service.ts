@@ -66,8 +66,8 @@ export class AuthService {
     // 1. Generate slug and validate
     const slug = registerDto.companyName
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
+      .replaceAll(/[^a-z0-9]+/g, '-')
+      .replaceAll(/(^-)|(-$)/g, '');
 
     // 2. Use transaction to ensure atomicity of tenant + user creation
     const queryRunner = this.dataSource.createQueryRunner();

@@ -115,7 +115,7 @@ export class StorageService implements OnModuleInit {
     const ext = originalName.split('.').pop() || '';
     const sanitizedName = originalName
       .replace(/\.[^/.]+$/, '') // Remove extension
-      .replace(/[^a-zA-Z0-9-_]/g, '_') // Sanitize
+      .replaceAll(/[^a-zA-Z0-9-_]/g, '_') // Sanitize
       .substring(0, 50); // Limit length
 
     return `${prefix}/${timestamp}-${randomPart}-${sanitizedName}.${ext}`;
