@@ -64,13 +64,13 @@ export class TasksController {
 
   @Patch(':id/start')
   @ApiOperation({ summary: 'Start task (changes status to IN_PROGRESS)' })
-  start(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tasksService.startTask(id);
+  start(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.tasksService.startTask(id, user);
   }
 
   @Patch(':id/complete')
   @ApiOperation({ summary: 'Complete task (accrues commission to wallet)' })
-  complete(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tasksService.completeTask(id);
+  complete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.tasksService.completeTask(id, user);
   }
 }

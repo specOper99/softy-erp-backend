@@ -85,15 +85,15 @@ describe('TasksController', () => {
 
   describe('start', () => {
     it('should call service.startTask', async () => {
-      await controller.start('uuid');
-      expect(service.startTask).toHaveBeenCalledWith('uuid');
+      await controller.start('uuid', mockUser);
+      expect(service.startTask).toHaveBeenCalledWith('uuid', mockUser);
     });
   });
 
   describe('complete', () => {
     it('should call service.completeTask', async () => {
-      await controller.complete('uuid');
-      expect(service.completeTask).toHaveBeenCalledWith('uuid');
+      await controller.complete('uuid', mockUser);
+      expect(service.completeTask).toHaveBeenCalledWith('uuid', mockUser);
     });
   });
 });

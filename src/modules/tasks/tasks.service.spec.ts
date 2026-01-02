@@ -1,8 +1,12 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { TaskStatus } from '../../common/enums';
+import { Role, TaskStatus } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { FinanceService } from '../finance/services/finance.service';
@@ -12,6 +16,9 @@ import { TasksService } from './tasks.service';
 
 describe('TasksService - Comprehensive Tests', () => {
   let service: TasksService;
+
+  const adminUser = { id: 'admin-uuid', role: Role.ADMIN } as any;
+  const staffUser = { id: 'staff-uuid', role: Role.FIELD_STAFF } as any;
 
   const mockTask = {
     id: 'task-uuid-123',
@@ -287,7 +294,7 @@ describe('TasksService - Comprehensive Tests', () => {
   // ============ START TASK TESTS ============
   describe('startTask', () => {
     it('should start pending task', async () => {
-      const result = await service.startTask('task-uuid-123');
+      const result = await service.startTask('task-uuid-123', adminUser);
       expect(result.status).toBe(TaskStatus.IN_PROGRESS);
     });
 
@@ -296,9 +303,9 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         status: TaskStatus.IN_PROGRESS,
       });
-      await expect(service.startTask('task-uuid-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.startTask('task-uuid-123', adminUser),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject starting completed task', async () => {
@@ -306,15 +313,45 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         status: TaskStatus.COMPLETED,
       });
-      await expect(service.startTask('task-uuid-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.startTask('task-uuid-123', adminUser),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException for non-existent task', async () => {
-      await expect(service.startTask('invalid-id')).rejects.toThrow(
+      await expect(service.startTask('invalid-id', adminUser)).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should forbid field staff from starting unassigned task', async () => {
+      mockTaskRepository.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        assignedUserId: null,
+      });
+      await expect(
+        service.startTask('task-uuid-123', staffUser),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("should forbid field staff from starting someone else's task", async () => {
+      mockTaskRepository.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        assignedUserId: 'another-user',
+      });
+      await expect(
+        service.startTask('task-uuid-123', staffUser),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow field staff to start own assigned task', async () => {
+      mockTaskRepository.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        assignedUserId: 'staff-uuid',
+        status: TaskStatus.PENDING,
+      });
+      const result = await service.startTask('task-uuid-123', staffUser);
+      expect(result.status).toBe(TaskStatus.IN_PROGRESS);
     });
   });
 
@@ -335,7 +372,7 @@ describe('TasksService - Comprehensive Tests', () => {
         commissionSnapshot: 100.0, // Ensure logic sees 100
       });
 
-      const result = await service.completeTask('task-uuid-123');
+      const result = await service.completeTask('task-uuid-123', adminUser);
       expect(result.commissionAccrued).toBe(100.0);
       expect(result.walletUpdated).toBe(true);
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
@@ -354,7 +391,7 @@ describe('TasksService - Comprehensive Tests', () => {
         commissionSnapshot: 100.0,
       });
 
-      const result = await service.completeTask('task-uuid-123');
+      const result = await service.completeTask('task-uuid-123', adminUser);
       expect(result.commissionAccrued).toBe(100.0);
     });
 
@@ -369,9 +406,9 @@ describe('TasksService - Comprehensive Tests', () => {
       // Relations call
       mockQueryRunner.manager.findOne.mockResolvedValueOnce(completedTask);
 
-      await expect(service.completeTask('task-uuid-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.completeTask('task-uuid-123', adminUser),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject completing unassigned task', async () => {
@@ -411,9 +448,9 @@ describe('TasksService - Comprehensive Tests', () => {
         assignedUser: null,
       });
 
-      await expect(service.completeTask('task-uuid-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.completeTask('task-uuid-123', adminUser),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should handle zero commission task', async () => {
@@ -429,7 +466,7 @@ describe('TasksService - Comprehensive Tests', () => {
         commissionSnapshot: 0,
       });
 
-      const result = await service.completeTask('task-uuid-123');
+      const result = await service.completeTask('task-uuid-123', adminUser);
       expect(result.commissionAccrued).toBe(0);
       expect(result.walletUpdated).toBe(false);
     });
@@ -446,7 +483,7 @@ describe('TasksService - Comprehensive Tests', () => {
         status: TaskStatus.IN_PROGRESS,
       });
 
-      await service.completeTask('task-uuid-123');
+      await service.completeTask('task-uuid-123', adminUser);
       const savedTask = mockQueryRunner.manager.save.mock.calls[0][0];
       expect(savedTask.completedAt).toBeInstanceOf(Date);
     });
@@ -466,17 +503,17 @@ describe('TasksService - Comprehensive Tests', () => {
       mockFinanceService.moveToPayable.mockRejectedValueOnce(
         new Error('Wallet error'),
       );
-      await expect(service.completeTask('task-uuid-123')).rejects.toThrow(
-        'Wallet error',
-      );
+      await expect(
+        service.completeTask('task-uuid-123', adminUser),
+      ).rejects.toThrow('Wallet error');
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for non-existent task', async () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce(null);
-      await expect(service.completeTask('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.completeTask('invalid-id', adminUser),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should handle high commission amount', async () => {
@@ -491,8 +528,28 @@ describe('TasksService - Comprehensive Tests', () => {
         commissionSnapshot: 9999.99,
       });
 
-      const result = await service.completeTask('task-uuid-123');
+      const result = await service.completeTask('task-uuid-123', adminUser);
       expect(result.commissionAccrued).toBe(9999.99);
+    });
+
+    it("should forbid field staff from completing someone else's task", async () => {
+      // Lock call
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+      });
+      // Relations call with a different assigned user
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: 'another-user',
+      });
+
+      await expect(
+        service.completeTask('task-uuid-123', staffUser),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,7 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import { TaskStatus } from '../../common/enums';
+import { Role, TaskStatus } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from '../audit/audit.service';
 import { Client } from '../bookings/entities/client.entity';
@@ -215,8 +216,10 @@ export class TasksService {
     }
   }
 
-  async startTask(id: string): Promise<Task> {
+  async startTask(id: string, user: User): Promise<Task> {
     const task = await this.findOne(id);
+
+    this.assertCanUpdateTaskStatus(user, task);
 
     if (task.status !== TaskStatus.PENDING) {
       throw new BadRequestException(
@@ -247,7 +250,7 @@ export class TasksService {
    * 4. Move commission_snapshot to EmployeeWallet.payable_balance
    * 5. Rollback all on failure
    */
-  async completeTask(id: string): Promise<CompleteTaskResponseDto> {
+  async completeTask(id: string, user: User): Promise<CompleteTaskResponseDto> {
     const tenantId = TenantContextService.getTenantId();
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -277,6 +280,8 @@ export class TasksService {
       if (!task) {
         throw new NotFoundException(`Task with ID ${id} not found`);
       }
+
+      this.assertCanUpdateTaskStatus(user, task);
 
       if (task.status === TaskStatus.COMPLETED) {
         throw new BadRequestException('Task is already completed');
@@ -333,5 +338,27 @@ export class TasksService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private assertCanUpdateTaskStatus(user: User, task: Task): void {
+    if (!user) {
+      throw new ForbiddenException('User context is required');
+    }
+
+    if (user.role === Role.ADMIN || user.role === Role.OPS_MANAGER) {
+      return;
+    }
+
+    if (user.role === Role.FIELD_STAFF) {
+      if (!task.assignedUserId) {
+        throw new ForbiddenException('Task is not assigned');
+      }
+      if (task.assignedUserId !== user.id) {
+        throw new ForbiddenException('Not allowed to modify this task');
+      }
+      return;
+    }
+
+    throw new ForbiddenException('Not allowed');
   }
 }
