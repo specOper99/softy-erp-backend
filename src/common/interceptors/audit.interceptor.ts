@@ -14,7 +14,7 @@ import { TenantContextService } from '../services/tenant-context.service';
 interface User {
   sub?: string;
   userId?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface AuditLogData {
@@ -46,7 +46,7 @@ export class AuditInterceptor implements NestInterceptor {
     private readonly auditService: AuditService,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const auditOptions = this.reflector.get<AuditOptions>(
       AUDIT_KEY,
       context.getHandler(),
@@ -94,10 +94,9 @@ export class AuditInterceptor implements NestInterceptor {
     user: User,
     status: 'SUCCESS' | 'FAILURE',
     durationMs: number,
-    response?: any,
+    response?: unknown,
     error?: string,
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const auditData: AuditLogData = {
       action: options.action,
       resource: options.resource,
@@ -110,11 +109,13 @@ export class AuditInterceptor implements NestInterceptor {
       userAgent: request.headers['user-agent'],
       status,
       durationMs,
-      ...(options.includeBody && {
-        requestBody: this.sanitizeBody(request.body) as unknown,
-      }),
-      ...(response && { responseData: response as unknown }),
-      ...(error && { error }),
+      ...(options.includeBody &&
+      typeof request.body === 'object' &&
+      request.body !== null
+        ? { requestBody: this.sanitizeBody(request.body) }
+        : {}),
+      ...(response !== undefined ? { responseData: response } : {}),
+      ...(error ? { error } : {}),
       timestamp: new Date().toISOString(),
     };
 
@@ -134,9 +135,12 @@ export class AuditInterceptor implements NestInterceptor {
     }
   }
 
-  private sanitizeBody(body: any): any {
+  private sanitizeBody(body: unknown): unknown {
     if (!body) return undefined;
-    const sanitized = { ...body } as Record<string, any>;
+    const sanitized = { ...(body as Record<string, unknown>) } as Record<
+      string,
+      unknown
+    >;
     // Remove sensitive fields
     delete sanitized.password;
     delete sanitized.currentPassword;

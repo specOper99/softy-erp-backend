@@ -30,7 +30,7 @@ interface LogContext {
 export class StructuredLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
     const startTime = Date.now();
@@ -57,7 +57,7 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
           logContext.duration = Date.now() - startTime;
           this.logRequest(logContext);
         },
-        error: (error: any) => {
+        error: (error: unknown) => {
           logContext.statusCode = (error as { status?: number }).status || 500;
           logContext.duration = Date.now() - startTime;
           this.logRequest(logContext, error as Error);

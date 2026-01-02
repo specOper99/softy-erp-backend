@@ -167,7 +167,7 @@ class EnvironmentVariables {
   VAULT_ENABLED?: string;
 }
 
-export function validate(config: Record<string, any>) {
+export function validate(config: Record<string, unknown>) {
   const isProd = config.NODE_ENV === 'production';
 
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {

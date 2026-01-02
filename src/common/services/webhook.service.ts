@@ -12,7 +12,7 @@ export interface WebhookEvent {
     | 'task.completed'
     | 'payroll.processed';
   tenantId: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   timestamp: string;
 }
 

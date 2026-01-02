@@ -47,7 +47,7 @@ export class IpRateLimitGuard implements CanActivate {
         async get<T>(_key: string): Promise<T | undefined> {
           return await Promise.resolve(undefined);
         },
-        async set(_key: string, _value: any, _ttl?: number): Promise<void> {
+        async set(_key: string, _value: unknown, _ttl?: number): Promise<void> {
           await Promise.resolve();
         },
       } as unknown as Cache;

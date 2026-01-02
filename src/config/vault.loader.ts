@@ -9,7 +9,7 @@ interface VaultLoginResponse {
 interface VaultReadResponse {
   data: {
     data?: Record<string, string>;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

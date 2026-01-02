@@ -16,7 +16,7 @@ export class ApiVersionInterceptor implements NestInterceptor {
   private readonly currentVersion = '1.0.0';
   private readonly minVersion = '1.0.0';
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const response = context.switchToHttp().getResponse<Response>();
 
     // Add version headers to all responses

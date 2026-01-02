@@ -17,8 +17,8 @@ export class AuditService {
       action: string;
       entityName: string;
       entityId: string;
-      oldValues?: any;
-      newValues?: any;
+      oldValues?: unknown;
+      newValues?: unknown;
       notes?: string;
     },
     manager?: EntityManager,
