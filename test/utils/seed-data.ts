@@ -209,19 +209,12 @@ export async function seedTestDatabase(dataSource: DataSource) {
   }
 
   // 6. Create Client
-  console.log('SEED DEBUG: Starting Client seeding phase');
   const clientEmail = 'test.client@example.com';
   try {
-    console.log('SEED DEBUG: Finding client by email:', clientEmail);
     let client = await clientRepo.findOne({
       where: { email: clientEmail, tenantId },
     });
-    console.log(
-      'SEED DEBUG: Client search result:',
-      client ? 'Found' : 'Not Found',
-    );
     if (!client) {
-      console.log('SEED DEBUG: Creating new client object');
       try {
         client = await clientRepo.save(
           clientRepo.create({
@@ -231,33 +224,19 @@ export async function seedTestDatabase(dataSource: DataSource) {
             tenantId,
           }),
         );
-        console.log('SEED DEBUG: Client saved successfully');
-      } catch (saveError: unknown) {
-        console.error(
-          'SEED DEBUG: Client save failed:',
-          saveError instanceof Error ? saveError.message : String(saveError),
-        );
-        console.log('SEED DEBUG: Retrying client find after save failure');
+      } catch {
         client = (await clientRepo.findOne({
           where: { email: clientEmail, tenantId },
         })) as Client;
-        console.log(
-          'SEED DEBUG: Client retry find result:',
-          client ? 'Found' : 'Not Found',
-        );
       }
     }
 
-    console.log('SEED DEBUG: Seeding finished successfully');
     return { tenantId, admin, staff, pkg, taskType, client };
   } catch (outerError: unknown) {
     console.error(
-      'SEED DEBUG: CRITICAL ERROR IN SEEDER:',
+      'Seeder error:',
       outerError instanceof Error ? outerError.message : String(outerError),
     );
-    if (outerError instanceof Error && outerError.stack) {
-      console.error(outerError.stack);
-    }
     throw outerError;
   }
 }
