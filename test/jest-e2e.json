@@ -12,7 +12,7 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "transformIgnorePatterns": [
-    "node_modules/(?!(uuid)/)"
+    "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
   ],
   "moduleDirectories": [
     "node_modules",
