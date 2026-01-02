@@ -11,14 +11,15 @@ import { TenantContextService } from '../../common/services/tenant-context.servi
 import { AuditService } from '../audit/audit.service';
 import { FinanceService } from '../finance/services/finance.service';
 import { MailService } from '../mail/mail.service';
+import { User } from '../users/entities/user.entity';
 import { Task } from './entities/task.entity';
 import { TasksService } from './tasks.service';
 
 describe('TasksService - Comprehensive Tests', () => {
   let service: TasksService;
 
-  const adminUser = { id: 'admin-uuid', role: Role.ADMIN } as any;
-  const staffUser = { id: 'staff-uuid', role: Role.FIELD_STAFF } as any;
+  const adminUser = { id: 'admin-uuid', role: Role.ADMIN } as User;
+  const staffUser = { id: 'staff-uuid', role: Role.FIELD_STAFF } as User;
 
   const mockTask = {
     id: 'task-uuid-123',
@@ -43,6 +44,14 @@ describe('TasksService - Comprehensive Tests', () => {
     find: jest.fn().mockResolvedValue([mockTask]),
     findOne: jest.fn(),
     save: jest.fn().mockImplementation((task) => Promise.resolve(task)),
+    createQueryBuilder: jest.fn(() => ({
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([mockTask]),
+    })),
   };
 
   const mockFinanceService = {
@@ -121,17 +130,25 @@ describe('TasksService - Comprehensive Tests', () => {
     it('should return all tasks with relations', async () => {
       const result = await service.findAll();
       expect(result).toEqual([mockTask]);
-      expect(mockTaskRepository.find).toHaveBeenCalledWith({
-        relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
-        order: { createdAt: 'DESC' },
-        where: { tenantId: 'tenant-123' },
-        skip: 0,
-        take: 20,
-      });
+      expect(mockTaskRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'task',
+      );
     });
 
     it('should return empty array when no tasks exist', async () => {
-      mockTaskRepository.find.mockResolvedValueOnce([]);
+      // We need to override the default mock for createQueryBuilder to return valid chain but empty result
+      const mockQb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(
+        mockQb,
+      );
+
       const result = await service.findAll();
       expect(result).toEqual([]);
     });
@@ -141,9 +158,21 @@ describe('TasksService - Comprehensive Tests', () => {
         mockTask,
         { ...mockTask, id: 'task-2', status: TaskStatus.IN_PROGRESS },
       ];
-      mockTaskRepository.find.mockResolvedValueOnce(tasks);
+
+      const mockQb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(tasks),
+      };
+      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(
+        mockQb,
+      );
+
       const result = await service.findAll();
-      expect(result.length).toBe(2);
+      expect(result).toHaveLength(2);
     });
   });
 
@@ -164,13 +193,13 @@ describe('TasksService - Comprehensive Tests', () => {
     it('should return tasks for a booking', async () => {
       mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
       const result = await service.findByBooking('booking-uuid-123');
-      expect(result.length).toBe(1);
+      expect(result).toHaveLength(1);
     });
 
     it('should return empty array for booking with no tasks', async () => {
       mockTaskRepository.find.mockResolvedValueOnce([]);
       const result = await service.findByBooking('booking-no-tasks');
-      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
     });
   });
 

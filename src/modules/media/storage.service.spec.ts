@@ -1,6 +1,7 @@
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Readable } from 'stream';
 import { StorageService } from './storage.service';
 
 const mockSend = jest.fn();
@@ -138,7 +139,8 @@ describe('StorageService', () => {
 
   describe('getFileStream', () => {
     it('should get file stream', async () => {
-      const mockStream = { on: jest.fn() };
+      const mockStream = new Readable();
+      mockStream._read = jest.fn();
       mockSend.mockResolvedValue({
         Body: mockStream,
       });

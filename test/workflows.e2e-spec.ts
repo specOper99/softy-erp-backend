@@ -10,7 +10,9 @@ import {
   TransactionType,
 } from '../src/common/enums';
 import { TransformInterceptor } from '../src/common/interceptors';
+import { Transaction } from '../src/modules/finance/entities/transaction.entity';
 import { MailService } from '../src/modules/mail/mail.service';
+import { Task } from '../src/modules/tasks/entities/task.entity';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests
@@ -71,8 +73,8 @@ describe('Workflow Integration Tests (E2E)', () => {
 
     // Seed Test DB and Get Tenant ID and Client
     const { tenantId, client } = await seedTestDatabase(_dataSource);
-    (global as any).testTenantId = tenantId;
-    (global as any).testClientId = client.id;
+    (global as unknown as { testTenantId: string }).testTenantId = tenantId;
+    (global as unknown as { testClientId: string }).testClientId = client.id;
 
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
@@ -123,7 +125,8 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
 
         .send({
-          clientId: (global as any).testClientId,
+          clientId: (global as unknown as { testClientId: string })
+            .testClientId,
           eventDate: eventDate.toISOString(),
           packageId: packageId,
           notes: 'E2E workflow test booking',
@@ -170,7 +173,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       // Handle wrapped response format { data: [...] }
       const tasks = res.body.data || res.body;
       const bookingTasks = Array.isArray(tasks)
-        ? tasks.filter((t: any) => t.bookingId === bookingId)
+        ? tasks.filter((t: Task) => t.bookingId === bookingId)
         : [];
       expect(bookingTasks.length).toBeGreaterThan(0);
       expect(bookingTasks[0].status).toBe(TaskStatus.PENDING);
@@ -190,7 +193,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       const transactions = res.body.data || res.body;
       const bookingTransaction = Array.isArray(transactions)
         ? transactions.find(
-            (t: any) =>
+            (t: Transaction) =>
               t.bookingId === bookingId && t.type === TransactionType.INCOME,
           )
         : undefined;
@@ -210,7 +213,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       // Handle wrapped response format { data: [...] }
       const tasks = tasksRes.body.data || tasksRes.body;
       const pendingTask = Array.isArray(tasks)
-        ? tasks.find((t: any) => t.status === TaskStatus.PENDING)
+        ? tasks.find((t: Task) => t.status === TaskStatus.PENDING)
         : undefined;
 
       if (pendingTask) {
