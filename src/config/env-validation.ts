@@ -66,6 +66,12 @@ class EnvironmentVariables {
   @IsOptional()
   METRICS_TOKEN?: string;
 
+  // Reverse proxy / ingress (Express trust proxy)
+  // Set TRUST_PROXY=true when running behind a reverse proxy (e.g., Kubernetes ingress)
+  @IsString()
+  @IsOptional()
+  TRUST_PROXY?: string;
+
   @IsString()
   @IsOptional()
   AWS_S3_REGION?: string;
