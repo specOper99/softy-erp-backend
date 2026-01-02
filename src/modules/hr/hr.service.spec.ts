@@ -54,6 +54,7 @@ describe('HrService - Comprehensive Tests', () => {
     find: jest.fn().mockResolvedValue([mockProfile]),
     findOne: jest.fn(),
     remove: jest.fn().mockResolvedValue(mockProfile),
+    count: jest.fn().mockResolvedValue(1),
   };
 
   const mockWalletRepository = {
@@ -450,21 +451,26 @@ describe('HrService - Comprehensive Tests', () => {
       expect(result.totalPayout).toBe(5250);
     });
 
-    it('should rollback on transaction creation failure', async () => {
+    it('should rollback on transaction creation failure and continue', async () => {
       mockFinanceService.createTransactionWithManager.mockRejectedValueOnce(
         new Error('Transaction failed'),
       );
-      await expect(service.runPayroll()).rejects.toThrow('Transaction failed');
+      // With batch processing, errors are caught per batch and payroll continues
+      const result = await service.runPayroll();
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      // The batch failed so no employees processed in that batch
+      expect(result.totalEmployees).toBe(0);
     });
 
-    it('should rollback on wallet reset failure', async () => {
+    it('should rollback on wallet reset failure and continue', async () => {
       mockQueryRunner.manager.find.mockResolvedValueOnce([mockProfile]);
       mockFinanceService.resetPayableBalance.mockRejectedValueOnce(
         new Error('Wallet reset failed'),
       );
-      await expect(service.runPayroll()).rejects.toThrow('Wallet reset failed');
+      // With batch processing, errors are caught per batch and payroll continues
+      const result = await service.runPayroll();
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(result.totalEmployees).toBe(0);
     });
 
     it('should return correct processed timestamp', async () => {

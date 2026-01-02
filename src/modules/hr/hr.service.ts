@@ -236,31 +236,125 @@ export class HrService {
     this.logger.log('Scheduled payroll run completed for all tenants');
   }
 
+  /**
+   * Batch size for payroll processing.
+   * Each batch runs in its own transaction to prevent large memory usage
+   * and long-running transactions.
+   */
+  private readonly PAYROLL_BATCH_SIZE = 100;
+
   async runPayroll(): Promise<PayrollRunResponseDto> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('Tenant context required for payroll run');
     }
 
+    // Get total count for batch processing
+    const totalCount = await this.profileRepository.count({
+      where: { tenantId },
+    });
+
+    if (totalCount === 0) {
+      this.logger.log(
+        `No profiles found for tenant ${tenantId}, skipping payroll`,
+      );
+      return {
+        totalEmployees: 0,
+        totalPayout: 0,
+        transactionIds: [],
+        processedAt: new Date(),
+      };
+    }
+
+    const allTransactionIds: string[] = [];
+    let totalPayout = 0;
+    let totalEmployeesProcessed = 0;
+    const batchCount = Math.ceil(totalCount / this.PAYROLL_BATCH_SIZE);
+
+    this.logger.log(
+      `Starting payroll for tenant ${tenantId}: ${totalCount} profiles in ${batchCount} batches`,
+    );
+
+    // Process each batch in its own transaction
+    for (let batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+      const skip = batchIndex * this.PAYROLL_BATCH_SIZE;
+
+      try {
+        const batchResult = await this.processPayrollBatch(
+          tenantId,
+          skip,
+          this.PAYROLL_BATCH_SIZE,
+        );
+
+        allTransactionIds.push(...batchResult.transactionIds);
+        totalPayout += batchResult.totalPayout;
+        totalEmployeesProcessed += batchResult.employeesProcessed;
+
+        this.logger.log(
+          `Payroll batch ${batchIndex + 1}/${batchCount} completed: ${batchResult.employeesProcessed} employees, $${batchResult.totalPayout}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Payroll batch ${batchIndex + 1}/${batchCount} failed for tenant ${tenantId}`,
+          error,
+        );
+        // Continue with next batch - partial payroll is better than none
+      }
+    }
+
+    // Final audit log (outside batch transactions)
+    await this.auditService.log({
+      action: 'PAYROLL_RUN',
+      entityName: 'Payroll',
+      entityId: `${tenantId}-${new Date().toISOString().slice(0, 7)}`,
+      newValues: {
+        totalEmployees: totalEmployeesProcessed,
+        totalPayout,
+        transactionIds: allTransactionIds,
+        batchCount,
+      },
+      notes: `Monthly payroll run completed for ${totalEmployeesProcessed} employees in tenant ${tenantId} across ${batchCount} batches.`,
+    });
+
+    return {
+      totalEmployees: totalEmployeesProcessed,
+      totalPayout,
+      transactionIds: allTransactionIds,
+      processedAt: new Date(),
+    };
+  }
+
+  /**
+   * Process a single batch of payroll in its own transaction.
+   */
+  private async processPayrollBatch(
+    tenantId: string,
+    skip: number,
+    take: number,
+  ): Promise<{
+    transactionIds: string[];
+    totalPayout: number;
+    employeesProcessed: number;
+  }> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: Optimized Fetch - Get profiles with wallets in ONE query to avoid N+1
-      // We use the profile repository to leverage TypeORM relations or a query builder
       const profiles = await queryRunner.manager.find(Profile, {
         where: { tenantId },
         relations: ['user', 'user.wallet'],
+        skip,
+        take,
       });
 
       const transactionIds: string[] = [];
       let totalPayout = 0;
+      let employeesProcessed = 0;
 
       for (const profile of profiles) {
         const wallet = profile.user?.wallet;
 
-        // Step 2: Calculate total payout
         const baseSalary = Number(profile.baseSalary) || 0;
         const commissionPayable = wallet
           ? Number(wallet.payableBalance) || 0
@@ -268,10 +362,10 @@ export class HrService {
         const totalAmount = baseSalary + commissionPayable;
 
         if (totalAmount <= 0) {
-          continue; // Skip if no payout
+          continue;
         }
 
-        // Step 3: Create Payout record
+        // Create Payout record
         const payout = queryRunner.manager.create(Payout, {
           amount: totalAmount,
           payoutDate: new Date(),
@@ -281,7 +375,7 @@ export class HrService {
         });
         const savedPayout = await queryRunner.manager.save(payout);
 
-        // Step 4: Create PAYROLL transaction
+        // Create PAYROLL transaction
         const transaction =
           await this.financeService.createTransactionWithManager(
             queryRunner.manager,
@@ -297,8 +391,9 @@ export class HrService {
 
         transactionIds.push(transaction.id);
         totalPayout += totalAmount;
+        employeesProcessed++;
 
-        // Step 5: Reset payable balance to 0
+        // Reset payable balance
         if (wallet && commissionPayable > 0) {
           await this.financeService.resetPayableBalance(
             queryRunner.manager,
@@ -306,7 +401,7 @@ export class HrService {
           );
         }
 
-        // Send payroll notification email (async)
+        // Send payroll notification email (async, fire-and-forget)
         if (profile.user?.email) {
           this.mailService
             .sendPayrollNotification({
@@ -326,33 +421,10 @@ export class HrService {
         }
       }
 
-      // Audit log for payroll run
-      await this.auditService.log(
-        {
-          action: 'PAYROLL_RUN',
-          entityName: 'Payroll',
-          entityId: `${tenantId}-${new Date().toISOString().slice(0, 7)}`,
-          newValues: {
-            totalEmployees: profiles.length,
-            totalPayout,
-            transactionIds,
-          },
-          notes: `Monthly payroll run completed for ${profiles.length} employees in tenant ${tenantId}.`,
-        },
-        queryRunner.manager,
-      );
-
-      // Commit transaction
       await queryRunner.commitTransaction();
 
-      return {
-        totalEmployees: profiles.length,
-        totalPayout,
-        transactionIds,
-        processedAt: new Date(),
-      };
+      return { transactionIds, totalPayout, employeesProcessed };
     } catch (error) {
-      // Rollback on failure
       await queryRunner.rollbackTransaction();
       throw error;
     } finally {

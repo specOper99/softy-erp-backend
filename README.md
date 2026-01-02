@@ -51,6 +51,7 @@ npm run start:dev
 - 🛡️ **Stored XSS Protection** - `@SanitizeHtml` decorator for automatic sanitization of user-provided content.
 - 🛡️ **Account Lockout** - Progressive account locking to thwart brute-force attacks.
 - 🛡️ **Rate Limiting** - Advanced `IpRateLimitGuard` with IP-based throttling.
+- 🛡️ **Encrypted Secrets** - Webhook secrets encrypted at rest using AES-256-GCM.
 - ✅ **Health Checks** - Terminus-based DB, Redis, and Memory probes.
 - ✅ **Structured Logging** - Winston-based JSON logs including correlation IDs and tenant context.
 - ✅ **Telemetry** - OpenTelemetry + Zipkin for distributed tracing.
@@ -58,6 +59,15 @@ npm run start:dev
 - ✅ **Secrets Management** - Integrated support for HashiCorp Vault.
 - ✅ **Docker** - Optimized multi-stage production images using `node:alpine`.
 - ✅ **CI/CD** - Automated pipelines for Lint, Test, and Container publishing.
+
+### Tenant Context
+
+The system uses `AsyncLocalStorage` for tenant context propagation, ensuring all database queries are tenant-scoped:
+
+- **Static API**: `TenantContextService.getTenantId()` - Direct access (used internally)
+- **Injectable API**: `TenantContextProvider` - DI-friendly wrapper for easier testing
+
+See [OPERATIONS.md](./OPERATIONS.md) for production deployment guide, environment variables, and health checks.
 
 ## 🛠 Scripts
 
