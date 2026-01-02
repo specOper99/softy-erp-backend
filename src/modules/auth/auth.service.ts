@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { DataSource, LessThan, MoreThan, Repository } from 'typeorm';
 import { Role } from '../../common/enums';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -217,32 +218,34 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    // ATOMIC Token rotation: update with conditions and check affected rows
-    // This prevents race conditions where two concurrent requests could both succeed
-    const updateResult = await this.refreshTokenRepository.update(
-      {
-        id: storedToken.id,
-        isRevoked: false,
-        expiresAt: MoreThan(new Date()),
-      },
-      {
-        isRevoked: true,
-        lastUsedAt: new Date(),
-      },
-    );
-
-    // If no rows were affected, another request already rotated this token
-    if (updateResult.affected === 0) {
-      this.logger.warn(
-        `Refresh token race condition detected for user ${storedToken.userId}`,
+    // Establish tenant context based on the refresh token's user.
+    // This makes refresh flows tenant-aware without requiring an access token.
+    return TenantContextService.run(user.tenantId, async () => {
+      // ATOMIC Token rotation: update with conditions and check affected rows
+      // This prevents race conditions where two concurrent requests could both succeed
+      const updateResult = await this.refreshTokenRepository.update(
+        {
+          id: storedToken.id,
+          isRevoked: false,
+          expiresAt: MoreThan(new Date()),
+        },
+        {
+          isRevoked: true,
+          lastUsedAt: new Date(),
+        },
       );
-      throw new UnauthorizedException('Refresh token already used');
-    }
 
-    // Generate new tokens
-    const tokens = await this.generateTokens(user, context);
+      // If no rows were affected, another request already rotated this token
+      if (updateResult.affected === 0) {
+        this.logger.warn(
+          `Refresh token race condition detected for user ${storedToken.userId}`,
+        );
+        throw new UnauthorizedException('Refresh token already used');
+      }
 
-    return tokens;
+      // Generate new tokens
+      return this.generateTokens(user, context);
+    });
   }
 
   async logout(userId: string, refreshToken?: string): Promise<void> {

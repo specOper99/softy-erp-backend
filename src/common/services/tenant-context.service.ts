@@ -7,8 +7,8 @@ import { AsyncLocalStorage } from 'async_hooks';
 export class TenantContextService {
   private static readonly storage = new AsyncLocalStorage<string>();
 
-  static run(tenantId: string, callback: () => void) {
-    this.storage.run(tenantId, callback);
+  static run<T>(tenantId: string, callback: () => T): T {
+    return this.storage.run(tenantId, callback);
   }
 
   static getTenantId(): string | undefined {
