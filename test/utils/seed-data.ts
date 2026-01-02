@@ -270,10 +270,10 @@ export async function seedTestDatabase(dataSource: DataSource) {
           }),
         );
         console.log('SEED DEBUG: Client saved successfully');
-      } catch (saveError: any) {
+      } catch (saveError: unknown) {
         console.error(
           'SEED DEBUG: Client save failed:',
-          saveError.message || saveError,
+          saveError instanceof Error ? saveError.message : String(saveError),
         );
         console.log('SEED DEBUG: Retrying client find after save failure');
         client = (await clientRepo.findOne({
@@ -288,12 +288,14 @@ export async function seedTestDatabase(dataSource: DataSource) {
 
     console.log('SEED DEBUG: Seeding finished successfully');
     return { tenantId, admin, staff, pkg, taskType, client };
-  } catch (outerError: any) {
+  } catch (outerError: unknown) {
     console.error(
       'SEED DEBUG: CRITICAL ERROR IN SEEDER:',
-      outerError.message || outerError,
+      outerError instanceof Error ? outerError.message : String(outerError),
     );
-    if (outerError.stack) console.error(outerError.stack);
+    if (outerError instanceof Error && outerError.stack) {
+      console.error(outerError.stack);
+    }
     throw outerError;
   }
 }
