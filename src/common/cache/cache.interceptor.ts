@@ -100,10 +100,10 @@ export class GlobalCacheInterceptor implements NestInterceptor {
   }
 
   private getUserCacheKeyPart(request: Request): string {
-    const user = request.user as unknown;
+    const user = (request as { user?: unknown }).user;
 
-    if (user && typeof user === 'object') {
-      const maybeUser = user as Record<string, unknown>;
+    if (user && typeof user === 'object' && user !== null) {
+      const maybeUser = user as { id?: unknown; sub?: unknown };
       const id = maybeUser.id;
       const sub = maybeUser.sub;
 

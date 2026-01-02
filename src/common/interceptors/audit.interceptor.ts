@@ -81,7 +81,7 @@ export class AuditInterceptor implements NestInterceptor {
             'FAILURE',
             Date.now() - startTime,
             undefined,
-            (error as Error).message,
+            error instanceof Error ? error.message : String(error),
           );
         },
       }),
@@ -136,11 +136,9 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private sanitizeBody(body: unknown): unknown {
-    if (!body) return undefined;
-    const sanitized = { ...(body as Record<string, unknown>) } as Record<
-      string,
-      unknown
-    >;
+    if (!body || typeof body !== 'object') return undefined;
+
+    const sanitized = { ...body } as Record<string, unknown>;
     // Remove sensitive fields
     delete sanitized.password;
     delete sanitized.currentPassword;

@@ -58,7 +58,7 @@ export class WebhookService {
         await this.sendWebhook(config, event);
       } catch (error) {
         this.logger.error(
-          `Webhook delivery failed to ${config.url}: ${(error as Error).message}`,
+          `Webhook delivery failed to ${config.url}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     });

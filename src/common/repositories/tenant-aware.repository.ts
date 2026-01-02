@@ -37,6 +37,23 @@ export abstract class TenantAwareRepository<T extends TenantEntity> {
   }
 
   /**
+   * Helper to merge tenantId into where clause
+   */
+  private mergeTenantId(
+    where?: FindManyOptions<T>['where'],
+  ): FindManyOptions<T>['where'] {
+    if (!where) {
+      return {
+        tenantId: this.getTenantId(),
+      } as unknown as FindManyOptions<T>['where'];
+    }
+    if (Array.isArray(where)) {
+      return where.map((w) => ({ ...w, tenantId: this.getTenantId() }));
+    }
+    return { ...where, tenantId: this.getTenantId() };
+  }
+
+  /**
    * Find all entities for the current tenant
    */
   async findAllForTenant(options?: FindManyOptions<T>): Promise<T[]> {
@@ -45,13 +62,8 @@ export abstract class TenantAwareRepository<T extends TenantEntity> {
       throw new Error('Tenant context not available');
     }
 
-    return this.repository.find({
-      ...options,
-      where: {
-        ...(options?.where as object),
-        tenantId,
-      },
-    } as FindManyOptions<T>);
+    const where = this.mergeTenantId(options?.where);
+    return this.repository.find({ ...options, where });
   }
 
   /**
@@ -63,13 +75,8 @@ export abstract class TenantAwareRepository<T extends TenantEntity> {
       throw new Error('Tenant context not available');
     }
 
-    return this.repository.findOne({
-      ...options,
-      where: {
-        ...(options?.where as object),
-        tenantId,
-      },
-    } as FindOneOptions<T>);
+    const where = this.mergeTenantId(options.where);
+    return this.repository.findOne({ ...options, where });
   }
 
   /**
@@ -81,12 +88,7 @@ export abstract class TenantAwareRepository<T extends TenantEntity> {
       throw new Error('Tenant context not available');
     }
 
-    return this.repository.count({
-      ...options,
-      where: {
-        ...(options?.where as object),
-        tenantId,
-      },
-    } as FindManyOptions<T>);
+    const where = this.mergeTenantId(options?.where);
+    return this.repository.count({ ...options, where });
   }
 }

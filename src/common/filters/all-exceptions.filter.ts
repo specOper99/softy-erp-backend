@@ -27,12 +27,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'object') {
-        const responseObj = exceptionResponse as Record<string, unknown>;
+      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+        const responseObj = exceptionResponse as {
+          message?: string | string[];
+          error?: string;
+        };
         message = responseObj.message || exception.message;
         error = (responseObj.error as string) || exception.name;
       } else {
-        message = exceptionResponse;
+        message = exceptionResponse as string | object;
         error = exception.name;
       }
     } else if (exception instanceof Error) {
