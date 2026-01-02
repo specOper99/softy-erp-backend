@@ -214,7 +214,7 @@ export class AuthService {
     }
 
     const user = storedToken.user;
-    if (!user || !user.isActive) {
+    if (!user?.isActive) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
@@ -272,7 +272,7 @@ export class AuthService {
 
   async validateUser(payload: TokenPayload): Promise<User> {
     const user = await this.usersService.findOne(payload.sub);
-    if (!user || !user.isActive) {
+    if (!user?.isActive) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
