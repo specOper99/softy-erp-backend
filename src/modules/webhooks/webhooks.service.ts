@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac } from 'node:crypto';
 import { Repository } from 'typeorm';
+import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { Webhook } from './entities/webhook.entity';
 
 export interface WebhookEvent {
@@ -34,9 +35,9 @@ export interface WebhookConfig {
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
-  private readonly MAX_RETRIES = 3;
-  private readonly INITIAL_RETRY_DELAY = 1000; // 1s
-  private readonly WEBHOOK_TIMEOUT = 10000; // 10s
+  private readonly MAX_RETRIES = WEBHOOK_CONSTANTS.MAX_RETRIES;
+  private readonly INITIAL_RETRY_DELAY = WEBHOOK_CONSTANTS.INITIAL_RETRY_DELAY;
+  private readonly WEBHOOK_TIMEOUT = WEBHOOK_CONSTANTS.TIMEOUT;
 
   constructor(
     @InjectRepository(Webhook)
