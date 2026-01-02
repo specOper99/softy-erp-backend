@@ -92,6 +92,9 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
         autoLoadEntities: true,
         synchronize: configService.get<boolean>('database.synchronize'),
         logging: configService.get<boolean>('database.logging'),
+        extra: {
+          max: parseInt(process.env.DB_POOL_MAX || '10', 10),
+        },
       }),
     }),
 
