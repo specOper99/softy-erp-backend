@@ -88,15 +88,16 @@ export class TasksService {
 
   async assignTask(id: string, dto: AssignTaskDto): Promise<Task> {
     const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: Acquire lock
-      // Note: We MUST NOT include relations here because "FOR UPDATE" cannot be
-      // applied to the nullable side of an outer join (which TypeORM uses for relations)
+      // Step 1: Acquire lock (without relations due to FOR UPDATE limitation)
       const taskLock = await queryRunner.manager.findOne(Task, {
         where: { id, tenantId },
         lock: { mode: 'pessimistic_write' },
@@ -118,92 +119,48 @@ export class TasksService {
 
       const oldUserId = task.assignedUserId;
 
-      // Step 3: Validate new user belongs to the same tenant (prevent cross-tenant assignment)
-      if (dto.userId) {
-        const newUser = await queryRunner.manager.findOne(User, {
-          where: { id: dto.userId, tenantId },
-        });
-        if (!newUser) {
-          throw new BadRequestException('User not found in tenant');
-        }
-      }
+      // Step 3: Validate new user belongs to the same tenant
+      await this.validateUserInTenant(
+        queryRunner.manager,
+        dto.userId,
+        tenantId,
+      );
 
       task.assignedUserId = dto.userId;
 
       // Step 4: Update task
       const savedTask = await queryRunner.manager.save(task);
 
-      // Step 5: Commission handling - reverse old, add new
+      // Step 5: Handle commission transfers
       const commissionAmount = Number(task.commissionSnapshot) || 0;
-
-      // Reverse commission from old user if reassigning
-      if (oldUserId && oldUserId !== dto.userId && commissionAmount > 0) {
-        await this.financeService.subtractPendingCommission(
-          queryRunner.manager,
-          oldUserId,
-          commissionAmount,
-        );
-      }
-
-      // Add commission to new user
-      if (commissionAmount > 0 && dto.userId) {
-        await this.financeService.addPendingCommission(
-          queryRunner.manager,
-          dto.userId,
-          commissionAmount,
-        );
-      }
-
-      // Step 6: Audit Log
-      await this.auditService.log(
-        {
-          action: 'UPDATE',
-          entityName: 'Task',
-          entityId: task.id,
-          oldValues: { assignedUserId: oldUserId },
-          newValues: { assignedUserId: task.assignedUserId },
-          notes:
-            oldUserId && oldUserId !== dto.userId
-              ? `Task reassigned from user ${oldUserId} to ${dto.userId}. Commission reversed and re-credited: ${commissionAmount}`
-              : `Task assigned to user ${dto.userId}. Pending commission: ${commissionAmount}`,
-        },
+      await this.handleCommissionTransfer(
         queryRunner.manager,
+        oldUserId,
+        dto.userId,
+        commissionAmount,
       );
 
-      // Fetch user details for email
-      const emailUser = dto.userId
-        ? await queryRunner.manager.findOne(User, {
-            where: { id: dto.userId, tenantId },
-          })
-        : null;
+      // Step 6: Audit Log
+      await this.logTaskAssignment(
+        queryRunner.manager,
+        task,
+        oldUserId,
+        dto.userId,
+        commissionAmount,
+      );
 
-      // Ensure booking and client are loaded for the email
-      if (task.booking && !task.booking.client) {
-        task.booking.client = (await queryRunner.manager.findOne(Client, {
-          where: { id: task.booking.clientId, tenantId },
-        })) as Client;
-      }
+      // Ensure booking.client is loaded for the email
+      await this.ensureClientLoaded(queryRunner.manager, task, tenantId);
 
       await queryRunner.commitTransaction();
 
-      // Send email (after commit success)
-      if (emailUser && task.taskType && task.booking) {
-        this.mailService
-          .sendTaskAssignment({
-            employeeName: emailUser.email.split('@')[0],
-            employeeEmail: emailUser.email,
-            taskType: task.taskType.name,
-            clientName: task.booking.client?.name || 'Client',
-            eventDate: task.booking.eventDate,
-            commission: Number(task.commissionSnapshot || 0),
-          })
-          .catch((err) =>
-            this.logger.error(
-              `Failed to send task assignment for ${savedTask.id}`,
-              err,
-            ),
-          );
-      }
+      // Send email notification (after commit)
+      await this.sendAssignmentEmail(
+        queryRunner.manager,
+        task,
+        dto.userId,
+        tenantId,
+      );
 
       return savedTask;
     } catch (error) {
@@ -214,6 +171,111 @@ export class TasksService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private async validateUserInTenant(
+    manager: import('typeorm').EntityManager,
+    userId: string | undefined,
+    tenantId: string,
+  ): Promise<void> {
+    if (!userId) return;
+    const user = await manager.findOne(User, {
+      where: { id: userId, tenantId },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found in tenant');
+    }
+  }
+
+  private async handleCommissionTransfer(
+    manager: import('typeorm').EntityManager,
+    oldUserId: string | null,
+    newUserId: string | undefined,
+    commissionAmount: number,
+  ): Promise<void> {
+    if (commissionAmount <= 0) return;
+
+    // Reverse commission from old user if reassigning
+    if (oldUserId && oldUserId !== newUserId) {
+      await this.financeService.subtractPendingCommission(
+        manager,
+        oldUserId,
+        commissionAmount,
+      );
+    }
+
+    // Add commission to new user
+    if (newUserId) {
+      await this.financeService.addPendingCommission(
+        manager,
+        newUserId,
+        commissionAmount,
+      );
+    }
+  }
+
+  private async logTaskAssignment(
+    manager: import('typeorm').EntityManager,
+    task: Task,
+    oldUserId: string | null,
+    newUserId: string | undefined,
+    commissionAmount: number,
+  ): Promise<void> {
+    const isReassignment = oldUserId && oldUserId !== newUserId;
+    const notes = isReassignment
+      ? `Task reassigned from user ${oldUserId} to ${newUserId}. Commission reversed and re-credited: ${commissionAmount}`
+      : `Task assigned to user ${newUserId}. Pending commission: ${commissionAmount}`;
+
+    await this.auditService.log(
+      {
+        action: 'UPDATE',
+        entityName: 'Task',
+        entityId: task.id,
+        oldValues: { assignedUserId: oldUserId },
+        newValues: { assignedUserId: task.assignedUserId },
+        notes,
+      },
+      manager,
+    );
+  }
+
+  private async ensureClientLoaded(
+    manager: import('typeorm').EntityManager,
+    task: Task,
+    tenantId: string,
+  ): Promise<void> {
+    if (task.booking && !task.booking.client) {
+      task.booking.client = (await manager.findOne(Client, {
+        where: { id: task.booking.clientId, tenantId },
+      })) as Client;
+    }
+  }
+
+  private async sendAssignmentEmail(
+    manager: import('typeorm').EntityManager,
+    task: Task,
+    userId: string | undefined,
+    tenantId: string,
+  ): Promise<void> {
+    if (!userId || !task.taskType || !task.booking) return;
+
+    const emailUser = await manager.findOne(User, {
+      where: { id: userId, tenantId },
+    });
+    if (!emailUser) return;
+
+    this.mailService
+      .sendTaskAssignment({
+        employeeName: emailUser.email.split('@')[0],
+        employeeEmail: emailUser.email,
+        taskType: task.taskType.name,
+        clientName: task.booking.client?.name || 'Client',
+        eventDate: task.booking.eventDate,
+        commission: Number(task.commissionSnapshot || 0),
+      })
+      .catch((err) =>
+        this.logger.error(`Failed to send task assignment for ${task.id}`, err),
+      );
   }
 
   async startTask(id: string, user: User): Promise<Task> {
