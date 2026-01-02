@@ -2,6 +2,7 @@ import {
   Column,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -32,6 +33,7 @@ export class Booking extends BaseTenantEntity {
   totalPrice: number;
 
   @Column({ name: 'package_id' })
+  @Index()
   packageId: string;
 
   @Column({ type: 'text', nullable: true })

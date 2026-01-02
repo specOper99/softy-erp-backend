@@ -1,7 +1,7 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ExecutionContext, HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CacheUtilsService } from '../cache/cache-utils.service';
 import { IpRateLimitGuard } from './ip-rate-limit.guard';
 
 describe('IpRateLimitGuard', () => {
@@ -26,7 +26,7 @@ describe('IpRateLimitGuard', () => {
     }),
   };
 
-  const mockCacheManager = {
+  const mockCacheService = {
     get: jest.fn(),
     set: jest.fn(),
   };
@@ -35,14 +35,14 @@ describe('IpRateLimitGuard', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IpRateLimitGuard,
-        { provide: CACHE_MANAGER, useValue: mockCacheManager },
+        { provide: CacheUtilsService, useValue: mockCacheService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     guard = module.get<IpRateLimitGuard>(IpRateLimitGuard);
-    mockCacheManager.get.mockClear();
-    mockCacheManager.set.mockClear();
+    mockCacheService.get.mockClear();
+    mockCacheService.set.mockClear();
   });
 
   it('should be defined', () => {
@@ -66,17 +66,17 @@ describe('IpRateLimitGuard', () => {
   };
 
   it('should allow request if within limits', async () => {
-    mockCacheManager.get.mockResolvedValue(null);
+    mockCacheService.get.mockResolvedValue(null);
     const context = createMockContext('127.0.0.1');
 
     const result = await guard.canActivate(context);
 
     expect(result).toBe(true);
-    expect(mockCacheManager.set).toHaveBeenCalled();
+    expect(mockCacheService.set).toHaveBeenCalled();
   });
 
   it('should block request if hard limit exceeded', async () => {
-    mockCacheManager.get.mockResolvedValue({
+    mockCacheService.get.mockResolvedValue({
       count: 101,
       firstRequest: Date.now(),
       blocked: false,
@@ -84,7 +84,7 @@ describe('IpRateLimitGuard', () => {
     const context = createMockContext('127.0.0.1');
 
     await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
-    expect(mockCacheManager.set).toHaveBeenCalledWith(
+    expect(mockCacheService.set).toHaveBeenCalledWith(
       expect.stringContaining('127.0.0.1'),
       expect.objectContaining({ blocked: true }),
       expect.any(Number),
@@ -92,7 +92,7 @@ describe('IpRateLimitGuard', () => {
   });
 
   it('should return 429 when soft limit exceeded (no server-side sleep)', async () => {
-    mockCacheManager.get.mockResolvedValue({
+    mockCacheService.get.mockResolvedValue({
       count: 50,
       firstRequest: Date.now(),
       blocked: false,

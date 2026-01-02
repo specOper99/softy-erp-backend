@@ -130,4 +130,38 @@ describe('Tasks Module E2E Tests', () => {
         .expect(404);
     });
   });
+
+  describe('GET /api/v1/tasks/cursor', () => {
+    it('should implement cursor-based pagination', async () => {
+      const limit = 1;
+      // First page
+      const response1 = await request(app.getHttpServer())
+        .get(`/api/v1/tasks/cursor?limit=${limit}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      // TransformInterceptor wraps response in "data", so our object is in response.body.data
+      const result1 = response1.body.data;
+      expect(result1).toHaveProperty('data');
+      expect(result1.data).toBeInstanceOf(Array);
+      expect(result1.data.length).toBeLessThanOrEqual(limit);
+
+      if (result1.nextCursor) {
+        // Second page
+        const response2 = await request(app.getHttpServer())
+          .get(
+            `/api/v1/tasks/cursor?limit=${limit}&cursor=${result1.nextCursor}`,
+          )
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+
+        const result2 = response2.body.data;
+        expect(result2.data).toBeInstanceOf(Array);
+        // Ensure we didn't get the same task again
+        if (result1.data.length > 0 && result2.data.length > 0) {
+          expect(result1.data[0].id).not.toBe(result2.data[0].id);
+        }
+      }
+    });
+  });
 });

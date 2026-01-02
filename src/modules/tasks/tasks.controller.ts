@@ -5,10 +5,12 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, Roles } from '../../common/decorators';
+import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { Role } from '../../common/enums';
 import { RolesGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,6 +30,13 @@ export class TasksController {
   @ApiOperation({ summary: 'Get all tasks' })
   findAll() {
     return this.tasksService.findAll();
+  }
+
+  @Get('cursor')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all tasks using keyset pagination' })
+  findAllCursor(@Query() query: CursorPaginationDto) {
+    return this.tasksService.findAllCursor(query);
   }
 
   @Get('my-tasks')

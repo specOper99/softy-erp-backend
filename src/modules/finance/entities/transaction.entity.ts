@@ -13,6 +13,7 @@ import { Payout } from './payout.entity';
     `("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NULL)`,
 )
 @Index(['tenantId', 'id'], { unique: true })
+@Index(['tenantId', 'transactionDate']) // Optimized for "transactions by date within tenant"
 export class Transaction extends BaseTenantEntity {
   @Column({
     type: 'enum',
@@ -39,6 +40,7 @@ export class Transaction extends BaseTenantEntity {
   description: string;
 
   @Column({ name: 'transaction_date', type: 'timestamptz' })
+  @Index() // Frequent range queries
   transactionDate: Date;
 
   @ManyToOne('Booking', { nullable: true, onDelete: 'SET NULL' })

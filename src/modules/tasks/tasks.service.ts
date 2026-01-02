@@ -8,6 +8,7 @@ import {
 import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Role, TaskStatus } from '../../common/enums';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -47,6 +48,47 @@ export class TasksService {
       .take(query.getTake());
 
     return qb.getMany();
+  }
+
+  async findAllCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: Task[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantId();
+    const limit = query.limit || 20;
+
+    const qb = this.taskRepository.createQueryBuilder('task');
+
+    qb.leftJoinAndSelect('task.booking', 'booking')
+      .leftJoinAndSelect('booking.client', 'client')
+      .leftJoinAndSelect('task.taskType', 'taskType')
+      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
+      .where('task.tenantId = :tenantId', { tenantId })
+      .orderBy('task.createdAt', 'DESC')
+      .addOrderBy('task.id', 'DESC')
+      .take(limit + 1);
+
+    if (query.cursor) {
+      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
+      const [dateStr, id] = decoded.split('|');
+      const date = new Date(dateStr);
+
+      qb.andWhere(
+        '(task.createdAt < :date OR (task.createdAt = :date AND task.id < :id))',
+        { date, id },
+      );
+    }
+
+    const tasks = await qb.getMany();
+    let nextCursor: string | null = null;
+
+    if (tasks.length > limit) {
+      tasks.pop(); // Remove the extra item, it just proves there's more
+      const lastItem = tasks[tasks.length - 1];
+      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      nextCursor = Buffer.from(cursorData).toString('base64');
+    }
+
+    return { data: tasks, nextCursor };
   }
 
   async findOne(id: string): Promise<Task> {

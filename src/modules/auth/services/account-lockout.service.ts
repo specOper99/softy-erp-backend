@@ -1,7 +1,6 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Cache } from 'cache-manager';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 
 interface LockoutInfo {
   attempts: number;
@@ -20,7 +19,7 @@ export class AccountLockoutService {
   private readonly attemptWindowMs: number;
 
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly cacheService: CacheUtilsService,
     private readonly configService: ConfigService,
   ) {
     // Default: 5 attempts within 15 minutes, 30 minute lockout
@@ -42,7 +41,7 @@ export class AccountLockoutService {
     email: string,
   ): Promise<{ locked: boolean; remainingMs?: number }> {
     const key = this.getKey(email);
-    const info = await this.cacheManager.get<LockoutInfo>(key);
+    const info = await this.cacheService.get<LockoutInfo>(key);
 
     if (!info?.lockedUntil) {
       return { locked: false };
@@ -57,7 +56,7 @@ export class AccountLockoutService {
     }
 
     // Lockout has expired, clear it
-    await this.cacheManager.del(key);
+    await this.cacheService.del(key);
     return { locked: false };
   }
 
@@ -66,7 +65,7 @@ export class AccountLockoutService {
    */
   async recordFailedAttempt(email: string): Promise<boolean> {
     const key = this.getKey(email);
-    let info = await this.cacheManager.get<LockoutInfo>(key);
+    let info = await this.cacheService.get<LockoutInfo>(key);
 
     if (!info) {
       info = { attempts: 0 };
@@ -86,7 +85,8 @@ export class AccountLockoutService {
       ? Math.ceil((info.lockedUntil - Date.now()) / 1000)
       : Math.ceil(this.attemptWindowMs / 1000);
 
-    await this.cacheManager.set(key, info, ttl * 1000);
+    // Convert seconds to ms for the service
+    await this.cacheService.set(key, info, ttl * 1000);
 
     return !!info.lockedUntil;
   }
@@ -96,7 +96,7 @@ export class AccountLockoutService {
    */
   async clearAttempts(email: string): Promise<void> {
     const key = this.getKey(email);
-    await this.cacheManager.del(key);
+    await this.cacheService.del(key);
   }
 
   private getKey(email: string): string {

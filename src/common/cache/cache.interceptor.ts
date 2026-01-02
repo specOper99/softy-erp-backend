@@ -1,14 +1,11 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   CallHandler,
   ExecutionContext,
-  Inject,
   Injectable,
   Logger,
   NestInterceptor,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Cache } from 'cache-manager';
 import { Request } from 'express';
 import * as crypto from 'node:crypto';
 import { Observable, of } from 'rxjs';
@@ -16,13 +13,14 @@ import { tap } from 'rxjs/operators';
 import { CACHEABLE_KEY } from '../decorators/cacheable.decorator';
 import { NO_CACHE_KEY } from '../decorators/no-cache.decorator';
 import { TenantContextService } from '../services/tenant-context.service';
+import { CacheUtilsService } from './cache-utils.service';
 
 @Injectable()
 export class GlobalCacheInterceptor implements NestInterceptor {
   private readonly logger = new Logger(GlobalCacheInterceptor.name);
 
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly cacheService: CacheUtilsService,
     private readonly reflector: Reflector,
   ) {}
 
@@ -68,7 +66,7 @@ export class GlobalCacheInterceptor implements NestInterceptor {
     const key = `cache:${tenantId}:${userKeyPart}:${method}:${url}`;
 
     try {
-      const cachedResponse = await this.cacheManager.get(key);
+      const cachedResponse = await this.cacheService.get(key);
       if (cachedResponse) {
         this.logger.debug(`Cache Hit: ${key}`);
         return of(cachedResponse);
@@ -85,7 +83,7 @@ export class GlobalCacheInterceptor implements NestInterceptor {
         (async () => {
           try {
             // Cache for 60 seconds (default) or use metadata for custom TTL
-            await this.cacheManager.set(key, response, 60000); // 60s in ms
+            await this.cacheService.set(key, response, 60000); // 60s in ms
           } catch (error: unknown) {
             const message =
               error instanceof Error ? error.message : String(error);

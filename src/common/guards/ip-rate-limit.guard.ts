@@ -1,16 +1,14 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   CanActivate,
   ExecutionContext,
   HttpException,
   HttpStatus,
-  Inject,
   Injectable,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Cache } from 'cache-manager';
 import type { Request, Response } from 'express';
+import { CacheUtilsService } from '../cache/cache-utils.service';
 
 interface IpRateLimitInfo {
   count: number;
@@ -38,21 +36,9 @@ export class IpRateLimitGuard implements CanActivate {
   private readonly trustProxyHeaders: boolean;
 
   constructor(
-    @Inject(CACHE_MANAGER)
-    private cacheManager: Pick<Cache, 'get' | 'set'>,
+    private readonly cacheService: CacheUtilsService,
     private readonly configService: ConfigService,
   ) {
-    // Fallback cache manager for environments where CACHE_MANAGER is not provided (e.g., unit tests)
-    if (!this.cacheManager) {
-      this.cacheManager = {
-        async get<T>(_key: string): Promise<T | undefined> {
-          return await Promise.resolve(undefined);
-        },
-        async set<T>(_key: string, value: T, _ttl?: number): Promise<T> {
-          return Promise.resolve(value);
-        },
-      };
-    }
     // 50 requests per minute soft limit (starts slowing down)
     this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
     // 100 requests per minute hard limit (blocks IP)
@@ -79,7 +65,7 @@ export class IpRateLimitGuard implements CanActivate {
     const key = `ip_rate:${ip}`;
 
     // Get current rate limit info
-    let info = await this.cacheManager.get<IpRateLimitInfo>(key);
+    let info = await this.cacheService.get<IpRateLimitInfo>(key);
     const now = Date.now();
 
     // Check if IP is blocked
@@ -106,7 +92,7 @@ export class IpRateLimitGuard implements CanActivate {
       if (info.count > this.hardLimit) {
         info.blocked = true;
         info.blockedUntil = now + this.blockDurationMs;
-        await this.cacheManager.set(key, info, this.blockDurationMs);
+        await this.cacheService.set(key, info, this.blockDurationMs);
         this.logger.warn(
           `IP ${ip} blocked for exceeding rate limit (${info.count} requests)`,
         );
@@ -141,7 +127,7 @@ export class IpRateLimitGuard implements CanActivate {
     }
 
     // Update cache
-    await this.cacheManager.set(key, info, this.windowMs);
+    await this.cacheService.set(key, info, this.windowMs);
 
     return true;
   }
