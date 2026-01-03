@@ -6,10 +6,11 @@ import { Profile } from '../hr/entities/profile.entity';
 import { Task } from '../tasks/entities/task.entity';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
+import { ReportGeneratorService } from './services/report-generator.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Booking, Transaction, Task, Profile])],
   controllers: [DashboardController],
-  providers: [DashboardService],
+  providers: [DashboardService, ReportGeneratorService],
 })
 export class DashboardModule {}
