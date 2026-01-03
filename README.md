@@ -43,6 +43,12 @@ npm run start:dev
 - **HR** - Employee profiles and payroll
 - **Media** - File uploads via MinIO/S3
 
+### New Features (v1.1)
+- **Client Portal** - Magic link authentication for clients to view bookings and profile
+- **Multi-language (i18n)** - Support for English, Arabic, Kurdish, and French
+- **Dashboard Analytics** - KPIs, revenue stats, booking trends, CSV/PDF export
+
+
 ### Production Infrastructure & Security Hardening
 - 🛡️ **Composite FK Constraints** - Database-level tenant isolation enforcing cross-tenant referential integrity.
 - 🛡️ **Helmet Security** - Essential HTTP security headers applied globally.
@@ -79,9 +85,17 @@ npm run start:prod         # Start production build
 
 # Testing
 npm run test               # Run unit tests
+npm run test:integration   # Run integration tests with testcontainers
 npm run test:e2e           # Run E2E tests
 npm run test:cov           # Test coverage
-npm run load-test          # Run k6 load tests
+npm run test:integration:cov # Integration test coverage
+
+# Performance Testing
+npm run test:load:auth     # Load test authentication flow
+npm run test:load:booking  # Load test booking workflow
+npm run test:load:finance  # Load test finance operations
+npm run test:load:stress   # Stress test (500 concurrent users)
+npm run test:load:all      # Run all load tests
 
 # Database
 npm run seed               # Seed database with sample data
@@ -93,6 +107,93 @@ npm run migration:revert   # Rollback last migration
 npm run backup             # Create database backup
 npm run format             # Format code with Prettier
 npm run lint               # Lint code with ESLint
+```
+
+## 🔒 Security Scanning
+
+Automated security scanning is integrated into the CI/CD pipeline:
+
+- **npm audit**: Scans for critical vulnerabilities in dependencies (fails build on critical findings)
+- **Snyk**: Deep dependency analysis with severity thresholds (requires `SNYK_TOKEN` in GitHub secrets)
+- **Security reports**: Generated as GitHub Actions artifacts
+
+Run manually:
+```bash
+npm audit --audit-level=critical
+```
+
+## 🧪 Integration Testing
+
+Comprehensive integration tests using **testcontainers** for real database testing:
+
+### Features
+- Real PostgreSQL instances via Docker containers
+- Multi-tenant data isolation verification
+- Composite foreign key constraint testing
+- Transaction rollback scenarios
+- Complex query and pagination testing
+
+### Running Integration Tests
+```bash
+# Run integration tests (Docker required)
+npm run test:integration
+
+# With coverage
+npm run test:integration:cov
+```
+
+### Test Coverage
+- **Repositories**: Bookings, Tasks, Finance
+- **Multi-tenant isolation**: Cross-tenant data access prevention
+- **Database constraints**: FK constraints, check constraints
+- **Transactions**: Atomic operations and rollback testing
+
+## 📊 Performance Testing
+
+K6 load testing scenarios with defined SLOs:
+
+### Test Scenarios
+
+#### 1. Authentication Flow (`test:load:auth`)
+- **SLOs**: p95 < 200ms, p99 < 500ms, error rate < 1%
+- **Load**: Ramps up to 100 concurrent users
+- **Tests**: Login, token refresh, rate limiting, profile access
+
+#### 2. Booking Flow (`test:load:booking`)
+- **SLOs**: p95 < 300ms, p99 < 800ms, error rate < 1%
+- **Load**: Ramps up to 150 concurrent users
+- **Tests**: Booking creation, updates, task assignment, cancellation
+
+#### 3. Finance Flow (`test:load:finance`)
+- **SLOs**: p95 < 250ms, transaction accuracy: 100%
+- **Load**: Ramps up to 120 concurrent users
+- **Tests**: Transaction creation, revenue calculation, balance queries
+
+#### 4. Stress Test (`test:load:stress`)
+- **Objective**: Identify system breaking points
+- **Load**: Gradual ramp to 500 concurrent users over 30 minutes
+- **Output**: Detailed breaking point analysis and capacity recommendations
+
+### Running Load Tests
+```bash
+# Individual scenarios
+npm run test:load:auth
+npm run test:load:booking
+npm run test:load:finance
+
+# Stress test
+npm run test:load:stress
+
+# All scenarios
+npm run test:load:all
+```
+
+### Reports
+HTML reports are generated in `scripts/load-testing/reports/` with:
+- Response time percentiles
+- Success rates and error analysis
+- SLO compliance status
+- Capacity recommendations (stress test)
 ```
 
 ## 🐳 Docker
@@ -126,6 +227,11 @@ GitHub Actions workflows are included:
 - **Deploy** (`.github/workflows/deploy.yml`)
   - Runs on push to main or version tags
   - Builds and pushes to GitHub Container Registry
+
+- **Security Scanning** (part of CI)
+  - npm audit for critical vulnerabilities
+  - Snyk security scanning (requires SNYK_TOKEN)
+  - Fails build on high-severity issues
 
 ## 🔐 Environment Variables
 
