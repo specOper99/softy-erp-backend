@@ -1,0 +1,48 @@
+{
+    "common": {
+        "success": "Success",
+        "error": "Error",
+        "not_found": "Not found",
+        "unauthorized": "Unauthorized access",
+        "forbidden": "Access forbidden",
+        "bad_request": "Bad request",
+        "internal_error": "Internal server error"
+    },
+    "auth": {
+        "login_success": "Login successful",
+        "login_failed": "Invalid email or password",
+        "token_expired": "Token has expired",
+        "token_invalid": "Invalid token",
+        "account_locked": "Account is locked. Please try again later",
+        "register_success": "Registration successful",
+        "logout_success": "Logout successful"
+    },
+    "booking": {
+        "created": "Booking created successfully",
+        "confirmed": "Booking confirmed",
+        "cancelled": "Booking cancelled",
+        "not_found": "Booking not found",
+        "already_confirmed": "Booking is already confirmed",
+        "invalid_status": "Invalid booking status"
+    },
+    "task": {
+        "created": "Task created successfully",
+        "assigned": "Task assigned to {staffName}",
+        "started": "Task started",
+        "completed": "Task completed",
+        "not_found": "Task not found",
+        "already_assigned": "Task is already assigned"
+    },
+    "payroll": {
+        "run_success": "Payroll processed for {count} employees",
+        "no_employees": "No employees found for payroll",
+        "run_failed": "Payroll run failed"
+    },
+    "validation": {
+        "required": "{field} is required",
+        "invalid_email": "Invalid email format",
+        "min_length": "{field} must be at least {min} characters",
+        "max_length": "{field} must not exceed {max} characters",
+        "invalid_date": "Invalid date format"
+    }
+}

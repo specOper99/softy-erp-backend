@@ -1,0 +1,48 @@
+{
+    "common": {
+        "success": "سەرکەوتوو",
+        "error": "هەڵە",
+        "not_found": "نەدۆزرایەوە",
+        "unauthorized": "دەستگەیشتن نییە",
+        "forbidden": "دەستگەیشتن قەدەغەیە",
+        "bad_request": "داواکاری هەڵە",
+        "internal_error": "هەڵەی ناوخۆیی سێرڤەر"
+    },
+    "auth": {
+        "login_success": "چوونەژوورەوە سەرکەوتوو بوو",
+        "login_failed": "ئیمەیڵ یان وشەی نهێنی هەڵەیە",
+        "token_expired": "تۆکن بەسەرچووە",
+        "token_invalid": "تۆکنی هەڵە",
+        "account_locked": "ئەکاونت داخراوە. تکایە دواتر هەوڵ بدەرەوە",
+        "register_success": "تۆمارکردن سەرکەوتوو بوو",
+        "logout_success": "چوونەدەرەوە سەرکەوتوو بوو"
+    },
+    "booking": {
+        "created": "نۆرە بە سەرکەوتوویی دروستکرا",
+        "confirmed": "نۆرە پشتڕاستکرایەوە",
+        "cancelled": "نۆرە هەڵوەشێندرایەوە",
+        "not_found": "نۆرە نەدۆزرایەوە",
+        "already_confirmed": "نۆرە پێشتر پشتڕاستکراوەتەوە",
+        "invalid_status": "دۆخی نۆرەی هەڵە"
+    },
+    "task": {
+        "created": "ئەرک بە سەرکەوتوویی دروستکرا",
+        "assigned": "ئەرک دانرا بۆ {staffName}",
+        "started": "ئەرک دەستپێکرد",
+        "completed": "ئەرک تەواو بوو",
+        "not_found": "ئەرک نەدۆزرایەوە",
+        "already_assigned": "ئەرک پێشتر دانراوە"
+    },
+    "payroll": {
+        "run_success": "مووچە بۆ {count} کارمەند جێبەجێکرا",
+        "no_employees": "هیچ کارمەندێک نەدۆزرایەوە بۆ مووچە",
+        "run_failed": "جێبەجێکردنی مووچە سەرکەوتوو نەبوو"
+    },
+    "validation": {
+        "required": "{field} پێویستە",
+        "invalid_email": "فۆرماتی ئیمەیڵ هەڵەیە",
+        "min_length": "{field} دەبێت لانیکەم {min} پیت بێت",
+        "max_length": "{field} نابێت زیاتر لە {max} پیت بێت",
+        "invalid_date": "فۆرماتی بەروار هەڵەیە"
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "common": {
+        "success": "Succès",
+        "error": "Erreur",
+        "not_found": "Non trouvé",
+        "unauthorized": "Accès non autorisé",
+        "forbidden": "Accès interdit",
+        "bad_request": "Requête invalide",
+        "internal_error": "Erreur interne du serveur"
+    },
+    "auth": {
+        "login_success": "Connexion réussie",
+        "login_failed": "Email ou mot de passe invalide",
+        "token_expired": "Le jeton a expiré",
+        "token_invalid": "Jeton invalide",
+        "account_locked": "Le compte est verrouillé. Veuillez réessayer plus tard",
+        "register_success": "Inscription réussie",
+        "logout_success": "Déconnexion réussie"
+    },
+    "booking": {
+        "created": "Réservation créée avec succès",
+        "confirmed": "Réservation confirmée",
+        "cancelled": "Réservation annulée",
+        "not_found": "Réservation non trouvée",
+        "already_confirmed": "La réservation est déjà confirmée",
+        "invalid_status": "Statut de réservation invalide"
+    },
+    "task": {
+        "created": "Tâche créée avec succès",
+        "assigned": "Tâche assignée à {staffName}",
+        "started": "Tâche démarrée",
+        "completed": "Tâche terminée",
+        "not_found": "Tâche non trouvée",
+        "already_assigned": "La tâche est déjà assignée"
+    },
+    "payroll": {
+        "run_success": "Paie traitée pour {count} employés",
+        "no_employees": "Aucun employé trouvé pour la paie",
+        "run_failed": "Échec du traitement de la paie"
+    },
+    "validation": {
+        "required": "{field} est requis",
+        "invalid_email": "Format d'email invalide",
+        "min_length": "{field} doit contenir au moins {min} caractères",
+        "max_length": "{field} ne doit pas dépasser {max} caractères",
+        "invalid_date": "Format de date invalide"
+    }
+}
