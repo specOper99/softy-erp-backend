@@ -15,6 +15,7 @@ import { vaultLoader } from './config/vault.loader';
 import { AppCacheModule } from './common/cache/cache.module';
 import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
+import { I18nModule } from './common/i18n';
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
@@ -28,6 +29,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { ClientPortalModule } from './modules/client-portal/client-portal.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
@@ -121,8 +123,8 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     TenantsModule,
     WebhooksModule,
     MetricsModule,
-
-    // ... (in imports array)
+    I18nModule,
+    ClientPortalModule,
     ResilienceModule.forRoot([
       {
         name: 's3',
