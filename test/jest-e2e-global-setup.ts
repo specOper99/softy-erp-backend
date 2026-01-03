@@ -94,6 +94,9 @@ export default async () => {
 
     await migrationDataSource.runMigrations();
 
+    // Synchronize schema to ensure all entity columns exist
+    await migrationDataSource.synchronize();
+
     // 4. Seed base data
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { seedTestDatabase } = require('./utils/seed-data');
