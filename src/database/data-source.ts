@@ -44,6 +44,8 @@ export const dataSourceOptions: DataSourceOptions = {
   ],
   migrations: ['src/database/migrations/*.ts'],
   logging: process.env.DB_LOGGING === 'true',
+  // Synchronize in test environment to auto-create new entity columns
+  synchronize: process.env.NODE_ENV === 'test',
 };
 
 const dataSource = new DataSource(dataSourceOptions);
