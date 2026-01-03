@@ -34,6 +34,13 @@ export interface PayrollEmailData {
   payrollDate: Date;
 }
 
+export interface MagicLinkEmailData {
+  clientEmail: string;
+  clientName: string;
+  token: string;
+  expiresInHours: number;
+}
+
 /**
  * Result of an email send operation
  */
@@ -347,6 +354,66 @@ export class MailService {
     return { success: true, email: data.employeeEmail, retried };
   }
 
+  async sendMagicLink(
+    data: MagicLinkEmailData,
+    locale = 'en',
+  ): Promise<EmailResult> {
+    const portalUrl = this.configService.get<string>(
+      'CLIENT_PORTAL_URL',
+      'https://portal.example.com',
+    );
+    const magicLinkUrl = `${portalUrl}/auth/verify?token=${data.token}`;
+
+    if (!this.isEnabled) {
+      this.logger.log(`[DEV] Magic link email to ${data.clientEmail}`, {
+        ...data,
+        magicLinkUrl,
+      });
+      return { success: true, email: data.clientEmail };
+    }
+
+    const { retried, error } = await this.withRetry(
+      () =>
+        this.breaker.fire(() =>
+          this.mailerService.sendMail({
+            to: data.clientEmail,
+            subject: `Login to ${this.companyName} Client Portal`,
+            template: 'magic-link',
+            context: this.sanitizeContext(
+              {
+                clientName: data.clientName,
+                magicLinkUrl,
+                expiresInHours: data.expiresInHours,
+                year: new Date().getFullYear(),
+                companyName: this.companyName,
+                companyUrl: this.companyUrl,
+              },
+              locale,
+            ),
+          }),
+        ),
+      `Magic link to ${data.clientEmail}`,
+    );
+
+    if (error) {
+      this.logger.error(
+        `Failed to send magic link to ${data.clientEmail} after ${this.maxRetries + 1} attempts`,
+        error,
+      );
+      return {
+        success: false,
+        email: data.clientEmail,
+        error: error.message,
+        retried,
+      };
+    }
+
+    this.logger.log(
+      `Magic link sent to ${data.clientEmail}${retried ? ' (after retry)' : ''}`,
+    );
+    return { success: true, email: data.clientEmail, retried };
+  }
+
   private formatDate(date: Date): string {
     return new Date(date).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -366,7 +433,28 @@ export class MailService {
   /**
    * Recursively sanitize all string values in an object to prevent XSS in email templates
    */
-  private sanitizeContext<T>(context: T): T {
+  /**
+   * Inject locale-specific context variables and sanitize content
+   */
+  private sanitizeContext(
+    context: Record<string, unknown>,
+    locale = 'en',
+  ): Record<string, unknown> {
+    const isRtl = ['ar', 'ku'].includes(locale);
+    const sanitized = this.recursiveSanitize(context);
+
+    return {
+      ...sanitized,
+      direction: isRtl ? 'rtl' : 'ltr',
+      textAlign: isRtl ? 'right' : 'left',
+      locale,
+    };
+  }
+
+  /**
+   * Recursively sanitize all string values in an object to prevent XSS in email templates
+   */
+  private recursiveSanitize<T>(context: T): T {
     if (typeof context !== 'object' || context === null) {
       if (typeof context === 'string') {
         return sanitizeHtml(context) as unknown as T;
@@ -376,14 +464,14 @@ export class MailService {
 
     if (Array.isArray(context)) {
       const arr = context as unknown[];
-      return arr.map((item) => this.sanitizeContext(item)) as unknown as T;
+      return arr.map((item) => this.recursiveSanitize(item)) as unknown as T;
     }
 
     const sanitized = {} as Record<string, unknown>;
     const obj = context as Record<string, unknown>;
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        sanitized[key] = this.sanitizeContext(obj[key]);
+        sanitized[key] = this.recursiveSanitize(obj[key]);
       }
     }
     return sanitized as T;
