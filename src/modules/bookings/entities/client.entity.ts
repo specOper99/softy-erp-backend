@@ -22,6 +22,20 @@ export class Client extends BaseTenantEntity {
   @SanitizeHtml()
   notes: string;
 
+  // Magic Link Authentication
+  @Column({ nullable: true })
+  accessToken: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  accessTokenExpiry: Date;
+
   @OneToMany('Booking', 'client')
   bookings: Promise<Booking[]>;
+
+  isAccessTokenValid(): boolean {
+    if (!this.accessToken || !this.accessTokenExpiry) {
+      return false;
+    }
+    return new Date() < this.accessTokenExpiry;
+  }
 }

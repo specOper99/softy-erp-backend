@@ -18,6 +18,15 @@ import { WebhookService } from './webhooks.service';
     TypeOrmModule.forFeature([Webhook]),
     BullModule.registerQueue({
       name: WEBHOOK_QUEUE,
+      defaultJobOptions: {
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
     }),
     CqrsModule,
   ],

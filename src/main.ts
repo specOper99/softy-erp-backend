@@ -100,6 +100,8 @@ async function bootstrap() {
     .addTag('Finance - Transactions', 'Financial transactions')
     .addTag('Finance - Wallets', 'Employee commission wallets')
     .addTag('HR', 'HR and Payroll management')
+    .addTag('Dashboard', 'Reporting and analytics dashboard')
+    .addTag('Client Portal', 'Client-facing portal and magic link auth')
     .addTag('Audit', 'System audit logs')
     .addTag('Metrics', 'System performance metrics')
     .setLicense(
