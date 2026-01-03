@@ -89,6 +89,7 @@ temp/
 
 # K6 load test results
 load-tests/results/
+scripts/load-testing/reports/
 
 # Sentry
 .sentryclirc

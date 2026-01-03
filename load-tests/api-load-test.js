@@ -245,12 +245,37 @@ export default function (data) {
 
     sleep(0.5);
 
-    // ============ Dashboard ============
+    // ============ Dashboard (Reporting) ============
     group('Dashboard', () => {
-        const res = http.get(`${BASE_URL}/dashboard/stats`, { headers });
-        check(res, {
-            'dashboard stats 200': (r) => r.status === 200,
+        const start = Date.now();
+
+        // KPIs
+        const kpisRes = http.get(`${BASE_URL}/dashboard/kpis`, { headers });
+        check(kpisRes, {
+            'dashboard kpis 200': (r) => r.status === 200,
+            'has totalRevenue': (r) => r.json('data.totalRevenue') !== undefined,
         });
+
+        // Revenue Stats
+        const revenueRes = http.get(`${BASE_URL}/dashboard/revenue`, { headers });
+        check(revenueRes, {
+            'dashboard revenue 200': (r) => r.status === 200,
+        });
+
+        // Booking Trends
+        const trendsRes = http.get(`${BASE_URL}/dashboard/booking-trends`, { headers });
+        check(trendsRes, {
+            'booking trends 200': (r) => r.status === 200,
+        });
+
+        // Staff Performance
+        const staffRes = http.get(`${BASE_URL}/dashboard/staff-performance`, { headers });
+        check(staffRes, {
+            'staff performance 200': (r) => r.status === 200,
+        });
+
+        const duration = Date.now() - start;
+        console.log(`Dashboard endpoints took ${duration}ms`);
     });
 
     sleep(1);
