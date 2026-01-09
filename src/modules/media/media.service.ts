@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Attachment } from './entities/attachment.entity';
@@ -45,7 +46,7 @@ export class MediaService {
         where: { id: bookingId, tenantId },
       });
       if (!booking) {
-        throw new BadRequestException('Booking not found in tenant');
+        throw new BadRequestException('media.booking_not_found_in_tenant');
       }
     }
     if (taskId) {
@@ -53,7 +54,7 @@ export class MediaService {
         where: { id: taskId, tenantId },
       });
       if (!task) {
-        throw new BadRequestException('Task not found in tenant');
+        throw new BadRequestException('media.task_not_found_in_tenant');
       }
     }
   }
@@ -65,7 +66,7 @@ export class MediaService {
     const { buffer, originalName, mimeType, size, bookingId, taskId } = params;
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     // Validate bookingId/taskId belong to tenant
@@ -107,7 +108,7 @@ export class MediaService {
   ): Promise<{ uploadUrl: string; attachment: Attachment }> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     // Validate bookingId/taskId belong to tenant
@@ -115,9 +116,13 @@ export class MediaService {
 
     // Security: Validate MIME type against whitelist
     if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
-      throw new BadRequestException(
-        `Unsupported file type: ${mimeType}. Allowed types: ${[...StorageService.ALLOWED_MIME_TYPES].join(', ')}`,
-      );
+      throw new BadRequestException({
+        key: 'media.unsupported_file_type',
+        args: {
+          mimeType,
+          allowed: [...StorageService.ALLOWED_MIME_TYPES].join(', '),
+        },
+      });
     }
 
     const key = this.storageService.generateKey(filename);
@@ -148,16 +153,17 @@ export class MediaService {
   async confirmUpload(attachmentId: string, size: number): Promise<Attachment> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
     const attachment = await this.attachmentRepository.findOne({
       where: { id: attachmentId, tenantId },
     });
 
     if (!attachment) {
-      throw new NotFoundException(
-        `Attachment with ID ${attachmentId} not found`,
-      );
+      throw new NotFoundException({
+        key: 'media.attachment_not_found',
+        args: { id: attachmentId },
+      });
     }
 
     // Update with actual file size
@@ -171,14 +177,12 @@ export class MediaService {
   async create(data: Partial<Attachment>): Promise<Attachment> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const attachment = this.attachmentRepository.create(data);
     if (attachment.tenantId && attachment.tenantId !== tenantId) {
-      throw new ForbiddenException(
-        'Cross-tenant attachment write is not allowed',
-      );
+      throw new ForbiddenException('media.cross_tenant_denied');
     }
     attachment.tenantId = tenantId;
     return this.attachmentRepository.save(attachment);
@@ -189,7 +193,7 @@ export class MediaService {
   ): Promise<Attachment[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
     return this.attachmentRepository.find({
       where: { tenantId },
@@ -200,10 +204,52 @@ export class MediaService {
     });
   }
 
+  async findAllCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: Attachment[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('common.tenant_missing');
+    }
+    const limit = query.limit || 20;
+
+    const qb = this.attachmentRepository.createQueryBuilder('attachment');
+
+    qb.leftJoinAndSelect('attachment.booking', 'booking')
+      .leftJoinAndSelect('attachment.task', 'task')
+      .where('attachment.tenantId = :tenantId', { tenantId })
+      .orderBy('attachment.createdAt', 'DESC')
+      .addOrderBy('attachment.id', 'DESC')
+      .take(limit + 1);
+
+    if (query.cursor) {
+      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
+      const [dateStr, id] = decoded.split('|');
+      const date = new Date(dateStr);
+
+      qb.andWhere(
+        '(attachment.createdAt < :date OR (attachment.createdAt = :date AND attachment.id < :id))',
+        { date, id },
+      );
+    }
+
+    const attachments = await qb.getMany();
+    let nextCursor: string | null = null;
+
+    if (attachments.length > limit) {
+      attachments.pop();
+      const lastItem = attachments[attachments.length - 1];
+      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      nextCursor = Buffer.from(cursorData).toString('base64');
+    }
+
+    return { data: attachments, nextCursor };
+  }
+
   async findOne(id: string): Promise<Attachment> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
     const attachment = await this.attachmentRepository.findOne({
       where: { id, tenantId },
@@ -218,7 +264,7 @@ export class MediaService {
   async findByBooking(bookingId: string): Promise<Attachment[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
     return this.attachmentRepository.find({
       where: { bookingId, tenantId },
@@ -229,7 +275,7 @@ export class MediaService {
   async findByTask(taskId: string): Promise<Attachment[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
     return this.attachmentRepository.find({
       where: { taskId, tenantId },
@@ -258,7 +304,7 @@ export class MediaService {
   async remove(id: string): Promise<void> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
     const attachment = await this.attachmentRepository.findOne({
       where: { id, tenantId },

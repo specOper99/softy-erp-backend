@@ -15,12 +15,14 @@ import {
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 import { minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
-import { SkipTenant } from '../../common/decorators';
+import { SkipIpRateLimit } from '../../common/decorators/skip-ip-rate-limit.decorator';
+import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 
 @ApiTags('Health')
 @Controller('health')
 @SkipThrottle() // Health checks should not be rate limited
+@SkipIpRateLimit() // Health checks should not be rate limited (custom IP limiter)
 @SkipTenant()
 export class HealthController {
   constructor(
@@ -93,18 +95,18 @@ export class HealthController {
     const secretKey = this.configService.get<string>('TEST_ERROR_KEY');
 
     if (!secretKey) {
-      throw new HttpException('Endpoint disabled', HttpStatus.NOT_FOUND);
+      throw new HttpException('health.endpoint_disabled', HttpStatus.NOT_FOUND);
     }
 
     if (!key) {
-      throw new HttpException('Missing key parameter', HttpStatus.BAD_REQUEST);
+      throw new HttpException('health.missing_key', HttpStatus.BAD_REQUEST);
     }
 
     if (key !== secretKey) {
-      throw new HttpException('Invalid key', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('health.invalid_key', HttpStatus.UNAUTHORIZED);
     }
 
     // Throw an unhandled error to test Sentry
-    throw new Error('This is a test error for Sentry monitoring');
+    throw new Error('health.test_error');
   }
 }

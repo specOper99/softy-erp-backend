@@ -2,6 +2,12 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { forwardRef, Inject, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { MailService } from '../mail.service';
+import {
+  EmailVerificationEmailData,
+  NewDeviceLoginEmailData,
+  PasswordResetEmailData,
+  SuspiciousActivityEmailData,
+} from '../mail.types';
 
 export const EMAIL_QUEUE = 'email';
 
@@ -32,10 +38,47 @@ export interface PayrollJobData {
   payrollDate: string;
 }
 
+export interface BookingCancellationJobData {
+  clientName: string;
+  to: string;
+  bookingId: string;
+  eventDate: string;
+  cancelledAt: string;
+  daysBeforeEvent: number;
+  cancellationReason: string;
+  amountPaid: number;
+  refundAmount: number;
+  refundPercentage: number;
+}
+
+export interface PaymentReceiptJobData {
+  clientName: string;
+  to: string;
+  bookingId: string;
+  eventDate: string;
+  amount: number;
+  paymentMethod: string;
+  reference: string;
+  totalPrice: number;
+  amountPaid: number;
+}
+
 export type EmailJobData =
   | { type: 'booking-confirmation'; data: BookingConfirmationJobData }
   | { type: 'task-assignment'; data: TaskAssignmentJobData }
-  | { type: 'payroll'; data: PayrollJobData };
+  | { type: 'payroll'; data: PayrollJobData }
+  | { type: 'password-reset'; data: PasswordResetEmailData }
+  | { type: 'email-verification'; data: EmailVerificationEmailData }
+  | { type: 'booking-cancellation'; data: BookingCancellationJobData }
+  | { type: 'payment-receipt'; data: PaymentReceiptJobData }
+  | {
+      type: 'new-device-login';
+      data: Omit<NewDeviceLoginEmailData, 'time'> & { time: string };
+    }
+  | {
+      type: 'suspicious-activity';
+      data: Omit<SuspiciousActivityEmailData, 'time'> & { time: string };
+    };
 
 /**
  * Email processor for handling background email jobs.
@@ -75,6 +118,28 @@ export class EmailProcessor extends WorkerHost {
           await this.mailService.sendPayrollNotification({
             ...job.data.data,
             payrollDate: new Date(job.data.data.payrollDate),
+          });
+          break;
+
+        case 'password-reset':
+          await this.mailService.sendPasswordReset(job.data.data);
+          break;
+
+        case 'email-verification':
+          await this.mailService.sendEmailVerification(job.data.data);
+          break;
+
+        case 'new-device-login':
+          await this.mailService.sendNewDeviceLogin({
+            ...job.data.data,
+            time: new Date(job.data.data.time),
+          });
+          break;
+
+        case 'suspicious-activity':
+          await this.mailService.sendSuspiciousActivityAlert({
+            ...job.data.data,
+            time: new Date(job.data.data.time),
           });
           break;
 

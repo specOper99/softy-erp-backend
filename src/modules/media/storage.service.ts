@@ -10,6 +10,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
@@ -161,13 +162,13 @@ export class StorageService implements OnModuleInit {
     const response = await this.breaker.fire(() => this.s3Client.send(command));
 
     if (!this.isGetObjectOutput(response)) {
-      throw new Error('Invalid S3 response: Body is not a Readable stream');
+      throw new InternalServerErrorException('media.s3_error');
     }
 
     if (response.Body instanceof Readable) {
       return response.Body;
     }
-    throw new Error('Invalid S3 response: Body is not a Readable stream');
+    throw new InternalServerErrorException('media.s3_error');
   }
 
   /**

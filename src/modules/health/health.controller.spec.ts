@@ -119,9 +119,7 @@ describe('HealthController', () => {
 
   describe('testError', () => {
     it('should throw error if key matches', () => {
-      expect(() => controller.testError('secret')).toThrow(
-        'This is a test error',
-      );
+      expect(() => controller.testError('secret')).toThrow('health.test_error');
     });
 
     it('should throw unauthorized if key mismatches', () => {

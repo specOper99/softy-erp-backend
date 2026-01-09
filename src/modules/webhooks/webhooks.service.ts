@@ -75,20 +75,21 @@ export class WebhookService {
     try {
       url = new URL(config.url);
       if (!['http:', 'https:'].includes(url.protocol)) {
-        throw new Error('Invalid protocol');
+        throw new Error('webhooks.invalid_protocol');
       }
     } catch {
-      throw new BadRequestException('Invalid webhook URL');
+      throw new BadRequestException('webhooks.invalid_url');
     }
 
-    // SSRF Prevention: Block private IPs and localhost
-    await this.validateUrlNotPrivate(url);
+    // SSRF Prevention: Block private IPs and localhost, get resolved IPs for caching
+    const resolvedIps = await this.validateUrlNotPrivate(url);
 
     // Secret entropy validation
     if (config.secret.length < this.MIN_SECRET_LENGTH) {
-      throw new BadRequestException(
-        `Webhook secret must be at least ${this.MIN_SECRET_LENGTH} characters`,
-      );
+      throw new BadRequestException({
+        key: 'webhooks.secret_length',
+        args: { min: this.MIN_SECRET_LENGTH },
+      });
     }
 
     // Encrypt the secret before storing
@@ -99,6 +100,8 @@ export class WebhookService {
       url: config.url,
       secret: encryptedSecret,
       events: config.events,
+      resolvedIps: resolvedIps.length > 0 ? resolvedIps : undefined,
+      ipsResolvedAt: resolvedIps.length > 0 ? new Date() : undefined,
     });
 
     await this.webhookRepository.save(webhook);
@@ -109,8 +112,9 @@ export class WebhookService {
 
   /**
    * Validate that a URL does not point to private/internal resources (SSRF prevention)
+   * Returns resolved IP addresses for caching to prevent DNS rebinding attacks
    */
-  private async validateUrlNotPrivate(url: URL): Promise<void> {
+  private async validateUrlNotPrivate(url: URL): Promise<string[]> {
     const hostname = url.hostname;
 
     // Block localhost variants
@@ -120,38 +124,60 @@ export class WebhookService {
       hostname === '::1' ||
       hostname === '0.0.0.0'
     ) {
-      throw new BadRequestException('Webhook URL cannot point to localhost');
+      throw new BadRequestException('webhooks.localhost_denied');
     }
 
     // If hostname is already an IP, validate it directly
     if (isIP(hostname)) {
       if (this.isPrivateIp(hostname)) {
-        throw new BadRequestException(
-          'Webhook URL cannot point to private IP addresses',
-        );
+        throw new BadRequestException('webhooks.private_ip_denied');
       }
-      return;
+      return [hostname];
     }
 
     // Resolve hostname and check all addresses
     try {
       const addresses = await lookup(hostname, { all: true });
+      const resolvedIps: string[] = [];
       for (const addr of addresses) {
         if (this.isPrivateIp(addr.address)) {
-          throw new BadRequestException(
-            'Webhook URL resolves to a private IP address',
-          );
+          throw new BadRequestException('webhooks.private_ip_denied');
         }
+        resolvedIps.push(addr.address);
       }
+      return resolvedIps;
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      // DNS resolution failed - could be a non-existent domain
       this.logger.warn(
         `DNS lookup failed for ${hostname}: ${error instanceof Error ? error.message : String(error)}`,
       );
-      // Allow registration but log warning - infra egress controls should be the primary defense
+      // Fail closed: unresolved hosts are not safe to deliver to.
+      throw new BadRequestException('webhooks.dns_lookup_failed');
+    }
+  }
+
+  private async resolveAndValidatePublicIps(url: URL): Promise<string[]> {
+    // validateUrlNotPrivate already blocks localhost/private IPs and fails closed
+    return this.validateUrlNotPrivate(url);
+  }
+
+  private async assertDnsNotRebound(url: URL, allowlistedIps?: string[]) {
+    if (!allowlistedIps || allowlistedIps.length === 0) {
+      // No allowlist stored (legacy webhooks): still validate public IPs on each delivery.
+      await this.resolveAndValidatePublicIps(url);
+      return;
+    }
+
+    const currentIps = await this.resolveAndValidatePublicIps(url);
+    const allowlist = new Set(allowlistedIps);
+    for (const ip of currentIps) {
+      if (!allowlist.has(ip)) {
+        throw new Error(
+          'Webhook delivery blocked: DNS changed (possible rebinding)',
+        );
+      }
     }
   }
 
@@ -247,7 +273,19 @@ export class WebhookService {
    * Deliver webhook directly (called by processor or inline fallback)
    */
   async deliverWebhook(webhook: Webhook, event: WebhookEvent): Promise<void> {
-    await this.sendWebhookOnce(webhook, event);
+    // Background processor passes a partial entity (no resolvedIps). Load full record.
+    const fullWebhook =
+      webhook.resolvedIps !== undefined
+        ? webhook
+        : await this.webhookRepository.findOne({
+            where: { id: webhook.id, tenantId: webhook.tenantId },
+          });
+
+    if (!fullWebhook) {
+      throw new Error('Webhook not found');
+    }
+
+    await this.sendWebhookOnce(fullWebhook, event);
   }
 
   /**
@@ -279,11 +317,20 @@ export class WebhookService {
 
   /**
    * Single attempt to send webhook with timeout
+   * SECURITY: Always re-validate DNS to prevent DNS rebinding attacks.
+   * Block redirects to prevent SSRF via redirect to private IPs.
    */
   private async sendWebhookOnce(
     webhook: Webhook,
     event: WebhookEvent,
   ): Promise<void> {
+    const url = new URL(webhook.url);
+
+    // SECURITY: Validate DNS and enforce allowlisted IPs to resist DNS rebinding.
+    // NOTE: To fully prevent time-of-check/time-of-use issues, pinning connections
+    // to an allowlisted IP via a custom HTTP agent is required.
+    await this.assertDnsNotRebound(url, webhook.resolvedIps);
+
     const timestamp = Date.now().toString();
     const body = JSON.stringify(event);
 
@@ -315,7 +362,17 @@ export class WebhookService {
         },
         body,
         signal: controller.signal,
+        // SECURITY: Block redirects to prevent SSRF via redirect to private IPs
+        redirect: 'manual',
       });
+
+      // SECURITY: Check for redirect responses - these could lead to private IPs
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        throw new Error(
+          `Webhook delivery blocked: redirect responses are not allowed (${response.status} -> ${location || 'unknown'})`,
+        );
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

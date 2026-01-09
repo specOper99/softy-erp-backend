@@ -14,4 +14,10 @@ export class Webhook extends BaseTenantEntity {
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  @Column({ name: 'resolved_ips', type: 'simple-array', nullable: true })
+  resolvedIps?: string[];
+
+  @Column({ name: 'ips_resolved_at', type: 'timestamp', nullable: true })
+  ipsResolvedAt?: Date;
 }
