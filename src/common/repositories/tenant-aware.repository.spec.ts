@@ -34,6 +34,9 @@ describe('TenantAwareRepository', () => {
 
     // Default mock for TenantContextService
     jest
+      .spyOn(TenantContextService, 'getTenantIdOrThrow')
+      .mockReturnValue('default-tenant');
+    jest
       .spyOn(TenantContextService, 'getTenantId')
       .mockReturnValue('default-tenant');
   });
@@ -42,10 +45,10 @@ describe('TenantAwareRepository', () => {
     jest.clearAllMocks();
   });
 
-  describe('findAllForTenant', () => {
+  describe('find (tenant-scoped)', () => {
     it('should find entities with tenantId filter and existing options', async () => {
       const options = { where: { name: 'test' }, relations: ['child'] };
-      await repository.findAllForTenant(options);
+      await repository.find(options as any);
 
       expect(mockTypeOrmRepository.find).toHaveBeenCalledWith({
         ...options,
@@ -57,7 +60,7 @@ describe('TenantAwareRepository', () => {
     });
 
     it('should find entities with tenantId filter when no options provided', async () => {
-      await repository.findAllForTenant();
+      await repository.find();
 
       expect(mockTypeOrmRepository.find).toHaveBeenCalledWith({
         where: {
@@ -68,18 +71,20 @@ describe('TenantAwareRepository', () => {
 
     it('should throw error if tenant context is missing', async () => {
       jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined);
-      await expect(repository.findAllForTenant()).rejects.toThrow(
+        .spyOn(TenantContextService, 'getTenantIdOrThrow')
+        .mockImplementation(() => {
+          throw new Error('Tenant context not available');
+        });
+      await expect(repository.find()).rejects.toThrow(
         'Tenant context not available',
       );
     });
   });
 
-  describe('findOneForTenant', () => {
+  describe('findOne (tenant-scoped)', () => {
     it('should find one entity with tenantId filter', async () => {
       const options = { where: { id: '1' } };
-      await repository.findOneForTenant(options);
+      await repository.findOne(options as any);
 
       expect(mockTypeOrmRepository.findOne).toHaveBeenCalledWith({
         ...options,
@@ -92,18 +97,20 @@ describe('TenantAwareRepository', () => {
 
     it('should throw error if tenant context is missing', async () => {
       jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined);
+        .spyOn(TenantContextService, 'getTenantIdOrThrow')
+        .mockImplementation(() => {
+          throw new Error('Tenant context not available');
+        });
       await expect(
-        repository.findOneForTenant({ where: { id: '1' } }),
+        repository.findOne({ where: { id: '1' } } as any),
       ).rejects.toThrow('Tenant context not available');
     });
   });
 
-  describe('countForTenant', () => {
+  describe('count (tenant-scoped)', () => {
     it('should count entities with tenantId filter', async () => {
       const options = { where: { name: 'test' } };
-      await repository.countForTenant(options);
+      await repository.count(options as any);
 
       expect(mockTypeOrmRepository.count).toHaveBeenCalledWith({
         ...options,
@@ -115,7 +122,7 @@ describe('TenantAwareRepository', () => {
     });
 
     it('should count entities with tenantId filter when no options provided', async () => {
-      await repository.countForTenant();
+      await repository.count();
 
       expect(mockTypeOrmRepository.count).toHaveBeenCalledWith({
         where: {
@@ -126,9 +133,11 @@ describe('TenantAwareRepository', () => {
 
     it('should throw error if tenant context is missing', async () => {
       jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined);
-      await expect(repository.countForTenant()).rejects.toThrow(
+        .spyOn(TenantContextService, 'getTenantIdOrThrow')
+        .mockImplementation(() => {
+          throw new Error('Tenant context not available');
+        });
+      await expect(repository.count()).rejects.toThrow(
         'Tenant context not available',
       );
     });

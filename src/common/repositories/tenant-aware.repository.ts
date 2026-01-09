@@ -14,7 +14,21 @@ import { TenantContextService } from '../services/tenant-context.service';
 
 @Injectable()
 export class TenantAwareRepository<T extends { tenantId: string }> {
-  constructor(private readonly repository: Repository<T>) {}
+  constructor(private readonly baseRepository?: Repository<T>) {}
+
+  /**
+   * Subclasses can override this getter to provide their own repository
+   * instead of passing one to the constructor. This keeps the API
+   * backward-compatible with both styles used in the codebase and tests.
+   */
+  protected get repository(): Repository<T> {
+    if (!this.baseRepository) {
+      throw new Error(
+        'Repository not provided; subclass must implement protected getter `repository`',
+      );
+    }
+    return this.baseRepository;
+  }
 
   private getTenantId(): string {
     return TenantContextService.getTenantIdOrThrow();
