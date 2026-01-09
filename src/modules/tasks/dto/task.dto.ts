@@ -7,7 +7,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
-import { TaskStatus } from '../../../common/enums';
+import { TaskStatus } from '../enums/task-status.enum';
 
 export class AssignTaskDto {
   @ApiProperty({ description: 'User ID to assign the task to' })
@@ -36,6 +36,11 @@ export class UpdateTaskDto {
   @IsOptional()
   @SanitizeHtml()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Parent task ID for subtasks' })
+  @IsUUID()
+  @IsOptional()
+  parentId?: string;
 }
 
 export class TaskResponseDto {
@@ -65,6 +70,9 @@ export class TaskResponseDto {
 
   @ApiPropertyOptional()
   notes: string;
+
+  @ApiPropertyOptional({ description: 'Parent task ID if this is a subtask' })
+  parentId: string | null;
 
   @ApiProperty()
   createdAt: Date;

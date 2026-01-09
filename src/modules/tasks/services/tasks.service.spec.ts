@@ -7,14 +7,16 @@ import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { Role, TaskStatus } from '../../common/enums';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { AuditService } from '../audit/audit.service';
-import { FinanceService } from '../finance/services/finance.service';
-import { User } from '../users/entities/user.entity';
-import { Task } from './entities/task.entity';
-import { TaskAssignedEvent } from './events/task-assigned.event';
-import { TaskCompletedEvent } from './events/task-completed.event';
+import { ExportService } from '../../../common/services/export.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { AuditService } from '../../audit/audit.service';
+import { FinanceService } from '../../finance/services/finance.service';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
+import { Task } from '../entities/task.entity';
+import { TaskStatus } from '../enums/task-status.enum';
+import { TaskAssignedEvent } from '../events/task-assigned.event';
+import { TaskCompletedEvent } from '../events/task-completed.event';
 import { TasksService } from './tasks.service';
 
 describe('TasksService - Comprehensive Tests', () => {
@@ -66,6 +68,10 @@ describe('TasksService - Comprehensive Tests', () => {
     publish: jest.fn(),
   };
 
+  const mockExportService = {
+    exportTasks: jest.fn().mockResolvedValue('csv-data'),
+  };
+
   const mockAuditService = {
     log: jest.fn().mockResolvedValue(undefined),
   };
@@ -96,6 +102,7 @@ describe('TasksService - Comprehensive Tests', () => {
         { provide: EventBus, useValue: mockEventBus },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: ExportService, useValue: mockExportService },
       ],
     }).compile();
 

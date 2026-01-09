@@ -2,14 +2,22 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FinanceModule } from '../finance/finance.module';
 import { MailModule } from '../mail/mail.module';
-import { Task } from './entities/task.entity';
-import { TasksController } from './tasks.controller';
-import { TasksService } from './tasks.service';
+import { TasksController } from './controllers/tasks.controller';
+import { TimeEntriesController } from './controllers/time-entries.controller';
+import { Task, TaskTemplate, TimeEntry } from './entities';
+import { TasksService } from './services/tasks.service';
+import { TimeEntriesService } from './services/time-entries.service';
+
+import { ExportService } from '../../common/services/export.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Task]), FinanceModule, MailModule],
-  controllers: [TasksController],
-  providers: [TasksService],
-  exports: [TasksService],
+  imports: [
+    TypeOrmModule.forFeature([Task, TaskTemplate, TimeEntry]),
+    FinanceModule,
+    MailModule,
+  ],
+  controllers: [TasksController, TimeEntriesController],
+  providers: [TasksService, ExportService, TimeEntriesService],
+  exports: [TasksService, TimeEntriesService],
 })
 export class TasksModule {}

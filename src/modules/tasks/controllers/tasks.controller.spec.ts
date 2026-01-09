@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskStatus } from '../../common/enums';
-import { User } from '../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
+import { TaskStatus } from '../enums/task-status.enum';
+import { TasksService } from '../services/tasks.service';
 import { TasksController } from './tasks.controller';
-import { TasksService } from './tasks.service';
 
 describe('TasksController', () => {
   let controller: TasksController;

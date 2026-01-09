@@ -7,19 +7,23 @@ import {
 } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
+import type { Response } from 'express';
 import { DataSource, Repository } from 'typeorm';
-import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { Role, TaskStatus } from '../../common/enums';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { AuditService } from '../audit/audit.service';
-import { Client } from '../bookings/entities/client.entity';
-import { FinanceService } from '../finance/services/finance.service';
-import { User } from '../users/entities/user.entity';
-import { AssignTaskDto, CompleteTaskResponseDto, UpdateTaskDto } from './dto';
-import { Task } from './entities/task.entity';
-import { TaskAssignedEvent } from './events/task-assigned.event';
-import { TaskCompletedEvent } from './events/task-completed.event';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { ExportService } from '../../../common/services/export.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { AuditService } from '../../audit/audit.service';
+import { Client } from '../../bookings/entities/client.entity';
+import { FinanceService } from '../../finance/services/finance.service';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
+import { AssignTaskDto, CompleteTaskResponseDto, UpdateTaskDto } from '../dto';
+import { Task } from '../entities/task.entity';
+import { TaskStatus } from '../enums/task-status.enum';
+import { TaskAssignedEvent } from '../events/task-assigned.event';
+import { TaskCompletedEvent } from '../events/task-completed.event';
 
 @Injectable()
 export class TasksService {
@@ -32,6 +36,7 @@ export class TasksService {
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
+    private readonly exportService: ExportService,
   ) {}
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<Task[]> {
@@ -54,7 +59,6 @@ export class TasksService {
     query: CursorPaginationDto,
   ): Promise<{ data: Task[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantId();
-    const limit = query.limit || 20;
 
     const qb = this.taskRepository.createQueryBuilder('task');
 
@@ -62,33 +66,13 @@ export class TasksService {
       .leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('task.taskType', 'taskType')
       .leftJoinAndSelect('task.assignedUser', 'assignedUser')
-      .where('task.tenantId = :tenantId', { tenantId })
-      .orderBy('task.createdAt', 'DESC')
-      .addOrderBy('task.id', 'DESC')
-      .take(limit + 1);
+      .where('task.tenantId = :tenantId', { tenantId });
 
-    if (query.cursor) {
-      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
-      const [dateStr, id] = decoded.split('|');
-      const date = new Date(dateStr);
-
-      qb.andWhere(
-        '(task.createdAt < :date OR (task.createdAt = :date AND task.id < :id))',
-        { date, id },
-      );
-    }
-
-    const tasks = await qb.getMany();
-    let nextCursor: string | null = null;
-
-    if (tasks.length > limit) {
-      tasks.pop(); // Remove the extra item, it just proves there's more
-      const lastItem = tasks[tasks.length - 1];
-      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-      nextCursor = Buffer.from(cursorData).toString('base64');
-    }
-
-    return { data: tasks, nextCursor };
+    return CursorPaginationHelper.paginate(qb, {
+      cursor: query.cursor,
+      limit: query.limit,
+      alias: 'task',
+    });
   }
 
   async findOne(id: string): Promise<Task> {
@@ -103,25 +87,104 @@ export class TasksService {
     return task;
   }
 
-  async findByBooking(bookingId: string): Promise<Task[]> {
+  async findByBooking(bookingId: string, limit = 100): Promise<Task[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
       where: { bookingId, tenantId },
       relations: ['taskType', 'assignedUser', 'booking', 'booking.client'],
+      take: limit,
     });
   }
 
-  async findByUser(userId: string): Promise<Task[]> {
+  async findByUser(userId: string, limit = 100): Promise<Task[]> {
     const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
       where: { assignedUserId: userId, tenantId },
       relations: ['booking', 'booking.client', 'taskType'],
       order: { dueDate: 'ASC' },
+      take: limit,
     });
+  }
+
+  async exportToCSV(res: Response): Promise<void> {
+    const tenantId = TenantContextService.getTenantId();
+
+    const queryStream = await this.taskRepository
+      .createQueryBuilder('task')
+      .leftJoinAndSelect('task.booking', 'booking')
+      .leftJoinAndSelect('booking.client', 'client')
+      .leftJoinAndSelect('task.taskType', 'taskType')
+      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
+      .where('task.tenantId = :tenantId', { tenantId })
+      .orderBy('task.createdAt', 'DESC')
+      .stream();
+
+    const fields = [
+      'id',
+      'status',
+      'dueDate',
+      'bookingId',
+      'clientName',
+      'taskType',
+      'assignedUser',
+      'commissionSnapshot',
+      'notes',
+      'completedAt',
+      'createdAt',
+    ];
+
+    const transformFn = (row: unknown) => {
+      const r = row as Record<string, unknown>;
+      return {
+        id: r.task_id,
+        status: r.task_status,
+        dueDate: r.task_dueDate
+          ? new Date(r.task_dueDate as string).toISOString()
+          : '',
+        bookingId: r.task_bookingId || '',
+        clientName: r.client_name || '',
+        taskType: r.taskType_name || '',
+        assignedUser: r.assignedUser_email || '',
+        commissionSnapshot: r.task_commissionSnapshot || 0,
+        notes: r.task_notes || '',
+        completedAt: r.task_completedAt
+          ? new Date(r.task_completedAt as string).toISOString()
+          : '',
+        createdAt: r.task_createdAt
+          ? new Date(r.task_createdAt as string).toISOString()
+          : '',
+      };
+    };
+
+    this.exportService.streamFromStream(
+      res,
+      queryStream,
+      `tasks-export-${new Date().toISOString().split('T')[0]}.csv`,
+      fields,
+      transformFn,
+    );
   }
 
   async update(id: string, dto: UpdateTaskDto): Promise<Task> {
     const task = await this.findOne(id);
+
+    // Validate parentId to prevent circular dependencies or self-reference
+    if (dto.parentId !== undefined) {
+      if (dto.parentId === id) {
+        throw new BadRequestException('A task cannot be its own parent');
+      }
+      if (dto.parentId) {
+        const tenantId = TenantContextService.getTenantId();
+        const parent = await this.taskRepository.findOne({
+          where: { id: dto.parentId, tenantId },
+        });
+        if (!parent) {
+          throw new NotFoundException(
+            `Parent task with ID ${dto.parentId} not found`,
+          );
+        }
+      }
+    }
 
     if (dto.dueDate) {
       task.dueDate = new Date(dto.dueDate);

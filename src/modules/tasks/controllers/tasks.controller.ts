@@ -6,17 +6,19 @@ import {
   ParseUUIDPipe,
   Patch,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, Roles } from '../../common/decorators';
-import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
-import { Role } from '../../common/enums';
-import { RolesGuard } from '../../common/guards';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { User } from '../users/entities/user.entity';
-import { AssignTaskDto, UpdateTaskDto } from './dto';
-import { TasksService } from './tasks.service';
+import type { Response } from 'express';
+import { CurrentUser, Roles } from '../../../common/decorators';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { RolesGuard } from '../../../common/guards';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
+import { AssignTaskDto, UpdateTaskDto } from '../dto';
+import { TasksService } from '../services/tasks.service';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -37,6 +39,13 @@ export class TasksController {
   @ApiOperation({ summary: 'Get all tasks using keyset pagination' })
   findAllCursor(@Query() query: CursorPaginationDto) {
     return this.tasksService.findAllCursor(query);
+  }
+
+  @Get('export')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Export all tasks to CSV' })
+  async exportTasks(@Res() res: Response) {
+    return this.tasksService.exportToCSV(res);
   }
 
   @Get('my-tasks')
