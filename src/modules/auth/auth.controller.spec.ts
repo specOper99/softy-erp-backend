@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Role } from '../../common/enums';
 import { User } from '../users/entities/user.entity';
+import { Role } from '../users/enums/role.enum';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
@@ -176,18 +176,17 @@ describe('AuthController', () => {
   });
   describe('getSessions', () => {
     it('should return active sessions', async () => {
-      const mockSessions = [
-        {
-          id: 's1',
-          userAgent: 'test',
-          ipAddress: '127.0.0.1',
-          createdAt: new Date(),
-          lastUsedAt: new Date(),
-        },
-      ];
-      (authService.getActiveSessions as jest.Mock).mockResolvedValue(
-        mockSessions,
-      );
+      const mockSession = {
+        id: 's1',
+        userAgent: 'test',
+        ipAddress: '127.0.0.1',
+        createdAt: new Date(),
+        lastUsedAt: new Date(),
+        toSessionInfo: jest.fn().mockReturnValue({ id: 's1' }),
+      };
+      (authService.getActiveSessions as jest.Mock).mockResolvedValue([
+        mockSession,
+      ]);
       const result = await controller.getSessions({ id: 'u-1' } as any);
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('s1');

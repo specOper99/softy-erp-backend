@@ -3,10 +3,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
-import { Role } from '../../common/enums';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { AuditService } from '../audit/audit.service';
-import { User } from './entities/user.entity';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { AuditService } from '../../audit/audit.service';
+import { User } from '../entities/user.entity';
+import { Role } from '../enums/role.enum';
 import { UsersService } from './users.service';
 
 // Test password constants - not real credentials, used only for unit test mocking

@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  MinLength,
+} from 'class-validator';
 import { PII } from '../../../common/decorators';
 
 // Password must have: 8+ chars, uppercase, lowercase, number, special char
@@ -20,6 +28,20 @@ export class LoginDto {
   @PII()
   // Note: Don't apply regex validation on login - it reveals password rules
   password: string;
+
+  @ApiPropertyOptional({
+    example: '123456',
+    description: 'MFA Code if enabled',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  code?: string;
+
+  @ApiPropertyOptional({ description: 'Extend session duration (30 days)' })
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
 export class RegisterDto {
@@ -62,17 +84,22 @@ export class TokensDto {
 }
 
 export class AuthResponseDto {
-  @ApiProperty()
-  accessToken: string;
+  @ApiPropertyOptional()
+  accessToken?: string;
 
-  @ApiProperty()
-  refreshToken: string;
+  @ApiPropertyOptional()
+  refreshToken?: string;
 
   @ApiPropertyOptional()
   expiresIn?: number;
 
-  @ApiProperty()
-  user: {
+  @ApiPropertyOptional({
+    description: 'Indicates MFA code is required to verify login',
+  })
+  requiresMfa?: boolean;
+
+  @ApiPropertyOptional()
+  user?: {
     id: string;
     email: string;
     role: string;
@@ -90,4 +117,10 @@ export class LogoutDto {
     description: 'If true, revokes all sessions for this user',
   })
   allSessions?: boolean;
+}
+
+export class ResendVerificationDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  email: string;
 }

@@ -5,77 +5,72 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
-import { DataSource, LessThan, MoreThan, Repository } from 'typeorm';
-import { Role } from '../../common/enums';
-import { TenantContextService } from '../../common/services/tenant-context.service';
+import { authenticator } from 'otplib';
+import { DataSource, Repository } from 'typeorm';
+import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
-import { UsersService } from '../users/users.service';
-import { AuthResponseDto, LoginDto, RegisterDto, TokensDto } from './dto';
+import { Role } from '../users/enums/role.enum';
+import { UsersService } from '../users/services/users.service';
+import {
+  AuthResponseDto,
+  LoginDto,
+  MfaResponseDto,
+  RegisterDto,
+  TokensDto,
+} from './dto';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { AccountLockoutService } from './services/account-lockout.service';
-
-export interface TokenPayload {
-  sub: string;
-  email: string;
-  role: string;
-  tenantId: string;
-}
-
-interface RequestContext {
-  userAgent?: string;
-  ipAddress?: string;
-}
+import { MfaService } from './services/mfa.service';
+import { PasswordService } from './services/password.service';
+import { SessionService } from './services/session.service';
+import {
+  RequestContext,
+  TokenPayload,
+  TokenService,
+} from './services/token.service';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly accessTokenExpiresIn: number; // seconds
-  private readonly refreshTokenExpiresIn: number; // days
 
   constructor(
     private readonly usersService: UsersService,
     private readonly tenantsService: TenantsService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
-    @InjectRepository(RefreshToken)
-    private readonly refreshTokenRepository: Repository<RefreshToken>,
+    private readonly tokenService: TokenService,
+    private readonly mfaService: MfaService,
+    private readonly sessionService: SessionService,
+    private readonly passwordService: PasswordService,
+    @InjectRepository(EmailVerificationToken)
+    private readonly emailVerificationRepository: Repository<EmailVerificationToken>,
     private readonly dataSource: DataSource,
     private readonly lockoutService: AccountLockoutService,
-  ) {
-    // Access token: 15 minutes by default
-    this.accessTokenExpiresIn = this.configService.get<number>(
-      'auth.jwtAccessExpires',
-      900,
-    );
-    // Refresh token: 7 days by default
-    this.refreshTokenExpiresIn = this.configService.get<number>(
-      'auth.jwtRefreshExpires',
-      7,
-    );
-  }
+    private readonly mailService: MailService,
+  ) {}
+
+  // A valid bcrypt hash (cost 10) to simulate password check time
+  // This hash corresponds to 'password' or similar, but we never expect it to match
+  private readonly DUMMY_PASSWORD_HASH =
+    '$2b$10$nOUIs5kJ7naTuTFkBy1veuK0kSx.BNfviYuZFt.vl5vU1KbGytp.6';
 
   async register(
     registerDto: RegisterDto,
     context?: RequestContext,
   ): Promise<AuthResponseDto> {
-    // 1. Generate slug and validate
     const slug = registerDto.companyName
       .toLowerCase()
       .replaceAll(/[^a-z0-9]+/g, '-')
       .replaceAll(/(^-)|(-$)/g, '');
 
-    // 2. Use transaction to ensure atomicity of tenant + user creation
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Create Tenant within transaction (handle race condition)
       let tenant;
       try {
         tenant = await this.tenantsService.createWithManager(
@@ -101,7 +96,6 @@ export class AuthService {
 
       const tenantId = tenant.id;
 
-      // Global-unique email model: email cannot exist in any tenant
       const existingUser = await this.usersService.findByEmail(
         registerDto.email,
       );
@@ -109,28 +103,28 @@ export class AuthService {
         throw new ConflictException('Email already registered');
       }
 
-      // Create User within transaction
       const user = await this.usersService.createWithManager(
         queryRunner.manager,
         {
           email: registerDto.email,
           password: registerDto.password,
-          role: Role.ADMIN, // First user is Admin
+          role: Role.ADMIN,
           tenantId: tenantId,
         },
       );
 
-      // Commit the transaction
       await queryRunner.commitTransaction();
+
+      this.sendVerificationEmail(user).catch((err: Error) =>
+        this.logger.error(`Failed to send verification email: ${err.message}`),
+      );
 
       return this.generateAuthResponse(user, context);
     } catch (error: unknown) {
-      // Rollback the transaction on any error
       if (queryRunner.isTransactionActive) {
         await queryRunner.rollbackTransaction();
       }
 
-      // Handle database unique constraint violation
       if (
         error instanceof Error &&
         'code' in error &&
@@ -140,7 +134,6 @@ export class AuthService {
       }
       throw error;
     } finally {
-      // Release the query runner
       if (!queryRunner.isReleased) {
         await queryRunner.release();
       }
@@ -151,7 +144,6 @@ export class AuthService {
     loginDto: LoginDto,
     context?: RequestContext,
   ): Promise<AuthResponseDto> {
-    // Check if account is locked out
     const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
     if (lockoutStatus.locked) {
       const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
@@ -160,10 +152,15 @@ export class AuthService {
       );
     }
 
-    // Find user by email globally (without tenant context)
-    const user = await this.usersService.findByEmail(loginDto.email);
+    const user = await this.usersService.findByEmailWithMfaSecret(
+      loginDto.email,
+    );
     if (!user) {
       await this.lockoutService.recordFailedAttempt(loginDto.email);
+      // Timing Attack Mitigation:
+      // Perform a dummy bcrypt comparison so the response time roughly matches valid users.
+      // This prevents attackers from easily enumerating valid email addresses by measuring response latency.
+      await bcrypt.compare(loginDto.password, this.DUMMY_PASSWORD_HASH);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -180,98 +177,136 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Clear failed attempts on successful login
+    if (user.isMfaEnabled) {
+      if (!loginDto.code) {
+        return { requiresMfa: true };
+      }
+
+      let isValid = false;
+      try {
+        isValid = authenticator.verify({
+          token: loginDto.code,
+          secret: user.mfaSecret,
+        });
+      } catch {
+        // TOTP verification failed, will try recovery code next
+      }
+
+      if (!isValid) {
+        const isRecoveryCodeValid = await this.mfaService.verifyRecoveryCode(
+          user,
+          loginDto.code,
+        );
+        if (!isRecoveryCodeValid) {
+          await this.lockoutService.recordFailedAttempt(loginDto.email);
+          throw new UnauthorizedException('Invalid MFA code or recovery code');
+        }
+      }
+    }
+
     await this.lockoutService.clearAttempts(loginDto.email);
 
-    return this.generateAuthResponse(user, context);
+    if (context?.ipAddress) {
+      void this.sessionService.checkSuspiciousActivity(
+        user.id,
+        context.ipAddress,
+      );
+    }
+
+    return this.generateAuthResponse(user, context, loginDto.rememberMe);
+  }
+
+  async generateMfaSecret(user: User): Promise<MfaResponseDto> {
+    return this.mfaService.generateMfaSecret(user);
+  }
+
+  async enableMfa(user: User, code: string): Promise<string[]> {
+    return this.mfaService.enableMfa(user, code);
+  }
+
+  async disableMfa(user: User): Promise<void> {
+    return this.mfaService.disableMfa(user);
+  }
+
+  async generateRecoveryCodes(user: User): Promise<string[]> {
+    return this.mfaService.generateRecoveryCodes(user);
+  }
+
+  async verifyRecoveryCode(user: User, code: string): Promise<boolean> {
+    return this.mfaService.verifyRecoveryCode(user, code);
+  }
+
+  async getRemainingRecoveryCodes(user: User): Promise<number> {
+    return this.mfaService.getRemainingRecoveryCodes(user);
   }
 
   async refreshTokens(
     refreshToken: string,
     context?: RequestContext,
   ): Promise<TokensDto> {
-    // Hash the token to look it up
-    const tokenHash = this.hashToken(refreshToken);
-    const storedToken = await this.refreshTokenRepository.findOne({
-      where: { tokenHash },
-      relations: ['user'],
-    });
+    const tokenHash = this.tokenService.hashToken(refreshToken);
 
-    if (!storedToken) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const storedToken = await manager.findOne(RefreshToken, {
+        where: { tokenHash },
+        relations: ['user'],
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    if (!storedToken.isValid()) {
-      // If token is revoked, it might be a token reuse attack
-      if (storedToken.isRevoked) {
-        this.logger.warn(
-          `Possible token reuse detected for user ${storedToken.userId}`,
-        );
-        // Revoke all tokens for this user as a security measure
-        await this.revokeAllUserTokens(storedToken.userId);
+      if (!storedToken) {
+        throw new UnauthorizedException('Invalid refresh token');
       }
-      throw new UnauthorizedException('Refresh token expired or revoked');
-    }
 
-    const user = storedToken.user;
-    if (!user?.isActive) {
-      throw new UnauthorizedException('User not found or inactive');
-    }
+      if (!storedToken.isValid()) {
+        if (storedToken.isRevoked) {
+          this.logger.warn({
+            message: 'Possible token reuse detected',
+            userId: storedToken.userId,
+            tokenId: storedToken.id,
+            ipAddress: context?.ipAddress,
+            userAgent: context?.userAgent,
+          });
+          await manager.update(
+            RefreshToken,
+            { userId: storedToken.userId, isRevoked: false },
+            { isRevoked: true },
+          );
+        }
+        throw new UnauthorizedException('Refresh token expired or revoked');
+      }
 
-    // Establish tenant context based on the refresh token's user.
-    // This makes refresh flows tenant-aware without requiring an access token.
-    return TenantContextService.run(user.tenantId, async () => {
-      // ATOMIC Token rotation: update with conditions and check affected rows
-      // This prevents race conditions where two concurrent requests could both succeed
-      const updateResult = await this.refreshTokenRepository.update(
-        {
-          id: storedToken.id,
-          isRevoked: false,
-          expiresAt: MoreThan(new Date()),
-        },
-        {
-          isRevoked: true,
-          lastUsedAt: new Date(),
+      const user = storedToken.user;
+      if (!user?.isActive) {
+        throw new UnauthorizedException('User not found or inactive');
+      }
+
+      storedToken.isRevoked = true;
+      storedToken.lastUsedAt = new Date();
+      await manager.save(storedToken);
+
+      return this.tokenService.generateTokens(
+        user,
+        context,
+        false,
+        (userId, userAgent, ipAddress) => {
+          void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
         },
       );
-
-      // If no rows were affected, another request already rotated this token
-      if (updateResult.affected === 0) {
-        this.logger.warn({
-          message: 'Refresh token race condition detected',
-          userId: storedToken.userId,
-          tokenId: storedToken.id,
-          attemptTime: new Date().toISOString(),
-          context: context,
-        });
-        throw new UnauthorizedException('Refresh token already used');
-      }
-
-      // Generate new tokens
-      return this.generateTokens(user, context);
     });
   }
 
   async logout(userId: string, refreshToken?: string): Promise<void> {
     if (refreshToken) {
-      // Revoke specific token
-      const tokenHash = this.hashToken(refreshToken);
-      await this.refreshTokenRepository.update(
-        { tokenHash, userId },
-        { isRevoked: true },
-      );
+      const tokenHash = this.tokenService.hashToken(refreshToken);
+      await this.tokenService.revokeToken(tokenHash, userId);
     } else {
-      // Revoke all tokens for user
-      await this.revokeAllUserTokens(userId);
+      await this.tokenService.revokeAllUserTokens(userId);
     }
   }
 
   async logoutAllSessions(userId: string): Promise<number> {
-    const result = await this.refreshTokenRepository.update(
-      { userId, isRevoked: false },
-      { isRevoked: true },
-    );
-    return result.affected || 0;
+    await this.tokenService.revokeAllUserTokens(userId);
+    return 0;
   }
 
   async validateUser(payload: TokenPayload): Promise<User> {
@@ -287,34 +322,88 @@ export class AuthService {
   }
 
   async getActiveSessions(userId: string): Promise<RefreshToken[]> {
-    return this.refreshTokenRepository.find({
-      where: {
-        userId,
-        isRevoked: false,
-        expiresAt: MoreThan(new Date()),
-      },
-      order: { createdAt: 'DESC' },
-    });
+    return this.sessionService.getActiveSessions(userId);
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    return this.sessionService.revokeSession(userId, sessionId);
+  }
+
+  async revokeOtherSessions(
+    userId: string,
+    currentRefreshToken: string,
+  ): Promise<number> {
+    return this.sessionService.revokeOtherSessions(userId, currentRefreshToken);
   }
 
   async cleanupExpiredTokens(): Promise<number> {
-    const result = await this.refreshTokenRepository.delete({
-      expiresAt: LessThan(new Date()),
-    });
-    const deleted = result.affected || 0;
-    if (deleted > 0) {
-      this.logger.log(`Cleaned up ${deleted} expired refresh tokens`);
-    }
-    return deleted;
+    return this.tokenService.cleanupExpiredTokens();
   }
 
-  // ============ Private Methods ============
+  async forgotPassword(email: string): Promise<void> {
+    return this.passwordService.forgotPassword(email);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    return this.passwordService.resetPassword(token, newPassword, (userId) =>
+      this.logoutAllSessions(userId).then(() => {}),
+    );
+  }
+
+  async verifyEmail(token: string): Promise<boolean> {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const verificationToken = await this.emailVerificationRepository.findOne({
+      where: { tokenHash, used: false },
+    });
+
+    if (!verificationToken) {
+      throw new UnauthorizedException('Invalid verification token');
+    }
+
+    if (verificationToken.isExpired()) {
+      throw new UnauthorizedException('Verification token has expired');
+    }
+
+    const user = await this.usersService.findByEmail(verificationToken.email);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    verificationToken.used = true;
+    await this.emailVerificationRepository.save(verificationToken);
+
+    await this.usersService.update(user.id, { emailVerified: true });
+
+    return true;
+  }
+
+  async resendVerificationEmail(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return;
+    }
+
+    if (user.emailVerified) {
+      throw new ConflictException('Email is already verified');
+    }
+
+    await this.sendVerificationEmail(user);
+  }
 
   private async generateAuthResponse(
     user: User,
     context?: RequestContext,
+    rememberMe?: boolean,
   ): Promise<AuthResponseDto> {
-    const tokens = await this.generateTokens(user, context);
+    const tokens = await this.tokenService.generateTokens(
+      user,
+      context,
+      rememberMe,
+      (userId, userAgent, ipAddress) => {
+        void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
+      },
+    );
 
     return {
       ...tokens,
@@ -327,67 +416,23 @@ export class AuthService {
     };
   }
 
-  private async generateTokens(
-    user: User,
-    context?: RequestContext,
-  ): Promise<TokensDto> {
-    const payload: TokenPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId,
-    };
+  private async sendVerificationEmail(user: User): Promise<void> {
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Generate access token (short-lived)
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.accessTokenExpiresIn,
-    });
-
-    // Generate refresh token (random string, not JWT)
-    const refreshToken = this.generateRefreshToken();
-
-    // Store refresh token hash in database
-    await this.storeRefreshToken(user.id, refreshToken, context);
-
-    return {
-      accessToken,
-      refreshToken,
-      expiresIn: this.accessTokenExpiresIn,
-    };
-  }
-
-  private generateRefreshToken(): string {
-    return crypto.randomBytes(64).toString('base64url');
-  }
-
-  private hashToken(token: string): string {
-    return crypto.createHash('sha256').update(token).digest('hex');
-  }
-
-  private async storeRefreshToken(
-    userId: string,
-    token: string,
-    context?: RequestContext,
-  ): Promise<RefreshToken> {
-    const tokenHash = this.hashToken(token);
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + this.refreshTokenExpiresIn);
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
-    const refreshToken = this.refreshTokenRepository.create({
+    await this.emailVerificationRepository.save({
+      email: user.email,
       tokenHash,
-      userId,
       expiresAt,
-      userAgent: context?.userAgent?.substring(0, 500) || null,
-      ipAddress: context?.ipAddress || null,
     });
 
-    return this.refreshTokenRepository.save(refreshToken);
-  }
-
-  private async revokeAllUserTokens(userId: string): Promise<void> {
-    await this.refreshTokenRepository.update(
-      { userId, isRevoked: false },
-      { isRevoked: true },
-    );
+    await this.mailService.queueEmailVerification({
+      email: user.email,
+      name: user.email,
+      token,
+    });
   }
 }

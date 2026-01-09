@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Ip,
+  Param,
   Post,
   Req,
   UseGuards,
@@ -12,16 +14,24 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { CurrentUser, SkipTenant } from '../../common/decorators';
+import { CurrentUser } from '../../common/decorators';
+import { SkipTenant } from '../tenants/decorators/skip-tenant.decorator';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import {
   AuthResponseDto,
+  EnableMfaDto,
+  ForgotPasswordDto,
   LoginDto,
   LogoutDto,
+  MfaResponseDto,
+  RecoveryCodesResponseDto,
   RefreshTokenDto,
   RegisterDto,
+  ResendVerificationDto,
+  ResetPasswordDto,
   TokensDto,
+  VerifyEmailDto,
 } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -93,19 +103,126 @@ export class AuthController {
     }
   }
 
+  @Post('mfa/generate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate MFA secret and QR code' })
+  async generateMfa(@CurrentUser() user: User): Promise<MfaResponseDto> {
+    return this.authService.generateMfaSecret(user);
+  }
+
+  @Post('mfa/enable')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: minutes(5) } }) // 5 attempts per 5 minutes
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Enable MFA with verification code',
+    description:
+      'Returns recovery codes on success. Store these securely - they are shown only once!',
+  })
+  async enableMfa(
+    @CurrentUser() user: User,
+    @Body() dto: EnableMfaDto,
+  ): Promise<RecoveryCodesResponseDto> {
+    const codes = await this.authService.enableMfa(user, dto.code);
+    return {
+      codes,
+      remaining: codes.length,
+    };
+  }
+
+  @Post('mfa/disable')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: minutes(5) } }) // 5 attempts per 5 minutes
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Disable MFA' })
+  async disableMfa(@CurrentUser() user: User): Promise<void> {
+    return this.authService.disableMfa(user);
+  }
+
+  @Get('mfa/recovery-codes')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'View remaining recovery codes',
+    description:
+      'Returns the number of remaining recovery codes and a warning if running low.',
+  })
+  async getRecoveryCodes(
+    @CurrentUser() user: User,
+  ): Promise<RecoveryCodesResponseDto> {
+    const remaining = await this.authService.getRemainingRecoveryCodes(user);
+
+    let warning: string | undefined;
+    if (remaining <= 2 && remaining > 0) {
+      warning = `Warning: Only ${remaining} recovery code${remaining === 1 ? '' : 's'} remaining. Consider regenerating.`;
+    } else if (remaining === 0) {
+      warning = 'No recovery codes available. Please regenerate immediately.';
+    }
+
+    return {
+      codes: [], // Don't return actual codes for security
+      remaining,
+      warning,
+    };
+  }
+
+  @Post('mfa/recovery-codes/regenerate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 3, ttl: minutes(10) } }) // 3 attempts per 10 minutes
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Regenerate recovery codes',
+    description:
+      'Generates new recovery codes and invalidates old ones. Store these securely - they are shown only once!',
+  })
+  async regenerateRecoveryCodes(
+    @CurrentUser() user: User,
+  ): Promise<RecoveryCodesResponseDto> {
+    const codes = await this.authService.generateRecoveryCodes(user);
+    return {
+      codes,
+      remaining: codes.length,
+    };
+  }
+
   @Get('sessions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get active sessions for current user' })
   async getSessions(@CurrentUser() user: User) {
     const sessions = await this.authService.getActiveSessions(user.id);
-    return sessions.map((s) => ({
-      id: s.id,
-      userAgent: s.userAgent,
-      ipAddress: s.ipAddress,
-      createdAt: s.createdAt,
-      lastUsedAt: s.lastUsedAt,
-    }));
+    return sessions.map((s) => s.toSessionInfo());
+  }
+
+  @Delete('sessions/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke a specific session' })
+  async revokeSession(
+    @CurrentUser() user: User,
+    @Param('id') sessionId: string,
+  ): Promise<void> {
+    await this.authService.revokeSession(user.id, sessionId);
+  }
+
+  @Delete('sessions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke all other sessions (keep current)' })
+  async revokeOtherSessions(
+    @CurrentUser() user: User,
+    @Body() dto: { currentRefreshToken: string },
+  ): Promise<void> {
+    await this.authService.revokeOtherSessions(
+      user.id,
+      dto.currentRefreshToken,
+    );
   }
 
   @Get('me')
@@ -118,6 +235,65 @@ export class AuthController {
       email: user.email,
       role: user.role,
       isActive: user.isActive,
+      isMfaEnabled: user.isMfaEnabled,
+    };
+  }
+
+  @Post('forgot-password')
+  @SkipTenant()
+  @Throttle({ default: { limit: 3, ttl: minutes(5) } }) // 3 attempts per 5 minutes
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request password reset',
+    description:
+      'Sends password reset email if account exists (always returns success)',
+  })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.authService.forgotPassword(dto.email);
+    return {
+      message: 'If an account exists, a password reset email has been sent',
+    };
+  }
+
+  @Post('reset-password')
+  @SkipTenant()
+  @Throttle({ default: { limit: 5, ttl: minutes(15) } }) // 5 attempts per 15 minutes
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reset password with token',
+    description: 'Resets password using token from email',
+  })
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
+    return { message: 'Password has been reset successfully' };
+  }
+
+  @Post('verify-email')
+  @SkipTenant()
+  @Throttle({ default: { limit: 10, ttl: minutes(5) } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email address' })
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
+    await this.authService.verifyEmail(dto.token);
+    return { message: 'Email verified successfully' };
+  }
+
+  @Post('resend-verification')
+  @SkipTenant()
+  @Throttle({ default: { limit: 3, ttl: minutes(10) } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend verification email' })
+  async resendVerification(
+    @Body() dto: ResendVerificationDto,
+  ): Promise<{ message: string }> {
+    await this.authService.resendVerificationEmail(dto.email);
+    return {
+      message:
+        'If the account exists and is unverified, a verification email has been sent',
     };
   }
 }

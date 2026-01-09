@@ -7,7 +7,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { PII } from '../../../common/decorators';
-import { Role } from '../../../common/enums';
+import { Role } from '../enums/role.enum';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -42,6 +42,10 @@ export class UpdateUserDto {
   @ApiPropertyOptional()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  emailVerified?: boolean;
 }
 
 export class UserResponseDto {

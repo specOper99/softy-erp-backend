@@ -9,14 +9,19 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators';
-import { Role } from '../../common/enums';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { MfaRequired } from '../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
+import { Role } from '../users/enums/role.enum';
+import { CreateTenantDto } from './dto/create-tenant.dto';
+import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantsService } from './tenants.service';
 
+@ApiTags('Tenants')
+@ApiBearerAuth()
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
@@ -47,6 +52,7 @@ export class TenantsController {
   }
 
   @Patch(':id')
+  @MfaRequired()
   update(@Param('id') id: string, @Body() updateTenantDto: UpdateTenantDto) {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId || id !== tenantId) {

@@ -1,10 +1,7 @@
 import {
   Body,
-  CanActivate,
   Controller,
-  ExecutionContext,
   Get,
-  Injectable,
   Param,
   Post,
   Req,
@@ -16,7 +13,7 @@ import { Throttle } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Request } from 'express';
 import { Repository } from 'typeorm';
-import { SkipTenant } from '../../common/decorators/skip-tenant.decorator';
+import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import {
@@ -24,20 +21,8 @@ import {
   RequestMagicLinkDto,
   VerifyMagicLinkDto,
 } from './dto/client-auth.dto';
+import { ClientTokenGuard } from './guards/client-token.guard';
 import { ClientAuthService } from './services/client-auth.service';
-
-// Simple guard to validate client token from header
-@Injectable()
-class ClientTokenGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request>();
-    const token = request.headers['x-client-token'];
-    if (!token) {
-      throw new UnauthorizedException('Client token required');
-    }
-    return true;
-  }
-}
 
 @ApiTags('Client Portal')
 @ApiHeader({

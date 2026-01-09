@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Role } from '../../common/enums';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Tenant } from '../../tenants/entities/tenant.entity';
+import { Role } from '../enums/role.enum';
+import { UsersService } from '../services/users.service';
 import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -24,6 +26,7 @@ describe('UsersController', () => {
             remove: jest.fn().mockResolvedValue(undefined),
           },
         },
+        { provide: getRepositoryToken(Tenant), useValue: {} },
       ],
     }).compile();
 

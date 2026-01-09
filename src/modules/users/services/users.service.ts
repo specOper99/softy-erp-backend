@@ -7,11 +7,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { EntityManager, Repository } from 'typeorm';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { AuditService } from '../audit/audit.service';
-import { CreateUserDto, UpdateUserDto } from './dto';
-import { User } from './entities/user.entity';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { AuditService } from '../../audit/audit.service';
+import { CreateUserDto, UpdateUserDto } from '../dto';
+import { User } from '../entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -27,7 +28,7 @@ export class UsersService {
       throw new BadRequestException('Tenant context missing');
     }
 
-    const passwordHash = await bcrypt.hash(createUserDto.password, 10);
+    const passwordHash = await bcrypt.hash(createUserDto.password, 12);
     const user = this.userRepository.create({
       email: createUserDto.email,
       passwordHash,
@@ -63,7 +64,7 @@ export class UsersService {
     manager: EntityManager,
     createUserDto: CreateUserDto & { tenantId: string },
   ): Promise<User> {
-    const passwordHash = await bcrypt.hash(createUserDto.password, 10);
+    const passwordHash = await bcrypt.hash(createUserDto.password, 12);
     const user = manager.create(User, {
       email: createUserDto.email,
       passwordHash,
@@ -87,6 +88,45 @@ export class UsersService {
     });
   }
 
+  async findAllCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: User[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantId();
+    const limit = query.limit || 20;
+
+    const qb = this.userRepository.createQueryBuilder('user');
+
+    qb.leftJoinAndSelect('user.profile', 'profile')
+      .leftJoinAndSelect('user.wallet', 'wallet')
+      .where('user.tenantId = :tenantId', { tenantId })
+      .orderBy('user.createdAt', 'DESC')
+      .addOrderBy('user.id', 'DESC')
+      .take(limit + 1);
+
+    if (query.cursor) {
+      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
+      const [dateStr, id] = decoded.split('|');
+      const date = new Date(dateStr);
+
+      qb.andWhere(
+        '(user.createdAt < :date OR (user.createdAt = :date AND user.id < :id))',
+        { date, id },
+      );
+    }
+
+    const users = await qb.getMany();
+    let nextCursor: string | null = null;
+
+    if (users.length > limit) {
+      users.pop();
+      const lastItem = users[users.length - 1];
+      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      nextCursor = Buffer.from(cursorData).toString('base64');
+    }
+
+    return { data: users, nextCursor };
+  }
+
   async findOne(id: string): Promise<User> {
     const tenantId = TenantContextService.getTenantId();
     const user = await this.userRepository.findOne({
@@ -103,11 +143,57 @@ export class UsersService {
     return this.userRepository.findOne({ where: { email } });
   }
 
+  async findByEmailWithMfaSecret(email: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('user.email = :email', { email })
+      .addSelect('user.mfaSecret')
+      .getOne();
+  }
+
+  async findByIdWithRecoveryCodes(userId: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('user.id = :userId', { userId })
+      .addSelect('user.mfaRecoveryCodes')
+      .getOne();
+  }
+
+  async updateMfaSecret(
+    userId: string,
+    secret: string | null,
+    enabled: boolean,
+  ): Promise<void> {
+    await this.userRepository.update(userId, {
+      mfaSecret: secret ?? undefined,
+      isMfaEnabled: enabled,
+    });
+  }
+
+  async updateMfaRecoveryCodes(userId: string, codes: string[]): Promise<void> {
+    await this.userRepository.update(userId, {
+      mfaRecoveryCodes: codes,
+    });
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
     const oldValues = { role: user.role, isActive: user.isActive };
 
-    Object.assign(user, updateUserDto);
+    // SECURITY: Explicit field assignment to prevent mass assignment attacks
+    // Only allow safe fields to be updated - never assign isAdmin or sensitive role fields directly
+    const allowedFields = [
+      'email',
+      'role',
+      'isActive',
+      'emailVerified',
+    ] as const;
+    for (const field of allowedFields) {
+      if (updateUserDto[field] !== undefined) {
+        (user as unknown as Record<string, unknown>)[field] =
+          updateUserDto[field];
+      }
+    }
     const savedUser = await this.userRepository.save(user);
 
     // Log role or status changes
