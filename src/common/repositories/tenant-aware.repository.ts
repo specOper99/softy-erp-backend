@@ -1,3 +1,4 @@
+import { InternalServerErrorException } from '@nestjs/common';
 import { FindManyOptions, FindOneOptions, Repository } from 'typeorm';
 import { TenantContextService } from '../services/tenant-context.service';
 
@@ -59,7 +60,7 @@ export abstract class TenantAwareRepository<T extends TenantEntity> {
   async findAllForTenant(options?: FindManyOptions<T>): Promise<T[]> {
     const tenantId = this.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context not available');
+      throw new InternalServerErrorException('Tenant context not available');
     }
 
     const where = this.mergeTenantId(options?.where);
@@ -72,7 +73,7 @@ export abstract class TenantAwareRepository<T extends TenantEntity> {
   async findOneForTenant(options: FindOneOptions<T>): Promise<T | null> {
     const tenantId = this.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context not available');
+      throw new InternalServerErrorException('Tenant context not available');
     }
 
     const where = this.mergeTenantId(options.where);
@@ -85,7 +86,7 @@ export abstract class TenantAwareRepository<T extends TenantEntity> {
   async countForTenant(options?: FindManyOptions<T>): Promise<number> {
     const tenantId = this.getTenantId();
     if (!tenantId) {
-      throw new Error('Tenant context not available');
+      throw new InternalServerErrorException('Tenant context not available');
     }
 
     const where = this.mergeTenantId(options?.where);

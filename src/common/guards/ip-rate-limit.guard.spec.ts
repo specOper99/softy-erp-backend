@@ -1,5 +1,6 @@
 import { ExecutionContext, HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../cache/cache-utils.service';
 import { IpRateLimitGuard } from './ip-rate-limit.guard';
@@ -37,6 +38,7 @@ describe('IpRateLimitGuard', () => {
         IpRateLimitGuard,
         { provide: CacheUtilsService, useValue: mockCacheService },
         { provide: ConfigService, useValue: mockConfigService },
+        Reflector,
       ],
     }).compile();
 
@@ -52,6 +54,8 @@ describe('IpRateLimitGuard', () => {
   const createMockContext = (ip: string) => {
     const setHeader = jest.fn();
     return {
+      getHandler: () => createMockContext,
+      getClass: () => IpRateLimitGuard,
       switchToHttp: () => ({
         getRequest: () => ({
           ip,

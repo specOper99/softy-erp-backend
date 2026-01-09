@@ -1,8 +1,8 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Role } from '../../modules/users/enums/role.enum';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { Role } from '../enums';
 import { RolesGuard } from './roles.guard';
 
 describe('RolesGuard', () => {

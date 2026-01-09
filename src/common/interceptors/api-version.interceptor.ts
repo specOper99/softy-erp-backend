@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
+  StreamableFile,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Observable, map } from 'rxjs';
@@ -42,7 +43,13 @@ export class ApiVersionInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map((data: unknown) => {
         // Optionally inject version info into responses
-        if (data && typeof data === 'object' && !Array.isArray(data)) {
+        if (
+          data &&
+          typeof data === 'object' &&
+          !Array.isArray(data) &&
+          !(data instanceof Buffer) &&
+          !(data instanceof StreamableFile)
+        ) {
           return {
             ...data,
             _meta: {

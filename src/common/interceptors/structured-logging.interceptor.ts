@@ -5,6 +5,7 @@ import {
   Logger,
   NestInterceptor,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
 import { TenantContextService } from '../services/tenant-context.service';
@@ -29,6 +30,12 @@ interface LogContext {
 @Injectable()
 export class StructuredLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
+  private readonly trustProxyHeaders: boolean;
+
+  constructor(private readonly configService: ConfigService) {
+    this.trustProxyHeaders =
+      this.configService.get<string>('TRUST_PROXY') === 'true';
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -104,9 +111,16 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
   }
 
   private getClientIp(request: Request): string {
-    const forwarded = request.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
+    // Only trust proxy headers when explicitly configured
+    if (this.trustProxyHeaders) {
+      const forwarded = request.headers['x-forwarded-for'];
+      if (typeof forwarded === 'string') {
+        return forwarded.split(',')[0].trim();
+      }
+      const realIp = request.headers['x-real-ip'];
+      if (typeof realIp === 'string') {
+        return realIp;
+      }
     }
     return request.ip || request.socket?.remoteAddress || 'unknown';
   }

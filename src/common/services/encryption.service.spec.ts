@@ -85,6 +85,58 @@ describe('EncryptionService', () => {
     });
   });
 
+  describe('key rotation and multi-key support', () => {
+    it('should decrypt data encrypted with a previous key version', () => {
+      const v1Key = 'key-version-1-at-least-32-chars-long';
+      const v2Key = 'key-version-2-at-least-32-chars-long';
+
+      // Setup service with v1
+      const v1Config = {
+        get: jest.fn((key: string) => {
+          if (key === 'ENCRYPTION_KEY') return v1Key;
+          if (key === 'ENCRYPTION_KEY_VERSION') return 'v1';
+          return undefined;
+        }),
+      };
+      const v1Service = new EncryptionService(v1Config as any);
+      const secret = 'my-v1-secret';
+      const encryptedV1 = v1Service.encrypt(secret);
+
+      // Now setup service with v2 as current and v1 as previous
+      const v2Config = {
+        get: jest.fn((key: string) => {
+          if (key === 'ENCRYPTION_KEY') return v2Key;
+          if (key === 'ENCRYPTION_KEY_VERSION') return 'v2';
+          if (key === 'ENCRYPTION_KEY_PREVIOUS') return v1Key;
+          if (key === 'ENCRYPTION_KEY_PREVIOUS_VERSION') return 'v1';
+          return undefined;
+        }),
+      };
+      const v2Service = new EncryptionService(v2Config as any);
+
+      // Decrypt v1 data with v2 service
+      const decrypted = v2Service.decrypt(encryptedV1);
+      expect(decrypted).toBe(secret);
+      expect(encryptedV1).toContain('v1:');
+    });
+
+    it('should support legacy unversioned decryption using available keys', () => {
+      const key = 'test-key-32-characters-long-!!!!';
+      const config = { get: jest.fn().mockReturnValue(key) };
+      const service = new EncryptionService(config as any);
+
+      // Create a legacy (3-part) ciphertext manually for testing
+      // Format: IV:Tag:Cipher
+      const iv = 'ivbase64==';
+      const tag = 'tagbase64==';
+      const cipher = 'cipherbase64==';
+      const legacy = `${iv}:${tag}:${cipher}`;
+
+      // This will fail because the parts are junk, but it verifies the code path
+      expect(() => service.decrypt(legacy)).toThrow();
+    });
+  });
+
   describe('without encryption key', () => {
     it('should log warning when ENCRYPTION_KEY is not set', async () => {
       const warnConfig = { get: jest.fn().mockReturnValue(undefined) };

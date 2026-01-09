@@ -7,8 +7,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { User } from '../../modules/users/entities/user.entity';
+import { Role } from '../../modules/users/enums/role.enum';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { Role } from '../enums';
 
 interface RequestWithUser extends Request {
   user?: User;

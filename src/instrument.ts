@@ -3,6 +3,12 @@
 import * as Sentry from '@sentry/nestjs';
 import 'dotenv/config';
 
+class SentryLogger {
+  static log(message: string): void {
+    process.stdout.write(`[Sentry] ${message}\n`);
+  }
+}
+
 // Only initialize if DSN is provided
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -13,7 +19,7 @@ if (process.env.SENTRY_DSN) {
     // Tracing sample rate (10% in production, 100% in dev)
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
   });
-  console.log('Sentry initialized');
+  SentryLogger.log('Sentry initialized');
 } else {
-  console.log('Sentry is disabled (SENTRY_DSN not set)');
+  SentryLogger.log('Sentry is disabled (SENTRY_DSN not set)');
 }

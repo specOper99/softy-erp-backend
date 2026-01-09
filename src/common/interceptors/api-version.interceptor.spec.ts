@@ -1,0 +1,127 @@
+import { CallHandler, ExecutionContext, StreamableFile } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { of } from 'rxjs';
+import { ApiVersionInterceptor } from './api-version.interceptor';
+
+describe('ApiVersionInterceptor', () => {
+  let interceptor: ApiVersionInterceptor;
+
+  const mockResponse = {
+    setHeader: jest.fn(),
+  };
+
+  const mockRequest = {
+    url: '/api/v1/test',
+  };
+
+  const mockExecutionContext = {
+    switchToHttp: jest.fn().mockReturnValue({
+      getResponse: () => mockResponse,
+      getRequest: () => mockRequest,
+    }),
+  } as unknown as ExecutionContext;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ApiVersionInterceptor],
+    }).compile();
+
+    interceptor = module.get<ApiVersionInterceptor>(ApiVersionInterceptor);
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(interceptor).toBeDefined();
+  });
+
+  describe('intercept', () => {
+    it('should add version headers to response', (done) => {
+      const mockCallHandler: CallHandler = {
+        handle: () => of({ data: 'test' }),
+      };
+
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe(() => {
+          expect(mockResponse.setHeader).toHaveBeenCalledWith(
+            'X-API-Version',
+            expect.any(String),
+          );
+          expect(mockResponse.setHeader).toHaveBeenCalledWith(
+            'X-API-Min-Version',
+            expect.any(String),
+          );
+          done();
+        });
+    });
+
+    it('should inject _meta into object responses', (done) => {
+      const mockCallHandler: CallHandler = {
+        handle: () => of({ data: 'test' }),
+      };
+
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe((result: any) => {
+          expect(result._meta).toBeDefined();
+          expect(result._meta.apiVersion).toBeDefined();
+          done();
+        });
+    });
+
+    it('should not inject _meta into array responses', (done) => {
+      const mockCallHandler: CallHandler = {
+        handle: () => of([{ id: 1 }, { id: 2 }]),
+      };
+
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe((result: any) => {
+          expect(Array.isArray(result)).toBe(true);
+          expect(result._meta).toBeUndefined();
+          done();
+        });
+    });
+
+    it('should not inject _meta into Buffer responses', (done) => {
+      const bufferData = Buffer.from('test data');
+      const mockCallHandler: CallHandler = {
+        handle: () => of(bufferData),
+      };
+
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe((result) => {
+          expect(result).toBeInstanceOf(Buffer);
+          done();
+        });
+    });
+
+    it('should not inject _meta into StreamableFile', (done) => {
+      const streamable = new StreamableFile(Buffer.from('test'));
+      const mockCallHandler: CallHandler = {
+        handle: () => of(streamable),
+      };
+
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe((result) => {
+          expect(result).toBeInstanceOf(StreamableFile);
+          done();
+        });
+    });
+
+    it('should return null as-is', (done) => {
+      const mockCallHandler: CallHandler = {
+        handle: () => of(null),
+      };
+
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe((result) => {
+          expect(result).toBeNull();
+          done();
+        });
+    });
+  });
+});

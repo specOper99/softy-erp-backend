@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddClientAuthFields1735857600000 implements MigrationInterface {
-  name = 'AddClientAuthFields1735857600000';
+export class AddClientAuthFields1767600000000 implements MigrationInterface {
+  name = 'AddClientAuthFields1767600000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Check if clients table exists first (TypeORM synchronization may not have run yet)

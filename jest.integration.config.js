@@ -8,6 +8,9 @@ module.exports = {
     transform: {
         '^.+\\.(t|j)s$': 'ts-jest',
     },
+    transformIgnorePatterns: [
+        'node_modules/(?!(uuid|p-limit|yocto-queue)/)',
+    ],
     collectCoverageFrom: [
         'src/**/*.(t|j)s',
         '!src/**/*.spec.ts',

@@ -2,8 +2,10 @@ import {
   CallHandler,
   ExecutionContext,
   Injectable,
+  Logger,
   NestInterceptor,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { Observable, tap } from 'rxjs';
@@ -41,10 +43,17 @@ interface AuditLogData {
  */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
+  private readonly trustProxyHeaders: boolean;
+
   constructor(
     private readonly reflector: Reflector,
     private readonly auditService: AuditService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.trustProxyHeaders =
+      this.configService.get<string>('TRUST_PROXY') === 'true';
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const auditOptions = this.reflector.get<AuditOptions>(
@@ -130,10 +139,18 @@ export class AuditInterceptor implements NestInterceptor {
         entityId: request.params?.id || 'N/A',
         newValues: auditData,
         notes: error || undefined,
+        ipAddress: auditData.ip,
+        userAgent: auditData.userAgent,
+        method: auditData.method,
+        path: auditData.path,
+        statusCode: status === 'SUCCESS' ? 200 : 500, // Approximate. Ideally get real status.
+        durationMs: auditData.durationMs,
       });
     } catch (e) {
-      // Swallow audit errors to not affect main flow
-      console.error('Audit logging failed:', e);
+      this.logger.error(
+        'Audit logging failed',
+        e instanceof Error ? e.stack : String(e),
+      );
     }
   }
 
@@ -175,9 +192,16 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private getClientIp(request: Request): string {
-    const forwarded = request.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
+    // Only trust proxy headers when explicitly configured
+    if (this.trustProxyHeaders) {
+      const forwarded = request.headers['x-forwarded-for'];
+      if (typeof forwarded === 'string') {
+        return forwarded.split(',')[0].trim();
+      }
+      const realIp = request.headers['x-real-ip'];
+      if (typeof realIp === 'string') {
+        return realIp;
+      }
     }
     return request.ip || 'unknown';
   }

@@ -7,8 +7,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
+import { isIP } from 'net';
 import { CacheUtilsService } from '../cache/cache-utils.service';
+import { SKIP_IP_RATE_LIMIT_KEY } from '../decorators/skip-ip-rate-limit.decorator';
 
 interface IpRateLimitInfo {
   count: number;
@@ -38,6 +41,7 @@ export class IpRateLimitGuard implements CanActivate {
   constructor(
     private readonly cacheService: CacheUtilsService,
     private readonly configService: ConfigService,
+    private readonly reflector: Reflector,
   ) {
     // 50 requests per minute soft limit (starts slowing down)
     this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
@@ -59,6 +63,14 @@ export class IpRateLimitGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const skip = this.reflector.getAllAndOverride<boolean>(
+      SKIP_IP_RATE_LIMIT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (skip) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
     const ip = this.getClientIp(request);
@@ -133,17 +145,24 @@ export class IpRateLimitGuard implements CanActivate {
   }
 
   private getClientIp(request: Request): string {
-    // Check various headers for proxied requests
     if (this.trustProxyHeaders) {
       const forwarded = request.headers['x-forwarded-for'];
       if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
+        const ip = forwarded.split(',')[0].trim();
+        if (isIP(ip)) return ip;
+        this.logger.warn(`Invalid IP in X-Forwarded-For header: ${ip}`);
       }
       const realIp = request.headers['x-real-ip'];
       if (typeof realIp === 'string') {
-        return realIp;
+        if (isIP(realIp)) return realIp;
+        this.logger.warn(`Invalid IP in X-Real-IP header: ${realIp}`);
       }
     }
-    return request.ip || request.socket?.remoteAddress || 'unknown';
+    const ip = request.ip || request.socket?.remoteAddress || 'unknown';
+    if (ip !== 'unknown' && !isIP(ip)) {
+      this.logger.warn(`Invalid IP address from request: ${ip}`);
+      return 'unknown';
+    }
+    return ip;
   }
 }

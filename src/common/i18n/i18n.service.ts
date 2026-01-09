@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -11,6 +11,7 @@ interface TranslationData {
 
 @Injectable()
 export class I18nService implements OnModuleInit {
+  private readonly logger = new Logger(I18nService.name);
   private translations: Map<Language, TranslationData> = new Map();
   private defaultLanguage: Language = 'en';
   private supportedLanguages: Language[] = ['en', 'ar', 'ku', 'fr'];
@@ -28,7 +29,7 @@ export class I18nService implements OnModuleInit {
         const content = readFileSync(filePath, 'utf-8');
         this.translations.set(lang, JSON.parse(content) as TranslationData);
       } catch {
-        console.warn(`Failed to load translations for language: ${lang}`);
+        this.logger.warn(`Failed to load translations for language: ${lang}`);
       }
     }
   }

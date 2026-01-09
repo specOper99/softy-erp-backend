@@ -179,9 +179,11 @@ export function validate(config: Record<string, unknown>) {
   });
 
   if (errors.length > 0) {
-    // Filter out JWT_SECRET errors for non-production environments to allow easier local development/testing
+    // Only bypass JWT_SECRET validation in explicit test environment (not all non-prod)
+    // This prevents accidental deployment with weak secrets in development/staging
+    const isTestEnv = config.NODE_ENV === 'test';
     const filteredErrors = errors.filter((e) => {
-      if (!isProd && e.property === 'JWT_SECRET') return false;
+      if (isTestEnv && e.property === 'JWT_SECRET') return false;
       return true;
     });
 

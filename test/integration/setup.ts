@@ -41,15 +41,21 @@ export default async function globalSetup() {
     username: 'test_user',
     password: 'test_password',
     database: 'test_db',
-    entities: ['src/**/*.entity.ts'],
-    migrations: ['src/database/migrations/*.ts'],
+    entities: [__dirname + '/../../src/**/*.entity.ts'],
+    migrations: [__dirname + '/../../src/database/migrations/*.ts'],
     synchronize: false,
   });
 
   await dataSource.initialize();
   console.log('🔄 Running migrations...');
   await dataSource.runMigrations();
-  console.log('✅ Migrations complete\n');
+  await dataSource.runMigrations();
+  console.log('✅ Migrations complete');
+  console.log(
+    'Loaded entities:',
+    dataSource.entityMetadatas.map((m) => m.name).join(', '),
+  );
+  console.log('\n');
 
   (global as any).__DATA_SOURCE__ = dataSource;
 }

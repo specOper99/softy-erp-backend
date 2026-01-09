@@ -6,7 +6,9 @@
         "unauthorized": "Unauthorized access",
         "forbidden": "Access forbidden",
         "bad_request": "Bad request",
-        "internal_error": "Internal server error"
+        "internal_error": "Internal server error",
+        "serialization_error": "Data serialization failed",
+        "tenant_missing": "Tenant context missing"
     },
     "auth": {
         "login_success": "Login successful",
@@ -22,6 +24,8 @@
         "confirmed": "Booking confirmed",
         "cancelled": "Booking cancelled",
         "not_found": "Booking not found",
+        "event_date_must_be_future": "Event date must be in the future",
+        "invalid_tax_rate": "Tax rate must be between 0 and 100",
         "already_confirmed": "Booking is already confirmed",
         "invalid_status": "Invalid booking status"
     },
@@ -44,5 +48,41 @@
         "min_length": "{field} must be at least {min} characters",
         "max_length": "{field} must not exceed {max} characters",
         "invalid_date": "Invalid date format"
+    },
+    "billing": {
+        "tenant_required": "Tenant context required",
+        "stripe_config_error": "Stripe configuration error",
+        "raw_body_error": "Raw body not available"
+    },
+    "finance": {
+        "amount_must_be_positive": "Transaction amount must be positive",
+        "amount_exceeds_maximum": "Transaction amount exceeds maximum allowed value"
+    },
+    "catalog": {
+        "price_must_be_positive": "Price must be greater than zero"
+    },
+    "tenants": {
+        "tenant_id_required": "Tenant ID header required"
+    },
+    "media": {
+        "booking_not_found_in_tenant": "Booking not found in tenant",
+        "task_not_found_in_tenant": "Task not found in tenant",
+        "unsupported_file_type": "Unsupported file type: {mimeType}. Allowed: {allowed}",
+        "attachment_not_found": "Attachment with ID {id} not found",
+        "cross_tenant_denied": "Cross-tenant attachment write is not allowed",
+        "s3_error": "Storage service error"
+    },
+    "webhooks": {
+        "invalid_protocol": "Invalid protocol",
+        "invalid_url": "Invalid webhook URL",
+        "secret_length": "Webhook secret must be at least {min} characters",
+        "localhost_denied": "Webhook URL cannot point to localhost",
+        "private_ip_denied": "Webhook URL cannot point to private IP addresses"
+    },
+    "health": {
+        "endpoint_disabled": "Endpoint disabled",
+        "missing_key": "Missing key parameter",
+        "invalid_key": "Invalid key",
+        "test_error": "This is a test error for Sentry monitoring"
     }
 }

@@ -1,5 +1,19 @@
 import vault from 'node-vault';
 
+class VaultLogger {
+  private static formatMessage(message: string): string {
+    return `[VaultLoader] ${message}`;
+  }
+
+  static warn(message: string): void {
+    process.stdout.write(`${this.formatMessage(message)}\n`);
+  }
+
+  static error(message: string): void {
+    process.stderr.write(`${this.formatMessage(message)}\n`);
+  }
+}
+
 interface VaultLoginResponse {
   auth: {
     client_token: string;
@@ -81,7 +95,9 @@ export const vaultLoader = async () => {
     }
 
     if (!process.env.VAULT_SECRET_PATH) {
-      console.warn('VAULT_ENABLED is true but VAULT_SECRET_PATH is missing.');
+      VaultLogger.warn(
+        'VAULT_ENABLED is true but VAULT_SECRET_PATH is missing.',
+      );
       return {};
     }
 
@@ -109,9 +125,8 @@ export const vaultLoader = async () => {
 
     return secrets;
   } catch (error) {
-    console.error(
-      'Failed to load secrets from Vault:',
-      error instanceof Error ? error.message : String(error),
+    VaultLogger.error(
+      `Failed to load secrets from Vault: ${error instanceof Error ? error.message : String(error)}`,
     );
     // In production, we might want to crash here if vault is critical
     if (process.env.NODE_ENV === 'production') {

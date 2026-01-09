@@ -45,12 +45,20 @@ describe('env-validation', () => {
     expect(() => validate(config)).toThrow();
   });
 
-  it('should allow short JWT_SECRET in non-production environments', () => {
+  it('should allow short JWT_SECRET in test environment', () => {
     const config = {
-      NODE_ENV: 'development',
+      NODE_ENV: 'test',
       JWT_SECRET: 'short',
     };
     // This should not throw because of the filter in env-validation.ts
     expect(() => validate(config)).not.toThrow();
+  });
+
+  it('should enforce JWT_SECRET length in development', () => {
+    const config = {
+      NODE_ENV: 'development',
+      JWT_SECRET: 'short',
+    };
+    expect(() => validate(config)).toThrow();
   });
 });

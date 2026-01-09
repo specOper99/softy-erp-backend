@@ -6,9 +6,24 @@ const isTracingEnabled = process.env.OTEL_ENABLED === 'true';
 
 let sdk: NodeSDK | null = null;
 
+class TracingLogger {
+  private static formatMessage(message: string): string {
+    return `[Tracing] ${message}`;
+  }
+
+  static log(message: string): void {
+    process.stdout.write(`${this.formatMessage(message)}\n`);
+  }
+
+  static error(message: string, error?: unknown): void {
+    const errorStr = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${this.formatMessage(message)}: ${errorStr}\n`);
+  }
+}
+
 export function initTracing(): void {
   if (!isTracingEnabled) {
-    console.log('OpenTelemetry tracing is disabled');
+    TracingLogger.log('OpenTelemetry tracing is disabled');
     return;
   }
 
@@ -28,14 +43,16 @@ export function initTracing(): void {
   });
 
   sdk.start();
-  console.log('OpenTelemetry tracing started. Exporting to Zipkin:', zipkinUrl);
+  TracingLogger.log(
+    `OpenTelemetry tracing started. Exporting to Zipkin: ${zipkinUrl}`,
+  );
 
   process.on('SIGTERM', () => {
     sdk
       ?.shutdown()
-      .then(() => console.log('OpenTelemetry SDK shut down'))
+      .then(() => TracingLogger.log('OpenTelemetry SDK shut down'))
       .catch((error) =>
-        console.error('Error shutting down OpenTelemetry', error),
+        TracingLogger.error('Error shutting down OpenTelemetry', error),
       )
       .finally(() => process.exit(0));
   });

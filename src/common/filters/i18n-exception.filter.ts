@@ -17,6 +17,38 @@ interface ErrorResponse {
   path: string;
 }
 
+interface I18nErrorPayload {
+  key: string;
+  args?: Record<string, string | number>;
+}
+
+interface NestJsErrorResponse {
+  message: string | string[];
+  error?: string;
+  statusCode?: number;
+}
+
+type ExceptionResponseType = string | I18nErrorPayload | NestJsErrorResponse;
+
+function isI18nErrorPayload(obj: unknown): obj is I18nErrorPayload {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'key' in obj &&
+    typeof (obj as I18nErrorPayload).key === 'string'
+  );
+}
+
+function isNestJsErrorResponse(obj: unknown): obj is NestJsErrorResponse {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'message' in obj &&
+    (typeof (obj as NestJsErrorResponse).message === 'string' ||
+      Array.isArray((obj as NestJsErrorResponse).message))
+  );
+}
+
 @Catch(HttpException)
 export class I18nExceptionFilter implements ExceptionFilter {
   constructor(
@@ -35,14 +67,32 @@ export class I18nExceptionFilter implements ExceptionFilter {
     const lang = this.i18nService.parseAcceptLanguage(acceptLanguage);
 
     // Get the original error message
-    const exceptionResponse = exception.getResponse();
-    const originalMessage =
-      typeof exceptionResponse === 'string'
-        ? exceptionResponse
-        : (exceptionResponse as { message?: string }).message || 'Error';
+    const exceptionResponse = exception.getResponse() as ExceptionResponseType;
+
+    let originalMessage = 'Error';
+    let args: Record<string, string | number> | undefined;
+
+    if (typeof exceptionResponse === 'string') {
+      originalMessage = exceptionResponse;
+    } else if (isI18nErrorPayload(exceptionResponse)) {
+      // Handle { key: '...', args: { ... } } pattern
+      originalMessage = exceptionResponse.key;
+      args = exceptionResponse.args;
+    } else if (isNestJsErrorResponse(exceptionResponse)) {
+      // Handle standard NestJS error object { message: '...', ... }
+      if (Array.isArray(exceptionResponse.message)) {
+        originalMessage = exceptionResponse.message[0]; // Validation errors often return array
+      } else {
+        originalMessage = exceptionResponse.message;
+      }
+    }
 
     // Try to translate the message
-    const translatedMessage = this.translateMessage(originalMessage, lang);
+    const translatedMessage = this.translateMessage(
+      originalMessage,
+      lang,
+      args,
+    );
 
     const errorResponse: ErrorResponse = {
       statusCode: status,
@@ -55,7 +105,11 @@ export class I18nExceptionFilter implements ExceptionFilter {
     response.status(status).json(errorResponse);
   }
 
-  private translateMessage(message: string, lang: Language): string {
+  private translateMessage(
+    message: string,
+    lang: Language,
+    args?: Record<string, string | number>,
+  ): string {
     // Map common error messages to translation keys
     const messageKeyMap: Record<string, string> = {
       Unauthorized: 'common.unauthorized',
@@ -75,7 +129,13 @@ export class I18nExceptionFilter implements ExceptionFilter {
 
     const translationKey = messageKeyMap[message];
     if (translationKey) {
-      return this.i18nService.translate(translationKey, lang);
+      return this.i18nService.translate(translationKey, lang, args);
+    }
+
+    // Try to translate the message directly (assuming it might be a key)
+    const translated = this.i18nService.translate(message, lang, args);
+    if (translated !== message) {
+      return translated;
     }
 
     // Return original message if no translation found

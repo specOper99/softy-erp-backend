@@ -13,6 +13,7 @@ export default async () => {
   });
 
   process.env.NODE_ENV = 'test';
+  process.env.CSRF_ENABLED = 'false';
 
   const databaseName = process.env.DB_DATABASE;
   if (!databaseName) {
@@ -49,13 +50,19 @@ export default async () => {
       await adminDataSource.query(`CREATE DATABASE "${databaseName}"`);
     }
 
-    // Connect to test database for extension
+    // Connect to test database for extension and reset
     const testDbDataSource = new DataSource({
       ...(adminDataSource.options as any),
       database: databaseName,
     });
     try {
       await testDbDataSource.initialize();
+
+      if (process.env.E2E_DB_RESET === 'true') {
+        await testDbDataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
+        await testDbDataSource.query('CREATE SCHEMA public');
+      }
+
       await testDbDataSource.query(
         `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
       );
@@ -83,16 +90,9 @@ export default async () => {
       await migrationDataSource.initialize();
     }
 
-    if (process.env.E2E_DB_RESET === 'true') {
-      await migrationDataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
-      await migrationDataSource.query('CREATE SCHEMA public');
-      // After creating schema public, we MUST re-create the extension because CASCADE drops it if it was in the schema
-      await migrationDataSource.query(
-        'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"',
-      );
+    if (process.env.E2E_DB_RESET !== 'true') {
+      await migrationDataSource.runMigrations();
     }
-
-    await migrationDataSource.runMigrations();
 
     // Synchronize schema to ensure all entity columns exist
     await migrationDataSource.synchronize();
