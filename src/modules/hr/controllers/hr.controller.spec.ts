@@ -1,6 +1,8 @@
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { TenantsService } from '../../tenants/tenants.service';
+import { HrService } from '../services/hr.service';
 import { HrController } from './hr.controller';
-import { HrService } from './hr.service';
 
 describe('HrController', () => {
   let controller: HrController;
@@ -22,8 +24,16 @@ describe('HrController', () => {
             updateProfile: jest.fn().mockResolvedValue(mockProfile),
             deleteProfile: jest.fn().mockResolvedValue(undefined),
             runPayroll: jest.fn().mockResolvedValue({ success: true }),
+            getPayrollHistory: jest.fn().mockResolvedValue([]),
           },
         },
+        {
+          provide: TenantsService,
+          useValue: {
+            findOne: jest.fn().mockResolvedValue({ subscriptionPlan: 'PRO' }),
+          },
+        },
+        Reflector,
       ],
     }).compile();
 

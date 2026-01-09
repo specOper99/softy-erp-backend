@@ -2,14 +2,15 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { AuditService } from '../audit/audit.service';
-import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
-import { FinanceService } from '../finance/services/finance.service';
-import { MailService } from '../mail/mail.service';
-import { TenantsService } from '../tenants/tenants.service';
-import { Profile } from './entities/profile.entity';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { AuditService } from '../../audit/audit.service';
+import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
+import { FinanceService } from '../../finance/services/finance.service';
+import { MailService } from '../../mail/mail.service';
+import { TenantsService } from '../../tenants/tenants.service';
+import { PayrollRun, Profile } from '../entities';
 import { HrService } from './hr.service';
+import { MockPaymentGatewayService } from './payment-gateway.service';
 
 describe('HrService - Comprehensive Tests', () => {
   let service: HrService;
@@ -23,6 +24,14 @@ describe('HrService - Comprehensive Tests', () => {
     hireDate: new Date('2024-01-01'),
     bankAccount: '1234567890',
     phone: '+1234567890',
+    emergencyContactName: 'Jane Doe',
+    emergencyContactPhone: '+0987654321',
+    address: '123 Main St',
+    city: 'Dubai',
+    country: 'UAE',
+    department: 'Creative',
+    team: 'Photography',
+    contractType: 'FULL_TIME',
     createdAt: new Date(),
     updatedAt: new Date(),
     user: {
@@ -111,6 +120,20 @@ describe('HrService - Comprehensive Tests', () => {
       .mockResolvedValue([{ id: 'test-tenant-id', slug: 'test-tenant' }]),
   };
 
+  const mockPayrollRunRepository = {
+    create: jest
+      .fn()
+      .mockImplementation((data) => ({ id: 'run-uuid-123', ...data })),
+    save: jest.fn().mockImplementation((data) => Promise.resolve(data)),
+    find: jest.fn().mockResolvedValue([]),
+  };
+
+  const mockPaymentGatewayService = {
+    triggerPayout: jest
+      .fn()
+      .mockResolvedValue({ success: true, transactionReference: 'REF-123' }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -118,6 +141,10 @@ describe('HrService - Comprehensive Tests', () => {
         {
           provide: getRepositoryToken(Profile),
           useValue: mockProfileRepository,
+        },
+        {
+          provide: getRepositoryToken(PayrollRun),
+          useValue: mockPayrollRunRepository,
         },
         {
           provide: getRepositoryToken(EmployeeWallet),
@@ -128,18 +155,25 @@ describe('HrService - Comprehensive Tests', () => {
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: TenantsService, useValue: mockTenantsService },
+        {
+          provide: MockPaymentGatewayService,
+          useValue: mockPaymentGatewayService,
+        },
       ],
     }).compile();
 
     service = module.get<HrService>(HrService);
 
-    // Mock TenantContextService
+    // Reset mocks first
+    jest.clearAllMocks();
+
+    // Mock TenantContextService AFTER clearAllMocks
     jest
       .spyOn(TenantContextService, 'getTenantId')
       .mockReturnValue('test-tenant-id');
-
-    // Reset mocks
-    jest.clearAllMocks();
+    jest
+      .spyOn(TenantContextService, 'getTenantIdOrThrow')
+      .mockReturnValue('test-tenant-id');
 
     // Default behavior
     mockProfileRepository.findOne.mockImplementation(({ where }) => {
@@ -229,6 +263,39 @@ describe('HrService - Comprehensive Tests', () => {
       };
       const result = await service.createProfile(dto);
       expect(result).toBeDefined();
+    });
+
+    it('should create profile with all fields', async () => {
+      const dto = {
+        userId: 'user-uuid-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        baseSalary: 2000.0,
+        emergencyContactName: 'Jane Doe',
+        emergencyContactPhone: '+0987654321',
+        address: '123 Main St',
+        city: 'Dubai',
+        country: 'UAE',
+        department: 'Creative',
+        team: 'Photography',
+        contractType: 'FULL_TIME',
+      };
+
+      // Mock user validation for this specific test
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'user-uuid-123',
+        tenantId: 'test-tenant-id',
+      });
+
+      const result = await service.createProfile(dto as any);
+      expect(result).toMatchObject(dto);
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'CREATE',
+          entityName: 'Profile',
+        }),
+        expect.any(Object),
+      );
     });
   });
 
@@ -328,6 +395,24 @@ describe('HrService - Comprehensive Tests', () => {
         service.updateProfile('invalid-id', { firstName: 'Test' }),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('should update profile with new fields', async () => {
+      await service.updateProfile('profile-uuid-123', {
+        department: 'Tech',
+        contractType: 'CONTRACTOR' as any,
+      });
+      expect(mockProfileRepository.save).toHaveBeenCalled();
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'UPDATE',
+          entityName: 'Profile',
+          newValues: expect.objectContaining({
+            department: 'Tech',
+            contractType: 'CONTRACTOR',
+          }),
+        }),
+      );
+    });
   });
 
   describe('deleteProfile', () => {
@@ -401,7 +486,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should skip employees with zero payout', async () => {
-      mockQueryRunner.manager.find.mockResolvedValueOnce([
+      mockProfileRepository.find.mockResolvedValueOnce([
         {
           ...mockProfile,
           baseSalary: 0,
@@ -416,7 +501,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should handle employees without wallets', async () => {
-      mockQueryRunner.manager.find.mockResolvedValueOnce([
+      mockProfileRepository.find.mockResolvedValueOnce([
         { ...mockProfile, user: { ...mockProfile.user, wallet: null } },
       ]);
       const result = await service.runPayroll();
@@ -440,10 +525,8 @@ describe('HrService - Comprehensive Tests', () => {
           wallet: { payableBalance: 100 },
         },
       };
-      mockQueryRunner.manager.find.mockResolvedValueOnce([
-        employee1,
-        employee2,
-      ]);
+      mockProfileRepository.find.mockResolvedValueOnce([employee1, employee2]);
+      mockProfileRepository.count.mockResolvedValueOnce(2);
 
       const result = await service.runPayroll();
       expect(result.totalEmployees).toBe(2);
@@ -479,7 +562,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should handle high salary and commission values', async () => {
-      mockQueryRunner.manager.find.mockResolvedValueOnce([
+      mockProfileRepository.find.mockResolvedValueOnce([
         {
           ...mockProfile,
           baseSalary: 999999.99,
@@ -489,6 +572,27 @@ describe('HrService - Comprehensive Tests', () => {
 
       const result = await service.runPayroll();
       expect(result.totalPayout).toBe(1099999.98);
+      expect(mockPayrollRunRepository.save).toHaveBeenCalled();
+    });
+
+    it('should save PayrollRun record on completion', async () => {
+      await service.runPayroll();
+      expect(mockPayrollRunRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'COMPLETED',
+          totalEmployees: 1,
+        }),
+      );
+      expect(mockPayrollRunRepository.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('getPayrollHistory', () => {
+    it('should return payroll run history', async () => {
+      const mockRuns = [{ id: 'run-1', totalPayout: 1000 }];
+      mockPayrollRunRepository.find.mockResolvedValueOnce(mockRuns);
+      const result = await service.getPayrollHistory();
+      expect(result).toEqual(mockRuns);
     });
   });
 

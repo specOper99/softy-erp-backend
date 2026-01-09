@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
@@ -8,6 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { PII, SanitizeHtml } from '../../../common/decorators';
+import { ContractType } from '../enums/contract-type.enum';
 
 export class CreateProfileDto {
   @ApiProperty()
@@ -51,6 +53,49 @@ export class CreateProfileDto {
   @IsOptional()
   @PII()
   phone?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @PII()
+  emergencyContactName?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @PII()
+  emergencyContactPhone?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @PII()
+  address?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  department?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  team?: string;
+
+  @ApiPropertyOptional({ enum: ContractType })
+  @IsEnum(ContractType)
+  @IsOptional()
+  contractType?: ContractType;
 }
 
 export class UpdateProfileDto {
@@ -92,6 +137,49 @@ export class UpdateProfileDto {
   @IsOptional()
   @PII()
   phone?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @PII()
+  emergencyContactName?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @PII()
+  emergencyContactPhone?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @PII()
+  address?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  department?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  team?: string;
+
+  @ApiPropertyOptional({ enum: ContractType })
+  @IsEnum(ContractType)
+  @IsOptional()
+  contractType?: ContractType;
 }
 
 export class ProfileResponseDto {
@@ -121,6 +209,30 @@ export class ProfileResponseDto {
 
   @ApiPropertyOptional()
   phone: string;
+
+  @ApiPropertyOptional()
+  emergencyContactName: string;
+
+  @ApiPropertyOptional()
+  emergencyContactPhone: string;
+
+  @ApiPropertyOptional()
+  address: string;
+
+  @ApiPropertyOptional()
+  city: string;
+
+  @ApiPropertyOptional()
+  country: string;
+
+  @ApiPropertyOptional()
+  department: string;
+
+  @ApiPropertyOptional()
+  team: string;
+
+  @ApiProperty({ enum: ContractType })
+  contractType: ContractType;
 }
 
 export class PayrollRunResponseDto {

@@ -8,21 +8,24 @@ import {
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { TransactionType } from '../../common/enums';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { AuditService } from '../audit/audit.service';
-import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
-import { Payout } from '../finance/entities/payout.entity';
-import { FinanceService } from '../finance/services/finance.service';
-import { MailService } from '../mail/mail.service';
-import { TenantsService } from '../tenants/tenants.service';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { AuditService } from '../../audit/audit.service';
+import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
+import { Payout } from '../../finance/entities/payout.entity';
+import { PayoutStatus } from '../../finance/enums/payout-status.enum';
+import { TransactionType } from '../../finance/enums/transaction-type.enum';
+import { FinanceService } from '../../finance/services/finance.service';
+import { MailService } from '../../mail/mail.service';
+import { TenantsService } from '../../tenants/tenants.service';
 import {
   CreateProfileDto,
   PayrollRunResponseDto,
   UpdateProfileDto,
-} from './dto';
-import { Profile } from './entities/profile.entity';
+} from '../dto';
+import { PayrollRun, Profile } from '../entities';
+import { MockPaymentGatewayService } from './payment-gateway.service';
 
 @Injectable()
 export class HrService {
@@ -31,6 +34,8 @@ export class HrService {
   constructor(
     @InjectRepository(Profile)
     private readonly profileRepository: Repository<Profile>,
+    @InjectRepository(PayrollRun)
+    private readonly payrollRunRepository: Repository<PayrollRun>,
     @InjectRepository(EmployeeWallet)
     private readonly walletRepository: Repository<EmployeeWallet>,
     private readonly financeService: FinanceService,
@@ -38,14 +43,12 @@ export class HrService {
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly tenantsService: TenantsService,
+    private readonly paymentGatewayService: MockPaymentGatewayService,
   ) {}
 
   // Profile Methods
   async createProfile(dto: CreateProfileDto): Promise<Profile> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -110,7 +113,7 @@ export class HrService {
   async findAllProfiles(
     query: PaginationDto = new PaginationDto(),
   ): Promise<Profile[]> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.profileRepository.find({
       where: { tenantId },
       relations: ['user'],
@@ -119,8 +122,46 @@ export class HrService {
     });
   }
 
+  async findAllProfilesCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: Profile[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const limit = query.limit || 20;
+
+    const qb = this.profileRepository.createQueryBuilder('profile');
+
+    qb.leftJoinAndSelect('profile.user', 'user')
+      .where('profile.tenantId = :tenantId', { tenantId })
+      .orderBy('profile.createdAt', 'DESC')
+      .addOrderBy('profile.id', 'DESC')
+      .take(limit + 1);
+
+    if (query.cursor) {
+      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
+      const [dateStr, id] = decoded.split('|');
+      const date = new Date(dateStr);
+
+      qb.andWhere(
+        '(profile.createdAt < :date OR (profile.createdAt = :date AND profile.id < :id))',
+        { date, id },
+      );
+    }
+
+    const profiles = await qb.getMany();
+    let nextCursor: string | null = null;
+
+    if (profiles.length > limit) {
+      profiles.pop();
+      const lastItem = profiles[profiles.length - 1];
+      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      nextCursor = Buffer.from(cursorData).toString('base64');
+    }
+
+    return { data: profiles, nextCursor };
+  }
+
   async findProfileById(id: string): Promise<Profile> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const profile = await this.profileRepository.findOne({
       where: { id, tenantId },
       relations: ['user'],
@@ -132,7 +173,7 @@ export class HrService {
   }
 
   async findProfileByUserId(userId: string): Promise<Profile | null> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.profileRepository.findOne({
       where: { userId, tenantId },
       relations: ['user'],
@@ -146,6 +187,14 @@ export class HrService {
       lastName: profile.lastName,
       baseSalary: profile.baseSalary,
       jobTitle: profile.jobTitle,
+      emergencyContactName: profile.emergencyContactName,
+      emergencyContactPhone: profile.emergencyContactPhone,
+      address: profile.address,
+      city: profile.city,
+      country: profile.country,
+      department: profile.department,
+      team: profile.team,
+      contractType: profile.contractType,
     };
 
     Object.assign(profile, {
@@ -159,7 +208,15 @@ export class HrService {
       dto.baseSalary !== undefined ||
       dto.firstName ||
       dto.lastName ||
-      dto.jobTitle
+      dto.jobTitle ||
+      dto.emergencyContactName ||
+      dto.emergencyContactPhone ||
+      dto.address ||
+      dto.city ||
+      dto.country ||
+      dto.department ||
+      dto.team ||
+      dto.contractType
     ) {
       await this.auditService.log({
         action: 'UPDATE',
@@ -244,10 +301,7 @@ export class HrService {
   private readonly PAYROLL_BATCH_SIZE = 100;
 
   async runPayroll(): Promise<PayrollRunResponseDto> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('Tenant context required for payroll run');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     // Get total count for batch processing
     const totalCount = await this.profileRepository.count({
@@ -316,16 +370,43 @@ export class HrService {
       notes: `Monthly payroll run completed for ${totalEmployeesProcessed} employees in tenant ${tenantId} across ${batchCount} batches.`,
     });
 
-    return {
+    // Save PayrollRun record for history
+    const payrollRun = this.payrollRunRepository.create({
       totalEmployees: totalEmployeesProcessed,
       totalPayout,
       transactionIds: allTransactionIds,
       processedAt: new Date(),
+      status: 'COMPLETED',
+      tenantId,
+      notes: `Monthly payroll run with ${batchCount} batches.`,
+    });
+    await this.payrollRunRepository.save(payrollRun);
+
+    return {
+      totalEmployees: totalEmployeesProcessed,
+      totalPayout,
+      transactionIds: allTransactionIds,
+      processedAt: payrollRun.processedAt,
     };
   }
 
+  async getPayrollHistory(
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<PayrollRun[]> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    return this.payrollRunRepository.find({
+      where: { tenantId },
+      order: { processedAt: 'DESC' },
+      skip: query.getSkip(),
+      take: query.getTake(),
+    });
+  }
+
   /**
-   * Process a single batch of payroll in its own transaction.
+   * Process a single batch of payroll.
+   * Uses two-phase approach:
+   * Phase 1: Calculate payouts and prepare data (no transaction)
+   * Phase 2: For each employee - call gateway, then create transaction (separate transaction per employee)
    */
   private async processPayrollBatch(
     tenantId: string,
@@ -336,103 +417,130 @@ export class HrService {
     totalPayout: number;
     employeesProcessed: number;
   }> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    // Step 1: Optimized Fetch - Get profiles with wallets in ONE query to avoid N+1
-    // We use the profile repository to leverage TypeORM relations or a query builder
+    // Phase 1: Fetch profiles and calculate payouts (outside transaction)
+    const profiles = await this.profileRepository.find({
+      where: { tenantId },
+      relations: ['user', 'user.wallet'],
+      order: { id: 'ASC' },
+      skip,
+      take,
+    });
 
-    try {
-      const profiles = await queryRunner.manager.find(Profile, {
-        where: { tenantId },
-        relations: ['user', 'user.wallet'],
-        order: { id: 'ASC' },
-        skip,
-        take,
-      });
+    const transactionIds: string[] = [];
+    let totalPayout = 0;
+    let employeesProcessed = 0;
 
-      const transactionIds: string[] = [];
-      let totalPayout = 0;
-      let employeesProcessed = 0;
+    // Phase 2: Process each employee (external API call + transaction per employee)
+    for (const profile of profiles) {
+      const wallet = profile.user?.wallet;
+      const baseSalary = Number(profile.baseSalary) || 0;
+      const commissionPayable = wallet ? Number(wallet.payableBalance) || 0 : 0;
+      const totalAmount = baseSalary + commissionPayable;
 
-      for (const profile of profiles) {
-        // Step 2: Calculate total payout
-        const wallet = profile.user?.wallet;
-
-        const baseSalary = Number(profile.baseSalary) || 0;
-        const commissionPayable = wallet
-          ? Number(wallet.payableBalance) || 0
-          : 0;
-        const totalAmount = baseSalary + commissionPayable;
-
-        if (totalAmount <= 0) {
-          continue; // Skip if no payout
-        }
-
-        // Step 3: Create Payout record
-        const payout = queryRunner.manager.create(Payout, {
-          amount: totalAmount,
-          payoutDate: new Date(),
-          status: 'COMPLETED',
-          tenantId,
-          notes: `Monthly payroll for ${profile.firstName || ''} ${profile.lastName || ''}`,
-        });
-        const savedPayout = await queryRunner.manager.save(payout);
-
-        // Step 4: Create PAYROLL transaction
-        const transaction =
-          await this.financeService.createTransactionWithManager(
-            queryRunner.manager,
-            {
-              type: TransactionType.PAYROLL,
-              amount: totalAmount,
-              category: 'Monthly Payroll',
-              payoutId: savedPayout.id,
-              description: `Payroll for ${profile.firstName || ''} ${profile.lastName || ''}: Salary $${baseSalary} + Commission $${commissionPayable}`,
-              transactionDate: new Date(),
-            },
-          );
-
-        transactionIds.push(transaction.id);
-        totalPayout += totalAmount;
-        employeesProcessed++;
-
-        // Step 5: Reset payable balance to 0
-        if (wallet && commissionPayable > 0) {
-          await this.financeService.resetPayableBalance(
-            queryRunner.manager,
-            profile.userId,
-          );
-        }
-
-        // Send payroll notification email (async, fire-and-forget)
-        if (profile.user?.email) {
-          this.mailService
-            .sendPayrollNotification({
-              employeeName: `${profile.firstName} ${profile.lastName}`,
-              employeeEmail: profile.user.email,
-              baseSalary: baseSalary,
-              commission: commissionPayable,
-              totalPayout: totalAmount,
-              payrollDate: new Date(),
-            })
-            .catch((err) =>
-              this.logger.error(
-                `Failed to send payroll email to ${profile.user?.email}`,
-                err,
-              ),
-            );
-        }
+      if (totalAmount <= 0) {
+        continue; // Skip if no payout
       }
 
-      await queryRunner.commitTransaction();
+      try {
+        // Step 1: Call payment gateway OUTSIDE transaction
+        // CRITICAL FIX: External API calls should never be inside DB transactions
+        // This prevents long lock holding and avoids inconsistency if commit fails
+        const gatewayResult = await this.paymentGatewayService.triggerPayout({
+          employeeName: `${profile.firstName || ''} ${profile.lastName || ''}`,
+          bankAccount: profile.bankAccount || 'NO_BANK_ACCOUNT',
+          amount: totalAmount,
+          referenceId: `${tenantId}-${profile.id}-${Date.now()}`,
+        });
 
-      return { transactionIds, totalPayout, employeesProcessed };
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+        if (!gatewayResult.success) {
+          // Log failed payout but continue with others
+          this.logger.warn(
+            `Payment gateway failed for ${profile.firstName} ${profile.lastName}: ${gatewayResult.error}`,
+          );
+          continue;
+        }
+
+        // Step 2: Create transaction AFTER gateway succeeds (in its own transaction)
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+          // Create Payout record (already completed via gateway)
+          const payout = queryRunner.manager.create(Payout, {
+            amount: totalAmount,
+            payoutDate: new Date(),
+            status: PayoutStatus.COMPLETED,
+            tenantId,
+            notes: `Monthly payroll for ${profile.firstName || ''} ${profile.lastName || ''} | TxnRef: ${gatewayResult.transactionReference}`,
+          });
+          const savedPayout = await queryRunner.manager.save(payout);
+
+          // Create PAYROLL transaction (ERP bookkeeping)
+          const transaction =
+            await this.financeService.createTransactionWithManager(
+              queryRunner.manager,
+              {
+                type: TransactionType.PAYROLL,
+                amount: totalAmount,
+                category: 'Monthly Payroll',
+                payoutId: savedPayout.id,
+                description: `Payroll for ${profile.firstName || ''} ${profile.lastName || ''}: Salary $${baseSalary} + Commission $${commissionPayable}`,
+                transactionDate: new Date(),
+              },
+            );
+
+          // Reset payable balance to 0
+          if (wallet && commissionPayable > 0) {
+            await this.financeService.resetPayableBalance(
+              queryRunner.manager,
+              profile.userId,
+            );
+          }
+
+          await queryRunner.commitTransaction();
+
+          transactionIds.push(transaction.id);
+          totalPayout += totalAmount;
+          employeesProcessed++;
+
+          // Send payroll notification email (async, fire-and-forget)
+          if (profile.user?.email) {
+            this.mailService
+              .sendPayrollNotification({
+                employeeName: `${profile.firstName} ${profile.lastName}`,
+                employeeEmail: profile.user.email,
+                baseSalary: baseSalary,
+                commission: commissionPayable,
+                totalPayout: totalAmount,
+                payrollDate: new Date(),
+              })
+              .catch((err) =>
+                this.logger.error(
+                  `Failed to send payroll email to ${profile.user?.email}`,
+                  err,
+                ),
+              );
+          }
+        } catch (error) {
+          await queryRunner.rollbackTransaction();
+          // Gateway succeeded but DB failed - log for manual reconciliation
+          this.logger.error(
+            `DB transaction failed after gateway success for ${profile.firstName} ${profile.lastName}. Gateway ref: ${gatewayResult.transactionReference}. Manual reconciliation required.`,
+            error,
+          );
+        } finally {
+          await queryRunner.release();
+        }
+      } catch (error) {
+        this.logger.error(
+          `Payroll processing failed for ${profile.firstName} ${profile.lastName}`,
+          error,
+        );
+        // Continue with next employee
+      }
     }
+
+    return { transactionIds, totalPayout, employeesProcessed };
   }
 }
