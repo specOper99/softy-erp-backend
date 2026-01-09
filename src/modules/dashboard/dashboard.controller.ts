@@ -1,6 +1,8 @@
 import {
+  Body,
   Controller,
   Get,
+  Put,
   Query,
   Res,
   UseGuards,
@@ -15,10 +17,13 @@ import {
 import type { Response } from 'express';
 import { GlobalCacheInterceptor } from '../../common/cache/cache.interceptor';
 import { Cacheable } from '../../common/decorators/cacheable.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '../../common/enums';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { MfaRequired } from '../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../users/entities/user.entity';
+import { Role } from '../users/enums/role.enum';
 import { DashboardService } from './dashboard.service';
 import {
   BookingTrendDto,
@@ -32,6 +37,8 @@ import {
   RevenueSummaryDto,
   StaffPerformanceDto,
 } from './dto/dashboard.dto';
+import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
+import { UserDashboardConfig } from './entities/user-preference.entity';
 
 import { ReportGeneratorService } from './services/report-generator.service';
 
@@ -41,6 +48,7 @@ import { ReportGeneratorService } from './services/report-generator.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseInterceptors(GlobalCacheInterceptor)
 @Roles(Role.ADMIN, Role.OPS_MANAGER)
+@MfaRequired()
 export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,
@@ -193,5 +201,22 @@ export class DashboardController {
       );
       res.send(csvContent);
     }
+  }
+
+  @Get('preferences')
+  @ApiOperation({ summary: 'Get user dashboard preferences' })
+  async getPreferences(
+    @CurrentUser() user: User,
+  ): Promise<UserDashboardConfig> {
+    return this.dashboardService.getUserPreferences(user.id);
+  }
+
+  @Put('preferences')
+  @ApiOperation({ summary: 'Update user dashboard preferences' })
+  async updatePreferences(
+    @CurrentUser() user: User,
+    @Body() dto: UpdateDashboardPreferencesDto,
+  ): Promise<UserDashboardConfig> {
+    return this.dashboardService.updateUserPreferences(user.id, dto);
   }
 }

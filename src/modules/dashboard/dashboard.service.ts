@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
-import { BookingStatus, TaskStatus, TransactionType } from '../../common/enums';
+import { Repository } from 'typeorm';
+import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { DailyMetrics } from '../analytics/entities/daily-metrics.entity';
 import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/enums/booking-status.enum';
 import { Transaction } from '../finance/entities/transaction.entity';
+import { TransactionType } from '../finance/enums/transaction-type.enum';
 import { Profile } from '../hr/entities/profile.entity';
 import { Task } from '../tasks/entities/task.entity';
+import { TaskStatus } from '../tasks/enums/task-status.enum';
 import {
   BookingTrendDto,
   DashboardKpiDto,
@@ -17,6 +21,11 @@ import {
   RevenueSummaryDto,
   StaffPerformanceDto,
 } from './dto/dashboard.dto';
+import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
+import {
+  UserDashboardConfig,
+  UserPreference,
+} from './entities/user-preference.entity';
 
 @Injectable()
 export class DashboardService {
@@ -29,7 +38,19 @@ export class DashboardService {
     private readonly bookingRepository: Repository<Booking>,
     @InjectRepository(Profile)
     private readonly profileRepository: Repository<Profile>,
+    @InjectRepository(UserPreference)
+    private readonly preferenceRepository: Repository<UserPreference>,
+    @InjectRepository(DailyMetrics)
+    private readonly metricsRepository: Repository<DailyMetrics>,
+    private readonly cacheUtils: CacheUtilsService,
   ) {}
+
+  // Cache TTL: 5 minutes for KPIs
+  private readonly KPI_CACHE_TTL = 5 * 60 * 1000;
+
+  private getKpiCacheKey(tenantId: string, period: string): string {
+    return `dashboard:kpi:${tenantId}:${period}`;
+  }
 
   private getDateRange(query: ReportQueryDto): { start: Date; end: Date } {
     const end = query.endDate ? new Date(query.endDate) : new Date();
@@ -64,50 +85,59 @@ export class DashboardService {
     return { start, end };
   }
 
-  async getKpiSummary(query: ReportQueryDto = {}): Promise<DashboardKpiDto> {
+  async getKpiSummary(
+    query: ReportQueryDto = {},
+    nocache = false,
+  ): Promise<DashboardKpiDto> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('Tenant context missing');
+    if (!tenantId) throw new Error('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
+    const startDateStr = start.toISOString().split('T')[0];
+    const endDateStr = end.toISOString().split('T')[0];
+    const periodKey = `${startDateStr}_${endDateStr}`;
+    const cacheKey = this.getKpiCacheKey(tenantId, periodKey);
 
-    const [revenueResult, bookingsResult, tasksResult, staffResult] =
-      await Promise.all([
-        this.transactionRepository
-          .createQueryBuilder('t')
-          .select(
-            'SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)',
-            'revenue',
-          )
-          .where('t.tenantId = :tenantId', { tenantId })
-          .andWhere('t.transactionDate BETWEEN :start AND :end', { start, end })
-          .setParameter('income', TransactionType.INCOME)
-          .getRawOne<{ revenue: string }>(),
+    // Try cache first
+    if (!nocache) {
+      const cached = await this.cacheUtils.get<DashboardKpiDto>(cacheKey);
+      if (cached) return cached;
+    }
 
-        this.bookingRepository.count({
-          where: { tenantId, createdAt: Between(start, end) },
-        }),
+    // Use Read Model (DailyMetrics) for high-level KPIs
+    const [metricsResult, tasksResult, staffResult] = await Promise.all([
+      this.metricsRepository
+        .createQueryBuilder('m')
+        .select('SUM(m.totalRevenue)', 'revenue')
+        .addSelect('SUM(m.bookingsCount)', 'bookings')
+        .where('m.tenantId = :tenantId', { tenantId })
+        .andWhere('m.date >= :startDate AND m.date <= :endDate', {
+          startDate: startDateStr,
+          endDate: endDateStr,
+        })
+        .getRawOne<{ revenue: string; bookings: string }>(),
 
-        this.taskRepository
-          .createQueryBuilder('t')
-          .select('COUNT(t.id)', 'total')
-          .addSelect(
-            'SUM(CASE WHEN t.status = :completed THEN 1 ELSE 0 END)',
-            'completed',
-          )
-          .where('t.tenantId = :tenantId', { tenantId })
-          .andWhere('t.createdAt BETWEEN :start AND :end', { start, end })
-          .setParameter('completed', TaskStatus.COMPLETED)
-          .getRawOne<{ total: string; completed: string }>(),
+      this.taskRepository
+        .createQueryBuilder('t')
+        .select('COUNT(t.id)', 'total')
+        .addSelect(
+          'SUM(CASE WHEN t.status = :completed THEN 1 ELSE 0 END)',
+          'completed',
+        )
+        .where('t.tenantId = :tenantId', { tenantId })
+        .andWhere('t.createdAt BETWEEN :start AND :end', { start, end })
+        .setParameter('completed', TaskStatus.COMPLETED)
+        .getRawOne<{ total: string; completed: string }>(),
 
-        this.profileRepository.count({ where: { tenantId } }),
-      ]);
+      this.profileRepository.count({ where: { tenantId } }),
+    ]);
 
-    const totalRevenue = Number(revenueResult?.revenue) || 0;
-    const totalBookings = bookingsResult || 0;
+    const totalRevenue = Number(metricsResult?.revenue) || 0;
+    const totalBookings = Number(metricsResult?.bookings) || 0;
     const totalTasks = Number(tasksResult?.total) || 0;
     const completedTasks = Number(tasksResult?.completed) || 0;
 
-    return {
+    const result: DashboardKpiDto = {
       totalRevenue,
       totalBookings,
       taskCompletionRate:
@@ -115,13 +145,18 @@ export class DashboardService {
       averageBookingValue: totalBookings > 0 ? totalRevenue / totalBookings : 0,
       activeStaffCount: staffResult || 0,
     };
+
+    // Cache the result
+    await this.cacheUtils.set(cacheKey, result, this.KPI_CACHE_TTL);
+
+    return result;
   }
 
   async getBookingTrends(
     query: ReportQueryDto = {},
   ): Promise<BookingTrendDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('Tenant context missing');
+    if (!tenantId) throw new Error('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -164,7 +199,7 @@ export class DashboardService {
 
   async getRevenueStats(query: ReportQueryDto = {}): Promise<RevenueStatsDto> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('Tenant context missing');
+    if (!tenantId) throw new Error('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -208,7 +243,7 @@ export class DashboardService {
     query: ReportQueryDto = {},
   ): Promise<RevenueSummaryDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('Tenant context missing');
+    if (!tenantId) throw new Error('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -243,7 +278,7 @@ export class DashboardService {
     query: ReportQueryDto = {},
   ): Promise<StaffPerformanceDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('Tenant context missing');
+    if (!tenantId) throw new Error('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -277,7 +312,7 @@ export class DashboardService {
     query: ReportQueryDto = {},
   ): Promise<PackageStatsDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('Tenant context missing');
+    if (!tenantId) throw new Error('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -303,5 +338,36 @@ export class DashboardService {
       bookingCount: Number(s.bookingCount) || 0,
       totalRevenue: Number(s.totalRevenue) || 0,
     }));
+  }
+  async getUserPreferences(userId: string): Promise<UserDashboardConfig> {
+    const prefs = await this.preferenceRepository.findOne({
+      where: { userId },
+    });
+    const config = prefs?.dashboardConfig;
+    if (!config || !Array.isArray(config.widgets)) {
+      return { widgets: [] };
+    }
+    return config;
+  }
+
+  async updateUserPreferences(
+    userId: string,
+    dto: UpdateDashboardPreferencesDto,
+  ): Promise<UserDashboardConfig> {
+    let prefs = await this.preferenceRepository.findOne({
+      where: { userId },
+    });
+
+    if (!prefs) {
+      prefs = this.preferenceRepository.create({
+        userId,
+        dashboardConfig: { widgets: dto.widgets },
+      });
+    } else {
+      prefs.dashboardConfig = { widgets: dto.widgets };
+    }
+
+    const saved = await this.preferenceRepository.save(prefs);
+    return saved.dashboardConfig;
   }
 }

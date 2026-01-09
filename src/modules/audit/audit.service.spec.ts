@@ -18,7 +18,12 @@ describe('AuditService', () => {
   } as AuditLog;
 
   const mockRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
+    findOne: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((dto) => ({
+      ...dto,
+      calculateHash: jest.fn().mockReturnValue('hash-1'),
+      verifyHash: jest.fn().mockReturnValue(true),
+    })),
     save: jest.fn().mockResolvedValue(mockAuditLog),
   };
 
@@ -62,17 +67,24 @@ describe('AuditService', () => {
 
     it('should log using the injected repository when no manager provided', async () => {
       const result = await service.log(logData);
-      expect(repository.create).toHaveBeenCalledWith({
-        ...logData,
-        tenantId: testTenantId,
-      });
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...logData,
+          tenantId: testTenantId,
+        }),
+      );
       expect(repository.save).toHaveBeenCalled();
       expect(result).toEqual(mockAuditLog);
     });
 
     it('should log using the manager repository when manager provided', async () => {
       const mockManagerRepo = {
-        create: jest.fn().mockImplementation((dto) => dto),
+        findOne: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation((dto) => ({
+          ...dto,
+          calculateHash: jest.fn().mockReturnValue('hash-2'),
+          verifyHash: jest.fn().mockReturnValue(true),
+        })),
         save: jest.fn().mockResolvedValue(mockAuditLog),
       };
       const mockManager = {
@@ -82,12 +94,41 @@ describe('AuditService', () => {
       const result = await service.log(logData, mockManager);
 
       expect(mockManager.getRepository).toHaveBeenCalledWith(AuditLog);
-      expect(mockManagerRepo.create).toHaveBeenCalledWith({
-        ...logData,
-        tenantId: testTenantId,
-      });
+      expect(mockManagerRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...logData,
+          tenantId: testTenantId,
+        }),
+      );
       expect(mockManagerRepo.save).toHaveBeenCalled();
       expect(result).toEqual(mockAuditLog);
+    });
+
+    it('should sanitize PII in oldValues and newValues', async () => {
+      const sensitiveData = {
+        action: 'UPDATE',
+        entityName: 'Client',
+        entityId: 'client-1',
+        oldValues: { email: 'test@example.com', phone: '1234567890' },
+        newValues: {
+          email: 'new@example.com',
+          password: 'plain',
+          nested: { ssn: '1234' },
+        },
+      };
+
+      await service.log(sensitiveData);
+
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          oldValues: { email: '***MASKED***', phone: '***MASKED***' },
+          newValues: {
+            email: '***MASKED***',
+            password: '***MASKED***',
+            nested: { ssn: '***MASKED***' },
+          },
+        }),
+      );
     });
   });
 });

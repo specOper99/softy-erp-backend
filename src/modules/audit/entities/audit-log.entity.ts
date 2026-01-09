@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { createHash } from 'crypto';
 
 @Entity('audit_logs')
 export class AuditLog {
@@ -13,17 +14,17 @@ export class AuditLog {
 
   @Index()
   @Column({ name: 'user_id', nullable: true })
-  userId: string; // The user who performed the action
+  userId: string;
 
   @Index()
   @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
-  tenantId: string; // The tenant context for scoped audit queries
+  tenantId: string;
 
   @Column()
-  action: string; // e.g., 'CREATE', 'UPDATE', 'DELETE', 'STATUS_CHANGE'
+  action: string;
 
   @Column({ name: 'entity_name' })
-  entityName: string; // e.g., 'Booking', 'Task'
+  entityName: string;
 
   @Index()
   @Column({ name: 'entity_id' })
@@ -38,6 +39,54 @@ export class AuditLog {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  @Column({ name: 'ip_address', nullable: true })
+  ipAddress: string;
+
+  @Column({ name: 'user_agent', nullable: true })
+  userAgent: string;
+
+  @Column({ name: 'method', nullable: true })
+  method: string;
+
+  @Column({ name: 'path', nullable: true })
+  path: string;
+
+  @Column({ name: 'status_code', nullable: true })
+  statusCode: number;
+
+  @Column({ name: 'duration_ms', nullable: true })
+  durationMs: number;
+
+  @Index()
+  @Column({ name: 'hash', length: 64, nullable: true })
+  hash: string;
+
+  @Column({ name: 'previous_hash', length: 64, nullable: true })
+  previousHash: string;
+
+  @Column({ name: 'sequence_number', type: 'bigint', nullable: true })
+  sequenceNumber: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz', primary: true })
   createdAt: Date;
+
+  calculateHash(): string {
+    const data = [
+      this.createdAt?.toISOString() ?? '',
+      this.action ?? '',
+      this.entityName ?? '',
+      this.entityId ?? '',
+      this.userId ?? '',
+      this.tenantId ?? '',
+      this.previousHash ?? '',
+      this.sequenceNumber?.toString() ?? '',
+    ].join('|');
+
+    return createHash('sha256').update(data).digest('hex');
+  }
+
+  verifyHash(): boolean {
+    if (!this.hash) return false;
+    return this.hash === this.calculateHash();
+  }
 }
