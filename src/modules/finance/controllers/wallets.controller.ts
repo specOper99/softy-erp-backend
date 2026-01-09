@@ -10,15 +10,17 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
 import { NoCache } from '../../../common/decorators/no-cache.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
+import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { Role } from '../../users/enums/role.enum';
 import { FinanceService } from '../services/finance.service';
 
 @ApiTags('Finance - Wallets')
 @ApiBearerAuth()
 @Controller('wallets')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@MfaRequired()
 export class WalletsController {
   constructor(private readonly financeService: FinanceService) {}
 

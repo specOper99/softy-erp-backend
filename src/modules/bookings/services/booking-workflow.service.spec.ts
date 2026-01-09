@@ -3,10 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource, QueryRunner } from 'typeorm';
-import { BookingStatus, TransactionType } from '../../../common/enums';
 import { AuditService } from '../../audit/audit.service';
+import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingWorkflowService } from './booking-workflow.service';
+
+import { BookingStateMachineService } from '../services/booking-state-machine.service';
 
 describe('BookingWorkflowService', () => {
   let service: BookingWorkflowService;
@@ -16,6 +19,10 @@ describe('BookingWorkflowService', () => {
   let auditService: AuditService;
   let eventBus: EventBus;
   let mockBooking: any;
+
+  const mockStateMachine = {
+    validateTransition: jest.fn(),
+  };
 
   beforeEach(async () => {
     mockBooking = {
@@ -95,6 +102,7 @@ describe('BookingWorkflowService', () => {
             publish: jest.fn(),
           },
         },
+        { provide: BookingStateMachineService, useValue: mockStateMachine },
       ],
     }).compile();
 
@@ -189,6 +197,11 @@ describe('BookingWorkflowService', () => {
           ...mockBooking,
           status: BookingStatus.CONFIRMED,
         });
+
+      // Make the state machine reject invalid transitions
+      mockStateMachine.validateTransition.mockImplementation(() => {
+        throw new BadRequestException();
+      });
 
       await expect(service.confirmBooking('booking-1')).rejects.toThrow(
         BadRequestException,

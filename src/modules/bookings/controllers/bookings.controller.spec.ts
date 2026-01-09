@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BookingStatus } from '../../common/enums';
+import { BookingStatus } from '../enums/booking-status.enum';
+import { BookingWorkflowService } from '../services/booking-workflow.service';
+import { BookingsService } from '../services/bookings.service';
+import { BookingExportService } from '../services/booking-export.service';
 import { BookingsController } from './bookings.controller';
-import { BookingsService } from './bookings.service';
-import { BookingWorkflowService } from './services/booking-workflow.service';
 
 describe('BookingsController', () => {
   let controller: BookingsController;
@@ -20,18 +21,37 @@ describe('BookingsController', () => {
           useValue: {
             create: jest.fn().mockResolvedValue(mockBooking),
             findAll: jest.fn().mockResolvedValue([mockBooking]),
+            findAllCursor: jest
+              .fn()
+              .mockResolvedValue({ data: [mockBooking], nextCursor: null }),
             findOne: jest.fn().mockResolvedValue(mockBooking),
             update: jest.fn().mockResolvedValue(mockBooking),
             remove: jest.fn().mockResolvedValue(undefined),
             confirmBooking: jest.fn().mockResolvedValue(mockBooking),
             cancelBooking: jest.fn().mockResolvedValue(mockBooking),
             completeBooking: jest.fn().mockResolvedValue(mockBooking),
+            recordPayment: jest.fn().mockResolvedValue(mockBooking),
+            duplicateBooking: jest.fn().mockResolvedValue(mockBooking),
+            exportBookingsToCSV: jest.fn().mockResolvedValue('csv'),
+            findAllClients: jest.fn().mockResolvedValue({ data: [], total: 0 }),
+            findClientById: jest.fn().mockResolvedValue({}),
+            createClient: jest.fn().mockResolvedValue({}),
+            updateClient: jest.fn().mockResolvedValue({}),
+            deleteClient: jest.fn().mockResolvedValue(undefined),
+            updateClientTags: jest.fn().mockResolvedValue({}),
+            exportClientsToCSV: jest.fn().mockResolvedValue('csv'),
           },
         },
         {
           provide: BookingWorkflowService,
           useValue: {
             confirmBooking: jest.fn().mockResolvedValue(mockBooking),
+          },
+        },
+        {
+          provide: BookingExportService,
+          useValue: {
+            exportBookingsToCSV: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -94,8 +114,8 @@ describe('BookingsController', () => {
 
   describe('cancel', () => {
     it('should call service.cancelBooking', async () => {
-      await controller.cancel('uuid');
-      expect(service.cancelBooking).toHaveBeenCalledWith('uuid');
+      await controller.cancel('uuid', {} as any);
+      expect(service.cancelBooking).toHaveBeenCalledWith('uuid', {});
     });
   });
 

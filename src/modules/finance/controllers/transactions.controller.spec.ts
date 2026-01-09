@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TransactionType } from '../../../common/enums';
+import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from '../services/finance.service';
 import { TransactionsController } from './transactions.controller';
 

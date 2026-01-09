@@ -13,9 +13,9 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { Cacheable, Roles } from '../../../common/decorators';
-import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { Role } from '../../users/enums/role.enum';
 import { CreateTaskTypeDto, UpdateTaskTypeDto } from '../dto';
 import { CatalogService } from '../services/catalog.service';
 

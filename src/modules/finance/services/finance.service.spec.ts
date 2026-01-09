@@ -1,16 +1,45 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { TransactionType } from '../../../common/enums';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { Booking } from '../../bookings/entities/booking.entity';
+import { TenantsService } from '../../tenants/tenants.service';
 import { TransactionFilterDto } from '../dto';
+import { DepartmentBudget } from '../entities/department-budget.entity';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 import { Transaction } from '../entities/transaction.entity';
+import { Currency } from '../enums/currency.enum';
+import { TransactionType } from '../enums/transaction-type.enum';
+import { CurrencyService } from './currency.service';
 import { FinanceService } from './finance.service';
+
+import { ExportService } from '../../../common/services/export.service';
+
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 
 describe('FinanceService - Comprehensive Tests', () => {
   let service: FinanceService;
+
+  const mockCacheUtils = {
+    clearCache: jest.fn(),
+    del: jest.fn(),
+  };
+
+  const mockExportService = {
+    exportTransactions: jest.fn().mockResolvedValue('mock-csv'),
+    exportInvoices: jest.fn().mockResolvedValue('mock-csv'),
+    streamFromStream: jest.fn(),
+  };
+
+  const mockDashboardGateway = {
+    server: {
+      to: jest.fn().mockReturnThis(),
+      emit: jest.fn(),
+    },
+    broadcastMetricsUpdate: jest.fn(),
+  };
 
   const mockTransaction = {
     id: 'txn-uuid-123',
@@ -56,6 +85,11 @@ describe('FinanceService - Comprehensive Tests', () => {
         { type: TransactionType.EXPENSE, total: '2000' },
         { type: TransactionType.PAYROLL, total: '1000' },
       ]),
+      getRawOne: jest.fn().mockResolvedValue({ total: '0' }),
+      stream: jest.fn().mockResolvedValue({
+        pipe: jest.fn(),
+        on: jest.fn(),
+      }),
     }),
   };
 
@@ -70,6 +104,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     commitTransaction: jest.fn(),
     rollbackTransaction: jest.fn(),
     release: jest.fn(),
+    isTransactionActive: true,
     manager: {
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((entity, data) => data),
@@ -78,7 +113,38 @@ describe('FinanceService - Comprehensive Tests', () => {
         .mockImplementation((data) =>
           Promise.resolve({ id: 'wallet-uuid-123', ...data }),
         ),
+      queryRunner: {
+        isTransactionActive: true,
+      },
     },
+  };
+
+  const mockBookingRepository = {
+    createQueryBuilder: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({
+        totalTax: '225',
+        totalSubTotal: '1500',
+        totalGross: '1725',
+      }),
+    }),
+  };
+
+  const mockBudgetRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ total: '0' }),
+    }),
   };
 
   const mockDataSource = {
@@ -86,6 +152,19 @@ describe('FinanceService - Comprehensive Tests', () => {
     transaction: jest
       .fn()
       .mockImplementation((cb) => cb(mockQueryRunner.manager)),
+  };
+
+  const mockCurrencyService = {
+    getExchangeRate: jest.fn().mockResolvedValue(1.0),
+    convert: jest
+      .fn()
+      .mockImplementation((amount, _from, _to) => Promise.resolve(amount)),
+  };
+
+  const mockTenantsService = {
+    findOne: jest
+      .fn()
+      .mockResolvedValue({ id: 'tenant-123', baseCurrency: Currency.USD }),
   };
 
   beforeEach(async () => {
@@ -100,7 +179,20 @@ describe('FinanceService - Comprehensive Tests', () => {
           provide: getRepositoryToken(EmployeeWallet),
           useValue: mockWalletRepository,
         },
+        {
+          provide: getRepositoryToken(Booking),
+          useValue: mockBookingRepository,
+        },
+        {
+          provide: getRepositoryToken(DepartmentBudget),
+          useValue: mockBudgetRepository,
+        },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: CurrencyService, useValue: mockCurrencyService },
+        { provide: TenantsService, useValue: mockTenantsService },
+        { provide: ExportService, useValue: mockExportService },
+        { provide: DashboardGateway, useValue: mockDashboardGateway },
+        { provide: CacheUtilsService, useValue: mockCacheUtils },
       ],
     }).compile();
 
@@ -134,6 +226,9 @@ describe('FinanceService - Comprehensive Tests', () => {
 
     jest
       .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue('tenant-123');
+    jest
+      .spyOn(TenantContextService, 'getTenantIdOrThrow')
       .mockReturnValue('tenant-123');
   });
 
@@ -197,15 +292,16 @@ describe('FinanceService - Comprehensive Tests', () => {
       expect(result.description).toBe('Wedding booking payment');
     });
 
-    it('should handle zero amount transaction', async () => {
+    it('should reject zero amount transaction', async () => {
       const dto = {
         type: TransactionType.INCOME,
         amount: 0,
         category: 'Test',
         transactionDate: '2024-12-31T00:00:00Z',
       };
-      const result = await service.createTransaction(dto);
-      expect(result.amount).toBe(0);
+      await expect(service.createTransaction(dto)).rejects.toThrow(
+        'finance.amount_must_be_positive',
+      );
     });
   });
 
@@ -338,6 +434,7 @@ describe('FinanceService - Comprehensive Tests', () => {
         findOne: jest.fn().mockResolvedValue(walletCopy),
         create: jest.fn().mockImplementation((Entity, data) => data),
         save: jest.fn().mockImplementation((wallet) => Promise.resolve(wallet)),
+        queryRunner: { isTransactionActive: true },
       };
 
       const result = await service.addPendingCommission(
@@ -359,25 +456,24 @@ describe('FinanceService - Comprehensive Tests', () => {
         findOne: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockImplementation((Entity, data) => data),
         save: jest.fn().mockImplementation((wallet) => Promise.resolve(wallet)),
+        queryRunner: { isTransactionActive: true },
       };
 
       await service.addPendingCommission(mockManager as any, 'new-user', 50.0);
       expect(mockManager.create).toHaveBeenCalled();
     });
 
-    it('should handle zero commission', async () => {
+    it('should throw BadRequestException if commission amount is zero or negative', async () => {
       const walletCopy = { ...mockWallet, pendingBalance: 100 };
       const mockManager = {
         findOne: jest.fn().mockResolvedValue(walletCopy),
         save: jest.fn().mockImplementation((wallet) => Promise.resolve(wallet)),
+        queryRunner: { isTransactionActive: true },
       };
 
-      const result = await service.addPendingCommission(
-        mockManager as any,
-        'user-uuid-123',
-        0,
-      );
-      expect(result.pendingBalance).toBe(100);
+      await expect(
+        service.addPendingCommission(mockManager as any, 'user-uuid-123', 0),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -391,6 +487,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       const mockManager = {
         findOne: jest.fn().mockResolvedValue(walletCopy),
         save: jest.fn().mockImplementation((wallet) => Promise.resolve(wallet)),
+        queryRunner: { isTransactionActive: true },
       };
 
       const result = await service.moveToPayable(
@@ -410,6 +507,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     it('should throw error when wallet not found', async () => {
       const mockManager = {
         findOne: jest.fn().mockResolvedValue(null),
+        queryRunner: { isTransactionActive: true },
       };
 
       await expect(
@@ -425,6 +523,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       };
       const mockManager = {
         findOne: jest.fn().mockResolvedValue(walletCopy),
+        queryRunner: { isTransactionActive: true },
       };
 
       // Trying to transfer 50 when only 30 is available
@@ -444,6 +543,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       const mockManager = {
         findOne: jest.fn().mockResolvedValue(walletCopy),
         save: jest.fn().mockImplementation((wallet) => Promise.resolve(wallet)),
+        queryRunner: { isTransactionActive: true },
       };
 
       const result = await service.resetPayableBalance(
@@ -457,6 +557,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     it('should throw error when wallet not found', async () => {
       const mockManager = {
         findOne: jest.fn().mockResolvedValue(null),
+        queryRunner: { isTransactionActive: true },
       };
 
       await expect(
@@ -512,6 +613,80 @@ describe('FinanceService - Comprehensive Tests', () => {
         dto,
       );
       expect(result.bookingId).toBe('booking-123');
+    });
+  });
+
+  describe('budgets', () => {
+    const mockBudget = {
+      id: 'budget-uuid-123',
+      department: 'Photography',
+      budgetAmount: 5000,
+      period: '2024-01',
+      startDate: new Date('2024-01-01'),
+      endDate: new Date('2024-01-31'),
+    };
+
+    it('should upsert a budget', async () => {
+      mockBudgetRepository.findOne.mockResolvedValue(null);
+      mockBudgetRepository.create.mockReturnValue(mockBudget);
+      mockBudgetRepository.save.mockResolvedValue(mockBudget);
+
+      const result = await service.upsertBudget({
+        department: 'Photography',
+        budgetAmount: 5000,
+        period: '2024-01',
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+      });
+
+      expect(result).toEqual(mockBudget);
+      expect(mockBudgetRepository.save).toHaveBeenCalled();
+    });
+
+    it('should return budget report with actual spending', async () => {
+      mockBudgetRepository.find.mockResolvedValue([mockBudget]);
+      mockTransactionRepository
+        .createQueryBuilder()
+        .getRawMany.mockResolvedValue([
+          { department: 'Photography', total: '1500' },
+        ]);
+
+      const report = await service.getBudgetReport('2024-01');
+
+      expect(report).toHaveLength(1);
+      expect(report[0].actualSpent).toBe(1500);
+      expect(report[0].variance).toBe(3500);
+      expect(report[0].utilizationPercentage).toBe(30);
+    });
+
+    it('should handle zero utilization', async () => {
+      mockBudgetRepository.find.mockResolvedValue([mockBudget]);
+      mockTransactionRepository
+        .createQueryBuilder()
+        .getRawMany.mockResolvedValue([
+          { department: 'Photography', total: '0' },
+        ]);
+
+      const report = await service.getBudgetReport('2024-01');
+
+      expect(report[0].utilizationPercentage).toBe(0);
+    });
+  });
+
+  describe('exportTransactionsToCSV', () => {
+    it('should stream transactions to response', async () => {
+      const mockRes = {} as any;
+      await service.exportTransactionsToCSV(mockRes);
+      expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalledWith(
+        't',
+      );
+      expect(mockExportService.streamFromStream).toHaveBeenCalledWith(
+        mockRes,
+        expect.anything(),
+        expect.stringContaining('transactions-export-'),
+        expect.any(Array),
+        expect.any(Function),
+      );
     });
   });
 });

@@ -10,7 +10,8 @@ import {
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { TransactionType } from '../../../common/enums';
+import { Currency } from '../enums/currency.enum';
+import { TransactionType } from '../enums/transaction-type.enum';
 
 // Transaction DTOs
 export class CreateTransactionDto {
@@ -28,6 +29,11 @@ export class CreateTransactionDto {
   @IsOptional()
   @SanitizeHtml()
   category?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  department?: string;
 
   @ApiPropertyOptional()
   @IsUUID()
@@ -49,6 +55,11 @@ export class CreateTransactionDto {
   @IsOptional()
   @SanitizeHtml()
   description?: string;
+
+  @ApiProperty({ enum: Currency, default: Currency.USD })
+  @IsEnum(Currency)
+  @IsOptional()
+  currency?: Currency;
 
   @ApiProperty()
   @IsDateString()
@@ -79,6 +90,12 @@ export class TransactionResponseDto {
 
   @ApiPropertyOptional()
   description: string;
+
+  @ApiProperty({ enum: Currency })
+  currency: Currency;
+
+  @ApiProperty()
+  exchangeRate: number;
 
   @ApiProperty()
   transactionDate: Date;

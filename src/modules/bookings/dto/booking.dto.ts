@@ -2,12 +2,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsEnum,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  Min,
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
-import { BookingStatus } from '../../../common/enums';
+import { PaymentStatus } from '../../finance/enums/payment-status.enum';
+import { BookingStatus } from '../enums/booking-status.enum';
 
 export class CreateBookingDto {
   @ApiProperty({ description: 'Client ID' })
@@ -27,6 +30,21 @@ export class CreateBookingDto {
   @IsOptional()
   @SanitizeHtml()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Tax rate override (0-100)' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  taxRate?: number;
+
+  @ApiPropertyOptional({
+    description: 'Deposit percentage (0-100)',
+    example: 25,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  depositPercentage?: number;
 }
 
 export class UpdateBookingDto {
@@ -87,6 +105,27 @@ export class BookingResponseDto {
 
   @ApiProperty()
   totalPrice: number;
+
+  @ApiProperty({ description: 'Deposit percentage' })
+  depositPercentage: number;
+
+  @ApiProperty({ description: 'Calculated deposit amount' })
+  depositAmount: number;
+
+  @ApiProperty({ description: 'Total amount paid so far' })
+  amountPaid: number;
+
+  @ApiProperty({ enum: PaymentStatus, description: 'Payment status' })
+  paymentStatus: PaymentStatus;
+
+  @ApiProperty()
+  subTotal: number;
+
+  @ApiProperty()
+  taxRate: number;
+
+  @ApiProperty()
+  taxAmount: number;
 
   @ApiProperty()
   packageId: string;

@@ -7,18 +7,17 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
-import {
-  BookingStatus,
-  TaskStatus,
-  TransactionType,
-} from '../../../common/enums';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
+import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { Task } from '../../tasks/entities/task.entity';
+import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { ConfirmBookingResponseDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
+import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingConfirmedEvent } from '../events/booking-confirmed.event';
+import { BookingStateMachineService } from './booking-state-machine.service';
 
 @Injectable()
 export class BookingWorkflowService {
@@ -30,6 +29,7 @@ export class BookingWorkflowService {
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
+    private readonly stateMachine: BookingStateMachineService,
   ) {}
 
   /**
@@ -74,13 +74,11 @@ export class BookingWorkflowService {
         throw new NotFoundException(`Booking with ID ${id} not found`);
       }
 
-      if (booking.status !== BookingStatus.DRAFT) {
-        throw new BadRequestException(
-          `Booking is already ${booking.status}. Only DRAFT bookings can be confirmed.`,
-        );
-      }
+      this.stateMachine.validateTransition(
+        booking.status,
+        BookingStatus.CONFIRMED,
+      );
 
-      // Step 2: Update booking status to CONFIRMED
       booking.status = BookingStatus.CONFIRMED;
       await queryRunner.manager.save(booking);
 

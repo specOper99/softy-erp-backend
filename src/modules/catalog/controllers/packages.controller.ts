@@ -7,17 +7,20 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { Cacheable, Roles } from '../../../common/decorators';
-import { Role } from '../../../common/enums';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { Role } from '../../users/enums/role.enum';
 import {
   AddPackageItemsDto,
+  ClonePackageDto,
   CreateServicePackageDto,
   UpdateServicePackageDto,
 } from '../dto';
@@ -43,6 +46,12 @@ export class PackagesController {
   @ApiOperation({ summary: 'Get all service packages' })
   findAll() {
     return this.catalogService.findAllPackages();
+  }
+
+  @Get('cursor')
+  @ApiOperation({ summary: 'Get all packages with cursor pagination' })
+  findAllCursor(@Query() query: CursorPaginationDto) {
+    return this.catalogService.findAllPackagesCursor(query);
   }
 
   @Get(':id')
@@ -84,5 +93,15 @@ export class PackagesController {
   @ApiOperation({ summary: 'Remove item from package' })
   removeItem(@Param('itemId', ParseUUIDPipe) itemId: string) {
     return this.catalogService.removePackageItem(itemId);
+  }
+
+  @Post(':id/clone')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Clone a service package (template or regular)' })
+  clonePackage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ClonePackageDto,
+  ) {
+    return this.catalogService.clonePackage(id, dto);
   }
 }

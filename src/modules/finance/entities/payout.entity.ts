@@ -1,5 +1,6 @@
 import { Column, Entity, Index, OneToMany } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { Currency } from '../enums/currency.enum';
 import { Transaction } from './transaction.entity';
 
 @Entity('payouts')
@@ -14,9 +15,16 @@ export class Payout extends BaseTenantEntity {
   @Column({ default: 'COMPLETED' })
   status: string;
 
+  @Column({
+    type: 'enum',
+    enum: Currency,
+    default: Currency.USD,
+  })
+  currency: Currency;
+
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @OneToMany('Transaction', 'payout')
+  @OneToMany(() => Transaction, (transaction) => transaction.payout)
   transactions: Promise<Transaction[]>;
 }

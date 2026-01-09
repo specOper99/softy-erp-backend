@@ -1,11 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import {
   AddPackageItemsDto,
+  ClonePackageDto,
   CreateServicePackageDto,
   CreateTaskTypeDto,
   UpdateServicePackageDto,
@@ -25,11 +32,38 @@ export class CatalogService {
     @InjectRepository(PackageItem)
     private readonly packageItemRepository: Repository<PackageItem>,
     private readonly auditService: AuditService,
+    private readonly cacheUtils: CacheUtilsService,
   ) {}
+
+  // Cache TTLs in milliseconds
+  private readonly PACKAGES_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+  private readonly TASK_TYPES_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+  private getPackagesCacheKey(tenantId: string): string {
+    return `catalog:packages:${tenantId}`;
+  }
+
+  private getTaskTypesCacheKey(tenantId: string): string {
+    return `catalog:task-types:${tenantId}`;
+  }
+
+  private async invalidatePackagesCache(tenantId: string): Promise<void> {
+    await this.cacheUtils.del(this.getPackagesCacheKey(tenantId));
+  }
+
+  private async invalidateTaskTypesCache(tenantId: string): Promise<void> {
+    await this.cacheUtils.del(this.getTaskTypesCacheKey(tenantId));
+  }
 
   // Service Package Methods
   async createPackage(dto: CreateServicePackageDto): Promise<ServicePackage> {
     const tenantId = TenantContextService.getTenantId();
+
+    // Validate price is positive
+    if (dto.price !== undefined && dto.price <= 0) {
+      throw new BadRequestException('catalog.price_must_be_positive');
+    }
+
     const pkg = this.packageRepository.create({ ...dto, tenantId });
     const savedPkg = await this.packageRepository.save(pkg);
 
@@ -40,19 +74,77 @@ export class CatalogService {
       newValues: { name: savedPkg.name, price: savedPkg.price },
     });
 
+    // Invalidate cache
+    await this.invalidatePackagesCache(tenantId ?? 'default');
+
     return savedPkg;
   }
 
   async findAllPackages(
     query: PaginationDto = new PaginationDto(),
+    nocache = false,
   ): Promise<ServicePackage[]> {
     const tenantId = TenantContextService.getTenantId();
-    return this.packageRepository.find({
+    const cacheKey = this.getPackagesCacheKey(tenantId ?? 'default');
+
+    // Try cache first (only for default pagination to avoid cache explosion)
+    if (!nocache && query.page === 1 && query.limit === 10) {
+      const cached = await this.cacheUtils.get<ServicePackage[]>(cacheKey);
+      if (cached) return cached;
+    }
+
+    const packages = await this.packageRepository.find({
       where: { tenantId },
       relations: ['packageItems', 'packageItems.taskType'],
       skip: query.getSkip(),
       take: query.getTake(),
     });
+
+    // Cache only default pagination
+    if (!nocache && query.page === 1 && query.limit === 10 && tenantId) {
+      await this.cacheUtils.set(cacheKey, packages, this.PACKAGES_CACHE_TTL);
+    }
+
+    return packages;
+  }
+
+  async findAllPackagesCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: ServicePackage[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantId();
+    const limit = query.limit || 20;
+
+    const qb = this.packageRepository.createQueryBuilder('pkg');
+
+    qb.leftJoinAndSelect('pkg.packageItems', 'items')
+      .leftJoinAndSelect('items.taskType', 'taskType')
+      .where('pkg.tenantId = :tenantId', { tenantId })
+      .orderBy('pkg.createdAt', 'DESC')
+      .addOrderBy('pkg.id', 'DESC')
+      .take(limit + 1);
+
+    if (query.cursor) {
+      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
+      const [dateStr, id] = decoded.split('|');
+      const date = new Date(dateStr);
+
+      qb.andWhere(
+        '(pkg.createdAt < :date OR (pkg.createdAt = :date AND pkg.id < :id))',
+        { date, id },
+      );
+    }
+
+    const packages = await qb.getMany();
+    let nextCursor: string | null = null;
+
+    if (packages.length > limit) {
+      packages.pop();
+      const lastItem = packages[packages.length - 1];
+      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      nextCursor = Buffer.from(cursorData).toString('base64');
+    }
+
+    return { data: packages, nextCursor };
   }
 
   async findPackageById(id: string): Promise<ServicePackage> {
@@ -104,6 +196,11 @@ export class CatalogService {
       });
     }
 
+    // Invalidate cache
+    await this.invalidatePackagesCache(
+      TenantContextService.getTenantId() ?? 'default',
+    );
+
     return savedPkg;
   }
 
@@ -118,6 +215,11 @@ export class CatalogService {
     });
 
     await this.packageRepository.remove(pkg);
+
+    // Invalidate cache
+    await this.invalidatePackagesCache(
+      TenantContextService.getTenantId() ?? 'default',
+    );
   }
 
   async addPackageItems(
@@ -182,18 +284,74 @@ export class CatalogService {
       },
     });
 
+    // Invalidate cache
+    await this.invalidateTaskTypesCache(tenantId ?? 'default');
+
     return savedTaskType;
   }
 
   async findAllTaskTypes(
     query: PaginationDto = new PaginationDto(),
+    nocache = false,
   ): Promise<TaskType[]> {
     const tenantId = TenantContextService.getTenantId();
-    return this.taskTypeRepository.find({
+    const cacheKey = this.getTaskTypesCacheKey(tenantId ?? 'default');
+
+    // Try cache first (only for default pagination)
+    if (!nocache && query.page === 1 && query.limit === 10) {
+      const cached = await this.cacheUtils.get<TaskType[]>(cacheKey);
+      if (cached) return cached;
+    }
+
+    const taskTypes = await this.taskTypeRepository.find({
       where: { tenantId },
       skip: query.getSkip(),
       take: query.getTake(),
     });
+
+    // Cache only default pagination
+    if (!nocache && query.page === 1 && query.limit === 10 && tenantId) {
+      await this.cacheUtils.set(cacheKey, taskTypes, this.TASK_TYPES_CACHE_TTL);
+    }
+
+    return taskTypes;
+  }
+
+  async findAllTaskTypesCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: TaskType[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantId();
+    const limit = query.limit || 20;
+
+    const qb = this.taskTypeRepository.createQueryBuilder('tt');
+
+    qb.where('tt.tenantId = :tenantId', { tenantId })
+      .orderBy('tt.createdAt', 'DESC')
+      .addOrderBy('tt.id', 'DESC')
+      .take(limit + 1);
+
+    if (query.cursor) {
+      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
+      const [dateStr, id] = decoded.split('|');
+      const date = new Date(dateStr);
+
+      qb.andWhere(
+        '(tt.createdAt < :date OR (tt.createdAt = :date AND tt.id < :id))',
+        { date, id },
+      );
+    }
+
+    const taskTypes = await qb.getMany();
+    let nextCursor: string | null = null;
+
+    if (taskTypes.length > limit) {
+      taskTypes.pop();
+      const lastItem = taskTypes[taskTypes.length - 1];
+      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      nextCursor = Buffer.from(cursorData).toString('base64');
+    }
+
+    return { data: taskTypes, nextCursor };
   }
 
   async findTaskTypeById(id: string): Promise<TaskType> {
@@ -244,5 +402,65 @@ export class CatalogService {
     });
 
     await this.taskTypeRepository.remove(taskType);
+  }
+
+  async clonePackage(
+    packageId: string,
+    dto: ClonePackageDto,
+  ): Promise<ServicePackage> {
+    const tenantId = TenantContextService.getTenantId();
+
+    // Load source package with all items
+    const sourcePackage = await this.packageRepository.findOne({
+      where: { id: packageId, tenantId },
+      relations: ['packageItems', 'packageItems.taskType'],
+    });
+
+    if (!sourcePackage) {
+      throw new NotFoundException(
+        `ServicePackage with ID ${packageId} not found`,
+      );
+    }
+
+    // Create new package (not a template by default)
+    const newPackage = this.packageRepository.create({
+      name: dto.newName,
+      description: dto.description ?? sourcePackage.description,
+      price: dto.newPrice ?? sourcePackage.price,
+      isActive: true,
+      isTemplate: false, // Clones are not templates by default
+      templateCategory: null,
+      tenantId,
+    });
+
+    const savedPackage = await this.packageRepository.save(newPackage);
+
+    // Clone all package items
+    const sourceItems = await sourcePackage.packageItems;
+    if (sourceItems && sourceItems.length > 0) {
+      const clonedItems = sourceItems.map((item) =>
+        this.packageItemRepository.create({
+          packageId: savedPackage.id,
+          taskTypeId: item.taskTypeId,
+          quantity: item.quantity,
+          tenantId,
+        }),
+      );
+      await this.packageItemRepository.save(clonedItems);
+    }
+
+    await this.auditService.log({
+      action: 'CLONE',
+      entityName: 'ServicePackage',
+      entityId: savedPackage.id,
+      newValues: {
+        name: savedPackage.name,
+        price: savedPackage.price,
+        clonedFrom: sourcePackage.id,
+      },
+      notes: `Cloned from package "${sourcePackage.name}" (${sourcePackage.id})`,
+    });
+
+    return this.findPackageById(savedPackage.id);
   }
 }
