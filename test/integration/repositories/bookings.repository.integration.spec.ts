@@ -1,8 +1,8 @@
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
-import { BookingStatus } from '../../../src/common/enums';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
+import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { Task } from '../../../src/modules/tasks/entities/task.entity';
 
@@ -11,27 +11,42 @@ describe('BookingsRepository Integration Tests', () => {
   let bookingRepository: Repository<Booking>;
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
-  let taskRepository: Repository<Task>;
+  let _taskRepository: Repository<Task>;
 
   const tenant1 = uuidv4();
   const tenant2 = uuidv4();
 
-  beforeAll(() => {
-    // Get DataSource from global setup
-    dataSource = (global as any).__DATA_SOURCE__;
+  beforeAll(async () => {
+    const dbConfig = (global as any).__DB_CONFIG__;
+    dataSource = new DataSource({
+      type: 'postgres',
+      host: dbConfig.host,
+      port: dbConfig.port,
+      username: dbConfig.username,
+      password: dbConfig.password,
+      database: dbConfig.database,
+      entities: [__dirname + '/../../../src/**/*.entity.ts'],
+      synchronize: false,
+    });
+    await dataSource.initialize();
 
     bookingRepository = dataSource.getRepository(Booking);
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
-    taskRepository = dataSource.getRepository(Task);
+    _taskRepository = dataSource.getRepository(Task);
+  });
+
+  afterAll(async () => {
+    if (dataSource && dataSource.isInitialized) {
+      await dataSource.destroy();
+    }
   });
 
   beforeEach(async () => {
     // Clean up tables before each test
-    await taskRepository.delete({});
-    await bookingRepository.delete({});
-    await packageRepository.delete({});
-    await clientRepository.delete({});
+    await dataSource.query(
+      'TRUNCATE TABLE "tasks", "bookings", "service_packages", "clients" CASCADE',
+    );
   });
 
   describe('Multi-tenant Data Isolation', () => {
@@ -166,7 +181,7 @@ describe('BookingsRepository Integration Tests', () => {
       expect(result).toBeDefined();
       expect(result?.client.name).toBe('Test Client');
       expect(result?.servicePackage.name).toBe('Wedding Package');
-      expect(result?.totalPrice).toBe(5000);
+      expect(Number(result?.totalPrice)).toBe(5000);
     });
 
     it('should handle pagination correctly', async () => {
@@ -285,7 +300,7 @@ describe('BookingsRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const booking = await bookingRepository.save({
+      const booking: Booking = await bookingRepository.save({
         clientId: client.id,
         packageId: pkg.id,
         eventDate: new Date('2026-06-01'),

@@ -4,12 +4,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
-import { BookingStatus } from '../../../src/common/enums';
+import { ExportService } from '../../../src/common/services/export.service';
+import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { AuditService } from '../../../src/modules/audit/audit.service';
-import { BookingsService } from '../../../src/modules/bookings/bookings.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
+import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
+import { BookingStateMachineService } from '../../../src/modules/bookings/services/booking-state-machine.service';
+import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
+import { CatalogService } from '../../../src/modules/catalog/services/catalog.service';
+import { DashboardGateway } from '../../../src/modules/dashboard/dashboard.gateway';
 import { FinanceService } from '../../../src/modules/finance/services/finance.service';
 
 describe('BookingsService Integration Tests', () => {
@@ -23,7 +28,14 @@ describe('BookingsService Integration Tests', () => {
   const tenant1 = uuidv4();
 
   beforeAll(async () => {
-    dataSource = (global as any).__DATA_SOURCE__;
+    const dbConfig = (global as any).__DB_CONFIG__;
+    dataSource = new DataSource({
+      ...dbConfig,
+      type: 'postgres',
+      entities: ['src/**/*.entity.ts'],
+      synchronize: false,
+    });
+    await dataSource.initialize();
 
     bookingRepository = dataSource.getRepository(Booking);
     clientRepository = dataSource.getRepository(Client);
@@ -58,6 +70,32 @@ describe('BookingsService Integration Tests', () => {
           },
         },
         {
+          provide: CatalogService,
+          useValue: {
+            findPackageById: jest
+              .fn()
+              .mockImplementation((id) => packageRepository.findOneBy({ id })),
+          },
+        },
+        {
+          provide: ExportService,
+          useValue: {
+            streamFromStream: jest.fn(),
+          },
+        },
+        {
+          provide: DashboardGateway,
+          useValue: {
+            broadcastMetricsUpdate: jest.fn(),
+          },
+        },
+        {
+          provide: BookingStateMachineService,
+          useValue: {
+            validateTransition: jest.fn(),
+          },
+        },
+        {
           provide: DataSource,
           useValue: dataSource,
         },
@@ -88,12 +126,15 @@ describe('BookingsService Integration Tests', () => {
 
   beforeEach(async () => {
     // Clean up before each test
-    await bookingRepository.delete({});
-    await packageRepository.delete({});
-    await clientRepository.delete({});
+    await bookingRepository.createQueryBuilder().delete().execute();
+    await packageRepository.createQueryBuilder().delete().execute();
+    await clientRepository.createQueryBuilder().delete().execute();
 
     // Mock tenant context
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenant1);
+    jest
+      .spyOn(TenantContextService, 'getTenantIdOrThrow')
+      .mockReturnValue(tenant1);
   });
 
   describe('create', () => {
@@ -132,7 +173,7 @@ describe('BookingsService Integration Tests', () => {
         where: { id: result.id },
       });
       expect(persisted).toBeDefined();
-      expect(persisted?.totalPrice).toBe(3000);
+      expect(persisted?.totalPrice).toBe('3000.00');
     });
 
     it('should enforce tenant isolation in service layer', async () => {

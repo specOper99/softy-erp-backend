@@ -4,12 +4,13 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
-import { Role } from '../src/common/enums/role.enum';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { EmployeeWallet } from '../src/modules/finance/entities/employee-wallet.entity';
 import { Profile } from '../src/modules/hr/entities/profile.entity';
+import { MockPaymentGatewayService } from '../src/modules/hr/services/payment-gateway.service';
 import { MailService } from '../src/modules/mail/mail.service';
 import { User } from '../src/modules/users/entities/user.entity';
+import { Role } from '../src/modules/users/enums/role.enum';
 import { seedTestDatabase } from './utils/seed-data';
 
 class MockThrottlerGuard extends ThrottlerGuard {
@@ -38,6 +39,13 @@ describe('Payroll Load E2E Tests', () => {
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
+      .overrideProvider(MockPaymentGatewayService) // Override Random Failure Service
+      .useValue({
+        triggerPayout: jest.fn().mockResolvedValue({
+          success: true,
+          transactionReference: 'MOCK_TXN_REF',
+        }),
       })
       .compile();
 
@@ -107,6 +115,7 @@ describe('Payroll Load E2E Tests', () => {
           lastName: 'Test',
           baseSalary: 1000,
           tenantId,
+          hireDate: new Date(),
         }),
       );
 

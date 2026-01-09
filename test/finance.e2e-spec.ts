@@ -38,6 +38,13 @@ describe('Finance Module E2E Tests', () => {
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+        queueBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        queueTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        queuePayrollNotification: jest.fn().mockResolvedValue(undefined),
+        queuePasswordReset: jest.fn().mockResolvedValue(undefined),
+        queueEmailVerification: jest.fn().mockResolvedValue(undefined),
+        queueNewDeviceLogin: jest.fn().mockResolvedValue(undefined),
+        queueSuspiciousActivity: jest.fn().mockResolvedValue(undefined),
       })
       .compile();
 
@@ -77,6 +84,32 @@ describe('Finance Module E2E Tests', () => {
   describe('Transactions', () => {
     describe('POST /api/v1/transactions', () => {
       it('should create a transaction (Admin/OpsManager)', async () => {
+        // Create dependencies
+        const clientRes = await request(app.getHttpServer())
+          .post('/api/v1/clients')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            name: 'Finance Init Client',
+            email: `finance.init.${Date.now()}@example.com`,
+            phone: '+1234567899',
+          })
+          .expect(201);
+
+        const packagesRes = await request(app.getHttpServer())
+          .get('/api/v1/packages')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+
+        const bookingRes = await request(app.getHttpServer())
+          .post('/api/v1/bookings')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            clientId: clientRes.body.data.id,
+            eventDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now (booking validation requires 1 hour minimum)
+            packageId: packagesRes.body.data[0]?.id,
+          })
+          .expect(201);
+
         const response = await request(app.getHttpServer())
           .post('/api/v1/transactions')
           .set('Authorization', `Bearer ${accessToken}`)
@@ -86,8 +119,13 @@ describe('Finance Module E2E Tests', () => {
             description: 'Test booking payment',
             category: 'BOOKING',
             transactionDate: new Date().toISOString(),
+            bookingId: bookingRes.body.data.id, // satisfying constraint
           });
 
+        console.log(
+          'Transaction create response:',
+          JSON.stringify(response.body, null, 2),
+        );
         expect(response.status).toBe(201);
         expect(response.body.data).toHaveProperty('id');
         expect(response.body.data.amount).toBe(1000);
@@ -122,7 +160,7 @@ describe('Finance Module E2E Tests', () => {
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             clientId: testClientId,
-            eventDate: new Date().toISOString(),
+            eventDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now (booking validation requires 1 hour minimum)
             packageId: packageId,
           })
           .expect(201);
@@ -222,6 +260,21 @@ describe('Finance Module E2E Tests', () => {
         expect(response.body.data).toHaveProperty('totalIncome');
         expect(response.body.data).toHaveProperty('totalExpenses');
         expect(response.body.data).toHaveProperty('netBalance');
+      });
+    });
+
+    describe('GET /api/v1/analytics/tax-report', () => {
+      it('should return VAT/Tax report (Admin only)', async () => {
+        const response = await request(app.getHttpServer())
+          .get(
+            `/api/v1/analytics/tax-report?startDate=${new Date().getFullYear()}-01-01&endDate=${new Date().getFullYear()}-12-31`,
+          )
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+
+        expect(response.body.data).toHaveProperty('totalTax');
+        expect(response.body.data).toHaveProperty('totalSubTotal');
+        expect(response.body.data).toHaveProperty('totalGross');
       });
     });
   });

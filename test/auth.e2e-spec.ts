@@ -43,6 +43,13 @@ describe('Auth & Users E2E Tests', () => {
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+        queueBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        queueTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        queuePayrollNotification: jest.fn().mockResolvedValue(undefined),
+        queuePasswordReset: jest.fn().mockResolvedValue(undefined),
+        queueEmailVerification: jest.fn().mockResolvedValue(undefined),
+        queueNewDeviceLogin: jest.fn().mockResolvedValue(undefined),
+        queueSuspiciousActivity: jest.fn().mockResolvedValue(undefined),
       })
       .compile();
 

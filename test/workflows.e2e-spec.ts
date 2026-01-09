@@ -4,15 +4,13 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
-import {
-  BookingStatus,
-  TaskStatus,
-  TransactionType,
-} from '../src/common/enums';
 import { TransformInterceptor } from '../src/common/interceptors';
+import { BookingStatus } from '../src/modules/bookings/enums/booking-status.enum';
 import { Transaction } from '../src/modules/finance/entities/transaction.entity';
+import { TransactionType } from '../src/modules/finance/enums/transaction-type.enum';
 import { MailService } from '../src/modules/mail/mail.service';
 import { Task } from '../src/modules/tasks/entities/task.entity';
+import { TaskStatus } from '../src/modules/tasks/enums/task-status.enum';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests

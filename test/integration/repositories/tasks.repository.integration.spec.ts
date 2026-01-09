@@ -1,11 +1,14 @@
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
-import { BookingStatus, TaskStatus, UserRole } from '../../../src/common/enums';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
+import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
+import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
 import { Task } from '../../../src/modules/tasks/entities/task.entity';
+import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
 import { User } from '../../../src/modules/users/entities/user.entity';
+import { Role } from '../../../src/modules/users/enums/role.enum';
 
 describe('TasksRepository Integration Tests', () => {
   let dataSource: DataSource;
@@ -14,26 +17,43 @@ describe('TasksRepository Integration Tests', () => {
   let bookingRepository: Repository<Booking>;
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
+  let taskTypeRepository: Repository<TaskType>;
 
   const tenant1 = uuidv4();
   const tenant2 = uuidv4();
 
-  beforeAll(() => {
-    dataSource = (global as any).__DATA_SOURCE__;
+  beforeAll(async () => {
+    const dbConfig = (global as any).__DB_CONFIG__;
+    dataSource = new DataSource({
+      type: 'postgres',
+      host: dbConfig.host,
+      port: dbConfig.port,
+      username: dbConfig.username,
+      password: dbConfig.password,
+      database: dbConfig.database,
+      entities: [__dirname + '/../../../src/**/*.entity.ts'],
+      synchronize: false,
+    });
+    await dataSource.initialize();
 
     taskRepository = dataSource.getRepository(Task);
     userRepository = dataSource.getRepository(User);
     bookingRepository = dataSource.getRepository(Booking);
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
+    taskTypeRepository = dataSource.getRepository(TaskType);
+  });
+
+  afterAll(async () => {
+    if (dataSource && dataSource.isInitialized) {
+      await dataSource.destroy();
+    }
   });
 
   beforeEach(async () => {
-    await taskRepository.delete({});
-    await bookingRepository.delete({});
-    await userRepository.delete({});
-    await packageRepository.delete({});
-    await clientRepository.delete({});
+    await dataSource.query(
+      'TRUNCATE TABLE "tasks", "task_types", "bookings", "users", "service_packages", "clients" CASCADE',
+    );
   });
 
   describe('Task Assignment Workflows', () => {
@@ -44,7 +64,7 @@ describe('TasksRepository Integration Tests', () => {
         passwordHash: 'hash',
         firstName: 'Test',
         lastName: 'User',
-        role: UserRole.EMPLOYEE,
+        role: Role.FIELD_STAFF,
         tenantId: tenant1,
       });
 
@@ -71,9 +91,14 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
+      const taskType = await taskTypeRepository.save({
+        name: 'Photography',
+        description: 'Photo task',
+        tenantId: tenant1,
+      });
+
       const task = await taskRepository.save({
-        title: 'Test Task',
-        description: 'Test Description',
+        taskTypeId: taskType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -82,7 +107,7 @@ describe('TasksRepository Integration Tests', () => {
 
       // Assign task
       task.assignedUserId = user.id;
-      task.status = TaskStatus.ASSIGNED;
+      // Note: TaskStatus.ASSIGNED does not exist, keeping PENDING or IN_PROGRESS if started
       await taskRepository.save(task);
 
       // Verify assignment
@@ -92,8 +117,11 @@ describe('TasksRepository Integration Tests', () => {
       });
 
       expect(assignedTask?.assignedUserId).toBe(user.id);
-      expect(assignedTask?.status).toBe(TaskStatus.ASSIGNED);
-      expect(assignedTask?.assignedUser?.email).toBe('user@test.com');
+
+      // Access Promise property
+      const loadedUser = await assignedTask?.assignedUser;
+      expect(loadedUser).toBeDefined();
+      expect(loadedUser?.email).toBe('user@test.com');
     });
 
     it('should prevent cross-tenant task assignment', async () => {
@@ -103,7 +131,7 @@ describe('TasksRepository Integration Tests', () => {
         passwordHash: 'hash',
         firstName: 'Tenant2',
         lastName: 'User',
-        role: UserRole.EMPLOYEE,
+        role: Role.FIELD_STAFF,
         tenantId: tenant2,
       });
 
@@ -130,9 +158,14 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
+      const taskType = await taskTypeRepository.save({
+        name: 'Photography',
+        description: 'Photo task',
+        tenantId: tenant1,
+      });
+
       const task = await taskRepository.save({
-        title: 'Test Task',
-        description: 'Test',
+        taskTypeId: taskType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -155,7 +188,7 @@ describe('TasksRepository Integration Tests', () => {
         passwordHash: 'hash',
         firstName: 'Test',
         lastName: 'User',
-        role: UserRole.EMPLOYEE,
+        role: Role.FIELD_STAFF,
         tenantId: tenant1,
       });
 
@@ -182,34 +215,36 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
+      const taskType = await taskTypeRepository.save({
+        name: 'Photography',
+        description: 'Photo task',
+        tenantId: tenant1,
+      });
+
       const task = await taskRepository.save({
-        title: 'Test Task',
-        description: 'Test',
+        taskTypeId: taskType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
         tenantId: tenant1,
       });
 
-      // PENDING -> ASSIGNED
+      // PENDING -> ASSIGNED (skipped status check, just assignment)
       task.assignedUserId = user.id;
-      task.status = TaskStatus.ASSIGNED;
       await taskRepository.save(task);
 
       let updated = await taskRepository.findOne({ where: { id: task.id } });
-      expect(updated?.status).toBe(TaskStatus.ASSIGNED);
+      expect(updated?.assignedUserId).toBe(user.id);
 
       // ASSIGNED -> IN_PROGRESS
-      task.status = TaskStatus.IN_PROGRESS;
-      task.startedAt = new Date();
+      (task as any).status = TaskStatus.IN_PROGRESS;
       await taskRepository.save(task);
 
       updated = await taskRepository.findOne({ where: { id: task.id } });
       expect(updated?.status).toBe(TaskStatus.IN_PROGRESS);
-      expect(updated?.startedAt).toBeDefined();
 
       // IN_PROGRESS -> COMPLETED
-      task.status = TaskStatus.COMPLETED;
+      (task as any).status = TaskStatus.COMPLETED;
       task.completedAt = new Date();
       await taskRepository.save(task);
 
@@ -244,9 +279,14 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
+      const taskType = await taskTypeRepository.save({
+        name: 'Photography',
+        description: 'Photo task',
+        tenantId: tenant1,
+      });
+
       const task = await taskRepository.save({
-        title: 'Test Task',
-        description: 'Test',
+        taskTypeId: taskType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -265,7 +305,7 @@ describe('TasksRepository Integration Tests', () => {
         });
 
         if (lockedTask) {
-          lockedTask.status = TaskStatus.ASSIGNED;
+          lockedTask.status = TaskStatus.IN_PROGRESS;
           await queryRunner.manager.save(lockedTask);
         }
 
@@ -277,7 +317,7 @@ describe('TasksRepository Integration Tests', () => {
       }
 
       const updated = await taskRepository.findOne({ where: { id: task.id } });
-      expect(updated?.status).toBe(TaskStatus.ASSIGNED);
+      expect(updated?.status).toBe(TaskStatus.IN_PROGRESS);
     });
   });
 
@@ -329,9 +369,20 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant2,
       });
 
+      const taskType1 = await taskTypeRepository.save({
+        name: 'Type 1',
+        description: 'Desc',
+        tenantId: tenant1,
+      });
+
+      const taskType2 = await taskTypeRepository.save({
+        name: 'Type 2',
+        description: 'Desc',
+        tenantId: tenant2,
+      });
+
       await taskRepository.save({
-        title: 'Tenant 1 Task',
-        description: 'Test',
+        taskTypeId: taskType1.id,
         bookingId: booking1.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -339,8 +390,7 @@ describe('TasksRepository Integration Tests', () => {
       });
 
       await taskRepository.save({
-        title: 'Tenant 2 Task',
-        description: 'Test',
+        taskTypeId: taskType2.id,
         bookingId: booking2.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 200,
@@ -356,8 +406,6 @@ describe('TasksRepository Integration Tests', () => {
 
       expect(tenant1Tasks).toHaveLength(1);
       expect(tenant2Tasks).toHaveLength(1);
-      expect(tenant1Tasks[0].title).toBe('Tenant 1 Task');
-      expect(tenant2Tasks[0].title).toBe('Tenant 2 Task');
     });
   });
 });

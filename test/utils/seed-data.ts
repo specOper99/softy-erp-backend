@@ -1,6 +1,5 @@
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
-import { Role } from '../../src/common/enums';
 import { Client } from '../../src/modules/bookings/entities/client.entity';
 import { PackageItem } from '../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
@@ -9,6 +8,9 @@ import { EmployeeWallet } from '../../src/modules/finance/entities/employee-wall
 import { Profile } from '../../src/modules/hr/entities/profile.entity';
 import { Tenant } from '../../src/modules/tenants/entities/tenant.entity';
 import { User } from '../../src/modules/users/entities/user.entity';
+import { Role } from '../../src/modules/users/enums/role.enum';
+
+import { SubscriptionPlan } from '../../src/modules/tenants/enums/subscription-plan.enum';
 
 export async function seedTestDatabase(dataSource: DataSource) {
   const tenantRepo = dataSource.getRepository(Tenant);
@@ -32,6 +34,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
     tenant = tenantRepo.create({
       name: `Chapters Studio ${suffix}`,
       slug: tenantSlug,
+      subscriptionPlan: SubscriptionPlan.PRO,
     });
     tenant = await tenantRepo.save(tenant);
   }
