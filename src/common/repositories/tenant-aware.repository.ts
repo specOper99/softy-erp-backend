@@ -1,95 +1,105 @@
-import { InternalServerErrorException } from '@nestjs/common';
-import { FindManyOptions, FindOneOptions, Repository } from 'typeorm';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+import { Injectable } from '@nestjs/common';
+import {
+  DeepPartial,
+  DeleteResult,
+  FindManyOptions,
+  FindOneOptions,
+  FindOptionsWhere,
+  Repository,
+  SaveOptions,
+  UpdateResult,
+} from 'typeorm';
 import { TenantContextService } from '../services/tenant-context.service';
 
-/**
- * Interface for entities that support multi-tenancy
- */
-export interface TenantEntity {
-  tenantId: string;
-}
+@Injectable()
+export class TenantAwareRepository<T extends { tenantId: string }> {
+  constructor(private readonly repository: Repository<T>) {}
 
-/**
- * Abstract base class for tenant-aware repository operations.
- * Provides common methods that automatically filter by tenant context.
- *
- * Usage:
- * ```typescript
- * @Injectable()
- * export class BookingsRepository extends TenantAwareRepository<Booking> {
- *   constructor(@InjectRepository(Booking) private repo: Repository<Booking>) {
- *     super();
- *   }
- *   protected get repository() { return this.repo; }
- * }
- * ```
- */
-export abstract class TenantAwareRepository<T extends TenantEntity> {
-  /**
-   * Get the underlying TypeORM repository
-   */
-  protected abstract get repository(): Repository<T>;
-
-  /**
-   * Get the current tenant ID from context
-   */
-  protected getTenantId(): string | undefined {
-    return TenantContextService.getTenantId();
+  private getTenantId(): string {
+    return TenantContextService.getTenantIdOrThrow();
   }
 
-  /**
-   * Helper to merge tenantId into where clause
-   */
-  private mergeTenantId(
-    where?: FindManyOptions<T>['where'],
-  ): FindManyOptions<T>['where'] {
-    if (!where) {
-      return {
-        tenantId: this.getTenantId(),
-      } as unknown as FindManyOptions<T>['where'];
-    }
+  private applyTenantScope(
+    options: FindManyOptions<T> | FindOneOptions<T>,
+  ): any {
+    const tenantId = this.getTenantId();
+    const where = options.where || {};
+
     if (Array.isArray(where)) {
-      return where.map((w) => ({ ...w, tenantId: this.getTenantId() }));
+      return {
+        ...options,
+        where: where.map((w) => ({ ...w, tenantId })),
+      };
     }
-    return { ...where, tenantId: this.getTenantId() };
+
+    return {
+      ...options,
+      where: { ...where, tenantId },
+    };
   }
 
-  /**
-   * Find all entities for the current tenant
-   */
-  async findAllForTenant(options?: FindManyOptions<T>): Promise<T[]> {
+  create(entityLike: DeepPartial<T>): T {
     const tenantId = this.getTenantId();
-    if (!tenantId) {
-      throw new InternalServerErrorException('Tenant context not available');
-    }
-
-    const where = this.mergeTenantId(options?.where);
-    return this.repository.find({ ...options, where });
+    return this.repository.create({
+      ...entityLike,
+      tenantId,
+    } as any) as unknown as T;
   }
 
-  /**
-   * Find one entity for the current tenant
-   */
-  async findOneForTenant(options: FindOneOptions<T>): Promise<T | null> {
-    const tenantId = this.getTenantId();
-    if (!tenantId) {
-      throw new InternalServerErrorException('Tenant context not available');
+  async save(entity: T, options?: SaveOptions): Promise<T> {
+    // Ensure tenantId is set before saving
+    if (!entity.tenantId) {
+      entity.tenantId = this.getTenantId();
+    } else if (entity.tenantId !== this.getTenantId()) {
+      // Prevent cross-tenant save attempts if someone tries to be sneaky
+      throw new Error(
+        `Security Error: Attempted to save entity for tenant ${entity.tenantId} from context ${this.getTenantId()}`,
+      );
     }
-
-    const where = this.mergeTenantId(options.where);
-    return this.repository.findOne({ ...options, where });
+    return this.repository.save(entity, options);
   }
 
-  /**
-   * Count entities for the current tenant
-   */
-  async countForTenant(options?: FindManyOptions<T>): Promise<number> {
-    const tenantId = this.getTenantId();
-    if (!tenantId) {
-      throw new InternalServerErrorException('Tenant context not available');
-    }
+  async find(options?: FindManyOptions<T>): Promise<T[]> {
+    return this.repository.find(this.applyTenantScope(options || {}));
+  }
 
-    const where = this.mergeTenantId(options?.where);
-    return this.repository.count({ ...options, where });
+  async findOne(options: FindOneOptions<T>): Promise<T | null> {
+    return this.repository.findOne(this.applyTenantScope(options));
+  }
+
+  async findOneBy(
+    where: FindOptionsWhere<T> | FindOptionsWhere<T>[],
+  ): Promise<T | null> {
+    const tenantId = this.getTenantId();
+    if (Array.isArray(where)) {
+      return this.repository.findOneBy(
+        where.map((w) => ({ ...w, tenantId }) as FindOptionsWhere<T>),
+      );
+    }
+    return this.repository.findOneBy({
+      ...where,
+      tenantId,
+    } as FindOptionsWhere<T>);
+  }
+
+  async update(
+    criteria: FindOptionsWhere<T>,
+    partialEntity: DeepPartial<T>,
+  ): Promise<UpdateResult> {
+    const tenantId = this.getTenantId();
+    // Ensure we only update records belonging to tenant
+    const scopedCriteria = { ...criteria, tenantId };
+    return this.repository.update(scopedCriteria as any, partialEntity as any);
+  }
+
+  async delete(criteria: FindOptionsWhere<T>): Promise<DeleteResult> {
+    const tenantId = this.getTenantId();
+    const scopedCriteria = { ...criteria, tenantId };
+    return this.repository.delete(scopedCriteria);
+  }
+
+  async count(options?: FindManyOptions<T>): Promise<number> {
+    return this.repository.count(this.applyTenantScope(options || {}));
   }
 }

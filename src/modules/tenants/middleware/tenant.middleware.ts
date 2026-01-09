@@ -17,10 +17,16 @@ export class TenantMiddleware implements NestMiddleware {
   constructor(private readonly jwtService: JwtService) {}
 
   use(req: Request, _res: Response, next: NextFunction) {
-    // Rely solely on JWT for tenant identification for authenticated requests.
-    // Public routes (login/register) don't have a tenant context in the middleware
-    // but handle it at the service level.
-    const tenantId = this.extractTenantIdFromJwt(req);
+    // 1. Try to get Tenant ID from JWT (Authenticated requests)
+    let tenantId = this.extractTenantIdFromJwt(req);
+
+    // 2. If no JWT, try X-Tenant-ID header (Public requests / Testing)
+    if (!tenantId) {
+      const headerTenantId = req.headers['x-tenant-id'];
+      if (typeof headerTenantId === 'string') {
+        tenantId = headerTenantId;
+      }
+    }
 
     if (!tenantId) {
       return next();

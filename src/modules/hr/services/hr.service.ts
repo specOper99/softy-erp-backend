@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import pLimit from 'p-limit';
 import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -263,7 +264,13 @@ export class HrService {
     // Iterate all tenants since cron jobs don't have HTTP request context
     const tenants = await this.tenantsService.findAll();
 
-    for (const tenant of tenants) {
+    // PERFORMANCE FIX: Use bounded concurrency instead of sequential processing
+    const limit = pLimit(5); // Max 5 concurrent tenant payroll runs
+
+    const processPayrollForTenant = async (tenant: {
+      id: string;
+      slug: string;
+    }) => {
       try {
         // Run payroll within tenant context
         await new Promise<void>((resolve, reject) => {
@@ -288,7 +295,11 @@ export class HrService {
           error,
         );
       }
-    }
+    };
+
+    await Promise.all(
+      tenants.map((tenant) => limit(() => processPayrollForTenant(tenant))),
+    );
 
     this.logger.log('Scheduled payroll run completed for all tenants');
   }

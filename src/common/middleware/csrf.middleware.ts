@@ -7,6 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { doubleCsrf } from 'csrf-csrf';
 import { NextFunction, Request, Response } from 'express';
+import { createHash } from 'node:crypto';
+import { TenantContextService } from '../services/tenant-context.service';
 
 @Injectable()
 export class CsrfMiddleware implements NestMiddleware {
@@ -52,10 +54,22 @@ export class CsrfMiddleware implements NestMiddleware {
 
     const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
       getSecret: () => effectiveSecret,
-      getSessionIdentifier: (req: Request) =>
-        (req.headers.authorization as string) ||
-        (req.cookies as Record<string, string>)?.['session_id'] ||
-        'anonymous',
+      getSessionIdentifier: (req: Request) => {
+        // SECURITY FIX: Don't use raw Authorization header to prevent token leakage
+        // Priority: 1. Tenant ID, 2. Session cookie, 3. Hashed IP + truncated UA
+        const tenantId = TenantContextService.getTenantId();
+        if (tenantId) return tenantId;
+
+        const sessionId = (req.cookies as Record<string, string>)?.[
+          'session_id'
+        ];
+        if (sessionId) return sessionId;
+
+        // Fallback: hash IP + truncated user-agent for stable identifier
+        const ip = req.ip || 'unknown';
+        const ua = (req.headers['user-agent'] ?? '').toString().slice(0, 200);
+        return createHash('sha256').update(`${ip}:${ua}`).digest('hex');
+      },
       cookieName: '_csrf',
       cookieOptions: {
         httpOnly: true,

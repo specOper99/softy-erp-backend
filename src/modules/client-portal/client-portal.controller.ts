@@ -60,7 +60,7 @@ export class ClientPortalController {
     const result = await this.clientAuthService.verifyMagicLink(dto.token);
     return {
       accessToken: result.accessToken,
-      expiresAt: result.expiresAt,
+      expiresAt: new Date(Date.now() + result.expiresIn * 1000),
       client: {
         id: result.client.id,
         name: result.client.name,

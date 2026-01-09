@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -35,6 +39,7 @@ describe('AttendanceService', () => {
             find: jest.fn(),
             findOne: jest.fn(),
             remove: jest.fn(),
+            delete: jest.fn(),
           },
         },
       ],
@@ -46,6 +51,9 @@ describe('AttendanceService', () => {
     // Mock tenant context
     jest
       .spyOn(TenantContextService, 'getTenantId')
+      .mockReturnValue(mockTenantId);
+    jest
+      .spyOn(TenantContextService, 'getTenantIdOrThrow')
       .mockReturnValue(mockTenantId);
   });
 
@@ -81,12 +89,46 @@ describe('AttendanceService', () => {
 
     it('should throw BadRequestException when no tenant context', async () => {
       jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(null as any);
+        .spyOn(TenantContextService, 'getTenantIdOrThrow')
+        .mockImplementation(() => {
+          throw new BadRequestException('Tenant context missing');
+        });
 
       await expect(
         service.create({ userId: 'user-1', date: '2024-01-15' } as any),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException for invalid date format', async () => {
+      await expect(
+        service.create({ userId: 'user-1', date: 'invalid-date' } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when checkOut is before checkIn', async () => {
+      const dto = {
+        userId: 'user-1',
+        date: '2024-01-15',
+        checkIn: '2024-01-15T17:00:00',
+        checkOut: '2024-01-15T09:00:00', // Before checkIn
+      };
+
+      await expect(service.create(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw ConflictException on duplicate attendance', async () => {
+      const dto = {
+        userId: 'user-1',
+        date: '2024-01-15',
+      };
+      attendanceRepo.create.mockReturnValue(mockAttendance as any);
+      attendanceRepo.save.mockRejectedValue({ code: '23505' });
+
+      await expect(service.create(dto as any)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -117,8 +159,10 @@ describe('AttendanceService', () => {
 
     it('should throw BadRequestException when no tenant context', async () => {
       jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(null as any);
+        .spyOn(TenantContextService, 'getTenantIdOrThrow')
+        .mockImplementation(() => {
+          throw new BadRequestException('Tenant context missing');
+        });
 
       await expect(service.findAll()).rejects.toThrow(BadRequestException);
     });
@@ -162,16 +206,18 @@ describe('AttendanceService', () => {
 
   describe('remove', () => {
     it('should delete attendance record', async () => {
-      attendanceRepo.findOne.mockResolvedValue(mockAttendance as any);
-      attendanceRepo.remove.mockResolvedValue(mockAttendance as any);
+      attendanceRepo.delete.mockResolvedValue({ affected: 1, raw: [] } as any);
 
       await service.remove('att-1');
 
-      expect(attendanceRepo.remove).toHaveBeenCalledWith(mockAttendance);
+      expect(attendanceRepo.delete).toHaveBeenCalledWith({
+        id: 'att-1',
+        tenantId: mockTenantId,
+      });
     });
 
     it('should throw NotFoundException when record not found', async () => {
-      attendanceRepo.findOne.mockResolvedValue(null);
+      attendanceRepo.delete.mockResolvedValue({ affected: 0, raw: [] } as any);
 
       await expect(service.remove('not-found')).rejects.toThrow(
         NotFoundException,
