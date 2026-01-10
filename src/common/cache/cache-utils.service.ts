@@ -46,4 +46,38 @@ export class CacheUtilsService {
       await this.releaseLock(lockKey);
     }
   }
+
+  /**
+   * Delete all cache keys matching a pattern.
+   * Note: Pattern matching requires Redis store with keys() support.
+   */
+  async invalidateByPattern(pattern: string): Promise<number> {
+    // Type definition for stores that support keys() method (e.g., Redis)
+    interface KeysStore {
+      keys: (pattern: string) => Promise<string[]>;
+    }
+
+    const cacheWithStore = this.cacheManager as { store?: Partial<KeysStore> };
+    const store = cacheWithStore.store;
+
+    if (!store || typeof store.keys !== 'function') {
+      // Memory store doesn't support pattern matching
+      return 0;
+    }
+
+    const keys: string[] = await store.keys(pattern);
+    if (keys.length > 0) {
+      await Promise.all(keys.map((key) => this.cacheManager.del(key)));
+      return keys.length;
+    }
+    return 0;
+  }
+
+  /**
+   * Invalidate all cache entries for a specific tenant.
+   * Uses pattern matching to find tenant-scoped keys.
+   */
+  async invalidateTenantCache(tenantId: string): Promise<number> {
+    return this.invalidateByPattern(`*:${tenantId}:*`);
+  }
 }

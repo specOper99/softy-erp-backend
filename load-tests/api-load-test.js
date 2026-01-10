@@ -76,7 +76,6 @@ export function setup() {
         {
             headers: {
                 'Content-Type': 'application/json',
-                'X-Tenant-ID': TENANT_ID,
             }
         }
     );
@@ -94,10 +93,10 @@ export function setup() {
 }
 
 export default function (data) {
+    // Tenant context is derived from JWT token - no X-Tenant-ID header needed
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': data.token ? `Bearer ${data.token}` : '',
-        'X-Tenant-ID': data.tenantId,
     };
 
     // ============ Health Check ============

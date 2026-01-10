@@ -30,7 +30,7 @@ export class AttendanceService {
     // Validate date parsing
     const dateObj = new Date(dto.date);
     if (isNaN(dateObj.getTime())) {
-      throw new BadRequestException('Invalid date format');
+      throw new BadRequestException('attendance.invalid_date_format');
     }
 
     const checkIn = dto.checkIn ? new Date(dto.checkIn) : null;
@@ -38,15 +38,17 @@ export class AttendanceService {
 
     // Validate checkIn/checkOut times
     if (checkIn && isNaN(checkIn.getTime())) {
-      throw new BadRequestException('Invalid checkIn time format');
+      throw new BadRequestException('attendance.invalid_checkin_format');
     }
     if (checkOut && isNaN(checkOut.getTime())) {
-      throw new BadRequestException('Invalid checkOut time format');
+      throw new BadRequestException('attendance.invalid_checkout_format');
     }
 
     // Validate checkOut >= checkIn
     if (checkIn && checkOut && checkOut < checkIn) {
-      throw new BadRequestException('checkOut must be after checkIn');
+      throw new BadRequestException(
+        'attendance.checkout_must_be_after_checkin',
+      );
     }
 
     const attendance = this.attendanceRepository.create({
@@ -83,7 +85,7 @@ export class AttendanceService {
       where: { id },
     });
     if (!attendance) {
-      throw new NotFoundException(`Attendance record ${id} not found`);
+      throw new NotFoundException('attendance.record_not_found');
     }
     return attendance;
   }
@@ -109,7 +111,7 @@ export class AttendanceService {
   async remove(id: string): Promise<void> {
     const result = await this.attendanceRepository.delete({ id });
     if (result.affected === 0) {
-      throw new NotFoundException('Attendance record not found');
+      throw new NotFoundException('attendance.record_not_found');
     }
   }
 }

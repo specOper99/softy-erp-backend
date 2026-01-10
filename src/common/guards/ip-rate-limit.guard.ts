@@ -100,13 +100,22 @@ export class IpRateLimitGuard implements CanActivate {
     } else {
       info.count++;
 
+      // Authenticated users get full limits, anonymous get half
+      const isAuthenticated = !!(request as Request & { user?: unknown }).user;
+      const effectiveSoftLimit = isAuthenticated
+        ? this.softLimit
+        : Math.floor(this.softLimit / 2);
+      const effectiveHardLimit = isAuthenticated
+        ? this.hardLimit
+        : Math.floor(this.hardLimit / 2);
+
       // Check hard limit - block IP
-      if (info.count > this.hardLimit) {
+      if (info.count > effectiveHardLimit) {
         info.blocked = true;
         info.blockedUntil = now + this.blockDurationMs;
         await this.cacheService.set(key, info, this.blockDurationMs);
         this.logger.warn(
-          `IP ${ip} blocked for exceeding rate limit (${info.count} requests)`,
+          `IP ${ip} blocked for exceeding rate limit (${info.count} requests, authenticated: ${isAuthenticated})`,
         );
 
         const remainingSecs = Math.ceil(this.blockDurationMs / 1000);
@@ -118,7 +127,7 @@ export class IpRateLimitGuard implements CanActivate {
       }
 
       // Check soft limit - reject instead of server-side sleeping (avoids self-DoS)
-      if (info.count > this.softLimit) {
+      if (info.count > effectiveSoftLimit) {
         const windowRemainingMs = Math.max(
           0,
           this.windowMs - (now - info.firstRequest),

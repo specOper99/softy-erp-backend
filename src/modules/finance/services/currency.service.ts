@@ -27,7 +27,7 @@ export class CurrencyService {
     if (!rateFrom || !rateTo) {
       // SECURITY: Throw error instead of silently using no conversion
       // Silent 1.0 conversion would cause incorrect financial amounts
-      throw new BadRequestException(`Unsupported currency: ${from} or ${to}`);
+      throw new BadRequestException('finance.unsupported_currency');
     }
 
     // Convert 'from' to base (USD), then base to 'to'

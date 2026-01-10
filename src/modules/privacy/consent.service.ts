@@ -2,8 +2,8 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { ConsentResponseDto, GrantConsentDto } from './dto/consent.dto';
 import { Consent, ConsentType } from './entities/consent.entity';
-import { GrantConsentDto, ConsentResponseDto } from './dto/consent.dto';
 
 interface ConsentContext {
   ipAddress?: string;
@@ -22,7 +22,7 @@ export class ConsentService {
   async getConsents(userId: string): Promise<ConsentResponseDto[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const consents = await this.consentRepository.find({
@@ -45,7 +45,7 @@ export class ConsentService {
   ): Promise<ConsentResponseDto> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     let consent = await this.consentRepository.findOne({
@@ -85,7 +85,7 @@ export class ConsentService {
   ): Promise<ConsentResponseDto> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const consent = await this.consentRepository.findOne({

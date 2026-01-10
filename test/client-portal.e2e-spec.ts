@@ -7,13 +7,16 @@ import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { Client } from '../src/modules/bookings/entities/client.entity';
 import { MailService } from '../src/modules/mail/mail.service';
+import { Tenant } from '../src/modules/tenants/entities/tenant.entity';
 import { seedTestDatabase } from './utils/seed-data';
 
 describe('Client Portal (e2e)', () => {
   jest.setTimeout(60000);
   let app: INestApplication;
   let clientRepository: Repository<Client>;
+  let tenantRepository: Repository<Tenant>;
   let testClient: Client;
+  let tenantSlug: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -45,9 +48,16 @@ describe('Client Portal (e2e)', () => {
 
     const dataSource = moduleFixture.get<DataSource>(DataSource);
     clientRepository = dataSource.getRepository(Client);
+    tenantRepository = dataSource.getRepository(Tenant);
 
     // Seed Test DB and Get Tenant ID
     const seedData = await seedTestDatabase(dataSource);
+
+    // Get tenant slug for Host header
+    const tenant = await tenantRepository.findOne({
+      where: { id: seedData.tenantId },
+    });
+    tenantSlug = tenant?.slug || seedData.tenantId;
 
     // Create a test client for portal tests
     testClient = await clientRepository.save({
@@ -66,11 +76,14 @@ describe('Client Portal (e2e)', () => {
     await app?.close();
   });
 
+  // Helper to set tenant context via subdomain (Host header)
+  const hostHeader = () => `${tenantSlug}.example.com`;
+
   describe('Magic Link Authentication', () => {
     it('POST /client-portal/auth/request-magic-link should accept valid email', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/request-magic-link')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .send({ email: testClient.email })
         .expect(201);
 
@@ -82,7 +95,7 @@ describe('Client Portal (e2e)', () => {
     it('POST /client-portal/auth/request-magic-link should not reveal non-existent email', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/request-magic-link')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .send({ email: 'nonexistent@example.com' })
         .expect(201);
 
@@ -94,7 +107,7 @@ describe('Client Portal (e2e)', () => {
     it('POST /client-portal/auth/verify should reject invalid token', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/verify')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .send({ token: 'invalid-token' })
         .expect(404);
     });
@@ -132,7 +145,7 @@ describe('Client Portal (e2e)', () => {
       // 2. Verified magic link to get JWT
       const response = await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/verify')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .send({ token: magicToken })
         .expect(201);
 
@@ -142,7 +155,7 @@ describe('Client Portal (e2e)', () => {
     it('GET /client-portal/bookings should return bookings with valid token', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/client-portal/bookings')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .set('x-client-token', accessToken)
         .expect(200);
 
@@ -153,7 +166,7 @@ describe('Client Portal (e2e)', () => {
     it('GET /client-portal/profile should return client profile', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/client-portal/profile')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .set('x-client-token', accessToken)
         .expect(200);
 
@@ -164,14 +177,14 @@ describe('Client Portal (e2e)', () => {
     it('POST /client-portal/auth/logout should invalidate token', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/logout')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .set('x-client-token', accessToken)
         .expect(201);
 
       // Token should now be invalid
       await request(app.getHttpServer())
         .get('/api/v1/client-portal/bookings')
-        .set('x-tenant-id', testClient.tenantId)
+        .set('Host', hostHeader())
         .set('x-client-token', accessToken)
         .expect(401);
     });

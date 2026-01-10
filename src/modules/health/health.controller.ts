@@ -80,6 +80,21 @@ export class HealthController {
     return this.health.check([() => this.db.pingCheck('database')]);
   }
 
+  @Get('deep')
+  @HealthCheck()
+  @ApiOperation({
+    summary: 'Deep health check - all dependencies including storage',
+  })
+  deepHealth() {
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
+      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+      () => this.s3.isHealthy('storage_s3'),
+      () => this.smtp.isHealthy('email_smtp'),
+      () => this.disk.checkStorage('disk', { path: '/', thresholdPercent: 90 }),
+    ]);
+  }
   @Get('test-error')
   @SkipThrottle({ default: false }) // Re-enable throttling for this endpoint
   @Throttle({ default: { limit: 3, ttl: minutes(1) } }) // Only 3 attempts per minute

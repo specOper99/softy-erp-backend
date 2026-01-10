@@ -304,7 +304,7 @@ describe('AuthService - Comprehensive Tests', () => {
         companyName: 'Test Tenant',
       };
       await expect(service.register(dto)).rejects.toThrow(
-        'Email already registered',
+        'auth.email_already_registered',
       );
     });
 

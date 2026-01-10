@@ -63,9 +63,9 @@ export class BookingsService {
       throw new BadRequestException('booking.event_date_must_be_future');
     }
 
-    // Validate tax rate bounds
+    // Validate tax rate bounds (max 50% per business rule)
     const taxRate = dto.taxRate ?? 0;
-    if (taxRate < 0 || taxRate > 100) {
+    if (taxRate < 0 || taxRate > 50) {
       throw new BadRequestException('booking.invalid_tax_rate');
     }
 
@@ -220,9 +220,7 @@ export class BookingsService {
         (k) => !allowedUpdates.includes(k),
       );
       if (disallowed.length > 0) {
-        throw new BadRequestException(
-          `Cannot update ${disallowed.join(', ')} on non-draft booking`,
-        );
+        throw new BadRequestException('booking.cannot_update_non_draft');
       }
     }
 
@@ -259,7 +257,7 @@ export class BookingsService {
   async remove(id: string): Promise<void> {
     const booking = await this.findOne(id);
     if (booking.status !== BookingStatus.DRAFT) {
-      throw new BadRequestException('Can only delete draft bookings');
+      throw new BadRequestException('booking.can_only_delete_draft');
     }
     await this.bookingRepository.softRemove(booking);
   }

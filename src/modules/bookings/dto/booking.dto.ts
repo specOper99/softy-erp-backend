@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   Min,
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
@@ -31,10 +32,11 @@ export class CreateBookingDto {
   @SanitizeHtml()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'Tax rate override (0-100)' })
+  @ApiPropertyOptional({ description: 'Tax rate override (0-50%)' })
   @IsNumber()
   @IsOptional()
   @Min(0)
+  @Max(50)
   taxRate?: number;
 
   @ApiPropertyOptional({

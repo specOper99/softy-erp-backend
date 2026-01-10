@@ -41,7 +41,7 @@ export class MfaService {
     );
 
     if (!userWithSecret || !userWithSecret.mfaSecret) {
-      throw new BadRequestException('MFA setup not started');
+      throw new BadRequestException('auth.mfa_setup_not_started');
     }
 
     let isValid = false;

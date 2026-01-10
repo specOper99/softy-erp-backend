@@ -67,7 +67,7 @@ export class PrivacyService {
   ): Promise<PrivacyRequest> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const existingPending = await this.privacyRequestRepository.findOne({
@@ -99,7 +99,7 @@ export class PrivacyService {
   async getMyRequests(userId: string): Promise<PrivacyRequest[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     // PERFORMANCE: Added limit to prevent memory exhaustion
@@ -116,7 +116,7 @@ export class PrivacyService {
   ): Promise<PrivacyRequest> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const request = await this.privacyRequestRepository.findOne({
@@ -147,7 +147,7 @@ export class PrivacyService {
   async processDataExport(requestId: string): Promise<void> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const request = await this.privacyRequestRepository.findOne({
@@ -313,7 +313,7 @@ export class PrivacyService {
   ): Promise<void> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const request = await this.privacyRequestRepository.findOne({
@@ -394,7 +394,7 @@ export class PrivacyService {
   async getPendingRequests(): Promise<PrivacyRequest[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     // PERFORMANCE: Added limit to prevent memory exhaustion

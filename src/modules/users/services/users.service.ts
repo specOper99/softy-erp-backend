@@ -25,7 +25,7 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<User> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
 
     const passwordHash = await bcrypt.hash(createUserDto.password, 12);
@@ -45,7 +45,7 @@ export class UsersService {
         'code' in error &&
         (error as { code: string }).code === '23505'
       ) {
-        throw new ConflictException('Email already registered');
+        throw new ConflictException('auth.email_already_registered');
       }
       throw error;
     }
@@ -134,7 +134,7 @@ export class UsersService {
       relations: ['profile', 'wallet'],
     });
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException('common.user_not_found');
     }
     return user;
   }

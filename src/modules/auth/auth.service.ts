@@ -100,7 +100,7 @@ export class AuthService {
         registerDto.email,
       );
       if (existingUser) {
-        throw new ConflictException('Email already registered');
+        throw new ConflictException('auth.email_already_registered');
       }
 
       const user = await this.usersService.createWithManager(
@@ -130,7 +130,7 @@ export class AuthService {
         'code' in error &&
         (error as { code: string }).code === '23505'
       ) {
-        throw new BadRequestException('Email already registered');
+        throw new BadRequestException('auth.email_already_registered');
       }
       throw error;
     } finally {

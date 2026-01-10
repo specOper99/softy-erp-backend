@@ -126,7 +126,7 @@ export class WalletService {
   ): Promise<EmployeeWallet> {
     this.assertTransactionActive(manager, 'addPendingCommission');
     if (amount <= 0) {
-      throw new BadRequestException('Commission amount must be positive');
+      throw new BadRequestException('wallet.commission_must_be_positive');
     }
     const tenantId = TenantContextService.getTenantIdOrThrow();
     let wallet = await manager.findOne(EmployeeWallet, {
@@ -161,7 +161,7 @@ export class WalletService {
   ): Promise<EmployeeWallet> {
     this.assertTransactionActive(manager, 'subtractPendingCommission');
     if (amount <= 0) {
-      throw new BadRequestException('Commission amount must be positive');
+      throw new BadRequestException('wallet.commission_must_be_positive');
     }
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const wallet = await manager.findOne(EmployeeWallet, {
@@ -191,7 +191,7 @@ export class WalletService {
   ): Promise<EmployeeWallet> {
     this.assertTransactionActive(manager, 'moveToPayable');
     if (amount <= 0) {
-      throw new BadRequestException('Transfer amount must be positive');
+      throw new BadRequestException('wallet.transfer_must_be_positive');
     }
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const wallet = await manager.findOne(EmployeeWallet, {

@@ -64,7 +64,7 @@ export class HrService {
         where: { id: dto.userId, tenantId },
       });
       if (!user) {
-        throw new BadRequestException('User not found in tenant');
+        throw new BadRequestException('hr.user_not_found_in_tenant');
       }
 
       // Step 2: Create wallet for the user within the profile transaction
@@ -171,7 +171,7 @@ export class HrService {
       relations: ['user'],
     });
     if (!profile) {
-      throw new NotFoundException(`Profile with ID ${id} not found`);
+      throw new NotFoundException('hr.profile_not_found');
     }
     return profile;
   }

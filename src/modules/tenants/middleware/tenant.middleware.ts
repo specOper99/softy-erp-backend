@@ -25,15 +25,7 @@ export class TenantMiddleware implements NestMiddleware {
     // 1. Try to get Tenant ID from JWT (Authenticated requests)
     let tenantId = this.extractTenantIdFromJwt(req);
 
-    // 2. If no JWT, try X-Tenant-ID header (Public requests / Testing)
-    if (!tenantId) {
-      const headerTenantId = req.headers['x-tenant-id'];
-      if (typeof headerTenantId === 'string') {
-        tenantId = headerTenantId;
-      }
-    }
-
-    // 3. [C-03] Fallback: Tenant Subdomain Extraction
+    // 2. [C-03] Fallback: Tenant Subdomain Extraction (for public routes like client portal)
     if (!tenantId) {
       const hostname = req.hostname;
       const parts = hostname.split('.');

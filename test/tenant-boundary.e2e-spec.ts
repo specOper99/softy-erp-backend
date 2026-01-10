@@ -29,6 +29,7 @@ describe('Tenant Boundary Security E2E', () => {
     password: 'Password123!',
     token: '',
     tenantId: '',
+    slug: '',
   };
 
   // Tenant B Data
@@ -38,7 +39,11 @@ describe('Tenant Boundary Security E2E', () => {
     password: 'Password123!',
     token: '',
     tenantId: '',
+    slug: '',
   };
+
+  // Helper to get Host header for subdomain-based tenant resolution
+  const hostFor = (tenant: typeof tenantA) => `${tenant.slug}.example.com`;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -89,6 +94,11 @@ describe('Tenant Boundary Security E2E', () => {
 
     t.token = res.body.data.accessToken;
     t.tenantId = res.body.data.user.tenantId;
+    // Calculate slug from company name (same logic as AuthService)
+    t.slug = t.company
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/g, '-')
+      .replaceAll(/(^-)|(-$)/g, '');
     return t;
   };
 
@@ -157,26 +167,15 @@ describe('Tenant Boundary Security E2E', () => {
       if (savedClient) clientA = savedClient;
     });
 
-    it('Should generate magic link using public endpoint (Tenant A context)', async () => {
-      // We need to request the magic link via the controller to trigger the full flow
-      // The controller uses the domain to determine tenant, or header.
-      // In our current implementation, requestMagicLink finds the client by email.
-      // If emails are unique globally, it finds the right one.
-      // If emails are per-tenant, we might have issues if we don't send X-Tenant-ID header (if supported) or domain.
-      // Let's assume email lookup works for now.
-
+    it('Should generate magic link using public endpoint (Tenant A context via subdomain)', async () => {
+      // Use Host header for subdomain-based tenant resolution
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/request-magic-link')
-        .set('X-Tenant-ID', clientA.tenantId)
+        .set('Host', hostFor(tenantA))
         .send({ email: clientA.email })
         .expect(201);
 
-      // Fetch the token directly from DB for testing (since we mocked MailService)
-      // In real world, user clicks link in email.
-      // We need the raw token. But wait! The service hashes it now!
-      // We cannot get the raw token from DB anymore.
-      // We must spy on the MailService to get the token it was called with.
-
+      // Fetch the token directly from MailService mock
       expect(mailService.sendMagicLink).toHaveBeenCalled();
       const callArgs = (mailService.sendMagicLink as jest.Mock).mock
         .calls[0][0];
@@ -187,39 +186,12 @@ describe('Tenant Boundary Security E2E', () => {
       expect(magicLinkToken.length).toBeGreaterThan(10);
     });
 
-    it('Should verify magic link successfully for correct tenant (implicit)', async () => {
-      // Verification doesn't usually require explicit tenant ID in payload if we just send token?
-      // But wait, the Controller might not know the tenant context unless it's sent in header/subdomain
-      // OR if the service looks up strictly by hash (which is globally unique enough).
-      // HOWEVER, our fix added `tenantId` to the lookup!
-      // Method: `verifyMagicLink(token)`.
-      // Inside: `TenantContextService.getTenantId()`.
-
-      // If we call the endpoint without X-Tenant-ID header, TenantContext might be undefined or 'public'.
-      // Let's see how `TenantContextMiddleware` works.
-      // If it relies on `X-Tenant-ID`, we MUST send it.
-      // If `ClientPortalController` is `@SkipTenant()`, then `getTenantId()` might return null.
-
-      // CRITICAL CHECK: In `ClientAuthService.verifyMagicLink`:
-      // `const tenantId = TenantContextService.getTenantId();`
-      // `if (tenantId) whereClause.tenantId = tenantId;`
-
-      // If the controller is skipped from tenant guard, does it still run tenant middleware?
-      // Resolving tenant usually happens via Subdomain or Header.
-      // For Client Portal, we typically want them to be on `tenant.app.com` or send `X-Tenant-ID`.
-
-      // Let's try verifying WITHOUT specific tenant context header first.
-      // If the token is unique, it should find it... UNLESS we enforced strict tenant isolation.
-      // Our code says: `if (tenantId) { whereClause.tenantId = tenantId; }`
-      // So if we don't send a tenant ID, it looks up purely by hash.
-      // This is SECURE ONLY IF hashes are globally unique (SHA-256 of 32 bytes random is unique).
-      // BUT, we want to ensure that if we DO send a wrong Tenant ID, it fails.
-
+    it('Should verify magic link successfully for correct tenant (via subdomain)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/verify')
-        .set('X-Tenant-ID', clientA.tenantId)
+        .set('Host', hostFor(tenantA))
         .send({ token: magicLinkToken })
-        .expect(201); // Should succeed if hash matches
+        .expect(201);
 
       expect(res.body.data).toHaveProperty('accessToken');
     });
@@ -227,20 +199,18 @@ describe('Tenant Boundary Security E2E', () => {
     it('Should FAIL when reusing the same magic link token (Single Use)', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/verify')
-        .set('X-Tenant-ID', clientA.tenantId)
+        .set('Host', hostFor(tenantA))
         .send({ token: magicLinkToken })
-        .expect(404); // Or 401, but likely NotFound because hash is cleared
+        .expect(404); // Token already consumed
     });
 
     // Test Cross-Tenant Magic Link Attack
-    // Scenario: Client A has a magic link. Attacker tries to use it on Tenant B's portal.
-    // If the system allows it, Attacker validates A's token but gets a session for... A?
     it('Refetching token for isolation test...', async () => {
       // Reset: Generate new token for A
       (mailService.sendMagicLink as jest.Mock).mockClear();
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/request-magic-link')
-        .set('X-Tenant-ID', clientA.tenantId)
+        .set('Host', hostFor(tenantA))
         .send({ email: clientA.email })
         .expect(201);
 
@@ -249,44 +219,31 @@ describe('Tenant Boundary Security E2E', () => {
       magicLinkToken = callArgs.token;
     });
 
-    it('Should FAIL to verify Client A token when context is Tenant B', async () => {
-      // We simulate a request arriving at "tenant-b.app.com" (or via X-Tenant-ID header)
-      // The TenantMiddleware should set context to Tenant B
-      // Then VerifyMagicLink runs.
-      // It sees tenantContext = Tenant B.
-      // It adds `where: { hash: ..., tenantId: 'TenantB' }`.
-      // The client is actually in Tenant A.
-      // So lookup should FAIL.
-
+    it('Should FAIL to verify Client A token when context is Tenant B (via subdomain)', async () => {
+      // Simulate request to Tenant B's subdomain with Tenant A's token
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/verify')
-        .set('X-Tenant-ID', tenantB.tenantId) // Simulate request to Tenant B
+        .set('Host', hostFor(tenantB)) // Wrong tenant!
         .send({ token: magicLinkToken })
         .expect(404); // Should not find the token in Tenant B's scope
     });
 
-    it('Should verify successfully when context is Tenant A', async () => {
+    it('Should verify successfully when context is Tenant A (via subdomain)', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/verify')
-        .set('X-Tenant-ID', tenantA.tenantId) // Correct Tenant
+        .set('Host', hostFor(tenantA)) // Correct Tenant
         .send({ token: magicLinkToken })
         .expect(201);
     });
 
     it('Should resolve tenant from SUBDOMAIN for public endpoint (C-03 Verification)', async () => {
-      // Calculate slug from tenant name logic used in AuthService
-      const slug = tenantA.company
-        .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '-')
-        .replaceAll(/(^-)|(-$)/g, '');
-
       // Reset mock
       (mailService.sendMagicLink as jest.Mock).mockClear();
 
-      // Request magic link using Subdomain (Host header) instead of X-Tenant-ID
+      // Request magic link using Subdomain (Host header)
       await request(app.getHttpServer())
         .post('/api/v1/client-portal/auth/request-magic-link')
-        .set('Host', `${slug}.example.com`)
+        .set('Host', `${tenantA.slug}.example.com`)
         .send({ email: clientA.email })
         .expect(201);
 
