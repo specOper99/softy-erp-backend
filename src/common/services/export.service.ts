@@ -6,6 +6,14 @@ import { Readable } from 'stream';
 @Injectable()
 export class ExportService {
   /**
+   * Sanitize filename to prevent HTTP header injection.
+   * Removes special characters that could be used for response splitting.
+   */
+  private sanitizeFilename(filename: string): string {
+    return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  /**
    * Generates CSV content from data array
    */
   generateCSV<T>(data: T[], fields?: string[]): string {
@@ -28,9 +36,13 @@ export class ExportService {
     fields?: string[],
   ): void {
     const csv = this.generateCSV(data, fields);
+    const sanitizedFilename = this.sanitizeFilename(filename);
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${sanitizedFilename}"`,
+    );
     res.send(csv);
   }
 
@@ -51,8 +63,12 @@ export class ExportService {
     fields?: string[],
     transformFn?: (row: unknown) => unknown,
   ): void {
+    const sanitizedFilename = this.sanitizeFilename(filename);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${sanitizedFilename}"`,
+    );
 
     const json2csv = new Transform({ fields }, { objectMode: true });
 

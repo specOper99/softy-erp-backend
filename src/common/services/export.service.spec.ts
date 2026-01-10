@@ -115,4 +115,53 @@ describe('ExportService', () => {
       expect(csvContent).toContain('price');
     });
   });
+
+  describe('filename sanitization', () => {
+    it('should sanitize special characters in filename', () => {
+      const mockResponse = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      } as unknown as Response;
+
+      const data = [{ id: 1 }];
+
+      // Filename with special characters including newlines (header injection attempt)
+      service.streamCSV(mockResponse, data, 'file\r\nX-Injected: header');
+
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        'attachment; filename="file__X-Injected__header"',
+      );
+    });
+
+    it('should allow safe filename characters', () => {
+      const mockResponse = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      } as unknown as Response;
+
+      const data = [{ id: 1 }];
+      service.streamCSV(mockResponse, data, 'report-2024_01.csv');
+
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        'attachment; filename="report-2024_01.csv"',
+      );
+    });
+
+    it('should sanitize path traversal attempts', () => {
+      const mockResponse = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      } as unknown as Response;
+
+      const data = [{ id: 1 }];
+      service.streamCSV(mockResponse, data, '../../../etc/passwd');
+
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        'attachment; filename=".._.._.._etc_passwd"',
+      );
+    });
+  });
 });
