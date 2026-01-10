@@ -1,7 +1,9 @@
 import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { NextFunction, Request, Response } from 'express';
+import { validate as isUuid } from 'uuid';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { TenantsService } from '../tenants.service';
 
 interface JwtPayload {
   sub: string;
@@ -14,9 +16,12 @@ interface JwtPayload {
 export class TenantMiddleware implements NestMiddleware {
   private readonly logger = new Logger(TenantMiddleware.name);
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly tenantsService: TenantsService,
+  ) {}
 
-  use(req: Request, _res: Response, next: NextFunction) {
+  async use(req: Request, _res: Response, next: NextFunction) {
     // 1. Try to get Tenant ID from JWT (Authenticated requests)
     let tenantId = this.extractTenantIdFromJwt(req);
 
@@ -25,6 +30,34 @@ export class TenantMiddleware implements NestMiddleware {
       const headerTenantId = req.headers['x-tenant-id'];
       if (typeof headerTenantId === 'string') {
         tenantId = headerTenantId;
+      }
+    }
+
+    // 3. [C-03] Fallback: Tenant Subdomain Extraction
+    if (!tenantId) {
+      const hostname = req.hostname;
+      const parts = hostname.split('.');
+      // Expecting: tenantId.domain.com (3+ parts)
+      if (parts.length >= 3) {
+        const potentialId = parts[0];
+        // Optional: Filter out 'www', 'api' if they are reserved subdomains
+        if (!['www', 'api', 'app'].includes(potentialId)) {
+          if (isUuid(potentialId)) {
+            tenantId = potentialId;
+          } else {
+            // Resolve slug to UUID
+            try {
+              const tenant = await this.tenantsService.findBySlug(potentialId);
+              tenantId = tenant.id;
+            } catch (error) {
+              // Tenant not found or DB error, ignore
+              this.logger.debug(
+                `Failed to resolve tenant slug ${potentialId}`,
+                error,
+              );
+            }
+          }
+        }
       }
     }
 

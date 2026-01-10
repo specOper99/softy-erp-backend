@@ -23,6 +23,7 @@ import {
   TransactionFilterDto,
 } from '../dto';
 import { FinanceService } from '../services/finance.service';
+import { FinancialReportService } from '../services/financial-report.service';
 
 @ApiTags('Finance - Transactions')
 @ApiBearerAuth()
@@ -30,7 +31,10 @@ import { FinanceService } from '../services/finance.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @MfaRequired()
 export class TransactionsController {
-  constructor(private readonly financeService: FinanceService) {}
+  constructor(
+    private readonly financeService: FinanceService,
+    private readonly financialReportService: FinancialReportService,
+  ) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
@@ -72,14 +76,14 @@ export class TransactionsController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Set or update department budget (Admin only)' })
   upsertBudget(@Body() dto: CreateBudgetDto) {
-    return this.financeService.upsertBudget(dto);
+    return this.financialReportService.upsertBudget(dto);
   }
 
   @Get('budgets')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get budget compliance report (Admin only)' })
   getBudgets(@Query('period') period: string) {
-    return this.financeService.getBudgetReport(period);
+    return this.financialReportService.getBudgetReport(period);
   }
 
   @Get('export')

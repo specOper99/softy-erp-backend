@@ -7,35 +7,29 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Response as ExpressResponse } from 'express';
 import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { ExportService } from '../../../common/services/export.service';
+
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { MathUtils } from '../../../common/utils/math.utils';
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
-import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import {
   BookingFilterDto,
-  CancelBookingDto,
   CreateBookingDto,
-  CreateClientDto,
   RecordPaymentDto,
   UpdateBookingDto,
-  UpdateClientDto,
 } from '../dto';
 import { Booking } from '../entities/booking.entity';
-import { Client } from '../entities/client.entity';
+
 import { BookingStatus } from '../enums/booking-status.enum';
-import { BookingCancelledEvent } from '../events/booking-cancelled.event';
 import { BookingUpdatedEvent } from '../events/booking-updated.event';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
-import type { BookingExportRow, ClientCsvRow } from '../types/export.types';
+
 import { BookingStateMachineService } from './booking-state-machine.service';
 
 @Injectable()
@@ -46,14 +40,13 @@ export class BookingsService {
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
     private readonly catalogService: CatalogService,
-    @InjectRepository(Client)
-    private readonly clientRepository: Repository<Client>,
+
     private readonly financeService: FinanceService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
-    private readonly exportService: ExportService,
+
     private readonly dashboardGateway: DashboardGateway,
     private readonly stateMachine: BookingStateMachineService,
   ) {}
@@ -194,76 +187,6 @@ export class BookingsService {
     });
   }
 
-  async exportBookingsToCSV(res: ExpressResponse): Promise<void> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
-    const queryStream = await this.bookingRepository
-      .createQueryBuilder('booking')
-      .leftJoinAndSelect('booking.client', 'client')
-      .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
-      .where('booking.tenantId = :tenantId', { tenantId })
-      .orderBy('booking.createdAt', 'DESC')
-      .stream();
-
-    try {
-      const fields = [
-        'id',
-        'clientName',
-        'clientEmail',
-        'package',
-        'eventDate',
-        'totalPrice',
-        'status',
-        'createdAt',
-      ];
-
-      const transformFn = (row: unknown): BookingExportRow => {
-        const typedRow = row as {
-          booking_id?: string;
-          client_name?: string;
-          client_email?: string;
-          servicePackage_name?: string;
-          booking_event_date?: string;
-          booking_total_price?: string;
-          booking_status?: string;
-          booking_created_at?: string;
-        };
-
-        return {
-          id: typedRow.booking_id ?? 'unknown',
-          clientName: typedRow.client_name ?? '',
-          clientEmail: typedRow.client_email ?? '',
-          package: typedRow.servicePackage_name ?? '',
-          eventDate: typedRow.booking_event_date
-            ? new Date(typedRow.booking_event_date).toISOString()
-            : '',
-          totalPrice: Number(typedRow.booking_total_price ?? 0),
-          status: typedRow.booking_status ?? 'UNKNOWN',
-          createdAt: typedRow.booking_created_at
-            ? new Date(typedRow.booking_created_at).toISOString()
-            : '',
-        };
-      };
-
-      this.exportService.streamFromStream(
-        res,
-        queryStream,
-        `bookings-export-${new Date().toISOString().split('T')[0]}.csv`,
-        fields,
-        transformFn,
-      );
-    } finally {
-      const streamWithDestroy = queryStream as unknown;
-      if (
-        streamWithDestroy &&
-        typeof streamWithDestroy === 'object' &&
-        'destroy' in streamWithDestroy
-      ) {
-        await (streamWithDestroy as { destroy: () => Promise<void> }).destroy();
-      }
-    }
-  }
-
   async findOne(id: string): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const booking = await this.bookingRepository.findOne({
@@ -341,70 +264,41 @@ export class BookingsService {
     await this.bookingRepository.softRemove(booking);
   }
 
-  async cancelBooking(id: string, dto?: CancelBookingDto): Promise<Booking> {
-    const booking = await this.findOne(id);
-    const oldStatus = booking.status;
-
-    this.stateMachine.validateTransition(
-      booking.status,
-      BookingStatus.CANCELLED,
-    );
-
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancelledAt = new Date();
-    if (dto?.reason) {
-      booking.cancellationReason = dto.reason;
-    }
-
-    const savedBooking = await this.dataSource.transaction(async (manager) => {
-      const saved = await manager.save(booking);
-
-      await this.auditService.log(
-        {
-          action: 'STATUS_CHANGE',
-          entityName: 'Booking',
-          entityId: booking.id,
-          oldValues: { status: oldStatus },
-          newValues: { status: BookingStatus.CANCELLED },
-        },
-        manager,
-      );
-
-      return saved;
-    });
-
-    const daysBeforeEvent = Math.ceil(
-      (booking.eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-    );
-
-    this.eventBus.publish(
-      new BookingCancelledEvent(
-        savedBooking.id,
-        savedBooking.tenantId,
-        savedBooking.client?.email || '',
-        savedBooking.client?.name || '',
-        savedBooking.eventDate,
-        booking.cancelledAt,
-        daysBeforeEvent,
-        dto?.reason || '',
-        Number(savedBooking.amountPaid || 0),
-        Number(savedBooking.refundAmount || 0),
-        0,
-      ),
-    );
-
-    return savedBooking;
-  }
-
   async recordPayment(id: string, dto: RecordPaymentDto): Promise<void> {
     const booking = await this.findOne(id);
-    await this.financeService.createTransaction({
-      type: TransactionType.INCOME,
-      amount: dto.amount,
-      description: `Payment for booking ${booking.client?.name || 'Client'} - ${dto.paymentMethod || 'Manual'}`,
-      bookingId: booking.id,
-      category: 'Booking Payment',
-      transactionDate: new Date().toISOString(),
+
+    await this.dataSource.transaction(async (manager) => {
+      // 1. Record the financial transaction
+      // Note: We need a version of createTransaction that accepts a manager
+      // or we can use the manager to save directly if we want to bypass the service wrapper,
+      // but better to expose a 'withManager' method in FinanceService if possible.
+      // For now, let's look at FinanceService. It has createTransactionWithManager.
+
+      await this.financeService.createTransactionWithManager(manager, {
+        type: TransactionType.INCOME,
+        amount: dto.amount,
+        description: `Payment for booking ${booking.client?.name || 'Client'} - ${dto.paymentMethod || 'Manual'}`,
+        bookingId: booking.id,
+        category: 'Booking Payment',
+        transactionDate: new Date(),
+      });
+
+      // 2. Update the booking's amountPaid field atomically
+      // This was missing in the original implementation!
+      const currentPaid = Number(booking.amountPaid || 0);
+      const newPaid = MathUtils.add(currentPaid, dto.amount);
+
+      await manager.update(
+        Booking,
+        { id: booking.id },
+        {
+          amountPaid: newPaid,
+          updatedAt: new Date(),
+        },
+      );
+
+      // Update local object for event
+      booking.amountPaid = newPaid;
     });
 
     this.eventBus.publish(
@@ -418,255 +312,8 @@ export class BookingsService {
         dto.paymentMethod || 'Manual',
         dto.reference || '',
         Number(booking.totalPrice),
-        0, // amountPaid (cumulative) - calculating this would require another query, leaving as 0 for now as it's not used in metrics handler
+        Number(booking.amountPaid),
       ),
     );
-  }
-
-  async completeBooking(id: string): Promise<Booking> {
-    const booking = await this.findOne(id);
-    const oldStatus = booking.status;
-
-    this.stateMachine.validateTransition(
-      booking.status,
-      BookingStatus.COMPLETED,
-    );
-
-    const tasksArray = await booking.tasks;
-    if (!tasksArray || tasksArray.length === 0) {
-      throw new BadRequestException('No tasks found for this booking');
-    }
-    const pendingTasks = tasksArray.filter(
-      (t) => t.status !== TaskStatus.COMPLETED,
-    );
-    if (pendingTasks.length > 0) {
-      throw new BadRequestException(
-        `Cannot complete booking: ${pendingTasks.length} tasks are still pending`,
-      );
-    }
-
-    booking.status = BookingStatus.COMPLETED;
-
-    const savedBooking = await this.dataSource.transaction(async (manager) => {
-      const saved = await manager.save(booking);
-
-      await this.auditService.log(
-        {
-          action: 'STATUS_CHANGE',
-          entityName: 'Booking',
-          entityId: booking.id,
-          oldValues: { status: oldStatus },
-          newValues: { status: BookingStatus.COMPLETED },
-        },
-        manager,
-      );
-
-      return saved;
-    });
-
-    return savedBooking;
-  }
-
-  // Client Management Methods
-  async createClient(dto: CreateClientDto): Promise<Client> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const client = this.clientRepository.create({
-      ...dto,
-      tenantId,
-    });
-    return this.clientRepository.save(client);
-  }
-
-  async findAllClients(
-    query: PaginationDto = new PaginationDto(),
-    tags?: string[],
-  ): Promise<Client[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
-    const queryBuilder = this.clientRepository
-      .createQueryBuilder('client')
-      .where('client.tenantId = :tenantId', { tenantId })
-      .orderBy('client.createdAt', 'DESC')
-      .skip(query.getSkip())
-      .take(query.getTake());
-
-    // Filter by tags if provided (JSONB array containment)
-    if (tags && tags.length > 0) {
-      queryBuilder.andWhere('client.tags @> :tags', {
-        tags: JSON.stringify(tags),
-      });
-    }
-
-    return queryBuilder.getMany();
-  }
-
-  async findClientById(id: string): Promise<Client> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const client = await this.clientRepository.findOne({
-      where: { id, tenantId },
-    });
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${id} not found`);
-    }
-    return client;
-  }
-
-  async updateClientTags(id: string, tags: string[]): Promise<Client> {
-    const client = await this.findClientById(id);
-    client.tags = tags;
-    return this.clientRepository.save(client);
-  }
-
-  async updateClient(id: string, dto: UpdateClientDto): Promise<Client> {
-    const client = await this.findClientById(id);
-
-    if (dto.name !== undefined) client.name = dto.name;
-    if (dto.email !== undefined) client.email = dto.email;
-    if (dto.phone !== undefined) client.phone = dto.phone;
-    if (dto.notes !== undefined) client.notes = dto.notes;
-    if (dto.tags !== undefined) client.tags = dto.tags;
-
-    const savedClient = await this.clientRepository.save(client);
-
-    await this.auditService.log({
-      action: 'UPDATE',
-      entityName: 'Client',
-      entityId: client.id,
-      oldValues: { name: client.name, email: client.email },
-      newValues: dto as Record<string, unknown>,
-    });
-
-    return savedClient;
-  }
-
-  async deleteClient(id: string): Promise<void> {
-    const client = await this.findClientById(id);
-
-    const bookingsCount = await this.bookingRepository.count({
-      where: { clientId: id, tenantId: client.tenantId },
-    });
-
-    if (bookingsCount > 0) {
-      throw new BadRequestException(
-        `Cannot delete client with ${bookingsCount} booking(s). Please reassign or delete bookings first.`,
-      );
-    }
-
-    await this.clientRepository.softRemove(client);
-
-    await this.auditService.log({
-      action: 'DELETE',
-      entityName: 'Client',
-      entityId: id,
-      oldValues: { name: client.name, email: client.email },
-      newValues: {},
-    });
-  }
-
-  async duplicateBooking(id: string): Promise<Booking> {
-    const booking = await this.findOne(id);
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
-    const newBooking = this.bookingRepository.create({
-      clientId: booking.clientId,
-      eventDate: booking.eventDate,
-      packageId: booking.packageId,
-      notes: booking.notes ? `[Copy] ${booking.notes}` : '[Copy]',
-      totalPrice: booking.totalPrice,
-      status: BookingStatus.DRAFT,
-      tenantId,
-    });
-
-    const savedBooking = await this.bookingRepository.save(newBooking);
-
-    await this.auditService.log({
-      action: 'DUPLICATE',
-      entityName: 'Booking',
-      entityId: savedBooking.id,
-      oldValues: { originalBookingId: id },
-      newValues: { newBookingId: savedBooking.id },
-    });
-
-    this.dashboardGateway.broadcastMetricsUpdate(tenantId, 'BOOKING', {
-      action: 'DUPLICATED',
-      originalBookingId: id,
-      newBookingId: savedBooking.id,
-    });
-
-    return savedBooking;
-  }
-
-  async exportClientsToCSV(res: ExpressResponse): Promise<void> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
-    const queryStream = await this.clientRepository
-      .createQueryBuilder('client')
-      .leftJoin('client.bookings', 'booking')
-      .where('client.tenantId = :tenantId', { tenantId })
-      .select([
-        'client.id',
-        'client.name',
-        'client.email',
-        'client.phone',
-        'client.notes',
-        'client.createdAt',
-      ])
-      .addSelect('COUNT(booking.id)', 'bookingCount')
-      .groupBy('client.id')
-      .orderBy('client.createdAt', 'DESC')
-      .stream();
-
-    try {
-      const fields = [
-        'id',
-        'name',
-        'email',
-        'phone',
-        'notes',
-        'bookingCount',
-        'createdAt',
-      ];
-
-      const transformFn = (row: unknown): ClientCsvRow => {
-        const typedRow = row as {
-          client_id?: string;
-          client_name?: string;
-          client_email?: string;
-          client_phone?: string;
-          client_notes?: string;
-          client_createdAt?: string;
-          bookingCount?: string | number;
-        };
-
-        return {
-          id: typedRow.client_id ?? 'unknown',
-          name: typedRow.client_name ?? '',
-          email: typedRow.client_email ?? '',
-          phone: typedRow.client_phone ?? '',
-          notes: typedRow.client_notes ?? '',
-          bookingCount: Number(typedRow.bookingCount ?? 0),
-          createdAt: typedRow.client_createdAt
-            ? new Date(typedRow.client_createdAt)
-            : new Date(),
-        };
-      };
-
-      this.exportService.streamFromStream(
-        res,
-        queryStream,
-        `clients-export-${new Date().toISOString().split('T')[0]}.csv`,
-        fields,
-        transformFn,
-      );
-    } finally {
-      const streamWithDestroy = queryStream as unknown;
-      if (
-        streamWithDestroy &&
-        typeof streamWithDestroy === 'object' &&
-        'destroy' in streamWithDestroy
-      ) {
-        await (streamWithDestroy as { destroy: () => Promise<void> }).destroy();
-      }
-    }
   }
 }

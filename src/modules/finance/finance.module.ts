@@ -20,8 +20,10 @@ import {
 } from './entities';
 import { CurrencyService } from './services/currency.service';
 import { FinanceService } from './services/finance.service';
+import { FinancialReportService } from './services/financial-report.service';
 import { InvoiceService } from './services/invoice.service';
 import { RecurringTransactionService } from './services/recurring-transaction.service';
+import { WalletService } from './services/wallet.service';
 
 import { ExportService } from '../../common/services/export.service';
 
@@ -54,12 +56,16 @@ import { ExportService } from '../../common/services/export.service';
     InvoiceService,
     ExportService,
     RecurringTransactionService,
+    WalletService,
+    FinancialReportService,
   ],
   exports: [
     FinanceService,
     CurrencyService,
     InvoiceService,
     RecurringTransactionService,
+    WalletService,
+    FinancialReportService,
   ],
 })
 export class FinanceModule {}

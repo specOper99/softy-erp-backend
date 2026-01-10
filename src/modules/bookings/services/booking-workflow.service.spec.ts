@@ -4,6 +4,7 @@ import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource, QueryRunner } from 'typeorm';
 import { AuditService } from '../../audit/audit.service';
+import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { BookingStatus } from '../enums/booking-status.enum';
@@ -103,6 +104,12 @@ describe('BookingWorkflowService', () => {
           },
         },
         { provide: BookingStateMachineService, useValue: mockStateMachine },
+        {
+          provide: DashboardGateway,
+          useValue: {
+            broadcastMetricsUpdate: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

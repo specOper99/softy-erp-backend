@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BookingsService } from '../services/bookings.service';
-import { BookingExportService } from '../services/booking-export.service';
+import { ClientsService } from '../services/clients.service';
 import { ClientsController } from './clients.controller';
 
 describe('ClientsController', () => {
   let controller: ClientsController;
-  let service: BookingsService;
-  let exportService: BookingExportService;
+  let service: ClientsService;
 
   const mockClient = {
     id: 'client-uuid',
@@ -29,28 +27,22 @@ describe('ClientsController', () => {
       controllers: [ClientsController],
       providers: [
         {
-          provide: BookingsService,
+          provide: ClientsService,
           useValue: {
-            createClient: jest.fn().mockResolvedValue(mockClient),
-            findAllClients: jest.fn().mockResolvedValue(mockPaginatedResponse),
-            findClientById: jest.fn().mockResolvedValue(mockClient),
-            updateClient: jest.fn().mockResolvedValue(mockClient),
-            deleteClient: jest.fn().mockResolvedValue(undefined),
-            updateClientTags: jest.fn().mockResolvedValue(mockClient),
-          },
-        },
-        {
-          provide: BookingExportService,
-          useValue: {
-            exportClientsToCSV: jest.fn().mockResolvedValue(undefined),
+            create: jest.fn().mockResolvedValue(mockClient),
+            findAll: jest.fn().mockResolvedValue(mockPaginatedResponse),
+            findById: jest.fn().mockResolvedValue(mockClient),
+            update: jest.fn().mockResolvedValue(mockClient),
+            delete: jest.fn().mockResolvedValue(undefined),
+            updateTags: jest.fn().mockResolvedValue(mockClient),
+            exportToCSV: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
     }).compile();
 
     controller = module.get<ClientsController>(ClientsController);
-    service = module.get<BookingsService>(BookingsService);
-    exportService = module.get<BookingExportService>(BookingExportService);
+    service = module.get<ClientsService>(ClientsService);
   });
 
   it('should be defined', () => {
@@ -58,7 +50,7 @@ describe('ClientsController', () => {
   });
 
   describe('create', () => {
-    it('should call bookingsService.createClient with dto', async () => {
+    it('should call service.create with dto', async () => {
       const dto = {
         name: 'New Client',
         email: 'new@example.com',
@@ -67,18 +59,18 @@ describe('ClientsController', () => {
 
       const result = await controller.create(dto);
 
-      expect(service.createClient).toHaveBeenCalledWith(dto);
+      expect(service.create).toHaveBeenCalledWith(dto);
       expect(result).toEqual(mockClient);
     });
   });
 
   describe('findAll', () => {
-    it('should call bookingsService.findAllClients with pagination', async () => {
+    it('should call service.findAll with pagination', async () => {
       const query = { page: 1, limit: 10 } as any;
 
       const result = await controller.findAll(query, undefined);
 
-      expect(service.findAllClients).toHaveBeenCalledWith(query, undefined);
+      expect(service.findAll).toHaveBeenCalledWith(query, undefined);
       expect(result).toEqual(mockPaginatedResponse);
     });
 
@@ -86,24 +78,21 @@ describe('ClientsController', () => {
       const emptyQuery = {} as any;
       await controller.findAll(emptyQuery, undefined);
 
-      expect(service.findAllClients).toHaveBeenCalledWith(
-        emptyQuery,
-        undefined,
-      );
+      expect(service.findAll).toHaveBeenCalledWith(emptyQuery, undefined);
     });
   });
 
   describe('findOne', () => {
-    it('should call bookingsService.findClientById with id', async () => {
+    it('should call service.findById with id', async () => {
       const result = await controller.findOne('client-uuid');
 
-      expect(service.findClientById).toHaveBeenCalledWith('client-uuid');
+      expect(service.findById).toHaveBeenCalledWith('client-uuid');
       expect(result).toEqual(mockClient);
     });
   });
 
   describe('update', () => {
-    it('should call bookingsService.updateClient with dto', async () => {
+    it('should call service.update with dto', async () => {
       const dto = {
         name: 'Updated Client',
         email: 'updated@example.com',
@@ -113,34 +102,31 @@ describe('ClientsController', () => {
 
       const result = await controller.update('client-uuid', dto);
 
-      expect(service.updateClient).toHaveBeenCalledWith('client-uuid', dto);
+      expect(service.update).toHaveBeenCalledWith('client-uuid', dto);
       expect(result).toEqual(mockClient);
     });
   });
 
   describe('delete', () => {
-    it('should call bookingsService.deleteClient with id', async () => {
+    it('should call service.delete with id', async () => {
       await controller.remove('client-uuid');
 
-      expect(service.deleteClient).toHaveBeenCalledWith('client-uuid');
+      expect(service.delete).toHaveBeenCalledWith('client-uuid');
     });
   });
 
   describe('updateTags', () => {
-    it('should call bookingsService.updateClientTags with id and tags', async () => {
+    it('should call service.updateTags with id and tags', async () => {
       const tags = ['vip', 'returning'];
       const result = await controller.updateTags('client-uuid', { tags });
 
-      expect(service.updateClientTags).toHaveBeenCalledWith(
-        'client-uuid',
-        tags,
-      );
+      expect(service.updateTags).toHaveBeenCalledWith('client-uuid', tags);
       expect(result).toEqual(mockClient);
     });
   });
 
   describe('exportClients', () => {
-    it('should call bookingExportService.exportClientsToCSV', async () => {
+    it('should call service.exportToCSV', async () => {
       const mockResponse = {
         setHeader: jest.fn(),
         end: jest.fn(),
@@ -148,7 +134,7 @@ describe('ClientsController', () => {
 
       await controller.exportClients(mockResponse as any);
 
-      expect(exportService.exportClientsToCSV).toHaveBeenCalled();
+      expect(service.exportToCSV).toHaveBeenCalled();
     });
   });
 });

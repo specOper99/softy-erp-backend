@@ -1,21 +1,25 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
+import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
-import { ConfirmBookingResponseDto } from '../dto';
+import { CancelBookingDto, ConfirmBookingResponseDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
+import { BookingCancelledEvent } from '../events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../events/booking-confirmed.event';
 import { BookingStateMachineService } from './booking-state-machine.service';
 
@@ -30,6 +34,8 @@ export class BookingWorkflowService {
     private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
+    @Inject(forwardRef(() => DashboardGateway))
+    private readonly dashboardGateway: DashboardGateway,
   ) {}
 
   /**
@@ -175,5 +181,206 @@ export class BookingWorkflowService {
     } finally {
       await queryRunner.release();
     }
+  }
+  /**
+   * WORKFLOW 2: Booking Cancellation
+   * Transactional steps:
+   * 1. Validate transition
+   * 2. Update status and cancellation details
+   * 3. Audit log
+   * 4. Publish BookingCancelledEvent
+   */
+  async cancelBooking(id: string, dto?: CancelBookingDto): Promise<Booking> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    // Use a transaction for consistency
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const booking = await queryRunner.manager.findOne(Booking, {
+        where: { id, tenantId },
+        relations: ['client'], // Need client for event
+      });
+
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      const oldStatus = booking.status;
+
+      this.stateMachine.validateTransition(
+        booking.status,
+        BookingStatus.CANCELLED,
+      );
+
+      booking.status = BookingStatus.CANCELLED;
+      booking.cancelledAt = new Date();
+      if (dto?.reason) {
+        booking.cancellationReason = dto.reason;
+      }
+
+      const savedBooking = await queryRunner.manager.save(booking);
+
+      await this.auditService.log(
+        {
+          action: 'STATUS_CHANGE',
+          entityName: 'Booking',
+          entityId: booking.id,
+          oldValues: { status: oldStatus },
+          newValues: { status: BookingStatus.CANCELLED },
+        },
+        queryRunner.manager,
+      );
+
+      await queryRunner.commitTransaction();
+
+      const daysBeforeEvent = Math.ceil(
+        (booking.eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+
+      this.eventBus.publish(
+        new BookingCancelledEvent(
+          savedBooking.id,
+          savedBooking.tenantId,
+          savedBooking.client?.email || '',
+          savedBooking.client?.name || '',
+          savedBooking.eventDate,
+          booking.cancelledAt,
+          daysBeforeEvent,
+          dto?.reason || '',
+          Number(savedBooking.amountPaid || 0),
+          Number(savedBooking.refundAmount || 0),
+          0,
+        ),
+      );
+
+      return savedBooking;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * WORKFLOW 3: Booking Completion
+   * Transactional steps:
+   * 1. Validate transition
+   * 2. Check pending tasks
+   * 3. Update status
+   * 4. Audit log
+   */
+  async completeBooking(id: string): Promise<Booking> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const booking = await queryRunner.manager.findOne(Booking, {
+        where: { id, tenantId },
+        relations: ['tasks'], // Need tasks for validation
+      });
+
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      const oldStatus = booking.status;
+
+      this.stateMachine.validateTransition(
+        booking.status,
+        BookingStatus.COMPLETED,
+      );
+
+      const tasksArray = await booking.tasks;
+      if (!tasksArray || tasksArray.length === 0) {
+        // Warning: This logic assumes a complete booking SHOULD have tasks.
+        // If "no tasks found" is a valid state for completion, remove this throw.
+        // Keeping it consistent with original BookingsService.
+        throw new BadRequestException('No tasks found for this booking');
+      }
+      const pendingTasks = tasksArray.filter(
+        (t) => t.status !== TaskStatus.COMPLETED,
+      );
+      if (pendingTasks.length > 0) {
+        throw new BadRequestException(
+          `Cannot complete booking: ${pendingTasks.length} tasks are still pending`,
+        );
+      }
+
+      booking.status = BookingStatus.COMPLETED;
+
+      const savedBooking = await queryRunner.manager.save(booking);
+
+      await this.auditService.log(
+        {
+          action: 'STATUS_CHANGE',
+          entityName: 'Booking',
+          entityId: booking.id,
+          oldValues: { status: oldStatus },
+          newValues: { status: BookingStatus.COMPLETED },
+        },
+        queryRunner.manager,
+      );
+
+      await queryRunner.commitTransaction();
+
+      return savedBooking;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async duplicateBooking(id: string): Promise<Booking> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    // We can use the simple repo find since create() doesn't need transaction yet
+    // But duplicate usually implies read -> create.
+    const booking = await this.dataSource.manager.findOne(Booking, {
+      where: { id, tenantId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
+    }
+
+    const newBooking = this.dataSource.manager.create(Booking, {
+      clientId: booking.clientId,
+      eventDate: booking.eventDate,
+      packageId: booking.packageId,
+      notes: booking.notes ? `[Copy] ${booking.notes}` : '[Copy]',
+      totalPrice: booking.totalPrice,
+      status: BookingStatus.DRAFT,
+      tenantId,
+    });
+
+    const savedBooking = await this.dataSource.manager.save(
+      Booking,
+      newBooking,
+    );
+
+    await this.auditService.log({
+      action: 'DUPLICATE',
+      entityName: 'Booking',
+      entityId: savedBooking.id,
+      oldValues: { originalBookingId: id },
+      newValues: { newBookingId: savedBooking.id },
+    });
+
+    this.dashboardGateway.broadcastMetricsUpdate(tenantId, 'BOOKING', {
+      action: 'DUPLICATED',
+      originalBookingId: id,
+      newBookingId: savedBooking.id,
+    });
+
+    return savedBooking;
   }
 }

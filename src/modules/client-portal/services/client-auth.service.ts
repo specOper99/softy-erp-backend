@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Cache } from 'cache-manager';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { Counter } from 'prom-client';
+import { Counter, register } from 'prom-client';
 import { Repository } from 'typeorm';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -31,17 +31,8 @@ export class ClientAuthService {
   private readonly clientRepository: TenantAwareRepository<Client>;
 
   // Metrics
-  private readonly magicLinkRequestedCounter = new Counter({
-    name: 'auth_client_magic_link_requested_total',
-    help: 'Total number of client magic link requests',
-    labelNames: ['tenant_id', 'status'],
-  });
-
-  private readonly magicLinkVerifiedCounter = new Counter({
-    name: 'auth_client_magic_link_verified_total',
-    help: 'Total number of client magic link verifications',
-    labelNames: ['tenant_id', 'status'],
-  });
+  private readonly magicLinkRequestedCounter: Counter<string>;
+  private readonly magicLinkVerifiedCounter: Counter<string>;
 
   constructor(
     @InjectRepository(Client)
@@ -56,6 +47,31 @@ export class ClientAuthService {
       'auth.clientSessionExpires',
       3600, // 1 hour default
     );
+
+    // Initialize Metrics safely (idempotent for tests)
+    this.magicLinkRequestedCounter = this.getOrCreateCounter({
+      name: 'auth_client_magic_link_requested_total',
+      help: 'Total number of client magic link requests',
+      labelNames: ['tenant_id', 'status'],
+    });
+
+    this.magicLinkVerifiedCounter = this.getOrCreateCounter({
+      name: 'auth_client_magic_link_verified_total',
+      help: 'Total number of client magic link verifications',
+      labelNames: ['tenant_id', 'status'],
+    });
+  }
+
+  private getOrCreateCounter(config: {
+    name: string;
+    help: string;
+    labelNames: string[];
+  }): Counter<string> {
+    const existing = register.getSingleMetric(config.name);
+    if (existing) {
+      return existing as Counter<string>;
+    }
+    return new Counter(config);
   }
 
   /**

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from '../services/finance.service';
+import { FinancialReportService } from '../services/financial-report.service';
 import { TransactionsController } from './transactions.controller';
 
 describe('TransactionsController', () => {
@@ -26,6 +27,14 @@ describe('TransactionsController', () => {
             getTransactionSummary: jest
               .fn()
               .mockResolvedValue({ totalIncome: 1000 }),
+          },
+        },
+        {
+          provide: FinancialReportService,
+          useValue: {
+            upsertBudget: jest.fn().mockResolvedValue({}),
+            getBudgetReport: jest.fn().mockResolvedValue({}),
+            invalidateReportCaches: jest.fn().mockResolvedValue({}),
           },
         },
       ],

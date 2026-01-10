@@ -24,26 +24,20 @@ import {
   UpdateClientDto,
   UpdateClientTagsDto,
 } from '../dto/client.dto';
-import { BookingsService } from '../services/bookings.service';
-import { BookingExportService } from '../services/booking-export.service';
+import { ClientsService } from '../services/clients.service';
 
 @ApiTags('Clients')
 @ApiBearerAuth()
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ClientsController {
-  constructor(
-    private readonly bookingsService: BookingsService,
-    private readonly bookingExportService: BookingExportService,
-  ) {}
+  constructor(private readonly clientsService: ClientsService) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Create a new client' })
   create(@Body() dto: CreateClientDto) {
-    // We'll reuse BookingsService or add methods there.
-    // For simplicity of this task, I'll add a createClient method to BookingsService.
-    return this.bookingsService.createClient(dto);
+    return this.clientsService.create(dto);
   }
 
   @Get()
@@ -56,27 +50,34 @@ export class ClientsController {
     )
     tags?: string[],
   ) {
-    return this.bookingsService.findAllClients(query, tags);
+    return this.clientsService.findAll(query, tags);
+  }
+
+  @Get('export')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Export clients to CSV' })
+  exportClients(@Res() res: Response) {
+    return this.clientsService.exportToCSV(res);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get client by ID' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingsService.findClientById(id);
+    return this.clientsService.findById(id);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update client details' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateClientDto) {
-    return this.bookingsService.updateClient(id, dto);
+    return this.clientsService.update(id, dto);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete client (soft delete, no bookings allowed)' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingsService.deleteClient(id);
+    return this.clientsService.delete(id);
   }
 
   @Patch(':id/tags')
@@ -86,13 +87,6 @@ export class ClientsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateClientTagsDto,
   ) {
-    return this.bookingsService.updateClientTags(id, dto.tags);
-  }
-
-  @Get('export')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Export clients to CSV' })
-  exportClients(@Res() res: Response) {
-    return this.bookingExportService.exportClientsToCSV(res);
+    return this.clientsService.updateTags(id, dto.tags);
   }
 }

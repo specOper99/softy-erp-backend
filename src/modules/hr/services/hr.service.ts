@@ -12,12 +12,14 @@ import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { MathUtils } from '../../../common/utils/math.utils';
 import { AuditService } from '../../audit/audit.service';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { Payout } from '../../finance/entities/payout.entity';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import {
@@ -40,6 +42,7 @@ export class HrService {
     @InjectRepository(EmployeeWallet)
     private readonly walletRepository: Repository<EmployeeWallet>,
     private readonly financeService: FinanceService,
+    private readonly walletService: WalletService,
     private readonly mailService: MailService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
@@ -65,7 +68,7 @@ export class HrService {
       }
 
       // Step 2: Create wallet for the user within the profile transaction
-      await this.financeService.getOrCreateWalletWithManager(
+      await this.walletService.getOrCreateWalletWithManager(
         queryRunner.manager,
         dto.userId,
       );
@@ -259,49 +262,78 @@ export class HrService {
    */
   @Cron('59 23 28 * *') // Run on 28th of each month at 23:59
   async runScheduledPayroll(): Promise<void> {
-    this.logger.log('Starting scheduled payroll run for all tenants...');
-
-    // Iterate all tenants since cron jobs don't have HTTP request context
-    const tenants = await this.tenantsService.findAll();
-
-    // PERFORMANCE FIX: Use bounded concurrency instead of sequential processing
-    const limit = pLimit(5); // Max 5 concurrent tenant payroll runs
-
-    const processPayrollForTenant = async (tenant: {
-      id: string;
-      slug: string;
-    }) => {
-      try {
-        // Run payroll within tenant context
-        await new Promise<void>((resolve, reject) => {
-          TenantContextService.run(tenant.id, () => {
-            this.runPayroll()
-              .then((result) => {
-                this.logger.log(
-                  `Payroll completed for tenant ${tenant.slug}: ${result.totalEmployees} employees, $${result.totalPayout} total`,
-                );
-                resolve();
-              })
-              .catch((error: unknown) => {
-                reject(
-                  error instanceof Error ? error : new Error(String(error)),
-                );
-              });
-          });
-        });
-      } catch (error) {
-        this.logger.error(
-          `Payroll run failed for tenant ${tenant.slug}`,
-          error,
-        );
-      }
-    };
-
-    await Promise.all(
-      tenants.map((tenant) => limit(() => processPayrollForTenant(tenant))),
+    // [C-01] Distributed Lock: Prevent concurrent execution
+    const lockId = 1001;
+    const queryResult: unknown = await this.dataSource.query(
+      'SELECT pg_try_advisory_lock($1) as locked',
+      [lockId],
     );
+    const typedResult = queryResult as Array<{
+      locked?: boolean;
+      pg_try_advisory_lock?: boolean;
+    }>;
+    const lockResult = typedResult[0];
 
-    this.logger.log('Scheduled payroll run completed for all tenants');
+    // Handle different driver return formats (boolean or row)
+    const isLocked =
+      lockResult &&
+      (lockResult.locked === true || lockResult.pg_try_advisory_lock === true);
+
+    if (!isLocked) {
+      this.logger.warn(
+        'Skipping payroll run: another instance is already holding the lock.',
+      );
+      return;
+    }
+
+    try {
+      this.logger.log('Starting scheduled payroll run for all tenants...');
+
+      // Iterate all tenants since cron jobs don't have HTTP request context
+      const tenants = await this.tenantsService.findAll();
+
+      // PERFORMANCE FIX: Use bounded concurrency instead of sequential processing
+      const limit = pLimit(5); // Max 5 concurrent tenant payroll runs
+
+      const processPayrollForTenant = async (tenant: {
+        id: string;
+        slug: string;
+      }) => {
+        try {
+          // Run payroll within tenant context
+          await new Promise<void>((resolve, reject) => {
+            TenantContextService.run(tenant.id, () => {
+              this.runPayroll()
+                .then((result) => {
+                  this.logger.log(
+                    `Payroll completed for tenant ${tenant.slug}: ${result.totalEmployees} employees, $${result.totalPayout} total`,
+                  );
+                  resolve();
+                })
+                .catch((error: unknown) => {
+                  reject(
+                    error instanceof Error ? error : new Error(String(error)),
+                  );
+                });
+            });
+          });
+        } catch (error) {
+          this.logger.error(
+            `Payroll run failed for tenant ${tenant.slug}`,
+            error,
+          );
+        }
+      };
+
+      await Promise.all(
+        tenants.map((tenant) => limit(() => processPayrollForTenant(tenant))),
+      );
+
+      this.logger.log('Scheduled payroll run completed for all tenants');
+    } finally {
+      // Release distributed lock
+      await this.dataSource.query('SELECT pg_advisory_unlock($1)', [lockId]);
+    }
   }
 
   /**
@@ -442,32 +474,59 @@ export class HrService {
     let employeesProcessed = 0;
 
     // Phase 2: Process each employee (external API call + transaction per employee)
+    // Phase 2: Process each employee (external API call + transaction per employee)
     for (const profile of profiles) {
       const wallet = profile.user?.wallet;
       const baseSalary = Number(profile.baseSalary) || 0;
       const commissionPayable = wallet ? Number(wallet.payableBalance) || 0 : 0;
-      const totalAmount = baseSalary + commissionPayable;
+      // [Refactor] Use MathUtils for precision
+      const totalAmount = MathUtils.add(baseSalary, commissionPayable);
 
       if (totalAmount <= 0) {
         continue; // Skip if no payout
       }
 
+      const referenceId = `${tenantId}-${profile.id}-${new Date().toISOString().slice(0, 7)}`;
+
       try {
+        // [C-02] Idempotency: Create PENDING payout state BEFORE external call
+        const payoutRepository = this.dataSource.getRepository(Payout);
+
+        let payout = await payoutRepository.findOne({
+          where: { notes: `Pending payroll for ${referenceId}` },
+        });
+
+        if (!payout) {
+          payout = payoutRepository.create({
+            amount: totalAmount,
+            payoutDate: new Date(),
+            status: PayoutStatus.PENDING,
+            tenantId,
+            notes: `Pending payroll for ${referenceId}`,
+          });
+          payout = await payoutRepository.save(payout);
+        } else if (payout.status === (PayoutStatus.COMPLETED as unknown)) {
+          this.logger.log(
+            `Skipping already completed payout for ${referenceId}`,
+          );
+          continue;
+        }
+
         // Step 1: Call payment gateway OUTSIDE transaction
-        // CRITICAL FIX: External API calls should never be inside DB transactions
-        // This prevents long lock holding and avoids inconsistency if commit fails
         const gatewayResult = await this.paymentGatewayService.triggerPayout({
           employeeName: `${profile.firstName || ''} ${profile.lastName || ''}`,
           bankAccount: profile.bankAccount || 'NO_BANK_ACCOUNT',
           amount: totalAmount,
-          referenceId: `${tenantId}-${profile.id}-${Date.now()}`,
+          referenceId,
         });
 
         if (!gatewayResult.success) {
-          // Log failed payout but continue with others
           this.logger.warn(
             `Payment gateway failed for ${profile.firstName} ${profile.lastName}: ${gatewayResult.error}`,
           );
+          // Mark as failed
+          payout.status = PayoutStatus.FAILED;
+          await payoutRepository.save(payout);
           continue;
         }
 
@@ -477,15 +536,10 @@ export class HrService {
         await queryRunner.startTransaction();
 
         try {
-          // Create Payout record (already completed via gateway)
-          const payout = queryRunner.manager.create(Payout, {
-            amount: totalAmount,
-            payoutDate: new Date(),
-            status: PayoutStatus.COMPLETED,
-            tenantId,
-            notes: `Monthly payroll for ${profile.firstName || ''} ${profile.lastName || ''} | TxnRef: ${gatewayResult.transactionReference}`,
-          });
-          const savedPayout = await queryRunner.manager.save(payout);
+          // Update Payout record to COMPLETED
+          payout.status = PayoutStatus.COMPLETED;
+          payout.notes = `Monthly payroll for ${profile.firstName || ''} ${profile.lastName || ''} | TxnRef: ${gatewayResult.transactionReference}`;
+          await queryRunner.manager.save(payout);
 
           // Create PAYROLL transaction (ERP bookkeeping)
           const transaction =
@@ -495,7 +549,7 @@ export class HrService {
                 type: TransactionType.PAYROLL,
                 amount: totalAmount,
                 category: 'Monthly Payroll',
-                payoutId: savedPayout.id,
+                payoutId: payout.id,
                 description: `Payroll for ${profile.firstName || ''} ${profile.lastName || ''}: Salary $${baseSalary} + Commission $${commissionPayable}`,
                 transactionDate: new Date(),
               },
@@ -503,7 +557,7 @@ export class HrService {
 
           // Reset payable balance to 0
           if (wallet && commissionPayable > 0) {
-            await this.financeService.resetPayableBalance(
+            await this.walletService.resetPayableBalance(
               queryRunner.manager,
               profile.userId,
             );
@@ -512,7 +566,7 @@ export class HrService {
           await queryRunner.commitTransaction();
 
           transactionIds.push(transaction.id);
-          totalPayout += totalAmount;
+          totalPayout = MathUtils.add(totalPayout, totalAmount);
           employeesProcessed++;
 
           // Send payroll notification email (async, fire-and-forget)

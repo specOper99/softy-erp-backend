@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
 import { Role } from '../../users/enums/role.enum';
 import { FinancialReportFilterDto } from '../dto/financial-report.dto';
-import { FinanceService } from '../services/finance.service';
+import { FinancialReportService } from '../services/financial-report.service';
 
 @ApiTags('Financial Reports')
 @ApiBearerAuth()
@@ -17,7 +17,7 @@ import { FinanceService } from '../services/finance.service';
 @Controller('finance/reports')
 export class FinancialReportController {
   constructor(
-    private readonly financeService: FinanceService,
+    private readonly financialReportService: FinancialReportService,
     private readonly reportGeneratorService: ReportGeneratorService,
     private readonly analyticsService: AnalyticsService,
   ) {}
@@ -25,7 +25,7 @@ export class FinancialReportController {
   @Get('pnl')
   @ApiOperation({ summary: 'Get Profit & Loss Report (JSON)' })
   async getProfitAndLoss(@Query() filter: FinancialReportFilterDto) {
-    return this.financeService.getProfitAndLoss(filter);
+    return this.financialReportService.getProfitAndLoss(filter);
   }
 
   @Get('pnl/pdf')
@@ -34,7 +34,7 @@ export class FinancialReportController {
     @Query() filter: FinancialReportFilterDto,
     @Res() res: Response,
   ) {
-    const data = await this.financeService.getProfitAndLoss(filter);
+    const data = await this.financialReportService.getProfitAndLoss(filter);
     const pdfBytes = await this.reportGeneratorService.generatePnLPdf(data);
 
     res.set({

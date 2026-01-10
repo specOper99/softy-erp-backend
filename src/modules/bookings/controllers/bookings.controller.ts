@@ -25,8 +25,8 @@ import {
   RecordPaymentDto,
   UpdateBookingDto,
 } from '../dto';
-import { BookingsService } from '../services/bookings.service';
 import { BookingExportService } from '../services/booking-export.service';
+import { BookingsService } from '../services/bookings.service';
 
 import { BookingWorkflowService } from '../services/booking-workflow.service';
 
@@ -109,14 +109,14 @@ export class BookingsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelBookingDto,
   ) {
-    return this.bookingsService.cancelBooking(id, dto);
+    return this.bookingWorkflowService.cancelBooking(id, dto);
   }
 
   @Patch(':id/complete')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Complete booking (all tasks must be done)' })
   complete(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingsService.completeBooking(id);
+    return this.bookingWorkflowService.completeBooking(id);
   }
 
   @Post(':id/payments')
@@ -133,6 +133,6 @@ export class BookingsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Duplicate booking as a new DRAFT' })
   duplicate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingsService.duplicateBooking(id);
+    return this.bookingWorkflowService.duplicateBooking(id);
   }
 }

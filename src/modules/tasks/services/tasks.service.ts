@@ -17,6 +17,7 @@ import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.
 import { AuditService } from '../../audit/audit.service';
 import { Client } from '../../bookings/entities/client.entity';
 import { FinanceService } from '../../finance/services/finance.service';
+import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { AssignTaskDto, CompleteTaskResponseDto, UpdateTaskDto } from '../dto';
@@ -33,6 +34,7 @@ export class TasksService {
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
     private readonly financeService: FinanceService,
+    private readonly walletService: WalletService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
@@ -341,13 +343,13 @@ export class TasksService {
     // Execute updates in order
     for (const update of updates) {
       if (update.action === 'subtract') {
-        await this.financeService.subtractPendingCommission(
+        await this.walletService.subtractPendingCommission(
           manager,
           update.userId,
           commissionAmount,
         );
       } else {
-        await this.financeService.addPendingCommission(
+        await this.walletService.addPendingCommission(
           manager,
           update.userId,
           commissionAmount,
@@ -485,7 +487,7 @@ export class TasksService {
       let walletUpdated = false;
 
       if (commissionAmount > 0) {
-        await this.financeService.moveToPayable(
+        await this.walletService.moveToPayable(
           queryRunner.manager,
           task.assignedUserId,
           commissionAmount,

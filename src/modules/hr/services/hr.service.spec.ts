@@ -5,7 +5,9 @@ import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
+import { Payout } from '../../finance/entities/payout.entity';
 import { FinanceService } from '../../finance/services/finance.service';
+import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { PayrollRun, Profile } from '../entities';
@@ -71,11 +73,14 @@ describe('HrService - Comprehensive Tests', () => {
   };
 
   const mockFinanceService = {
-    getOrCreateWallet: jest.fn().mockResolvedValue(mockWallet),
-    getOrCreateWalletWithManager: jest.fn().mockResolvedValue(mockWallet),
     createTransactionWithManager: jest
       .fn()
       .mockResolvedValue({ id: 'txn-uuid-123' }),
+  };
+
+  const mockWalletService = {
+    getOrCreateWallet: jest.fn().mockResolvedValue(mockWallet),
+    getOrCreateWalletWithManager: jest.fn().mockResolvedValue(mockWallet),
     resetPayableBalance: jest
       .fn()
       .mockResolvedValue({ ...mockWallet, payableBalance: 0 }),
@@ -110,8 +115,31 @@ describe('HrService - Comprehensive Tests', () => {
     },
   };
 
+  const mockPayoutRepository = {
+    create: jest
+      .fn()
+      .mockImplementation((data) => ({ id: 'payout-uuid-123', ...data })),
+    save: jest
+      .fn()
+      .mockImplementation((data) =>
+        Promise.resolve({ id: 'payout-uuid-123', ...data }),
+      ),
+    findOne: jest.fn().mockResolvedValue(null), // Default: no pending payout
+  };
+
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    query: jest.fn().mockResolvedValue([{ locked: true }]), // Mock advisory lock success
+    getRepository: jest.fn().mockImplementation((entity) => {
+      if (entity === Payout) {
+        return mockPayoutRepository;
+      }
+      return {
+        create: jest.fn(),
+        save: jest.fn(),
+        findOne: jest.fn(),
+      };
+    }),
   };
 
   const mockTenantsService = {
@@ -151,6 +179,7 @@ describe('HrService - Comprehensive Tests', () => {
           useValue: mockWalletRepository,
         },
         { provide: FinanceService, useValue: mockFinanceService },
+        { provide: WalletService, useValue: mockWalletService },
         { provide: MailService, useValue: mockMailService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
@@ -217,9 +246,7 @@ describe('HrService - Comprehensive Tests', () => {
       });
 
       const result = await service.createProfile(dto);
-      expect(
-        mockFinanceService.getOrCreateWalletWithManager,
-      ).toHaveBeenCalled();
+      expect(mockWalletService.getOrCreateWalletWithManager).toHaveBeenCalled();
       expect(result).toHaveProperty('id');
     });
 
@@ -482,7 +509,7 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should reset payable balance after payroll', async () => {
       await service.runPayroll();
-      expect(mockFinanceService.resetPayableBalance).toHaveBeenCalled();
+      expect(mockWalletService.resetPayableBalance).toHaveBeenCalled();
     });
 
     it('should skip employees with zero payout', async () => {
@@ -547,7 +574,7 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should rollback on wallet reset failure and continue', async () => {
       mockQueryRunner.manager.find.mockResolvedValueOnce([mockProfile]);
-      mockFinanceService.resetPayableBalance.mockRejectedValueOnce(
+      mockWalletService.resetPayableBalance.mockRejectedValueOnce(
         new Error('Wallet reset failed'),
       );
       // With batch processing, errors are caught per batch and payroll continues

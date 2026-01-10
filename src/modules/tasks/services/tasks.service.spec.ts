@@ -11,6 +11,7 @@ import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { FinanceService } from '../../finance/services/finance.service';
+import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { Task } from '../entities/task.entity';
@@ -58,7 +59,9 @@ describe('TasksService - Comprehensive Tests', () => {
     })),
   };
 
-  const mockFinanceService = {
+  const mockFinanceService = {};
+
+  const mockWalletService = {
     moveToPayable: jest.fn().mockResolvedValue({}),
     addPendingCommission: jest.fn().mockResolvedValue({}),
     subtractPendingCommission: jest.fn().mockResolvedValue({}),
@@ -99,6 +102,7 @@ describe('TasksService - Comprehensive Tests', () => {
         TasksService,
         { provide: getRepositoryToken(Task), useValue: mockTaskRepository },
         { provide: FinanceService, useValue: mockFinanceService },
+        { provide: WalletService, useValue: mockWalletService },
         { provide: EventBus, useValue: mockEventBus },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
@@ -314,7 +318,7 @@ describe('TasksService - Comprehensive Tests', () => {
         userId: 'new-user-id',
       });
       expect(result.assignedUserId).toBe('new-user-id');
-      expect(mockFinanceService.subtractPendingCommission).toHaveBeenCalled();
+      expect(mockWalletService.subtractPendingCommission).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for non-existent task', async () => {
@@ -536,7 +540,7 @@ describe('TasksService - Comprehensive Tests', () => {
         status: TaskStatus.IN_PROGRESS,
       });
 
-      mockFinanceService.moveToPayable.mockRejectedValueOnce(
+      mockWalletService.moveToPayable.mockRejectedValueOnce(
         new Error('Wallet error'),
       );
       await expect(

@@ -2,12 +2,12 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
-import { FinanceService } from '../services/finance.service';
+import { FinancialReportService } from '../services/financial-report.service';
 import { FinancialReportController } from './financial-report.controller';
 
 describe('FinancialReportController', () => {
   let controller: FinancialReportController;
-  let financeService: jest.Mocked<FinanceService>;
+  let financialReportService: jest.Mocked<FinancialReportService>;
   let analyticsService: jest.Mocked<AnalyticsService>;
   let reportGeneratorService: jest.Mocked<ReportGeneratorService>;
 
@@ -27,7 +27,7 @@ describe('FinancialReportController', () => {
       controllers: [FinancialReportController],
       providers: [
         {
-          provide: FinanceService,
+          provide: FinancialReportService,
           useValue: {
             getProfitAndLoss: jest.fn(),
           },
@@ -52,7 +52,7 @@ describe('FinancialReportController', () => {
     controller = module.get<FinancialReportController>(
       FinancialReportController,
     );
-    financeService = module.get(FinanceService);
+    financialReportService = module.get(FinancialReportService);
     analyticsService = module.get(AnalyticsService);
     reportGeneratorService = module.get(ReportGeneratorService);
   });
@@ -63,12 +63,16 @@ describe('FinancialReportController', () => {
 
   describe('getProfitAndLoss', () => {
     it('should return P&L data', async () => {
-      financeService.getProfitAndLoss.mockResolvedValue(mockPnlData as any);
+      financialReportService.getProfitAndLoss.mockResolvedValue(
+        mockPnlData as any,
+      );
 
       const filter = { startDate: '2024-01-01', endDate: '2024-12-31' };
       const result = await controller.getProfitAndLoss(filter as any);
 
-      expect(financeService.getProfitAndLoss).toHaveBeenCalledWith(filter);
+      expect(financialReportService.getProfitAndLoss).toHaveBeenCalledWith(
+        filter,
+      );
       expect(result).toEqual(mockPnlData);
     });
   });
@@ -76,7 +80,9 @@ describe('FinancialReportController', () => {
   describe('getProfitAndLossPdf', () => {
     it('should return PDF with correct headers', async () => {
       const mockPdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
-      financeService.getProfitAndLoss.mockResolvedValue(mockPnlData as any);
+      financialReportService.getProfitAndLoss.mockResolvedValue(
+        mockPnlData as any,
+      );
       reportGeneratorService.generatePnLPdf.mockResolvedValue(mockPdfBytes);
 
       const mockRes = {

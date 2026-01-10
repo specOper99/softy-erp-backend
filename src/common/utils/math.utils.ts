@@ -1,31 +1,32 @@
+import Decimal from 'decimal.js';
+
 export class MathUtils {
   /**
    * Safe floating point rounding for financial calculations.
-   * Uses exponential notation to avoid IEEE 754 precision errors.
-   * e.g. round(1.005, 2) -> 1.01 (standard round half up)
+   * Uses decimal.js to avoid IEEE 754 precision errors.
    */
-  static round(value: number, decimals = 2): number {
-    return Number(Math.round(Number(value + 'e' + decimals)) + 'e-' + decimals);
+  static round(value: number, precision = 2): number {
+    return new Decimal(value).toDecimalPlaces(precision).toNumber();
   }
 
   /**
-   * Safe addition (a + b) rounded to decimals
+   * Safe addition (a + b) rounded to precision
    */
-  static add(a: number, b: number, decimals = 2): number {
-    return this.round(a + b, decimals);
+  static add(a: number, b: number, precision = 2): number {
+    return new Decimal(a).plus(b).toDecimalPlaces(precision).toNumber();
   }
 
   /**
-   * Safe subtraction (a - b) rounded to decimals
+   * Safe subtraction (a - b) rounded to precision
    */
-  static subtract(a: number, b: number, decimals = 2): number {
-    return this.round(a - b, decimals);
+  static subtract(a: number, b: number, precision = 2): number {
+    return new Decimal(a).minus(b).toDecimalPlaces(precision).toNumber();
   }
 
   /**
-   * Safe multiplication (a * b) rounded to decimals
+   * Safe multiplication (a * b) rounded to precision
    */
-  static multiply(a: number, b: number, decimals = 2): number {
-    return this.round(a * b, decimals);
+  static multiply(a: number, b: number, precision = 2): number {
+    return new Decimal(a).times(b).toDecimalPlaces(precision).toNumber();
   }
 }

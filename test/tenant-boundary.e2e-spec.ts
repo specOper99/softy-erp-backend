@@ -272,5 +272,25 @@ describe('Tenant Boundary Security E2E', () => {
         .send({ token: magicLinkToken })
         .expect(201);
     });
+
+    it('Should resolve tenant from SUBDOMAIN for public endpoint (C-03 Verification)', async () => {
+      // Calculate slug from tenant name logic used in AuthService
+      const slug = tenantA.company
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, '-')
+        .replaceAll(/(^-)|(-$)/g, '');
+
+      // Reset mock
+      (mailService.sendMagicLink as jest.Mock).mockClear();
+
+      // Request magic link using Subdomain (Host header) instead of X-Tenant-ID
+      await request(app.getHttpServer())
+        .post('/api/v1/client-portal/auth/request-magic-link')
+        .set('Host', `${slug}.example.com`)
+        .send({ email: clientA.email })
+        .expect(201);
+
+      expect(mailService.sendMagicLink).toHaveBeenCalled();
+    });
   });
 });
