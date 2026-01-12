@@ -11,6 +11,7 @@ import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { ClientPortalController } from './client-portal.controller';
 import { ClientAuthService } from './services/client-auth.service';
+import { ClientPortalService } from './services/client-portal.service';
 
 @Module({
   imports: [
@@ -35,12 +36,13 @@ import { ClientAuthService } from './services/client-auth.service';
   controllers: [ClientPortalController],
   providers: [
     ClientAuthService,
+    ClientPortalService,
     {
       provide: TENANT_REPO_CLIENT,
       useFactory: (repo: Repository<Client>) => new TenantAwareRepository(repo),
       inject: [getRepositoryToken(Client)],
     },
   ],
-  exports: [ClientAuthService],
+  exports: [ClientAuthService, ClientPortalService],
 })
 export class ClientPortalModule {}

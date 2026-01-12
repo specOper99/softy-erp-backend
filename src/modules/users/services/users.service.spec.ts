@@ -39,6 +39,7 @@ describe('UsersService - Comprehensive Tests', () => {
     findOne: jest.fn(),
     remove: jest.fn().mockResolvedValue(mockUser),
     softRemove: jest.fn().mockResolvedValue(mockUser),
+    createQueryBuilder: jest.fn(),
   };
 
   const mockAuditService = {
@@ -183,6 +184,33 @@ describe('UsersService - Comprehensive Tests', () => {
           }),
         }),
       );
+    });
+
+    describe('findMany', () => {
+      it('should return users for given ids', async () => {
+        const qbMock = {
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          getMany: jest.fn().mockResolvedValue([mockUser]),
+        };
+        mockRepository.createQueryBuilder.mockReturnValue(qbMock);
+
+        const result = await service.findMany(['test-uuid-123']);
+        expect(result).toEqual([mockUser]);
+        expect(qbMock.where).toHaveBeenCalledWith('user.id IN (:...ids)', {
+          ids: ['test-uuid-123'],
+        });
+        expect(qbMock.andWhere).toHaveBeenCalledWith(
+          'user.tenantId = :tenantId',
+          { tenantId: 'tenant-123' },
+        );
+      });
+
+      it('should return empty array for empty ids', async () => {
+        const result = await service.findMany([]);
+        expect(result).toEqual([]);
+        expect(mockRepository.createQueryBuilder).not.toHaveBeenCalled();
+      });
     });
   });
 

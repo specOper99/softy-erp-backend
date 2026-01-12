@@ -82,7 +82,7 @@ export class UsersService {
     const tenantId = TenantContextService.getTenantId();
     return this.userRepository.find({
       where: { tenantId },
-      relations: ['profile', 'wallet'],
+      relations: ['wallet'],
       skip: query.getSkip(),
       take: query.getTake(),
     });
@@ -96,8 +96,7 @@ export class UsersService {
 
     const qb = this.userRepository.createQueryBuilder('user');
 
-    qb.leftJoinAndSelect('user.profile', 'profile')
-      .leftJoinAndSelect('user.wallet', 'wallet')
+    qb.leftJoinAndSelect('user.wallet', 'wallet')
       .where('user.tenantId = :tenantId', { tenantId })
       .orderBy('user.createdAt', 'DESC')
       .addOrderBy('user.id', 'DESC')
@@ -131,7 +130,7 @@ export class UsersService {
     const tenantId = TenantContextService.getTenantId();
     const user = await this.userRepository.findOne({
       where: { id, tenantId },
-      relations: ['profile', 'wallet'],
+      relations: ['wallet'],
     });
     if (!user) {
       throw new NotFoundException('common.user_not_found');
@@ -145,6 +144,21 @@ export class UsersService {
       where.tenantId = tenantId;
     }
     return this.userRepository.findOne({ where });
+  }
+
+  async findMany(ids: string[]): Promise<User[]> {
+    if (!ids.length) return [];
+
+    const tenantId = TenantContextService.getTenantId();
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .where('user.id IN (:...ids)', { ids });
+
+    if (tenantId) {
+      qb.andWhere('user.tenantId = :tenantId', { tenantId });
+    }
+
+    return qb.getMany();
   }
 
   async findByEmailWithMfaSecret(

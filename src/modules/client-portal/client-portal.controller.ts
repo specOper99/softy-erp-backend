@@ -10,9 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { Request } from 'express';
-import { Repository } from 'typeorm';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
@@ -23,6 +21,7 @@ import {
 } from './dto/client-auth.dto';
 import { ClientTokenGuard } from './guards/client-token.guard';
 import { ClientAuthService } from './services/client-auth.service';
+import { ClientPortalService } from './services/client-portal.service';
 
 @ApiTags('Client Portal')
 @ApiHeader({
@@ -35,10 +34,7 @@ import { ClientAuthService } from './services/client-auth.service';
 export class ClientPortalController {
   constructor(
     private readonly clientAuthService: ClientAuthService,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    @InjectRepository(Client)
-    private readonly clientRepository: Repository<Client>,
+    private readonly clientPortalService: ClientPortalService,
   ) {}
 
   // ============ AUTHENTICATION ============
@@ -91,11 +87,7 @@ export class ClientPortalController {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    return this.bookingRepository.find({
-      where: { clientId: client.id, tenantId: client.tenantId },
-      relations: ['servicePackage'],
-      order: { eventDate: 'DESC' },
-    });
+    return this.clientPortalService.getMyBookings(client.id, client.tenantId);
   }
 
   @Get('bookings/:id')
@@ -112,10 +104,11 @@ export class ClientPortalController {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    const booking = await this.bookingRepository.findOne({
-      where: { id, clientId: client.id, tenantId: client.tenantId },
-      relations: ['servicePackage', 'tasks'],
-    });
+    const booking = await this.clientPortalService.getBooking(
+      id,
+      client.id,
+      client.tenantId,
+    );
 
     if (!booking) {
       throw new UnauthorizedException('Booking not found');
@@ -137,11 +130,9 @@ export class ClientPortalController {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    return {
-      id: client.id,
-      name: client.name,
-      email: client.email,
-      phone: client.phone,
-    };
+    return this.clientPortalService.getClientProfile(
+      client.id,
+      client.tenantId,
+    );
   }
 }

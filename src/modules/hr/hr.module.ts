@@ -7,6 +7,7 @@ import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
 import { FinanceModule } from '../finance/finance.module';
 import { MailModule } from '../mail/mail.module';
 import { TenantsModule } from '../tenants/tenants.module';
+import { UsersModule } from '../users/users.module';
 import { AttendanceController, HrController } from './controllers';
 import { Attendance, PayrollRun, PerformanceReview, Profile } from './entities';
 import { AttendanceService } from './services/attendance.service';
@@ -26,6 +27,7 @@ import { PayrollService } from './services/payroll.service';
     FinanceModule,
     MailModule,
     TenantsModule,
+    UsersModule,
   ],
   controllers: [HrController, AttendanceController],
   providers: [

@@ -11,7 +11,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
-import { Profile } from '../../hr/entities/profile.entity';
 import { Task } from '../../tasks/entities/task.entity';
 import { Role } from '../enums/role.enum';
 
@@ -69,9 +68,6 @@ export class User {
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
-
-  @OneToOne(() => Profile, (profile) => profile.user)
-  profile: Profile;
 
   @OneToOne(() => EmployeeWallet, (wallet) => wallet.user)
   wallet: EmployeeWallet;

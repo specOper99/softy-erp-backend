@@ -1,22 +1,15 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { ClientPortalController } from './client-portal.controller';
 import { ClientAuthService } from './services/client-auth.service';
+import { ClientPortalService } from './services/client-portal.service';
 
 describe('ClientPortalController', () => {
   let controller: ClientPortalController;
   let clientAuthService: jest.Mocked<ClientAuthService>;
-  let bookingRepository: {
-    find: jest.Mock;
-    findOne: jest.Mock;
-  };
-  let clientRepository: {
-    find: jest.Mock;
-    findOne: jest.Mock;
-  };
+  let clientPortalService: jest.Mocked<ClientPortalService>;
 
   const mockClient: Partial<Client> = {
     id: 'client-1',
@@ -41,27 +34,23 @@ describe('ClientPortalController', () => {
       validateClientToken: jest.fn(),
     };
 
-    bookingRepository = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-    };
-
-    clientRepository = {
-      find: jest.fn(),
-      findOne: jest.fn(),
+    const mockClientPortalService = {
+      getMyBookings: jest.fn(),
+      getBooking: jest.fn(),
+      getClientProfile: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ClientPortalController],
       providers: [
         { provide: ClientAuthService, useValue: mockClientAuthService },
-        { provide: getRepositoryToken(Booking), useValue: bookingRepository },
-        { provide: getRepositoryToken(Client), useValue: clientRepository },
+        { provide: ClientPortalService, useValue: mockClientPortalService },
       ],
     }).compile();
 
     controller = module.get<ClientPortalController>(ClientPortalController);
     clientAuthService = module.get(ClientAuthService);
+    clientPortalService = module.get(ClientPortalService);
   });
 
   it('should be defined', () => {
@@ -127,7 +116,9 @@ describe('ClientPortalController', () => {
       clientAuthService.validateClientToken.mockResolvedValue(
         mockClient as Client,
       );
-      bookingRepository.find.mockResolvedValue([mockBooking]);
+      clientPortalService.getMyBookings.mockResolvedValue([
+        mockBooking as Booking,
+      ]);
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
@@ -138,11 +129,10 @@ describe('ClientPortalController', () => {
       expect(clientAuthService.validateClientToken).toHaveBeenCalledWith(
         'access-token-123',
       );
-      expect(bookingRepository.find).toHaveBeenCalledWith({
-        where: { clientId: 'client-1', tenantId: 'tenant-1' },
-        relations: ['servicePackage'],
-        order: { eventDate: 'DESC' },
-      });
+      expect(clientPortalService.getMyBookings).toHaveBeenCalledWith(
+        'client-1',
+        'tenant-1',
+      );
       expect(result).toEqual([mockBooking]);
     });
 
@@ -164,7 +154,7 @@ describe('ClientPortalController', () => {
       clientAuthService.validateClientToken.mockResolvedValue(
         mockClient as Client,
       );
-      bookingRepository.findOne.mockResolvedValue(mockBooking);
+      clientPortalService.getBooking.mockResolvedValue(mockBooking as Booking);
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
@@ -172,10 +162,11 @@ describe('ClientPortalController', () => {
 
       const result = await controller.getBooking('booking-1', req);
 
-      expect(bookingRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'booking-1', clientId: 'client-1', tenantId: 'tenant-1' },
-        relations: ['servicePackage', 'tasks'],
-      });
+      expect(clientPortalService.getBooking).toHaveBeenCalledWith(
+        'booking-1',
+        'client-1',
+        'tenant-1',
+      );
       expect(result).toEqual(mockBooking);
     });
 
@@ -190,21 +181,6 @@ describe('ClientPortalController', () => {
         UnauthorizedException,
       );
     });
-
-    it('should throw UnauthorizedException when booking not found', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(
-        mockClient as Client,
-      );
-      bookingRepository.findOne.mockResolvedValue(null);
-
-      const req = {
-        headers: { 'x-client-token': 'access-token-123' },
-      } as any;
-
-      await expect(controller.getBooking('nonexistent', req)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
   });
 
   describe('getProfile', () => {
@@ -212,6 +188,12 @@ describe('ClientPortalController', () => {
       clientAuthService.validateClientToken.mockResolvedValue(
         mockClient as Client,
       );
+      clientPortalService.getClientProfile.mockResolvedValue({
+        id: 'client-1',
+        name: 'Test Client',
+        email: 'test@example.com',
+        phone: '123-456-7890',
+      });
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
@@ -219,6 +201,10 @@ describe('ClientPortalController', () => {
 
       const result = await controller.getProfile(req);
 
+      expect(clientPortalService.getClientProfile).toHaveBeenCalledWith(
+        'client-1',
+        'tenant-1',
+      );
       expect(result).toEqual({
         id: 'client-1',
         name: 'Test Client',

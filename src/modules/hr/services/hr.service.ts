@@ -13,6 +13,7 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { AuditService } from '../../audit/audit.service';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
+import { UsersService } from '../../users/services/users.service';
 import { CreateProfileDto, UpdateProfileDto } from '../dto';
 import { Profile } from '../entities';
 
@@ -28,6 +29,7 @@ export class HrService {
     private readonly walletService: WalletService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
+    private readonly usersService: UsersService,
   ) {}
 
   // Profile Methods
@@ -40,10 +42,8 @@ export class HrService {
 
     try {
       // Step 1: Validate user belongs to the same tenant
-      const user = await queryRunner.manager.findOne('User', {
-        where: { id: dto.userId, tenantId },
-      });
-      if (!user) {
+      const user = await this.usersService.findOne(dto.userId);
+      if (user.tenantId !== tenantId) {
         throw new BadRequestException('hr.user_not_found_in_tenant');
       }
 
@@ -98,12 +98,20 @@ export class HrService {
     query: PaginationDto = new PaginationDto(),
   ): Promise<Profile[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    return this.profileRepository.find({
+    const profiles = await this.profileRepository.find({
       where: { tenantId },
-      relations: ['user'],
       skip: query.getSkip(),
       take: query.getTake(),
     });
+
+    const userIds = profiles.map((p) => p.userId);
+    const users = await this.usersService.findMany(userIds);
+
+    profiles.forEach((profile) => {
+      profile.user = users.find((u) => u.id === profile.userId)!;
+    });
+
+    return profiles;
   }
 
   async findAllProfilesCursor(
@@ -114,8 +122,7 @@ export class HrService {
 
     const qb = this.profileRepository.createQueryBuilder('profile');
 
-    qb.leftJoinAndSelect('profile.user', 'user')
-      .where('profile.tenantId = :tenantId', { tenantId })
+    qb.where('profile.tenantId = :tenantId', { tenantId })
       .orderBy('profile.createdAt', 'DESC')
       .addOrderBy('profile.id', 'DESC')
       .take(limit + 1);
@@ -132,6 +139,14 @@ export class HrService {
     }
 
     const profiles = await qb.getMany();
+
+    const userIds = profiles.map((p) => p.userId);
+    const users = await this.usersService.findMany(userIds);
+
+    profiles.forEach((profile) => {
+      profile.user = users.find((u) => u.id === profile.userId)!;
+    });
+
     let nextCursor: string | null = null;
 
     if (profiles.length > limit) {
@@ -148,20 +163,27 @@ export class HrService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const profile = await this.profileRepository.findOne({
       where: { id, tenantId },
-      relations: ['user'],
     });
     if (!profile) {
       throw new NotFoundException('hr.profile_not_found');
     }
+    const user = await this.usersService.findOne(profile.userId);
+    profile.user = user;
     return profile;
   }
 
   async findProfileByUserId(userId: string): Promise<Profile | null> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    return this.profileRepository.findOne({
+    const profile = await this.profileRepository.findOne({
       where: { userId, tenantId },
-      relations: ['user'],
     });
+
+    if (profile) {
+      const user = await this.usersService.findOne(userId);
+      profile.user = user;
+    }
+
+    return profile;
   }
 
   async updateProfile(id: string, dto: UpdateProfileDto): Promise<Profile> {

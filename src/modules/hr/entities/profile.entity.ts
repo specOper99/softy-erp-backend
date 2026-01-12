@@ -1,11 +1,4 @@
-import {
-  Column,
-  DeleteDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  OneToOne,
-} from 'typeorm';
+import { Column, DeleteDateColumn, Entity, Index } from 'typeorm';
 import { PII } from '../../../common/decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { User } from '../../users/entities/user.entity';
@@ -80,7 +73,5 @@ export class Profile extends BaseTenantEntity {
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
 
-  @OneToOne(() => User)
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  user?: User;
 }
