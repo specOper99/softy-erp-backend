@@ -10,6 +10,7 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { UsersModule } from '../users/users.module';
 import { AttendanceController, HrController } from './controllers';
 import { Attendance, PayrollRun, PerformanceReview, Profile } from './entities';
+import { UserDeletedHandler } from './handlers/user-deleted.handler';
 import { AttendanceService } from './services/attendance.service';
 import { HrService } from './services/hr.service';
 import { MockPaymentGatewayService } from './services/payment-gateway.service';
@@ -35,6 +36,7 @@ import { PayrollService } from './services/payroll.service';
     PayrollService,
     MockPaymentGatewayService,
     AttendanceService,
+    UserDeletedHandler,
     {
       provide: TENANT_REPO_ATTENDANCE,
       useFactory: (repo: Repository<Attendance>) =>

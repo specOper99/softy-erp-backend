@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
@@ -13,6 +14,7 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { AuditService } from '../../audit/audit.service';
 import { CreateUserDto, UpdateUserDto } from '../dto';
 import { User } from '../entities/user.entity';
+import { UserDeletedEvent } from '../events/user-deleted.event';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +22,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly auditService: AuditService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -264,6 +267,10 @@ export class UsersService {
     });
 
     await this.userRepository.softRemove(user);
+
+    this.eventBus.publish(
+      new UserDeletedEvent(user.id, user.tenantId, user.email),
+    );
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {

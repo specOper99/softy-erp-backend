@@ -186,6 +186,24 @@ export class HrService {
     return profile;
   }
 
+  async softDeleteProfileByUserId(userId: string): Promise<void> {
+    const tenantId = TenantContextService.getTenantId();
+    // Use findOne without throwing if not found, as this might be called asynchronously
+    const profile = await this.profileRepository.findOne({
+      where: { userId, ...(tenantId ? { tenantId } : {}) },
+    });
+
+    if (profile) {
+      await this.profileRepository.softRemove(profile);
+      await this.auditService.log({
+        action: 'DELETE',
+        entityName: 'Profile',
+        entityId: profile.id,
+        notes: `Profile deleted via UserDeletedEvent for userId ${userId}`,
+      });
+    }
+  }
+
   async updateProfile(id: string, dto: UpdateProfileDto): Promise<Profile> {
     const profile = await this.findProfileById(id);
     const oldValues = {

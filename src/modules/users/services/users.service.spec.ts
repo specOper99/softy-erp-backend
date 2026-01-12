@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -52,6 +53,12 @@ describe('UsersService - Comprehensive Tests', () => {
         UsersService,
         { provide: getRepositoryToken(User), useValue: mockRepository },
         { provide: AuditService, useValue: mockAuditService },
+        {
+          provide: EventBus,
+          useValue: {
+            publish: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -300,9 +307,16 @@ describe('UsersService - Comprehensive Tests', () => {
 
   // ============ DELETE OPERATIONS TESTS ============
   describe('remove', () => {
-    it('should delete existing user', async () => {
+    it('should delete existing user and publish event', async () => {
       await service.remove('test-uuid-123');
       expect(mockRepository.softRemove).toHaveBeenCalled();
+      const eventBus = service['eventBus'] as any;
+      expect(eventBus.publish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'test-uuid-123',
+          email: 'test@example.com',
+        }),
+      );
     });
 
     it('should throw NotFoundException when deleting non-existent user', async () => {
@@ -311,7 +325,6 @@ describe('UsersService - Comprehensive Tests', () => {
       );
     });
   });
-
   // ============ PASSWORD VALIDATION TESTS ============
   describe('validatePassword', () => {
     it('should return true for correct password', async () => {

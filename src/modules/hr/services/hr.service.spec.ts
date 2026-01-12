@@ -65,6 +65,7 @@ describe('HrService - Comprehensive Tests', () => {
     find: jest.fn().mockResolvedValue([mockProfile]),
     findOne: jest.fn(),
     remove: jest.fn().mockResolvedValue(mockProfile),
+    softRemove: jest.fn().mockResolvedValue(mockProfile),
     count: jest.fn().mockResolvedValue(1),
     createQueryBuilder: jest.fn(),
   };
@@ -342,6 +343,32 @@ describe('HrService - Comprehensive Tests', () => {
       await expect(service.deleteProfile('invalid-id')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('softDeleteProfileByUserId', () => {
+    it('should soft remove profile if it exists', async () => {
+      await service.softDeleteProfileByUserId('user-uuid-123');
+      expect(mockProfileRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId: 'user-uuid-123' }),
+        }),
+      );
+      expect(mockProfileRepository.softRemove).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'profile-uuid-123' }),
+      );
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'DELETE',
+          entityName: 'Profile',
+        }),
+      );
+    });
+
+    it('should do nothing if profile does not exist', async () => {
+      mockProfileRepository.findOne.mockReturnValueOnce(null);
+      await service.softDeleteProfileByUserId('non-existent-user');
+      expect(mockProfileRepository.softRemove).not.toHaveBeenCalled();
     });
   });
 });
