@@ -2,6 +2,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Readable } from 'stream';
+import { TEST_SECRETS } from '../../../test/secrets';
 import { StorageService } from './storage.service';
 
 const mockSend = jest.fn();
@@ -28,7 +29,7 @@ describe('StorageService', () => {
     MINIO_BUCKET: 'test-bucket',
     MINIO_REGION: 'us-east-1',
     MINIO_ACCESS_KEY: 'test-access-key',
-    MINIO_SECRET_KEY: 'test-secret-key-placeholder-32-chars',
+    MINIO_SECRET_KEY: TEST_SECRETS.STORAGE_SECRET_KEY,
     MINIO_PUBLIC_URL: 'http://public-url',
   };
 

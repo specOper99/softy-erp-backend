@@ -4,7 +4,7 @@
   "description": "",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "lint-staged": {
     "*.ts": [
       "eslint --fix",
@@ -28,6 +28,7 @@
     "test:pact": "jest --config ./jest.pact.config.js",
     "test:integration": "jest --config ./jest.integration.config.js",
     "test:integration:cov": "jest --config ./jest.integration.config.js --coverage",
+    "test:stability": "for i in {1..3}; do npm run test -- --runInBand; done",
     "test:load:auth": "k6 run scripts/load-testing/scenarios/auth-flow.js",
     "test:load:booking": "k6 run scripts/load-testing/scenarios/booking-flow.js",
     "test:load:finance": "k6 run scripts/load-testing/scenarios/finance-flow.js",

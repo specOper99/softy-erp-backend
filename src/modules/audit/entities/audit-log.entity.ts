@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import {
   Column,
   CreateDateColumn,
@@ -5,7 +6,6 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { createHash } from 'crypto';
 
 @Entity('audit_logs')
 export class AuditLog {
@@ -71,6 +71,10 @@ export class AuditLog {
   createdAt: Date;
 
   calculateHash(): string {
+    const payload = JSON.stringify({
+      oldValues: this.oldValues ?? {},
+      newValues: this.newValues ?? {},
+    });
     const data = [
       this.createdAt?.toISOString() ?? '',
       this.action ?? '',
@@ -80,6 +84,7 @@ export class AuditLog {
       this.tenantId ?? '',
       this.previousHash ?? '',
       this.sequenceNumber?.toString() ?? '',
+      payload,
     ].join('|');
 
     return createHash('sha256').update(data).digest('hex');

@@ -1,4 +1,5 @@
 import vault from 'node-vault';
+import { TEST_SECRETS } from '../../test/secrets';
 import { vaultLoader } from './vault.loader';
 
 // Mock node-vault factory function
@@ -48,7 +49,7 @@ describe('vaultLoader', () => {
   it('should fetch secrets with token auth', async () => {
     process.env.VAULT_ENABLED = 'true';
     process.env.VAULT_ADDR = 'http://localhost:8200';
-    process.env.VAULT_TOKEN = 'root';
+    process.env.VAULT_TOKEN = TEST_SECRETS.VAULT_TOKEN;
     process.env.VAULT_SECRET_PATH = 'secret/data/app';
 
     mockClient.read.mockResolvedValue({
@@ -62,7 +63,7 @@ describe('vaultLoader', () => {
     expect(vault).toHaveBeenCalledWith({
       apiVersion: 'v1',
       endpoint: 'http://localhost:8200',
-      token: 'root',
+      token: TEST_SECRETS.VAULT_TOKEN,
     });
     expect(mockClient.read).toHaveBeenCalledWith('secret/data/app');
     expect(result).toEqual({ SECRET_KEY: 'abc' });

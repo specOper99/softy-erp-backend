@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
@@ -90,7 +90,7 @@ export class DashboardService {
     nocache = false,
   ): Promise<DashboardKpiDto> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('common.tenant_missing');
+    if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
     const startDateStr = start.toISOString().split('T')[0];
@@ -156,7 +156,7 @@ export class DashboardService {
     query: ReportQueryDto = {},
   ): Promise<BookingTrendDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('common.tenant_missing');
+    if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -199,7 +199,7 @@ export class DashboardService {
 
   async getRevenueStats(query: ReportQueryDto = {}): Promise<RevenueStatsDto> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('common.tenant_missing');
+    if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -243,7 +243,7 @@ export class DashboardService {
     query: ReportQueryDto = {},
   ): Promise<RevenueSummaryDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('common.tenant_missing');
+    if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -278,7 +278,7 @@ export class DashboardService {
     query: ReportQueryDto = {},
   ): Promise<StaffPerformanceDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('common.tenant_missing');
+    if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 
@@ -312,7 +312,7 @@ export class DashboardService {
     query: ReportQueryDto = {},
   ): Promise<PackageStatsDto[]> {
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new Error('common.tenant_missing');
+    if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
 

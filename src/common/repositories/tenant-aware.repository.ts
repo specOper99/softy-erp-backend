@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import {
   DeepPartial,
   DeleteResult,
@@ -23,9 +27,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
    */
   protected get repository(): Repository<T> {
     if (!this.baseRepository) {
-      throw new Error(
-        'Repository not provided; subclass must implement protected getter `repository`',
-      );
+      throw new InternalServerErrorException('common.repository_not_provided');
     }
     return this.baseRepository;
   }
@@ -34,9 +36,9 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     return TenantContextService.getTenantIdOrThrow();
   }
 
-  private applyTenantScope(
-    options: FindManyOptions<T> | FindOneOptions<T>,
-  ): any {
+  private applyTenantScope<O extends FindManyOptions<T> | FindOneOptions<T>>(
+    options: O,
+  ): O {
     const tenantId = this.getTenantId();
     const where = options.where || {};
 
@@ -44,13 +46,13 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
       return {
         ...options,
         where: where.map((w) => ({ ...w, tenantId })),
-      };
+      } as O;
     }
 
     return {
       ...options,
       where: { ...where, tenantId },
-    };
+    } as O;
   }
 
   create(entityLike: DeepPartial<T>): T {
@@ -67,9 +69,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
       entity.tenantId = this.getTenantId();
     } else if (entity.tenantId !== this.getTenantId()) {
       // Prevent cross-tenant save attempts if someone tries to be sneaky
-      throw new Error(
-        `Security Error: Attempted to save entity for tenant ${entity.tenantId} from context ${this.getTenantId()}`,
-      );
+      throw new ForbiddenException('common.cross_tenant_save_attempt');
     }
     return this.repository.save(entity, options);
   }

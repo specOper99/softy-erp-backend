@@ -13,10 +13,7 @@ import { AuditService } from '../../audit/audit.service';
 import { CreateClientDto, UpdateClientDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
 import { Client } from '../entities/client.entity';
-import type {
-  ClientExportRow,
-  StreamableResponse,
-} from '../types/export.types';
+import type { StreamableResponse } from '../types/export.types';
 
 /**
  * Service for managing clients.
@@ -133,8 +130,8 @@ export class ClientsService {
   async exportToCSV(res: StreamableResponse): Promise<void> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    // Get clients with booking count
-    const clientsWithCount = await this.clientRepository
+    // Stream clients with booking count
+    const stream = await this.clientRepository
       .createQueryBuilder('client')
       .leftJoin('client.bookings', 'booking')
       .where('client.tenantId = :tenantId', { tenantId })
@@ -149,17 +146,7 @@ export class ClientsService {
       .addSelect('COUNT(booking.id)', 'bookingCount')
       .groupBy('client.id')
       .orderBy('client.createdAt', 'DESC')
-      .getRawMany<ClientExportRow>();
-
-    const csvData = clientsWithCount.map((c: ClientExportRow) => ({
-      id: c.client_id,
-      name: c.client_name,
-      email: c.client_email || '',
-      phone: c.client_phone || '',
-      notes: c.client_notes || '',
-      bookingCount: Number(c.bookingCount) || 0,
-      createdAt: c.client_createdAt,
-    }));
+      .stream();
 
     const fields = [
       'id',
@@ -171,11 +158,31 @@ export class ClientsService {
       'createdAt',
     ];
 
-    this.exportService.streamCSV(
+    // Type for raw stream row from QueryBuilder
+    interface ClientExportRow {
+      client_id: string;
+      client_name: string;
+      client_email: string | null;
+      client_phone: string | null;
+      client_notes: string | null;
+      client_createdAt: Date;
+      bookingCount: string;
+    }
+
+    this.exportService.streamFromStream(
       res,
-      csvData,
+      stream,
       `clients-export-${new Date().toISOString().split('T')[0]}.csv`,
       fields,
+      (row: ClientExportRow) => ({
+        id: row.client_id,
+        name: row.client_name,
+        email: row.client_email || '',
+        phone: row.client_phone || '',
+        notes: row.client_notes || '',
+        bookingCount: Number(row.bookingCount) || 0,
+        createdAt: row.client_createdAt,
+      }),
     );
   }
 }

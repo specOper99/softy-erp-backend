@@ -21,6 +21,20 @@ import { TransactionType } from '../enums/transaction-type.enum';
 import { CurrencyService } from './currency.service';
 import { FinancialReportService } from './financial-report.service';
 
+// Minimal interface describing the subset of WalletService used by FinanceService.
+export type WalletServiceLike = {
+  subtractPendingCommission(
+    manager: EntityManager,
+    userId: string,
+    amount: number,
+  ): Promise<unknown>;
+  addPendingCommission(
+    manager: EntityManager,
+    userId: string,
+    amount: number,
+  ): Promise<unknown>;
+};
+
 @Injectable()
 export class FinanceService {
   constructor(
@@ -143,6 +157,58 @@ export class FinanceService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const transaction = manager.create(Transaction, { ...data, tenantId });
     return manager.save(transaction);
+  }
+
+  /**
+   * Transfers pending commission between users with deadlock prevention.
+   */
+  async transferPendingCommission(
+    manager: EntityManager,
+    oldUserId: string | null,
+    newUserId: string | undefined,
+    commissionAmount: number,
+    walletService: WalletServiceLike, // Avoiding circular dependency by passing service or using moduleRef. Ideally WalletService should be injected but let's see current deps.
+  ): Promise<void> {
+    if (commissionAmount <= 0) return;
+
+    // Fix: Deadlock Prevention.
+    // We must acquire locks on the wallets in a deterministic order.
+    // We'll create a list of updates to perform, sort them by userId, and execute.
+
+    interface WalletUpdate {
+      userId: string;
+      action: 'subtract' | 'add';
+    }
+
+    const updates: WalletUpdate[] = [];
+
+    if (oldUserId && oldUserId !== newUserId) {
+      updates.push({ userId: oldUserId, action: 'subtract' });
+    }
+
+    if (newUserId) {
+      updates.push({ userId: newUserId, action: 'add' });
+    }
+
+    // Sort by userId to ensure deterministic locking order
+    updates.sort((a, b) => a.userId.localeCompare(b.userId));
+
+    // Execute updates in order
+    for (const update of updates) {
+      if (update.action === 'subtract') {
+        await walletService.subtractPendingCommission(
+          manager,
+          update.userId,
+          commissionAmount,
+        );
+      } else {
+        await walletService.addPendingCommission(
+          manager,
+          update.userId,
+          commissionAmount,
+        );
+      }
+    }
   }
 
   async findAllTransactions(

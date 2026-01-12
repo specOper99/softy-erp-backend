@@ -1,10 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { TENANT_REPO_CLIENT } from '../../common/constants/tenant-repo.tokens';
+import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { MailModule } from '../mail/mail.module';
+import { MetricsModule } from '../metrics/metrics.module';
 import { ClientPortalController } from './client-portal.controller';
 import { ClientAuthService } from './services/client-auth.service';
 
@@ -12,6 +16,7 @@ import { ClientAuthService } from './services/client-auth.service';
   imports: [
     TypeOrmModule.forFeature([Client, Booking]),
     MailModule,
+    MetricsModule,
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -28,7 +33,14 @@ import { ClientAuthService } from './services/client-auth.service';
     }),
   ],
   controllers: [ClientPortalController],
-  providers: [ClientAuthService],
+  providers: [
+    ClientAuthService,
+    {
+      provide: TENANT_REPO_CLIENT,
+      useFactory: (repo: Repository<Client>) => new TenantAwareRepository(repo),
+      inject: [getRepositoryToken(Client)],
+    },
+  ],
   exports: [ClientAuthService],
 })
 export class ClientPortalModule {}

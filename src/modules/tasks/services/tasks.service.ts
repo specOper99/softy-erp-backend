@@ -11,7 +11,6 @@ import type { Response } from 'express';
 import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { AuditService } from '../../audit/audit.service';
@@ -25,6 +24,7 @@ import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
+import { TasksExportService } from './tasks-export.service';
 
 @Injectable()
 export class TasksService {
@@ -38,7 +38,7 @@ export class TasksService {
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
-    private readonly exportService: ExportService,
+    private readonly tasksExportService: TasksExportService,
   ) {}
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<Task[]> {
@@ -109,62 +109,7 @@ export class TasksService {
   }
 
   async exportToCSV(res: Response): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
-
-    const queryStream = await this.taskRepository
-      .createQueryBuilder('task')
-      .leftJoinAndSelect('task.booking', 'booking')
-      .leftJoinAndSelect('booking.client', 'client')
-      .leftJoinAndSelect('task.taskType', 'taskType')
-      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
-      .where('task.tenantId = :tenantId', { tenantId })
-      .orderBy('task.createdAt', 'DESC')
-      .stream();
-
-    const fields = [
-      'id',
-      'status',
-      'dueDate',
-      'bookingId',
-      'clientName',
-      'taskType',
-      'assignedUser',
-      'commissionSnapshot',
-      'notes',
-      'completedAt',
-      'createdAt',
-    ];
-
-    const transformFn = (row: unknown) => {
-      const r = row as Record<string, unknown>;
-      return {
-        id: r.task_id,
-        status: r.task_status,
-        dueDate: r.task_dueDate
-          ? new Date(r.task_dueDate as string).toISOString()
-          : '',
-        bookingId: r.task_bookingId || '',
-        clientName: r.client_name || '',
-        taskType: r.taskType_name || '',
-        assignedUser: r.assignedUser_email || '',
-        commissionSnapshot: r.task_commissionSnapshot || 0,
-        notes: r.task_notes || '',
-        completedAt: r.task_completedAt
-          ? new Date(r.task_completedAt as string).toISOString()
-          : '',
-        createdAt: r.task_createdAt
-          ? new Date(r.task_createdAt as string).toISOString()
-          : '',
-      };
-    };
-
-    this.exportService.streamFromStream(
-      res,
-      queryStream,
-      `tasks-export-${new Date().toISOString().split('T')[0]}.csv`,
-      fields,
-      transformFn,
-    );
+    return this.tasksExportService.exportToCSV(res);
   }
 
   async update(id: string, dto: UpdateTaskDto): Promise<Task> {
@@ -192,6 +137,12 @@ export class TasksService {
       task.dueDate = new Date(dto.dueDate);
     }
 
+    // Guard against unauthorized status changes
+    if ('status' in dto) {
+      throw new BadRequestException(
+        'Status updates must use dedicated endpoints (start/complete)',
+      );
+    }
     Object.assign(task, {
       ...dto,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : task.dueDate,
@@ -247,11 +198,12 @@ export class TasksService {
 
       // Step 5: Handle commission transfers
       const commissionAmount = Number(task.commissionSnapshot) || 0;
-      await this.handleCommissionTransfer(
+      await this.financeService.transferPendingCommission(
         queryRunner.manager,
         oldUserId,
         dto.userId,
         commissionAmount,
+        this.walletService,
       );
 
       // Step 6: Audit Log
@@ -308,54 +260,6 @@ export class TasksService {
       throw new BadRequestException('User not found in tenant');
     }
     return user;
-  }
-
-  private async handleCommissionTransfer(
-    manager: import('typeorm').EntityManager,
-    oldUserId: string | null,
-    newUserId: string | undefined,
-    commissionAmount: number,
-  ): Promise<void> {
-    if (commissionAmount <= 0) return;
-
-    // Fix: Deadlock Prevention.
-    // We must acquire locks on the wallets in a deterministic order.
-    // We'll create a list of updates to perform, sort them by userId, and execute.
-
-    interface WalletUpdate {
-      userId: string;
-      action: 'subtract' | 'add';
-    }
-
-    const updates: WalletUpdate[] = [];
-
-    if (oldUserId && oldUserId !== newUserId) {
-      updates.push({ userId: oldUserId, action: 'subtract' });
-    }
-
-    if (newUserId) {
-      updates.push({ userId: newUserId, action: 'add' });
-    }
-
-    // Sort by userId to ensure deterministic locking order
-    updates.sort((a, b) => a.userId.localeCompare(b.userId));
-
-    // Execute updates in order
-    for (const update of updates) {
-      if (update.action === 'subtract') {
-        await this.walletService.subtractPendingCommission(
-          manager,
-          update.userId,
-          commissionAmount,
-        );
-      } else {
-        await this.walletService.addPendingCommission(
-          manager,
-          update.userId,
-          commissionAmount,
-        );
-      }
-    }
   }
 
   private async logTaskAssignment(

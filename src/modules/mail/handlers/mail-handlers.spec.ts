@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockMailService } from '../../../../test/helpers/mock-factories';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { TaskAssignedEvent } from '../../tasks/events/task-assigned.event';
 import { MailService } from '../mail.service';
@@ -11,10 +12,8 @@ describe('Mail Handlers', () => {
   let bookingConfirmedHandler: BookingConfirmedMailHandler;
   let taskAssignedHandler: TaskAssignedHandler;
 
-  const mockMailService = {
-    sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
-    sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
-  };
+  // Use centralized mock factory
+  const mockMailService = createMockMailService();
 
   beforeAll(() => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});

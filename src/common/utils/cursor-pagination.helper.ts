@@ -60,10 +60,11 @@ export class CursorPaginationHelper {
 
   static async paginateWithCustomDateField<
     T extends ObjectLiteral & { id: string },
+    K extends keyof T = keyof T,
   >(
     qb: SelectQueryBuilder<T>,
     options: CursorPaginationOptions<T>,
-    dateField: string = 'createdAt',
+    dateField: K,
   ): Promise<CursorPaginationResult<T>> {
     const { cursor, limit = 20, alias, filters } = options;
 
@@ -71,7 +72,10 @@ export class CursorPaginationHelper {
       filters(qb);
     }
 
-    qb.orderBy(`${alias}.${dateField}`, 'DESC')
+    // Cast to string for TypeORM builder methods which expect string paths
+    const dateFieldStr = String(dateField);
+
+    qb.orderBy(`${alias}.${dateFieldStr}`, 'DESC')
       .addOrderBy(`${alias}.id`, 'DESC')
       .take(limit + 1);
 
@@ -79,7 +83,7 @@ export class CursorPaginationHelper {
       const { date, id } = decodeCursor(cursor);
 
       qb.andWhere(
-        `(${alias}.${dateField} < :date OR (${alias}.${dateField} = :date AND ${alias}.id < :id))`,
+        `(${alias}.${dateFieldStr} < :date OR (${alias}.${dateFieldStr} = :date AND ${alias}.id < :id))`,
         { date, id },
       );
     }
@@ -91,8 +95,11 @@ export class CursorPaginationHelper {
     if (items.length > limit) {
       items.pop();
       const lastItem = items[items.length - 1];
-      const dateValue = lastItem[dateField as keyof T];
-      nextCursor = encodeCursor(dateValue as Date, lastItem.id);
+      const dateValue = lastItem[dateField];
+      // Ensure dateValue is treated as Date.
+      // If K points to a non-Date field, this runtime cast is risky but required for the helper's contract.
+      // Ideally T[K] should extend Date, but enforcing that in TypeORM entities is hard.
+      nextCursor = encodeCursor(dateValue as unknown as Date, lastItem.id);
     }
 
     return {

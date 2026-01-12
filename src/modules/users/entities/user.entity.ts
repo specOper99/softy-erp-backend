@@ -41,7 +41,7 @@ export class User {
 
   @Column({
     name: 'mfa_recovery_codes',
-    type: 'simple-array',
+    type: 'json',
     nullable: true,
     select: false,
   })

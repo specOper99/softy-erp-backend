@@ -213,6 +213,13 @@ describe('UsersService - Comprehensive Tests', () => {
       const result = await service.findByEmail('notfound@example.com');
       expect(result).toBeNull();
     });
+
+    it('should filter by tenantId when provided', async () => {
+      await service.findByEmail('test@example.com', 'tenant-123');
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'test@example.com', tenantId: 'tenant-123' },
+      });
+    });
   });
 
   // ============ UPDATE OPERATIONS TESTS ============

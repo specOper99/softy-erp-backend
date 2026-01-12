@@ -2,11 +2,13 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantsService } from '../../tenants/tenants.service';
 import { HrService } from '../services/hr.service';
+import { PayrollService } from '../services/payroll.service';
 import { HrController } from './hr.controller';
 
 describe('HrController', () => {
   let controller: HrController;
   let service: HrService;
+  let payrollService: PayrollService;
 
   const mockProfile = { id: 'uuid', firstName: 'John' };
 
@@ -23,6 +25,11 @@ describe('HrController', () => {
             findProfileByUserId: jest.fn().mockResolvedValue(mockProfile),
             updateProfile: jest.fn().mockResolvedValue(mockProfile),
             deleteProfile: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: PayrollService,
+          useValue: {
             runPayroll: jest.fn().mockResolvedValue({ success: true }),
             getPayrollHistory: jest.fn().mockResolvedValue([]),
           },
@@ -39,6 +46,7 @@ describe('HrController', () => {
 
     controller = module.get<HrController>(HrController);
     service = module.get<HrService>(HrService);
+    payrollService = module.get<PayrollService>(PayrollService);
   });
 
   it('should be defined', () => {
@@ -92,7 +100,7 @@ describe('HrController', () => {
   describe('runPayroll', () => {
     it('should call service.runPayroll', async () => {
       await controller.runPayroll();
-      expect(service.runPayroll).toHaveBeenCalled();
+      expect(payrollService.runPayroll).toHaveBeenCalled();
     });
   });
 });

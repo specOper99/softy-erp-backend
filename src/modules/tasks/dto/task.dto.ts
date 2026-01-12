@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsDateString,
-  IsEnum,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from 'class-validator';
+import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { TaskStatus } from '../enums/task-status.enum';
 
@@ -20,11 +14,6 @@ export class UpdateTaskDto {
   @IsUUID()
   @IsOptional()
   assignedUserId?: string;
-
-  @ApiPropertyOptional({ enum: TaskStatus })
-  @IsEnum(TaskStatus)
-  @IsOptional()
-  status?: TaskStatus;
 
   @ApiPropertyOptional()
   @IsDateString()
@@ -58,12 +47,6 @@ export class TaskResponseDto {
 
   @ApiProperty({ enum: TaskStatus })
   status: TaskStatus;
-
-  @ApiProperty()
-  commissionSnapshot: number;
-
-  @ApiPropertyOptional()
-  dueDate: Date | null;
 
   @ApiPropertyOptional()
   completedAt: Date | null;

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Response } from 'express';
-import { Parser, Transform } from 'json2csv';
+import { Transform } from 'json2csv';
 import { Readable } from 'stream';
 
 @Injectable()
@@ -14,39 +14,6 @@ export class ExportService {
   }
 
   /**
-   * Generates CSV content from data array
-   */
-  generateCSV<T>(data: T[], fields?: string[]): string {
-    if (!data || data.length === 0) {
-      return '';
-    }
-
-    const parser = new Parser({ fields });
-    return parser.parse(data);
-  }
-
-  /**
-   * Legacy method: Streams CSV data as HTTP response from in-memory array
-   * @deprecated Use streamCSVFromStream instead for large datasets
-   */
-  streamCSV<T>(
-    res: Response,
-    data: T[],
-    filename: string,
-    fields?: string[],
-  ): void {
-    const csv = this.generateCSV(data, fields);
-    const sanitizedFilename = this.sanitizeFilename(filename);
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${sanitizedFilename}"`,
-    );
-    res.send(csv);
-  }
-
-  /**
    * Streams CSV data from a Node Readable stream (e.g. TypeORM stream)
    * This is memory-efficient for large exports.
    *
@@ -56,12 +23,12 @@ export class ExportService {
    * @param fields Columns to include in CSV
    * @param transformFn Optional function to map raw row to CSV object
    */
-  streamFromStream(
+  streamFromStream<T = unknown>(
     res: Response,
     dataStream: Readable,
     filename: string,
     fields?: string[],
-    transformFn?: (row: unknown) => unknown,
+    transformFn?: (row: T) => unknown,
   ): void {
     const sanitizedFilename = this.sanitizeFilename(filename);
     res.setHeader('Content-Type', 'text/csv');
@@ -86,7 +53,7 @@ export class ExportService {
 
     if (transformFn) {
       dataStream.on('data', (chunk) => {
-        const transformed = transformFn(chunk);
+        const transformed = transformFn(chunk as T);
         const canContinue = json2csv.write(transformed);
         if (!canContinue) {
           dataStream.pause();

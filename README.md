@@ -44,6 +44,78 @@ npm run start:dev
 - **HR** - Employee profiles and payroll
 - **Media** - File uploads via MinIO/S3
 
+### Database Schema
+
+```mermaid
+erDiagram
+    User ||--o{ Booking : "manages/staffs"
+    User ||--o{ Task : "assigned to"
+    User ||--|| EmployeeWallet : "has"
+    User ||--o| Profile : "has"
+    Client ||--o{ Booking : "requests"
+    Booking ||--o{ Task : "contains"
+    Booking ||--o| Invoice : "generates"
+    Booking ||--o{ Transaction : "related to"
+    Booking }|--|| Package : "includes"
+    Task }|--|| TaskType : "defined by"
+    Invoice ||--o{ Transaction : "paid by"
+    AuditLog }|--|| User : "performed by"
+
+    User {
+        uuid id
+        string email
+        enum role
+        string tenantId
+    }
+    Profile {
+        uuid id
+        string firstName
+        string lastName
+        date hireDate
+    }
+    EmployeeWallet {
+        uuid id
+        decimal pendingBalance
+        decimal payableBalance
+    }
+    Client {
+        uuid id
+        string name
+        string email
+        string tenantId
+    }
+    Booking {
+        uuid id
+        date eventDate
+        enum status
+        string tenantId
+    }
+    Task {
+        uuid id
+        enum status
+        date dueDate
+        string tenantId
+    }
+    Invoice {
+        uuid id
+        decimal amount
+        enum status
+        string tenantId
+    }
+    Transaction {
+        uuid id
+        decimal amount
+        enum type
+        date transactionDate
+    }
+    AuditLog {
+        uuid id
+        string action
+        string entityName
+        string entityId
+    }
+```
+
 ### New Features (v1.1)
 
 - **Client Portal** - Magic link authentication for clients to view bookings and profile
@@ -159,6 +231,29 @@ npm run test:integration:cov
   - Financial transaction rollback scenarios
   - Webhook delivery retry logic with exponential backoff
   - Nested transaction handling
+  - Webhook delivery retry logic with exponential backoff
+
+## 🧪 Testing Guidelines
+
+For a stable and reliable testing environment, please follow these guidelines:
+
+### Running Tests
+- **Isolation**: Run tests in band to prevent race conditions and resource contention:
+  ```bash
+  npm run test -- --runInBand
+  ```
+- **Stability**: Use the stability test script to detect flaky tests:
+  ```bash
+  npm run test:stability
+  ```
+
+### Writing Tests
+- **Secrets**: NEVER hardcode secrets in test files. Use `test/secrets.ts` which provides centralized, overridable constants.
+- **Mocking**:
+  - Always clear mocks in `afterEach`: `jest.clearAllMocks()`.
+  - For tests involving global state or singletons, use `jest.resetModules()` in `beforeEach`.
+- **Database**: Integration tests use `testcontainers`. Ensure Docker is running.
+
 
 ## 🏗 Code Quality & Architecture
 
@@ -170,6 +265,20 @@ npm run test:integration:cov
 - **Type Safety**: Added proper null checks and typed interfaces in CSV transform functions
 - **Performance**: Fixed N+1 queries with eager loading and composite database indexes
 - **Memory Management**: Added stream cleanup (try-finally) in all export methods
+
+### Developer Notes
+
+#### Audit Logging Architecture
+Audit logs are processed asynchronously to prevent performance bottlenecks.
+- **Producer**: `AuditService.log` enqueues jobs to `audit-queue` (Redis/BullMQ).
+- **Consumer**: `AuditProcessor` picks up jobs, fetches the previous log for the tenant, calculates the hash chain, and persists the entry.
+- **Integrity**: Hash chaining includes `oldValues` and `newValues` to detect tampering.
+
+#### MFA Security
+MFA Recovery codes are stored as **bcrypt hashes** (jsonb column) instead of plain text.
+- **Generation**: Codes are generated, hashed, and stored. Plain codes are returned to the user *once*.
+- **Verification**: Codes are verified using `bcrypt.compare`.
+- **Migration**: Existing plain-text codes (if any) are automatically hashed via migration `1681234567892`.
 
 ### Security Best Practices
 

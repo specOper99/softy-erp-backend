@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
 import {
@@ -79,7 +80,7 @@ describe('WebhookService', () => {
     const tenantId = 'tenant-1';
     const config: WebhookConfig = {
       url: 'https://example.com/webhook',
-      secret: 'test-webhook-secret-placeholder-long',
+      secret: TEST_SECRETS.WEBHOOK_SECRET,
       events: ['booking.created'],
     };
 
@@ -145,7 +146,7 @@ describe('WebhookService', () => {
     it('should persist valid HTTPS webhook URL with sufficient secret', async () => {
       const config: WebhookConfig = {
         url: 'https://example.com/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters', // Keeping this explicit for validation test or change to constant if length matches
         events: ['booking.created'],
       };
 
@@ -175,7 +176,7 @@ describe('WebhookService', () => {
     it('should reject invalid URL format', async () => {
       const config: WebhookConfig = {
         url: 'not-a-valid-url',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['booking.created'],
       };
 
@@ -187,7 +188,7 @@ describe('WebhookService', () => {
     it('should reject non-HTTP/HTTPS protocols', async () => {
       const config: WebhookConfig = {
         url: 'ftp://example.com/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['booking.created'],
       };
 
@@ -218,7 +219,7 @@ describe('WebhookService', () => {
     it('should reject localhost URLs (SSRF prevention)', async () => {
       const config: WebhookConfig = {
         url: 'http://localhost:3000/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
@@ -230,7 +231,7 @@ describe('WebhookService', () => {
     it('should reject 127.0.0.1 URLs (SSRF prevention)', async () => {
       const config: WebhookConfig = {
         url: 'http://127.0.0.1:3000/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
@@ -242,7 +243,7 @@ describe('WebhookService', () => {
     it('should reject private IP ranges (10.x.x.x)', async () => {
       const config: WebhookConfig = {
         url: 'http://10.0.0.1/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
@@ -254,7 +255,7 @@ describe('WebhookService', () => {
     it('should reject private IP ranges (192.168.x.x)', async () => {
       const config: WebhookConfig = {
         url: 'http://192.168.1.1/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
@@ -266,7 +267,7 @@ describe('WebhookService', () => {
     it('should reject private IP ranges (172.16-31.x.x)', async () => {
       const config: WebhookConfig = {
         url: 'http://172.16.0.1/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
@@ -282,7 +283,7 @@ describe('WebhookService', () => {
 
       const config: WebhookConfig = {
         url: 'https://internal.example.com/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 

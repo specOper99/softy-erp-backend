@@ -1,30 +1,31 @@
+import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
 
 describe('AuditService', () => {
   let service: AuditService;
-  let repository: Repository<AuditLog>;
-
-  const mockAuditLog = {
-    id: 'log-123',
-    action: 'CREATE',
-    entityName: 'User',
-    entityId: 'user-123',
-    createdAt: new Date(),
-  } as AuditLog;
+  let auditQueue: any; // Mock Queue
 
   const mockRepository = {
-    findOne: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockImplementation((dto) => ({
-      ...dto,
-      calculateHash: jest.fn().mockReturnValue('hash-1'),
-      verifyHash: jest.fn().mockReturnValue(true),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    find: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]), // For completeness
     })),
-    save: jest.fn().mockResolvedValue(mockAuditLog),
+  };
+
+  const mockQueue = {
+    add: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -35,11 +36,15 @@ describe('AuditService', () => {
           provide: getRepositoryToken(AuditLog),
           useValue: mockRepository,
         },
+        {
+          provide: getQueueToken('audit-queue'),
+          useValue: mockQueue,
+        },
       ],
     }).compile();
 
     service = module.get<AuditService>(AuditService);
-    repository = module.get<Repository<AuditLog>>(getRepositoryToken(AuditLog));
+    auditQueue = module.get(getQueueToken('audit-queue'));
   });
 
   it('should be defined', () => {
@@ -59,52 +64,26 @@ describe('AuditService', () => {
       jest
         .spyOn(TenantContextService, 'getTenantId')
         .mockReturnValue(testTenantId);
+      jest.clearAllMocks();
     });
 
     afterEach(() => {
       jest.restoreAllMocks();
     });
 
-    it('should log using the injected repository when no manager provided', async () => {
-      const result = await service.log(logData);
-      expect(repository.create).toHaveBeenCalledWith(
+    it('should enqueue log job to audit queue', async () => {
+      await service.log(logData);
+
+      expect(auditQueue.add).toHaveBeenCalledWith(
+        'log',
         expect.objectContaining({
           ...logData,
           tenantId: testTenantId,
         }),
       );
-      expect(repository.save).toHaveBeenCalled();
-      expect(result).toEqual(mockAuditLog);
     });
 
-    it('should log using the manager repository when manager provided', async () => {
-      const mockManagerRepo = {
-        findOne: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation((dto) => ({
-          ...dto,
-          calculateHash: jest.fn().mockReturnValue('hash-2'),
-          verifyHash: jest.fn().mockReturnValue(true),
-        })),
-        save: jest.fn().mockResolvedValue(mockAuditLog),
-      };
-      const mockManager = {
-        getRepository: jest.fn().mockReturnValue(mockManagerRepo),
-      } as unknown as EntityManager;
-
-      const result = await service.log(logData, mockManager);
-
-      expect(mockManager.getRepository).toHaveBeenCalledWith(AuditLog);
-      expect(mockManagerRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ...logData,
-          tenantId: testTenantId,
-        }),
-      );
-      expect(mockManagerRepo.save).toHaveBeenCalled();
-      expect(result).toEqual(mockAuditLog);
-    });
-
-    it('should sanitize PII in oldValues and newValues', async () => {
+    it('should sanitize PII before enqueueing', async () => {
       const sensitiveData = {
         action: 'UPDATE',
         entityName: 'Client',
@@ -119,7 +98,8 @@ describe('AuditService', () => {
 
       await service.log(sensitiveData);
 
-      expect(repository.create).toHaveBeenCalledWith(
+      expect(auditQueue.add).toHaveBeenCalledWith(
+        'log',
         expect.objectContaining({
           oldValues: { email: '***MASKED***', phone: '***MASKED***' },
           newValues: {
@@ -129,6 +109,12 @@ describe('AuditService', () => {
           },
         }),
       );
+    });
+
+    it('should handle queue errors gracefully', async () => {
+      auditQueue.add.mockRejectedValue(new Error('Queue Error'));
+      // Should not throw
+      await expect(service.log(logData)).resolves.not.toThrow();
     });
   });
 });

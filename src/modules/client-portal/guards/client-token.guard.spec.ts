@@ -41,12 +41,13 @@ describe('ClientTokenGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      expect(() => guard.canActivate(mockContext)).toThrow(
-        UnauthorizedException,
-      );
-      expect(() => guard.canActivate(mockContext)).toThrow(
-        'client-portal.token_required',
-      );
+      try {
+        guard.canActivate(mockContext);
+        fail('Expected UnauthorizedException to be thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(UnauthorizedException);
+        expect((err as Error).message).toBe('client-portal.token_required');
+      }
     });
 
     it('should throw when token is empty string', () => {

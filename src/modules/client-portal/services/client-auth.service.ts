@@ -7,12 +7,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { Cache } from 'cache-manager';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { Counter, register } from 'prom-client';
-import { Repository } from 'typeorm';
+import { Counter } from 'prom-client';
+import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Client } from '../../bookings/entities/client.entity';
 import { MailService } from '../../mail/mail.service';
@@ -28,50 +28,37 @@ export interface ClientTokenPayload {
 export class ClientAuthService {
   private readonly TOKEN_EXPIRY_HOURS = 24;
   private readonly SESSION_EXPIRY_SECONDS: number;
-  private readonly clientRepository: TenantAwareRepository<Client>;
 
   // Metrics
   private readonly magicLinkRequestedCounter: Counter<string>;
   private readonly magicLinkVerifiedCounter: Counter<string>;
 
   constructor(
-    @InjectRepository(Client)
-    baseRepository: Repository<Client>,
+    @Inject(TENANT_REPO_CLIENT)
+    private readonly clientRepository: TenantAwareRepository<Client>,
     private readonly mailService: MailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly metricsFactory: MetricsFactory,
   ) {
-    this.clientRepository = new TenantAwareRepository(baseRepository);
     this.SESSION_EXPIRY_SECONDS = this.configService.get<number>(
       'auth.clientSessionExpires',
       3600, // 1 hour default
     );
 
-    // Initialize Metrics safely (idempotent for tests)
-    this.magicLinkRequestedCounter = this.getOrCreateCounter({
+    // Initialize Metrics via injectable factory (idempotent)
+    this.magicLinkRequestedCounter = this.metricsFactory.getOrCreateCounter({
       name: 'auth_client_magic_link_requested_total',
       help: 'Total number of client magic link requests',
       labelNames: ['tenant_id', 'status'],
     });
 
-    this.magicLinkVerifiedCounter = this.getOrCreateCounter({
+    this.magicLinkVerifiedCounter = this.metricsFactory.getOrCreateCounter({
       name: 'auth_client_magic_link_verified_total',
       help: 'Total number of client magic link verifications',
       labelNames: ['tenant_id', 'status'],
     });
-  }
-
-  private getOrCreateCounter(config: {
-    name: string;
-    help: string;
-    labelNames: string[];
-  }): Counter<string> {
-    const existing = register.getSingleMetric(config.name);
-    if (existing) {
-      return existing as Counter<string>;
-    }
-    return new Counter(config);
   }
 
   /**

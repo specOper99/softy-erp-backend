@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -139,16 +139,27 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string, _tenantId?: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { email } });
+  async findByEmail(email: string, tenantId?: string): Promise<User | null> {
+    const where: FindOptionsWhere<User> = { email };
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
+    return this.userRepository.findOne({ where });
   }
 
-  async findByEmailWithMfaSecret(email: string): Promise<User | null> {
-    return this.userRepository
+  async findByEmailWithMfaSecret(
+    email: string,
+    tenantId?: string,
+  ): Promise<User | null> {
+    const qb = this.userRepository
       .createQueryBuilder('user')
-      .where('user.email = :email', { email })
-      .addSelect('user.mfaSecret')
-      .getOne();
+      .where('user.email = :email', { email });
+
+    if (tenantId) {
+      qb.andWhere('user.tenantId = :tenantId', { tenantId });
+    }
+
+    return qb.addSelect('user.mfaSecret').getOne();
   }
 
   async findByIdWithRecoveryCodes(userId: string): Promise<User | null> {

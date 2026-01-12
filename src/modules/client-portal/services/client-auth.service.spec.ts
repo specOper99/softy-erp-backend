@@ -3,13 +3,15 @@ import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { createHash } from 'node:crypto';
 import { register } from 'prom-client';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { Client } from '../../bookings/entities/client.entity';
 import { MailService } from '../../mail/mail.service';
 import { ClientAuthService } from './client-auth.service';
+
+// Use string literal directly to avoid circular import from client-portal.module
+const TENANT_REPO_CLIENT = 'TENANT_REPO_CLIENT';
 
 describe('ClientAuthService', () => {
   let service: ClientAuthService;
@@ -33,6 +35,8 @@ describe('ClientAuthService', () => {
   const mockClientRepository = {
     findOne: jest.fn(),
     save: jest.fn().mockImplementation((client) => Promise.resolve(client)),
+    create: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockMailService = {
@@ -57,12 +61,29 @@ describe('ClientAuthService', () => {
     get: jest.fn(),
   };
 
+  const mockMetricsFactory = {
+    getOrCreateCounter: jest.fn().mockReturnValue({
+      inc: jest.fn(),
+      labels: jest.fn().mockReturnThis(),
+    }),
+    getOrCreateHistogram: jest.fn().mockReturnValue({
+      observe: jest.fn(),
+      labels: jest.fn().mockReturnThis(),
+    }),
+    getOrCreateGauge: jest.fn().mockReturnValue({
+      set: jest.fn(),
+      inc: jest.fn(),
+      dec: jest.fn(),
+      labels: jest.fn().mockReturnThis(),
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClientAuthService,
         {
-          provide: getRepositoryToken(Client),
+          provide: TENANT_REPO_CLIENT,
           useValue: mockClientRepository,
         },
         {
@@ -81,11 +102,15 @@ describe('ClientAuthService', () => {
           provide: CACHE_MANAGER,
           useValue: mockCacheManager,
         },
+        {
+          provide: MetricsFactory,
+          useValue: mockMetricsFactory,
+        },
       ],
     }).compile();
 
     service = module.get<ClientAuthService>(ClientAuthService);
-    _clientRepository = module.get(getRepositoryToken(Client));
+    _clientRepository = module.get(TENANT_REPO_CLIENT);
     _mailService = module.get(MailService);
     _jwtService = module.get(JwtService);
 
@@ -144,7 +169,6 @@ describe('ClientAuthService', () => {
           accessTokenHash: expect.stringMatching(/^[a-f0-9]{64}$/), // SHA-256 hex
           accessTokenExpiry: expect.any(Date),
         }),
-        undefined,
       );
     });
 
@@ -153,8 +177,9 @@ describe('ClientAuthService', () => {
 
       await service.requestMagicLink('test@example.com');
 
+      // Note: TenantAwareRepository adds tenantId internally, service just passes the where clause
       expect(mockClientRepository.findOne).toHaveBeenCalledWith({
-        where: { email: 'test@example.com', tenantId: mockTenantId },
+        where: { email: 'test@example.com' },
       });
     });
 
@@ -237,7 +262,6 @@ describe('ClientAuthService', () => {
           accessTokenHash: null,
           accessTokenExpiry: null,
         }),
-        undefined,
       );
     });
 
@@ -248,8 +272,9 @@ describe('ClientAuthService', () => {
 
       await expect(service.verifyMagicLink(token)).rejects.toThrow();
 
+      // Note: TenantAwareRepository adds tenantId internally
       expect(mockClientRepository.findOne).toHaveBeenCalledWith({
-        where: { accessTokenHash: tokenHash, tenantId: mockTenantId },
+        where: { accessTokenHash: tokenHash },
       });
     });
   });

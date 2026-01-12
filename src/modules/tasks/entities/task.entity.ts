@@ -17,6 +17,7 @@ import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 @Entity('tasks')
 @Index(['tenantId', 'status', 'dueDate'])
 @Index(['tenantId', 'deletedAt'])
+@Index(['tenantId', 'createdAt']) // Optimize default pagination
 export class Task extends BaseTenantEntity {
   @Index()
   @Column({ name: 'booking_id' })

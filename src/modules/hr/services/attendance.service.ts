@@ -1,11 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { TENANT_REPO_ATTENDANCE } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import {
   CreateAttendanceDto,
@@ -15,14 +15,10 @@ import { Attendance } from '../entities/attendance.entity';
 
 @Injectable()
 export class AttendanceService {
-  private readonly attendanceRepository: TenantAwareRepository<Attendance>;
-
   constructor(
-    @InjectRepository(Attendance)
-    baseRepository: Repository<Attendance>,
-  ) {
-    this.attendanceRepository = new TenantAwareRepository(baseRepository);
-  }
+    @Inject(TENANT_REPO_ATTENDANCE)
+    private readonly attendanceRepository: TenantAwareRepository<Attendance>,
+  ) {}
 
   async create(dto: CreateAttendanceDto): Promise<Attendance> {
     // Tenant context is handled by TenantAwareRepository

@@ -1,5 +1,7 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
 import { EntityManager, Repository } from 'typeorm';
 import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -21,6 +23,7 @@ export class AuditService {
   constructor(
     @InjectRepository(AuditLog)
     private readonly auditRepository: Repository<AuditLog>,
+    @InjectQueue('audit-queue') private readonly auditQueue: Queue,
   ) {}
 
   async log(
@@ -39,41 +42,27 @@ export class AuditService {
       statusCode?: number;
       durationMs?: number;
     },
-    manager?: EntityManager,
-  ): Promise<AuditLog | null> {
+    _manager?: EntityManager,
+  ): Promise<void> {
     try {
-      const repo = manager
-        ? manager.getRepository(AuditLog)
-        : this.auditRepository;
-
       const tenantId = TenantContextService.getTenantId();
 
-      const lastLog = await repo.findOne({
-        where: { tenantId },
-        order: { sequenceNumber: 'DESC' },
-        select: ['hash', 'sequenceNumber'],
-      });
+      // We ignore the manager here as we are moving to async processing
+      // If immediate consistency within transaction was required, this changes semantics,
+      // but Requirement #5 explicitly requested off-loading to remove bottleneck.
 
-      const entry = repo.create({
+      await this.auditQueue.add('log', {
         ...data,
         oldValues: this.sanitize(data.oldValues),
         newValues: this.sanitize(data.newValues),
-        tenantId,
-        previousHash: lastLog?.hash ?? undefined,
-        sequenceNumber: (lastLog?.sequenceNumber ?? 0) + 1,
+        tenantId, // Pass tenantId explicitly as context won't exist in worker
       });
-
-      entry.createdAt = new Date();
-      entry.hash = entry.calculateHash();
-
-      const savedEntry = await repo.save(entry);
-      return savedEntry;
     } catch (error) {
       this.logger.error(
-        `Failed to persist audit log: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to enqueue audit log: ${error instanceof Error ? error.message : String(error)}`,
         { auditData: data },
       );
-      return null;
+      // We do not rethrow to avoid breaking the main flow if audit queue fails
     }
   }
 

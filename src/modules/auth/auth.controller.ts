@@ -11,7 +11,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser } from '../../common/decorators';
@@ -44,6 +50,9 @@ export class AuthController {
   @SkipTenant()
   @Throttle({ default: { limit: 5, ttl: minutes(1) } }) // 5 attempts per minute
   @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({ status: 201, description: 'User successfully registered' })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
   async register(
     @Body() registerDto: RegisterDto,
     @Req() req: Request,
@@ -60,6 +69,9 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: minutes(1) } }) // 5 attempts per minute
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async login(
     @Body() loginDto: LoginDto,
     @Req() req: Request,
@@ -76,6 +88,9 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: minutes(1) } }) // 10 attempts per minute
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiResponse({ status: 200, description: 'Token refresh successful' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refreshTokens(
     @Body() dto: RefreshTokenDto,
     @Req() req: Request,
@@ -248,6 +263,7 @@ export class AuthController {
     description:
       'Sends password reset email if account exists (always returns success)',
   })
+  @ApiBody({ type: ForgotPasswordDto })
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
   ): Promise<{ message: string }> {
@@ -265,6 +281,7 @@ export class AuthController {
     summary: 'Reset password with token',
     description: 'Resets password using token from email',
   })
+  @ApiBody({ type: ResetPasswordDto })
   async resetPassword(
     @Body() dto: ResetPasswordDto,
   ): Promise<{ message: string }> {

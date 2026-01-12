@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  NotFoundException,
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -174,9 +175,7 @@ export class WebhookService {
     const allowlist = new Set(allowlistedIps);
     for (const ip of currentIps) {
       if (!allowlist.has(ip)) {
-        throw new Error(
-          'Webhook delivery blocked: DNS changed (possible rebinding)',
-        );
+        throw new BadRequestException('webhooks.dns_rebinding_blocked');
       }
     }
   }
@@ -282,7 +281,7 @@ export class WebhookService {
           });
 
     if (!fullWebhook) {
-      throw new Error('Webhook not found');
+      throw new NotFoundException('webhooks.not_found');
     }
 
     await this.sendWebhookOnce(fullWebhook, event);
@@ -368,10 +367,8 @@ export class WebhookService {
 
       // SECURITY: Check for redirect responses - these could lead to private IPs
       if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('location');
-        throw new Error(
-          `Webhook delivery blocked: redirect responses are not allowed (${response.status} -> ${location || 'unknown'})`,
-        );
+        const _location = response.headers.get('location');
+        throw new BadRequestException('webhooks.redirect_blocked');
       }
 
       if (!response.ok) {

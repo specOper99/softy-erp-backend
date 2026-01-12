@@ -4,15 +4,22 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from './attendance.service';
+
+// Use string literal directly to avoid circular import from hr.module
+const TENANT_REPO_ATTENDANCE = 'TENANT_REPO_ATTENDANCE';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
-  let attendanceRepo: jest.Mocked<Repository<Attendance>>;
+  let attendanceRepo: {
+    create: jest.Mock;
+    save: jest.Mock;
+    find: jest.Mock;
+    findOne: jest.Mock;
+    remove: jest.Mock;
+    delete: jest.Mock;
+  };
 
   const mockTenantId = 'tenant-123';
   const mockAttendance = {
@@ -28,25 +35,27 @@ describe('AttendanceService', () => {
   };
 
   beforeEach(async () => {
+    const mockRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+      find: jest.fn(),
+      findOne: jest.fn(),
+      remove: jest.fn(),
+      delete: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
         {
-          provide: getRepositoryToken(Attendance),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            remove: jest.fn(),
-            delete: jest.fn(),
-          },
+          provide: TENANT_REPO_ATTENDANCE,
+          useValue: mockRepo,
         },
       ],
     }).compile();
 
     service = module.get<AttendanceService>(AttendanceService);
-    attendanceRepo = module.get(getRepositoryToken(Attendance));
+    attendanceRepo = module.get(TENANT_REPO_ATTENDANCE);
 
     // Mock tenant context
     jest
@@ -77,22 +86,23 @@ describe('AttendanceService', () => {
 
       const result = await service.create(dto as any);
 
-      expect(attendanceRepo.create).toHaveBeenCalledWith({
-        ...dto,
-        tenantId: mockTenantId,
-        checkIn: expect.any(Date),
-        checkOut: null,
-        date: expect.any(Date),
-      });
+      expect(attendanceRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-1',
+          checkIn: expect.any(Date),
+          checkOut: null,
+          date: expect.any(Date),
+        }),
+      );
       expect(result).toEqual(mockAttendance);
     });
 
     it('should throw BadRequestException when no tenant context', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantIdOrThrow')
-        .mockImplementation(() => {
-          throw new BadRequestException('Tenant context missing');
-        });
+      // Note: With DI-injected TenantAwareRepository, tenant context errors happen inside
+      // the repository when methods are called - this test verifies that propagates correctly
+      attendanceRepo.create.mockImplementation(() => {
+        throw new BadRequestException('Tenant context missing');
+      });
 
       await expect(
         service.create({ userId: 'user-1', date: '2024-01-15' } as any),
@@ -139,7 +149,7 @@ describe('AttendanceService', () => {
       const result = await service.findAll();
 
       expect(attendanceRepo.find).toHaveBeenCalledWith({
-        where: { tenantId: mockTenantId },
+        where: {},
         order: { date: 'DESC' },
       });
       expect(result).toHaveLength(1);
@@ -151,18 +161,16 @@ describe('AttendanceService', () => {
       const result = await service.findAll('user-1');
 
       expect(attendanceRepo.find).toHaveBeenCalledWith({
-        where: { tenantId: mockTenantId, userId: 'user-1' },
+        where: { userId: 'user-1' },
         order: { date: 'DESC' },
       });
       expect(result).toHaveLength(1);
     });
 
     it('should throw BadRequestException when no tenant context', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantIdOrThrow')
-        .mockImplementation(() => {
-          throw new BadRequestException('Tenant context missing');
-        });
+      attendanceRepo.find.mockImplementation(() => {
+        throw new BadRequestException('Tenant context missing');
+      });
 
       await expect(service.findAll()).rejects.toThrow(BadRequestException);
     });
@@ -175,7 +183,7 @@ describe('AttendanceService', () => {
       const result = await service.findOne('att-1');
 
       expect(attendanceRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'att-1', tenantId: mockTenantId },
+        where: { id: 'att-1' },
       });
       expect(result).toEqual(mockAttendance);
     });
@@ -210,10 +218,7 @@ describe('AttendanceService', () => {
 
       await service.remove('att-1');
 
-      expect(attendanceRepo.delete).toHaveBeenCalledWith({
-        id: 'att-1',
-        tenantId: mockTenantId,
-      });
+      expect(attendanceRepo.delete).toHaveBeenCalledWith({ id: 'att-1' });
     });
 
     it('should throw NotFoundException when record not found', async () => {

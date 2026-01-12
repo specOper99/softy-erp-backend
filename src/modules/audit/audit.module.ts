@@ -1,3 +1,4 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditController } from './audit.controller';
@@ -6,7 +7,20 @@ import { AuditLog } from './entities/audit-log.entity';
 
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([AuditLog])],
+  imports: [
+    TypeOrmModule.forFeature([AuditLog]),
+    BullModule.registerQueue({
+      name: 'audit-queue',
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: true,
+      },
+    }),
+  ],
   controllers: [AuditController],
   providers: [AuditService],
   exports: [AuditService],

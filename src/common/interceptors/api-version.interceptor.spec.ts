@@ -5,29 +5,28 @@ import { ApiVersionInterceptor } from './api-version.interceptor';
 
 describe('ApiVersionInterceptor', () => {
   let interceptor: ApiVersionInterceptor;
-
-  const mockResponse = {
-    setHeader: jest.fn(),
-  };
-
-  const mockRequest = {
-    url: '/api/v1/test',
-  };
-
-  const mockExecutionContext = {
-    switchToHttp: jest.fn().mockReturnValue({
-      getResponse: () => mockResponse,
-      getRequest: () => mockRequest,
-    }),
-  } as unknown as ExecutionContext;
+  let mockResponse: { setHeader: jest.Mock };
+  let mockRequest: { url: string };
+  let mockExecutionContext: ExecutionContext;
 
   beforeEach(async () => {
+    jest.resetModules(); // Ensure clean module state
+    jest.clearAllMocks();
+
+    mockResponse = { setHeader: jest.fn() };
+    mockRequest = { url: '/api/v1/test' };
+    mockExecutionContext = {
+      switchToHttp: jest.fn().mockReturnValue({
+        getResponse: () => mockResponse,
+        getRequest: () => mockRequest,
+      }),
+    } as unknown as ExecutionContext;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [ApiVersionInterceptor],
     }).compile();
 
     interceptor = module.get<ApiVersionInterceptor>(ApiVersionInterceptor);
-    jest.clearAllMocks();
   });
 
   it('should be defined', () => {

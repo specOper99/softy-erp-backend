@@ -19,10 +19,11 @@ import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenService } from './services/token.service';
 
+import { TEST_SECRETS } from '../../../test/secrets';
+
 // Test password constants
-const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD || 'testpassword123';
-const TEST_WRONG_PASSWORD =
-  process.env.TEST_MOCK_PASSWORD_WRONG || 'wrongpassword';
+const TEST_PASSWORD = TEST_SECRETS.PASSWORD;
+const TEST_WRONG_PASSWORD = TEST_SECRETS.WRONG_PASSWORD;
 
 describe('AuthService - Comprehensive Tests', () => {
   let service: AuthService;

@@ -7,7 +7,6 @@ import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -18,6 +17,7 @@ import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
+import { TasksExportService } from './tasks-export.service';
 import { TasksService } from './tasks.service';
 
 describe('TasksService - Comprehensive Tests', () => {
@@ -59,7 +59,9 @@ describe('TasksService - Comprehensive Tests', () => {
     })),
   };
 
-  const mockFinanceService = {};
+  const mockFinanceService = {
+    transferPendingCommission: jest.fn().mockResolvedValue(undefined),
+  };
 
   const mockWalletService = {
     moveToPayable: jest.fn().mockResolvedValue({}),
@@ -69,10 +71,6 @@ describe('TasksService - Comprehensive Tests', () => {
 
   const mockEventBus = {
     publish: jest.fn(),
-  };
-
-  const mockExportService = {
-    exportTasks: jest.fn().mockResolvedValue('csv-data'),
   };
 
   const mockAuditService = {
@@ -92,6 +90,10 @@ describe('TasksService - Comprehensive Tests', () => {
     },
   };
 
+  const mockTasksExportService = {
+    exportToCSV: jest.fn(),
+  };
+
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
   };
@@ -106,7 +108,8 @@ describe('TasksService - Comprehensive Tests', () => {
         { provide: EventBus, useValue: mockEventBus },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
-        { provide: ExportService, useValue: mockExportService },
+        { provide: EventBus, useValue: mockEventBus },
+        { provide: TasksExportService, useValue: mockTasksExportService },
       ],
     }).compile();
 
@@ -318,7 +321,7 @@ describe('TasksService - Comprehensive Tests', () => {
         userId: 'new-user-id',
       });
       expect(result.assignedUserId).toBe('new-user-id');
-      expect(mockWalletService.subtractPendingCommission).toHaveBeenCalled();
+      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for non-existent task', async () => {

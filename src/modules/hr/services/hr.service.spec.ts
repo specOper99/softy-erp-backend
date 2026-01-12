@@ -5,14 +5,9 @@ import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
-import { Payout } from '../../finance/entities/payout.entity';
-import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
-import { MailService } from '../../mail/mail.service';
-import { TenantsService } from '../../tenants/tenants.service';
-import { PayrollRun, Profile } from '../entities';
+import { Profile } from '../entities';
 import { HrService } from './hr.service';
-import { MockPaymentGatewayService } from './payment-gateway.service';
 
 describe('HrService - Comprehensive Tests', () => {
   let service: HrService;
@@ -72,22 +67,12 @@ describe('HrService - Comprehensive Tests', () => {
     findOne: jest.fn().mockResolvedValue(mockWallet),
   };
 
-  const mockFinanceService = {
-    createTransactionWithManager: jest
-      .fn()
-      .mockResolvedValue({ id: 'txn-uuid-123' }),
-  };
-
   const mockWalletService = {
     getOrCreateWallet: jest.fn().mockResolvedValue(mockWallet),
     getOrCreateWalletWithManager: jest.fn().mockResolvedValue(mockWallet),
     resetPayableBalance: jest
       .fn()
       .mockResolvedValue({ ...mockWallet, payableBalance: 0 }),
-  };
-
-  const mockMailService = {
-    sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockAuditService = {
@@ -115,51 +100,15 @@ describe('HrService - Comprehensive Tests', () => {
     },
   };
 
-  const mockPayoutRepository = {
-    create: jest
-      .fn()
-      .mockImplementation((data) => ({ id: 'payout-uuid-123', ...data })),
-    save: jest
-      .fn()
-      .mockImplementation((data) =>
-        Promise.resolve({ id: 'payout-uuid-123', ...data }),
-      ),
-    findOne: jest.fn().mockResolvedValue(null), // Default: no pending payout
-  };
-
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
-    query: jest.fn().mockResolvedValue([{ locked: true }]), // Mock advisory lock success
-    getRepository: jest.fn().mockImplementation((entity) => {
-      if (entity === Payout) {
-        return mockPayoutRepository;
-      }
+    getRepository: jest.fn().mockImplementation(() => {
       return {
         create: jest.fn(),
         save: jest.fn(),
         findOne: jest.fn(),
       };
     }),
-  };
-
-  const mockTenantsService = {
-    findAll: jest
-      .fn()
-      .mockResolvedValue([{ id: 'test-tenant-id', slug: 'test-tenant' }]),
-  };
-
-  const mockPayrollRunRepository = {
-    create: jest
-      .fn()
-      .mockImplementation((data) => ({ id: 'run-uuid-123', ...data })),
-    save: jest.fn().mockImplementation((data) => Promise.resolve(data)),
-    find: jest.fn().mockResolvedValue([]),
-  };
-
-  const mockPaymentGatewayService = {
-    triggerPayout: jest
-      .fn()
-      .mockResolvedValue({ success: true, transactionReference: 'REF-123' }),
   };
 
   beforeEach(async () => {
@@ -171,23 +120,12 @@ describe('HrService - Comprehensive Tests', () => {
           useValue: mockProfileRepository,
         },
         {
-          provide: getRepositoryToken(PayrollRun),
-          useValue: mockPayrollRunRepository,
-        },
-        {
           provide: getRepositoryToken(EmployeeWallet),
           useValue: mockWalletRepository,
         },
-        { provide: FinanceService, useValue: mockFinanceService },
         { provide: WalletService, useValue: mockWalletService },
-        { provide: MailService, useValue: mockMailService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
-        { provide: TenantsService, useValue: mockTenantsService },
-        {
-          provide: MockPaymentGatewayService,
-          useValue: mockPaymentGatewayService,
-        },
       ],
     }).compile();
 
@@ -442,6 +380,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
   });
 
+  // ============ DELETE PROFILE TESTS ============
   describe('deleteProfile', () => {
     it('should delete existing profile', async () => {
       await service.deleteProfile('profile-uuid-123');
@@ -452,205 +391,6 @@ describe('HrService - Comprehensive Tests', () => {
       await expect(service.deleteProfile('invalid-id')).rejects.toThrow(
         NotFoundException,
       );
-    });
-  });
-
-  // ============ PAYROLL RUN TESTS ============
-  describe('runPayroll', () => {
-    it('should calculate payroll and create transactions', async () => {
-      const result = await service.runPayroll();
-      expect(mockQueryRunner.startTransaction).toHaveBeenCalled();
-      expect(
-        mockFinanceService.createTransactionWithManager,
-      ).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.objectContaining({
-          type: 'PAYROLL',
-          payoutId: 'payout-uuid-123',
-        }),
-      );
-      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
-
-      // Total = baseSalary (2000) + payableBalance (150) = 2150
-      expect(result.totalPayout).toBe(2150);
-      expect(result.totalEmployees).toBe(1);
-    });
-
-    it('should catch and log email failures during payroll', async () => {
-      mockQueryRunner.manager.find.mockResolvedValue([
-        {
-          ...mockProfile,
-          user: {
-            ...mockProfile.user,
-            email: 'fail@e.com',
-            wallet: { payableBalance: 100 },
-          },
-        },
-      ]);
-      mockFinanceService.createTransactionWithManager.mockResolvedValue({
-        id: 'tx-1',
-      });
-      mockMailService.sendPayrollNotification.mockRejectedValue(
-        new Error('Email fail'),
-      );
-
-      const result = await service.runPayroll();
-      expect(result.totalEmployees).toBe(1);
-    });
-
-    it('should return transaction IDs', async () => {
-      mockQueryRunner.manager.find.mockResolvedValue([mockProfile]);
-      mockFinanceService.createTransactionWithManager.mockResolvedValue({
-        id: 'txn-uuid-123',
-      });
-      const result = await service.runPayroll();
-      expect(result.transactionIds).toContain('txn-uuid-123');
-    });
-
-    it('should reset payable balance after payroll', async () => {
-      await service.runPayroll();
-      expect(mockWalletService.resetPayableBalance).toHaveBeenCalled();
-    });
-
-    it('should skip employees with zero payout', async () => {
-      mockProfileRepository.find.mockResolvedValueOnce([
-        {
-          ...mockProfile,
-          baseSalary: 0,
-          user: { wallet: { payableBalance: 0 } },
-        },
-      ]);
-
-      await service.runPayroll();
-      expect(
-        mockFinanceService.createTransactionWithManager,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('should handle employees without wallets', async () => {
-      mockProfileRepository.find.mockResolvedValueOnce([
-        { ...mockProfile, user: { ...mockProfile.user, wallet: null } },
-      ]);
-      const result = await service.runPayroll();
-      // Should still process with just base salary
-      expect(result.totalPayout).toBe(2000);
-    });
-
-    it('should process multiple employees', async () => {
-      const employee1 = {
-        ...mockProfile,
-        user: { ...mockProfile.user, wallet: { payableBalance: 150 } },
-      };
-      const employee2 = {
-        ...mockProfile,
-        id: 'profile-2',
-        userId: 'user-2',
-        baseSalary: 3000,
-        user: {
-          id: 'user-2',
-          email: 'u2@e.com',
-          wallet: { payableBalance: 100 },
-        },
-      };
-      mockProfileRepository.find.mockResolvedValueOnce([employee1, employee2]);
-      mockProfileRepository.count.mockResolvedValueOnce(2);
-
-      const result = await service.runPayroll();
-      expect(result.totalEmployees).toBe(2);
-      // Employee 1: 2000 + 150 = 2150, Employee 2: 3000 + 100 = 3100, Total = 5250
-      expect(result.totalPayout).toBe(5250);
-    });
-
-    it('should rollback on transaction creation failure and continue', async () => {
-      mockFinanceService.createTransactionWithManager.mockRejectedValueOnce(
-        new Error('Transaction failed'),
-      );
-      // With batch processing, errors are caught per batch and payroll continues
-      const result = await service.runPayroll();
-      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
-      // The batch failed so no employees processed in that batch
-      expect(result.totalEmployees).toBe(0);
-    });
-
-    it('should rollback on wallet reset failure and continue', async () => {
-      mockQueryRunner.manager.find.mockResolvedValueOnce([mockProfile]);
-      mockWalletService.resetPayableBalance.mockRejectedValueOnce(
-        new Error('Wallet reset failed'),
-      );
-      // With batch processing, errors are caught per batch and payroll continues
-      const result = await service.runPayroll();
-      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
-      expect(result.totalEmployees).toBe(0);
-    });
-
-    it('should return correct processed timestamp', async () => {
-      const result = await service.runPayroll();
-      expect(result.processedAt).toBeInstanceOf(Date);
-    });
-
-    it('should handle high salary and commission values', async () => {
-      mockProfileRepository.find.mockResolvedValueOnce([
-        {
-          ...mockProfile,
-          baseSalary: 999999.99,
-          user: { ...mockProfile.user, wallet: { payableBalance: 99999.99 } },
-        },
-      ]);
-
-      const result = await service.runPayroll();
-      expect(result.totalPayout).toBe(1099999.98);
-      expect(mockPayrollRunRepository.save).toHaveBeenCalled();
-    });
-
-    it('should save PayrollRun record on completion', async () => {
-      await service.runPayroll();
-      expect(mockPayrollRunRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: 'COMPLETED',
-          totalEmployees: 1,
-        }),
-      );
-      expect(mockPayrollRunRepository.save).toHaveBeenCalled();
-    });
-  });
-
-  describe('getPayrollHistory', () => {
-    it('should return payroll run history', async () => {
-      const mockRuns = [{ id: 'run-1', totalPayout: 1000 }];
-      mockPayrollRunRepository.find.mockResolvedValueOnce(mockRuns);
-      const result = await service.getPayrollHistory();
-      expect(result).toEqual(mockRuns);
-    });
-  });
-
-  describe('runScheduledPayroll', () => {
-    it('should call runPayroll and log results', async () => {
-      const runPayrollSpy = jest
-        .spyOn(service, 'runPayroll')
-        .mockResolvedValue({
-          totalEmployees: 1,
-          totalPayout: 100,
-          transactionIds: ['tx-1'],
-          processedAt: new Date(),
-        });
-      await service.runScheduledPayroll();
-      expect(runPayrollSpy).toHaveBeenCalled();
-    });
-
-    it('should handle errors in scheduled payroll', async () => {
-      // Mock TenantContextService.run to execute the callback
-      jest
-        .spyOn(TenantContextService, 'run')
-        .mockImplementation((_tenantId, callback) => {
-          callback();
-        });
-      mockTenantsService.findAll.mockResolvedValue([
-        { id: 'tenant-1', slug: 'test' },
-      ]);
-      jest.spyOn(service, 'runPayroll').mockRejectedValue(new Error('Failed'));
-
-      // Should not throw - errors are caught and logged
-      await expect(service.runScheduledPayroll()).resolves.not.toThrow();
     });
   });
 });

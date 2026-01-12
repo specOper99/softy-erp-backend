@@ -20,6 +20,7 @@ import { Client } from './client.entity';
 @Entity('bookings')
 @Index(['tenantId', 'status', 'eventDate'])
 @Index(['tenantId', 'clientId', 'eventDate'])
+@Index(['tenantId', 'createdAt']) // Optimize default pagination
 export class Booking extends BaseTenantEntity {
   @Column({ name: 'client_id' })
   @Index()

@@ -25,6 +25,7 @@ import {
 import { Role } from '../../users/enums/role.enum';
 import { CreateProfileDto, UpdateProfileDto } from '../dto';
 import { HrService } from '../services/hr.service';
+import { PayrollService } from '../services/payroll.service';
 
 @ApiTags('HR')
 @ApiBearerAuth()
@@ -32,7 +33,10 @@ import { HrService } from '../services/hr.service';
 @UseGuards(JwtAuthGuard, RolesGuard, SubscriptionGuard)
 @RequireSubscription(SubscriptionPlan.PRO)
 export class HrController {
-  constructor(private readonly hrService: HrService) {}
+  constructor(
+    private readonly hrService: HrService,
+    private readonly payrollService: PayrollService,
+  ) {}
 
   @Post('profiles')
   @Roles(Role.ADMIN)
@@ -94,13 +98,13 @@ export class HrController {
   @MfaRequired()
   @ApiOperation({ summary: 'Run payroll manually (Admin only)' })
   runPayroll() {
-    return this.hrService.runPayroll();
+    return this.payrollService.runPayroll();
   }
 
   @Get('payroll/history')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get payroll run history (Admin only)' })
   getPayrollHistory(@Query() query: PaginationDto = new PaginationDto()) {
-    return this.hrService.getPayrollHistory(query);
+    return this.payrollService.getPayrollHistory(query);
   }
 }

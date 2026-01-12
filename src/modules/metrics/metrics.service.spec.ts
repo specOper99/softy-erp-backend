@@ -1,12 +1,36 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { MetricsFactory } from '../../common/services/metrics.factory';
 import { MetricsService } from './metrics.service';
 
 describe('MetricsService', () => {
   let service: MetricsService;
 
+  const mockMetricsFactory = {
+    getOrCreateCounter: jest.fn().mockReturnValue({
+      inc: jest.fn(),
+      labels: jest.fn().mockReturnThis(),
+    }),
+    getOrCreateHistogram: jest.fn().mockReturnValue({
+      observe: jest.fn(),
+      labels: jest.fn().mockReturnThis(),
+    }),
+    getOrCreateGauge: jest.fn().mockReturnValue({
+      set: jest.fn(),
+      inc: jest.fn(),
+      dec: jest.fn(),
+      labels: jest.fn().mockReturnThis(),
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MetricsService],
+      providers: [
+        MetricsService,
+        {
+          provide: MetricsFactory,
+          useValue: mockMetricsFactory,
+        },
+      ],
     }).compile();
 
     service = module.get<MetricsService>(MetricsService);

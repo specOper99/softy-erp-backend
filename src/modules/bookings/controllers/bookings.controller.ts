@@ -11,7 +11,13 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -44,6 +50,10 @@ export class BookingsController {
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Create a new booking (DRAFT status)' })
+  @ApiBody({ type: CreateBookingDto })
+  @ApiResponse({ status: 201, description: 'Booking created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   create(@Body() dto: CreateBookingDto) {
     return this.bookingsService.create(dto);
   }
@@ -51,6 +61,7 @@ export class BookingsController {
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get all bookings' })
+  @ApiResponse({ status: 200, description: 'Return all bookings' })
   findAll(@Query() query: BookingFilterDto) {
     return this.bookingsService.findAll(query);
   }
@@ -79,6 +90,9 @@ export class BookingsController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update booking' })
+  @ApiBody({ type: UpdateBookingDto })
+  @ApiResponse({ status: 200, description: 'Booking updated' })
+  @ApiResponse({ status: 404, description: 'Booking not found' })
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBookingDto,
@@ -105,6 +119,8 @@ export class BookingsController {
   @Patch(':id/cancel')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Cancel booking with automatic refund calculation' })
+  @ApiBody({ type: CancelBookingDto })
+  @ApiResponse({ status: 200, description: 'Booking cancelled' })
   cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelBookingDto,
@@ -122,6 +138,8 @@ export class BookingsController {
   @Post(':id/payments')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Record a payment for this booking' })
+  @ApiBody({ type: RecordPaymentDto })
+  @ApiResponse({ status: 201, description: 'Payment recorded' })
   recordPayment(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RecordPaymentDto,
