@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Job } from 'bullmq';
 import { MailService } from '../mail.service';
-import { EmailJobData, EmailProcessor } from './email.processor';
+import { EmailJobData } from '../mail.types';
+import { EmailProcessor } from './email.processor';
 
 describe('EmailProcessor', () => {
   let processor: EmailProcessor;
@@ -49,7 +50,7 @@ describe('EmailProcessor', () => {
             bookingId: 'booking-123',
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await processor.process(job);
 
@@ -70,7 +71,7 @@ describe('EmailProcessor', () => {
             commission: 100,
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await processor.process(job);
 
@@ -91,7 +92,7 @@ describe('EmailProcessor', () => {
             payrollDate: '2025-01-01T00:00:00Z',
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await processor.process(job);
 
@@ -109,7 +110,7 @@ describe('EmailProcessor', () => {
             resetLink: 'https://example.com/reset',
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await processor.process(job);
 
@@ -127,7 +128,7 @@ describe('EmailProcessor', () => {
             verificationLink: 'https://example.com/verify',
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await processor.process(job);
 
@@ -148,7 +149,7 @@ describe('EmailProcessor', () => {
             time: '2025-01-01T12:00:00Z',
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await processor.process(job);
 
@@ -169,7 +170,7 @@ describe('EmailProcessor', () => {
             time: '2025-01-01T12:00:00Z',
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await processor.process(job);
 
@@ -193,7 +194,7 @@ describe('EmailProcessor', () => {
             bookingId: 'booking-456',
           },
         },
-      } as Job<EmailJobData>;
+      } as unknown as Job<EmailJobData>;
 
       await expect(processor.process(job)).rejects.toThrow(
         'Email sending failed',

@@ -1,21 +1,9 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { forwardRef, Inject, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { Webhook } from '../entities/webhook.entity';
-import { WebhookEvent, WebhookService } from '../webhooks.service';
-
-export const WEBHOOK_QUEUE = 'webhook';
-
-export interface WebhookJobData {
-  webhook: {
-    id: string;
-    tenantId: string;
-    url: string;
-    secret: string;
-    events: string[];
-  };
-  event: WebhookEvent;
-}
+import { WebhookService } from '../webhooks.service';
+import { WEBHOOK_QUEUE, WebhookJobData } from '../webhooks.types';
 
 /**
  * Webhook processor for handling background webhook delivery.
@@ -25,10 +13,7 @@ export interface WebhookJobData {
 export class WebhookProcessor extends WorkerHost {
   private readonly logger = new Logger(WebhookProcessor.name);
 
-  constructor(
-    @Inject(forwardRef(() => WebhookService))
-    private readonly webhookService: WebhookService,
-  ) {
+  constructor(private readonly webhookService: WebhookService) {
     super();
   }
 

@@ -1,10 +1,8 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
-  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
@@ -34,7 +32,6 @@ export class BookingWorkflowService {
     private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
-    @Inject(forwardRef(() => DashboardGateway))
     private readonly dashboardGateway: DashboardGateway,
   ) {}
 
@@ -105,7 +102,7 @@ export class BookingWorkflowService {
 
       if (totalTasksCount > maxTasks) {
         throw new BadRequestException(
-          `Cannot confirm booking: total tasks requested (${totalTasksCount}) exceeds the maximum allowed limit of ${maxTasks} per booking.`,
+          `Cannot confirm booking: total tasks requested(${totalTasksCount}) exceeds the maximum allowed limit of ${maxTasks} per booking.`,
         );
       }
 
@@ -135,7 +132,7 @@ export class BookingWorkflowService {
             amount: Number(booking.totalPrice),
             category: 'Booking Payment',
             bookingId: booking.id,
-            description: `Booking confirmed: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name}`,
+            description: `Booking confirmed: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name} `,
             transactionDate: new Date(),
           },
         );
@@ -356,7 +353,7 @@ export class BookingWorkflowService {
       clientId: booking.clientId,
       eventDate: booking.eventDate,
       packageId: booking.packageId,
-      notes: booking.notes ? `[Copy] ${booking.notes}` : '[Copy]',
+      notes: booking.notes ? `[Copy] ${booking.notes} ` : '[Copy]',
       totalPrice: booking.totalPrice,
       status: BookingStatus.DRAFT,
       tenantId,

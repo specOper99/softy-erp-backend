@@ -18,28 +18,12 @@ import { Repository } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
-import { WEBHOOK_QUEUE, WebhookJobData } from './processors/webhook.processor';
-
-export interface WebhookEvent {
-  type:
-    | 'booking.created'
-    | 'booking.confirmed'
-    | 'booking.updated'
-    | 'booking.cancelled'
-    | 'task.created'
-    | 'task.assigned'
-    | 'task.completed'
-    | 'payroll.processed';
-  tenantId: string;
-  payload: Record<string, unknown>;
-  timestamp: string;
-}
-
-export interface WebhookConfig {
-  url: string;
-  secret: string;
-  events: string[];
-}
+import {
+  WEBHOOK_QUEUE,
+  WebhookConfig,
+  WebhookEvent,
+  WebhookJobData,
+} from './webhooks.types';
 
 /**
  * Webhook service for sending event notifications to external systems.

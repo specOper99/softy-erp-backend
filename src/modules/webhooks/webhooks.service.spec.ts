@@ -5,11 +5,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
-import {
-  WebhookConfig,
-  WebhookEvent,
-  WebhookService,
-} from './webhooks.service';
+import { WebhookService } from './webhooks.service';
+import { WebhookConfig, WebhookEvent } from './webhooks.types';
 
 // Mock dns/promises
 jest.mock('node:dns/promises', () => ({
@@ -335,7 +332,7 @@ describe('WebhookService', () => {
       await service.emit(event);
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Webhook request timed out'),
+        expect.stringContaining('request_timeout'),
       );
     });
 

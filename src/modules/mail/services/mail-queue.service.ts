@@ -1,10 +1,11 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { EMAIL_QUEUE, EmailJobData } from '../processors/email.processor';
 import {
   BookingEmailData,
   CancellationEmailData,
+  EMAIL_QUEUE,
+  EmailJobData,
   EmailVerificationEmailData,
   NewDeviceLoginEmailData,
   PasswordResetEmailData,
