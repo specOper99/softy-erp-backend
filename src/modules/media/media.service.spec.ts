@@ -7,6 +7,14 @@ import { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
 import { StorageService } from './storage.service';
 
+jest.mock('../../common/utils/file-type.util', () => ({
+  FileTypeUtil: {
+    validateBuffer: jest
+      .fn()
+      .mockResolvedValue({ mime: 'image/png', ext: 'png' }),
+  },
+}));
+
 describe('MediaService', () => {
   let service: MediaService;
   let attachmentRepository: Repository<Attachment>;
@@ -51,8 +59,8 @@ describe('MediaService', () => {
         {
           provide: StorageService,
           useValue: {
-            generateKey: jest.fn().mockReturnValue('mock-key'),
-            uploadFile: jest.fn().mockResolvedValue({ url: 'http://mock-url' }),
+            generateKey: jest.fn().mockResolvedValue('mock-key'),
+            uploadFile: jest.fn().mockResolvedValue({ url: 'http://mock-url' }), // This line was intended to be replaced, but the provided replacement was syntactically incorrect. Keeping original for valid syntax.
             getPresignedUploadUrl: jest
               .fn()
               .mockResolvedValue('http://presigned-url'),

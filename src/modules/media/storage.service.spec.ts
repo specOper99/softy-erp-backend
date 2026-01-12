@@ -109,8 +109,8 @@ describe('StorageService', () => {
   });
 
   describe('generateKey', () => {
-    it('should generate a unique key', () => {
-      const key = service.generateKey('test file.png');
+    it('should generate a unique key', async () => {
+      const key = await service.generateKey('test file.png');
       expect(key).toMatch(/^uploads\/\d+-[a-z0-9]+-test_file\.png$/);
     });
   });

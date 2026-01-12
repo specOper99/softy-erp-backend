@@ -17,6 +17,7 @@ import { AccountLockoutService } from './services/account-lockout.service';
 import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
+import { TokenBlacklistService } from './services/token-blacklist.service';
 import { TokenService } from './services/token.service';
 
 import { TEST_SECRETS } from '../../../test/secrets';
@@ -228,6 +229,13 @@ describe('AuthService - Comprehensive Tests', () => {
           useValue: {
             forgotPassword: jest.fn().mockResolvedValue(undefined),
             resetPassword: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: TokenBlacklistService,
+          useValue: {
+            blacklistToken: jest.fn().mockResolvedValue(undefined),
+            isBlacklisted: jest.fn().mockResolvedValue(false),
           },
         },
       ],

@@ -110,11 +110,18 @@ export class AuthController {
   async logout(
     @CurrentUser() user: User,
     @Body() dto: LogoutDto,
+    @Req() req: Request,
   ): Promise<void> {
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+    // If we are logging out all sessions, we still blacklist current access token
+    if (accessToken) {
+      await this.authService.logout(user.id, undefined, accessToken);
+    }
+
     if (dto.allSessions) {
       await this.authService.logoutAllSessions(user.id);
     } else {
-      await this.authService.logout(user.id, dto.refreshToken);
+      await this.authService.logout(user.id, dto.refreshToken, accessToken);
     }
   }
 

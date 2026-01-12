@@ -141,12 +141,16 @@ describe('AuthController', () => {
 
   describe('logout', () => {
     it('should call authService.logout', async () => {
-      await controller.logout(mockUser, { refreshToken: 'token' });
-      expect(authService.logout).toHaveBeenCalledWith(mockUser.id, 'token');
+      await controller.logout(mockUser, { refreshToken: 'token' }, mockRequest);
+      expect(authService.logout).toHaveBeenCalledWith(
+        mockUser.id,
+        'token',
+        undefined,
+      );
     });
 
     it('should call authService.logoutAllSessions if allSessions is true', async () => {
-      await controller.logout(mockUser, { allSessions: true });
+      await controller.logout(mockUser, { allSessions: true }, mockRequest);
       expect(authService.logoutAllSessions).toHaveBeenCalledWith(mockUser.id);
     });
 
@@ -155,7 +159,7 @@ describe('AuthController', () => {
         new Error('Logout Failed'),
       );
       await expect(
-        controller.logout(mockUser, { refreshToken: 't' }),
+        controller.logout(mockUser, { refreshToken: 't' }, mockRequest),
       ).rejects.toThrow('Logout Failed');
     });
   });

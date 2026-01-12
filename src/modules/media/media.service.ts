@@ -10,6 +10,7 @@ import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { FileTypeUtil } from '../../common/utils/file-type.util';
 import { Attachment } from './entities/attachment.entity';
 import { StorageService } from './storage.service';
 
@@ -72,8 +73,29 @@ export class MediaService {
     // Validate bookingId/taskId belong to tenant
     await this.validateReferences(tenantId, bookingId, taskId);
 
+    // Security: Validate File Type (Magic Bytes)
+    const typeInfo = await FileTypeUtil.validateBuffer(buffer);
+
+    if (!typeInfo || !StorageService.ALLOWED_MIME_TYPES.has(typeInfo.mime)) {
+      throw new BadRequestException({
+        key: 'media.invalid_file_type',
+        args: { mimeType: typeInfo?.mime || 'unknown' },
+      });
+    }
+
+    if (typeInfo.mime !== mimeType) {
+      this.logger.warn(
+        `MIME mismatch: Claimed ${mimeType}, Detected ${typeInfo.mime}`,
+      );
+      // We can either reject or correct it. For security, rejection is safer if they mismatch significantly.
+      // But some browsers are weird. Let's strictly enforce detected type matches whitelist at least.
+      if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
+        throw new BadRequestException('media.invalid_mime_type');
+      }
+    }
+
     // Generate storage key and upload to MinIO
-    const key = this.storageService.generateKey(originalName);
+    const key = await this.storageService.generateKey(originalName);
     const uploadResult = await this.storageService.uploadFile(
       buffer,
       key,
@@ -125,7 +147,7 @@ export class MediaService {
       });
     }
 
-    const key = this.storageService.generateKey(filename);
+    const key = await this.storageService.generateKey(filename);
     const uploadUrl = await this.storageService.getPresignedUploadUrl(
       key,
       mimeType,

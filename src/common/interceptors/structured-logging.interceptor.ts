@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
 import { TenantContextService } from '../services/tenant-context.service';
+import { LogSanitizer } from '../utils/log-sanitizer.util';
 
 interface LogContext {
   correlationId?: string;
@@ -20,12 +21,14 @@ interface LogContext {
   duration?: number;
   userAgent?: string;
   ip?: string;
+  body?: unknown;
 }
 
 /**
  * Structured JSON logging interceptor.
  * Logs all HTTP requests/responses in JSON format with correlation IDs.
  * Integrates with the CorrelationIdMiddleware for request tracing.
+ * Sanitizes PII from request bodies.
  */
 @Injectable()
 export class StructuredLoggingInterceptor implements NestInterceptor {
@@ -55,6 +58,13 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
       userAgent: request.headers['user-agent'],
       ip: this.getClientIp(request),
     };
+
+    // Log sanitized body for non-GET requests, exclude binary (file uploads)
+    // We assume JSON/Form data. If multipart, body might be complex/large, so explicit checks help.
+    const body = request.body as Record<string, unknown>;
+    if (request.method !== 'GET' && body && Object.keys(body).length > 0) {
+      logContext.body = LogSanitizer.sanitize(body);
+    }
 
     // Extract user ID from JWT if available
     // Safe access to user property which might be added by middleware

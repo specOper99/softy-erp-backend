@@ -17,6 +17,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { Readable } from 'node:stream';
+import { promisify } from 'node:util';
 import * as CircuitBreaker from 'opossum';
 
 export interface UploadedFile {
@@ -110,9 +111,14 @@ export class StorageService implements OnModuleInit {
   /**
    * Generate a unique key for uploaded files
    */
-  generateKey(originalName: string, prefix = 'uploads'): string {
+  async generateKey(originalName: string, prefix = 'uploads'): Promise<string> {
     const timestamp = Date.now();
-    const randomPart = randomBytes(16).toString('hex');
+
+    // Use callback-based randomBytes with promisify to be non-blocking
+    const randomBytesAsync = promisify(randomBytes);
+
+    const buffer = await randomBytesAsync(16);
+    const randomPart = buffer.toString('hex');
     const ext = originalName.split('.').pop() || '';
     const sanitizedName = originalName
       .replace(/\.[^/.]+$/, '') // Remove extension

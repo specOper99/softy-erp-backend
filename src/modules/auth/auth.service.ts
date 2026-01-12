@@ -28,6 +28,7 @@ import { AccountLockoutService } from './services/account-lockout.service';
 import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
+import { TokenBlacklistService } from './services/token-blacklist.service';
 import {
   RequestContext,
   TokenPayload,
@@ -50,6 +51,7 @@ export class AuthService {
     private readonly dataSource: DataSource,
     private readonly lockoutService: AccountLockoutService,
     private readonly mailService: MailService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
   ) {}
 
   // A valid bcrypt hash (cost 10) to simulate password check time
@@ -295,7 +297,19 @@ export class AuthService {
     });
   }
 
-  async logout(userId: string, refreshToken?: string): Promise<void> {
+  async logout(
+    userId: string,
+    refreshToken?: string,
+    accessToken?: string,
+  ): Promise<void> {
+    if (accessToken) {
+      // Blacklist access token
+      await this.tokenBlacklistService.blacklist(
+        accessToken,
+        this.tokenService.accessTokenExpiresIn,
+      );
+    }
+
     if (refreshToken) {
       const tokenHash = this.tokenService.hashToken(refreshToken);
       await this.tokenService.revokeToken(tokenHash, userId);

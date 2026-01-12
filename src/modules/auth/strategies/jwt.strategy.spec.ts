@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../auth.service';
+import { TokenBlacklistService } from '../services/token-blacklist.service';
 import { JwtStrategy } from './jwt.strategy';
 
 describe('JwtStrategy', () => {
@@ -26,6 +27,12 @@ describe('JwtStrategy', () => {
             validateUser: jest.fn(),
           },
         },
+        {
+          provide: TokenBlacklistService,
+          useValue: {
+            isBlacklisted: jest.fn().mockResolvedValue(false),
+          },
+        },
       ],
     }).compile();
 
@@ -48,7 +55,10 @@ describe('JwtStrategy', () => {
       const expectedUser = { id: 'user-123', email: 'test@example.com' };
       authService.validateUser.mockResolvedValue(expectedUser as any);
 
-      const result = await strategy.validate(payload);
+      const mockReq = {
+        headers: { authorization: 'Bearer test-token' },
+      } as any;
+      const result = await strategy.validate(mockReq, payload);
 
       expect(authService.validateUser).toHaveBeenCalledWith(payload);
       expect(result).toEqual(expectedUser);
@@ -61,9 +71,12 @@ describe('JwtStrategy', () => {
         tenantId: 'tenant-123',
         role: 'USER',
       };
-      authService.validateUser.mockResolvedValue(null);
+      authService.validateUser.mockResolvedValue(null as any);
 
-      const result = await strategy.validate(payload);
+      const mockReq = {
+        headers: { authorization: 'Bearer test-token' },
+      } as any;
+      const result = await strategy.validate(mockReq, payload);
 
       expect(result).toBeNull();
     });
@@ -76,6 +89,7 @@ describe('JwtStrategy', () => {
           {
             get: () => undefined,
           } as any,
+          {} as any,
           {} as any,
         );
       }).toThrow('JWT_SECRET is not defined');
