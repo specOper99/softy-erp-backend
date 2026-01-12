@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -380,7 +381,7 @@ export class WebhookService {
       );
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Webhook request timed out');
+        throw new RequestTimeoutException('webhooks.request_timeout');
       }
       throw error;
     } finally {

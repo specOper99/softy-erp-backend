@@ -23,6 +23,13 @@ describe('TenantAwareRepository', () => {
   let mockTypeOrmRepository: Repository<TestEntity>;
 
   beforeEach(() => {
+    // Log current test (helps diagnose ordering-dependent failures in full suite)
+
+    console.log(
+      'Running TenantAwareRepository test:',
+      expect.getState().currentTestName,
+    );
+
     // Mock the inner TypeORM repository
     mockTypeOrmRepository = {
       find: jest.fn(),
@@ -31,14 +38,6 @@ describe('TenantAwareRepository', () => {
     } as unknown as Repository<TestEntity>;
 
     repository = new TestRepository(mockTypeOrmRepository);
-
-    // Default mock for TenantContextService
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue('default-tenant');
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('default-tenant');
   });
 
   afterEach(() => {
@@ -48,7 +47,9 @@ describe('TenantAwareRepository', () => {
   describe('find (tenant-scoped)', () => {
     it('should find entities with tenantId filter and existing options', async () => {
       const options = { where: { name: 'test' }, relations: ['child'] };
-      await repository.find(options as any);
+      await TenantContextService.run('default-tenant', async () => {
+        await repository.find(options as any);
+      });
 
       expect(mockTypeOrmRepository.find).toHaveBeenCalledWith({
         ...options,
@@ -60,7 +61,9 @@ describe('TenantAwareRepository', () => {
     });
 
     it('should find entities with tenantId filter when no options provided', async () => {
-      await repository.find();
+      await TenantContextService.run('default-tenant', async () => {
+        await repository.find();
+      });
 
       expect(mockTypeOrmRepository.find).toHaveBeenCalledWith({
         where: {
@@ -84,7 +87,9 @@ describe('TenantAwareRepository', () => {
   describe('findOne (tenant-scoped)', () => {
     it('should find one entity with tenantId filter', async () => {
       const options = { where: { id: '1' } };
-      await repository.findOne(options as any);
+      await TenantContextService.run('default-tenant', async () => {
+        await repository.findOne(options as any);
+      });
 
       expect(mockTypeOrmRepository.findOne).toHaveBeenCalledWith({
         ...options,
@@ -110,7 +115,9 @@ describe('TenantAwareRepository', () => {
   describe('count (tenant-scoped)', () => {
     it('should count entities with tenantId filter', async () => {
       const options = { where: { name: 'test' } };
-      await repository.count(options as any);
+      await TenantContextService.run('default-tenant', async () => {
+        await repository.count(options as any);
+      });
 
       expect(mockTypeOrmRepository.count).toHaveBeenCalledWith({
         ...options,
@@ -122,7 +129,9 @@ describe('TenantAwareRepository', () => {
     });
 
     it('should count entities with tenantId filter when no options provided', async () => {
-      await repository.count();
+      await TenantContextService.run('default-tenant', async () => {
+        await repository.count();
+      });
 
       expect(mockTypeOrmRepository.count).toHaveBeenCalledWith({
         where: {

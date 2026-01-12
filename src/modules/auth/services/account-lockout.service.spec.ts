@@ -6,17 +6,20 @@ import { AccountLockoutService } from './account-lockout.service';
 describe('AccountLockoutService', () => {
   let service: AccountLockoutService;
 
-  const mockCacheService = {
-    get: jest.fn(),
-    set: jest.fn(),
-    del: jest.fn(),
-  };
-
-  const mockConfigService = {
-    get: jest.fn((key, defaultValue) => defaultValue),
-  };
+  let mockCacheService: any;
+  let mockConfigService: any;
 
   beforeEach(async () => {
+    mockCacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn(),
+    };
+
+    mockConfigService = {
+      get: jest.fn((key, defaultValue) => defaultValue),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AccountLockoutService,

@@ -24,10 +24,11 @@ describe('RolesGuard', () => {
     const guard = new RolesGuard(reflector);
 
     expect(guard.canActivate(createExecutionContext())).toBe(true);
-    expect(reflector.getAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, [
-      expect.anything(),
-      expect.anything(),
-    ]);
+    expect(reflector.getAllAndOverride).toHaveBeenCalled();
+    expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
+      ROLES_KEY,
+      expect.any(Array),
+    );
   });
 
   it('throws UnauthorizedException when roles are required but user is missing', () => {

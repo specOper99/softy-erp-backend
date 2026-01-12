@@ -31,6 +31,7 @@ describe('WebhookService', () => {
     create: jest.fn(),
     save: jest.fn(),
     find: jest.fn(),
+    findOne: jest.fn(),
   };
 
   const mockEncryptionService = {
@@ -83,6 +84,19 @@ describe('WebhookService', () => {
       secret: TEST_SECRETS.WEBHOOK_SECRET,
       events: ['booking.created'],
     };
+
+    it('deliverWebhook should throw NotFoundException when webhook missing', async () => {
+      const partial = { id: 'missing', tenantId: tenantId } as any;
+      mockWebhookRepository.findOne.mockResolvedValue(null);
+      await expect(
+        service.deliverWebhook(partial, {
+          type: 'booking.created',
+          tenantId,
+          payload: {},
+          timestamp: new Date().toISOString(),
+        }),
+      ).rejects.toThrow('webhooks.not_found');
+    });
 
     const event: WebhookEvent = {
       type: 'booking.created',
@@ -342,6 +356,31 @@ describe('WebhookService', () => {
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Network error'),
+      );
+    });
+
+    it('should block redirects and log redirect_blocked', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 301,
+        statusText: 'Moved Permanently',
+        headers: { get: () => 'http://internal.local' },
+      } as any);
+
+      const config = {
+        url: 'https://redirect-server.com/webhook',
+        secret: 'test-secret',
+        events: ['booking.created'],
+        isActive: true,
+      };
+      mockWebhookRepository.find.mockResolvedValue([config]);
+
+      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+
+      await service.emit(event);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('webhooks.redirect_blocked'),
       );
     });
   });
