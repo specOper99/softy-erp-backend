@@ -13,6 +13,7 @@ import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { MathUtils } from '../../../common/utils/math.utils';
 import { AuditService } from '../../audit/audit.service';
 import { Client } from '../../bookings/entities/client.entity';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -197,7 +198,9 @@ export class TasksService {
       const savedTask = await queryRunner.manager.save(task);
 
       // Step 5: Handle commission transfers
-      const commissionAmount = Number(task.commissionSnapshot) || 0;
+      const commissionAmount = MathUtils.round(
+        Number(task.commissionSnapshot) || 0,
+      );
       await this.financeService.transferPendingCommission(
         queryRunner.manager,
         oldUserId,
@@ -387,7 +390,9 @@ export class TasksService {
       await queryRunner.manager.save(task);
 
       // Step 3: Move commission to payable balance (NaN-safe)
-      const commissionAmount = Number(task.commissionSnapshot) || 0;
+      const commissionAmount = MathUtils.round(
+        Number(task.commissionSnapshot) || 0,
+      );
       let walletUpdated = false;
 
       if (commissionAmount > 0) {

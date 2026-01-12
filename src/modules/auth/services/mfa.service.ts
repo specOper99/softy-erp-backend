@@ -38,6 +38,7 @@ export class MfaService {
   async enableMfa(user: User, code: string): Promise<string[]> {
     const userWithSecret = await this.usersService.findByEmailWithMfaSecret(
       user.email,
+      user.tenantId,
     );
 
     if (!userWithSecret || !userWithSecret.mfaSecret) {

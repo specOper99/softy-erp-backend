@@ -394,8 +394,10 @@ export class FinanceService {
       }
     }
 
-    summary.netBalance =
-      summary.totalIncome - summary.totalExpenses - summary.totalPayroll;
+    summary.netBalance = MathUtils.subtract(
+      MathUtils.subtract(summary.totalIncome, summary.totalExpenses),
+      summary.totalPayroll,
+    );
     return summary;
   }
 }
