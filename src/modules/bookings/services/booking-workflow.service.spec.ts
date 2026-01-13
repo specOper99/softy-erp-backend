@@ -3,6 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource, QueryRunner } from 'typeorm';
+import {
+  createMockConfigService,
+  createMockDataSource,
+  createMockQueryRunner,
+} from '../../../../test/helpers/mock-factories';
 import { AuditService } from '../../audit/audit.service';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
@@ -43,32 +48,28 @@ describe('BookingWorkflowService', () => {
           },
         ]),
       },
+      // Tasks relation mock
+      tasks: Promise.resolve([]),
     };
 
-    queryRunner = {
-      connect: jest.fn(),
-      startTransaction: jest.fn(),
-      commitTransaction: jest.fn(),
-      rollbackTransaction: jest.fn(),
-      release: jest.fn(),
-      manager: {
-        findOne: jest.fn(),
-        save: jest.fn().mockImplementation((targetOrEntity, maybeEntity) => {
-          // Handle save(Entity, entities[]) signature
-          if (maybeEntity && Array.isArray(maybeEntity))
-            return Promise.resolve(maybeEntity);
-          // Handle save(entities[]) signature (if passed directly)
-          if (Array.isArray(targetOrEntity))
-            return Promise.resolve(targetOrEntity);
-          // Handle save(entity) or save(Entity, entity)
-          return Promise.resolve(maybeEntity || targetOrEntity);
-        }),
+    const mockQR = createMockQueryRunner();
+    // Custom save implementation for existing test behavior
+    mockQR.manager.save.mockImplementation(
+      (targetOrEntity: any, maybeEntity: any) => {
+        // Handle save(Entity, entities[]) signature
+        if (maybeEntity && Array.isArray(maybeEntity))
+          return Promise.resolve(maybeEntity);
+        // Handle save(entities[]) signature (if passed directly)
+        if (Array.isArray(targetOrEntity))
+          return Promise.resolve(targetOrEntity);
+        // Handle save(entity) or save(Entity, entity)
+        return Promise.resolve(maybeEntity || targetOrEntity);
       },
-    } as unknown as QueryRunner;
+    );
 
-    dataSource = {
-      createQueryRunner: jest.fn().mockReturnValue(queryRunner),
-    } as unknown as DataSource;
+    dataSource = createMockDataSource() as any;
+    (dataSource.createQueryRunner as jest.Mock).mockReturnValue(mockQR);
+    queryRunner = dataSource.createQueryRunner();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -93,9 +94,9 @@ describe('BookingWorkflowService', () => {
         },
         {
           provide: ConfigService,
-          useValue: {
-            get: jest.fn().mockReturnValue(500), // Max tasks limit
-          },
+          useValue: createMockConfigService({
+            TASKS_LIMIT: 500, // Assuming key name based on usage, or generic mock
+          }),
         },
         {
           provide: EventBus,
@@ -130,6 +131,7 @@ describe('BookingWorkflowService', () => {
 
       expect(queryRunner.connect).toHaveBeenCalled();
       expect(queryRunner.startTransaction).toHaveBeenCalled();
+      // findOne called twice: once for lock, once for data
       expect(queryRunner.manager.findOne).toHaveBeenCalledTimes(2);
 
       // Verify status update

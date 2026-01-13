@@ -331,3 +331,52 @@ export function createMockMinioClient() {
     }),
   };
 }
+
+/**
+ * Creates a mock QueryRunner for testing transactions.
+ * Include commonly used transaction methods and a mock manager.
+ *
+ * @example
+ * ```typescript
+ * const mockQueryRunner = createMockQueryRunner();
+ * mockDataSource.createQueryRunner.mockReturnValue(mockQueryRunner);
+ * ```
+ */
+export function createMockQueryRunner() {
+  return {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+      findOne: jest.fn(),
+      find: jest.fn(),
+      create: jest.fn().mockImplementation((entity) => entity),
+    },
+    isTransactionActive: true,
+  };
+}
+
+/**
+ * Creates a mock DataSource for testing.
+ * Pre-configured to mock createQueryRunner.
+ *
+ * @example
+ * ```typescript
+ * const mockDataSource = createMockDataSource();
+ * ```
+ */
+export function createMockDataSource() {
+  const mockQueryRunner = createMockQueryRunner();
+  return {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    transaction: jest
+      .fn()
+      .mockImplementation((cb) => cb(mockQueryRunner.manager)),
+    isInitialized: true,
+    initialize: jest.fn().mockResolvedValue(true),
+    destroy: jest.fn().mockResolvedValue(true),
+  };
+}
