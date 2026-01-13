@@ -6,7 +6,7 @@ import {
   createMockRepository,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
@@ -139,7 +139,7 @@ describe('HrService - Comprehensive Tests', () => {
           useValue: mockWalletRepository,
         },
         { provide: WalletService, useValue: mockWalletService },
-        { provide: AuditService, useValue: mockAuditService },
+        { provide: AuditPublisher, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: UsersService, useValue: mockUsersService },
       ],
@@ -242,7 +242,6 @@ describe('HrService - Comprehensive Tests', () => {
           action: 'CREATE',
           entityName: 'Profile',
         }),
-        expect.any(Object),
       );
     });
   });

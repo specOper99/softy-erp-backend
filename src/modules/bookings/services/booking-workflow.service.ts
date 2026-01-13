@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -27,7 +27,7 @@ export class BookingWorkflowService {
 
   constructor(
     private readonly financeService: FinanceService,
-    private readonly auditService: AuditService,
+    private readonly auditService: AuditPublisher,
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
@@ -138,17 +138,14 @@ export class BookingWorkflowService {
         );
 
       // Step 4: Audit Log
-      await this.auditService.log(
-        {
-          action: 'STATUS_CHANGE',
-          entityName: 'Booking',
-          entityId: booking.id,
-          oldValues: { status: BookingStatus.DRAFT },
-          newValues: { status: BookingStatus.CONFIRMED },
-          notes: 'Booking confirmed, tasks generated and payment recorded.',
-        },
-        queryRunner.manager,
-      );
+      await this.auditService.log({
+        action: 'STATUS_CHANGE',
+        entityName: 'Booking',
+        entityId: booking.id,
+        oldValues: { status: BookingStatus.DRAFT },
+        newValues: { status: BookingStatus.CONFIRMED },
+        notes: 'Booking confirmed, tasks generated and payment recorded.',
+      });
 
       // Commit transaction
       await queryRunner.commitTransaction();
@@ -220,16 +217,13 @@ export class BookingWorkflowService {
 
       const savedBooking = await queryRunner.manager.save(booking);
 
-      await this.auditService.log(
-        {
-          action: 'STATUS_CHANGE',
-          entityName: 'Booking',
-          entityId: booking.id,
-          oldValues: { status: oldStatus },
-          newValues: { status: BookingStatus.CANCELLED },
-        },
-        queryRunner.manager,
-      );
+      await this.auditService.log({
+        action: 'STATUS_CHANGE',
+        entityName: 'Booking',
+        entityId: booking.id,
+        oldValues: { status: oldStatus },
+        newValues: { status: BookingStatus.CANCELLED },
+      });
 
       await queryRunner.commitTransaction();
 
@@ -314,16 +308,13 @@ export class BookingWorkflowService {
 
       const savedBooking = await queryRunner.manager.save(booking);
 
-      await this.auditService.log(
-        {
-          action: 'STATUS_CHANGE',
-          entityName: 'Booking',
-          entityId: booking.id,
-          oldValues: { status: oldStatus },
-          newValues: { status: BookingStatus.COMPLETED },
-        },
-        queryRunner.manager,
-      );
+      await this.auditService.log({
+        action: 'STATUS_CHANGE',
+        entityName: 'Booking',
+        entityId: booking.id,
+        oldValues: { status: oldStatus },
+        newValues: { status: BookingStatus.COMPLETED },
+      });
 
       await queryRunner.commitTransaction();
 

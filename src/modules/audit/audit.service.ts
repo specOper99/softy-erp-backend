@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
-import { EntityManager, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../common/utils/cursor-pagination.helper';
@@ -16,8 +16,11 @@ export interface ChainVerificationResult {
   errorMessage?: string;
 }
 
+import { AuditPublisher } from './audit.publisher';
+import { CreateAuditLogDto } from './dto/create-audit-log.dto';
+
 @Injectable()
-export class AuditService {
+export class AuditService implements AuditPublisher {
   private readonly logger = new Logger(AuditService.name);
 
   constructor(
@@ -27,22 +30,8 @@ export class AuditService {
   ) {}
 
   async log(
-    data: {
-      userId?: string;
-      action: string;
-      entityName: string;
-      entityId: string;
-      oldValues?: unknown;
-      newValues?: unknown;
-      notes?: string;
-      ipAddress?: string;
-      userAgent?: string;
-      method?: string;
-      path?: string;
-      statusCode?: number;
-      durationMs?: number;
-    },
-    _manager?: EntityManager,
+    data: CreateAuditLogDto,
+    // Removed EntityManager as it is not used in async processing
   ): Promise<void> {
     try {
       const tenantId = TenantContextService.getTenantId();

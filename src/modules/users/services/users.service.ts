@@ -11,7 +11,7 @@ import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { CreateUserDto, UpdateUserDto } from '../dto';
 import { User } from '../entities/user.entity';
 import { UserDeletedEvent } from '../events/user-deleted.event';
@@ -21,7 +21,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly auditService: AuditService,
+    private readonly auditService: AuditPublisher,
     private readonly eventBus: EventBus,
   ) {}
 

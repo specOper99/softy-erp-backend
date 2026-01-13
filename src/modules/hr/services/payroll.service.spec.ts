@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { Payout } from '../../finance/entities/payout.entity';
 import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
@@ -122,7 +122,7 @@ describe('PayrollService', () => {
         { provide: FinanceService, useValue: mockFinanceService },
         { provide: WalletService, useValue: mockWalletService },
         { provide: MailService, useValue: mockMailService },
-        { provide: AuditService, useValue: mockAuditService },
+        { provide: AuditPublisher, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: TenantsService, useValue: mockTenantsService },
         {

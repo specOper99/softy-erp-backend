@@ -6,7 +6,7 @@ import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { Payout } from '../../finance/entities/payout.entity';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
@@ -31,7 +31,7 @@ export class PayrollService {
     private readonly financeService: FinanceService,
     private readonly walletService: WalletService,
     private readonly mailService: MailService,
-    private readonly auditService: AuditService,
+    private readonly auditService: AuditPublisher,
     private readonly dataSource: DataSource,
     private readonly tenantsService: TenantsService,
     private readonly paymentGatewayService: MockPaymentGatewayService,

@@ -5,7 +5,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { User } from '../entities/user.entity';
 import { Role } from '../enums/role.enum';
 import { UsersService } from './users.service';
@@ -52,7 +52,7 @@ describe('UsersService - Comprehensive Tests', () => {
       providers: [
         UsersService,
         { provide: getRepositoryToken(User), useValue: mockRepository },
-        { provide: AuditService, useValue: mockAuditService },
+        { provide: AuditPublisher, useValue: mockAuditService },
         {
           provide: EventBus,
           useValue: {

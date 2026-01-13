@@ -5,6 +5,8 @@ import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
 
+import { AuditPublisher } from './audit.publisher';
+
 @Global()
 @Module({
   imports: [
@@ -22,7 +24,13 @@ import { AuditLog } from './entities/audit-log.entity';
     }),
   ],
   controllers: [AuditController],
-  providers: [AuditService],
-  exports: [AuditService],
+  providers: [
+    AuditService,
+    {
+      provide: AuditPublisher,
+      useExisting: AuditService,
+    },
+  ],
+  exports: [AuditService, AuditPublisher],
 })
 export class AuditModule {}

@@ -4,7 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { PackageItem } from '../entities/package-item.entity';
 import { ServicePackage } from '../entities/service-package.entity';
 import { TaskType } from '../entities/task-type.entity';
@@ -15,7 +15,7 @@ describe('CatalogService', () => {
   let packageRepo: jest.Mocked<Repository<ServicePackage>>;
   let taskTypeRepo: jest.Mocked<Repository<TaskType>>;
   let packageItemRepo: jest.Mocked<Repository<PackageItem>>;
-  let auditService: jest.Mocked<AuditService>;
+  let auditService: jest.Mocked<AuditPublisher>;
   let cacheUtils: jest.Mocked<CacheUtilsService>;
 
   const mockTenantId = 'tenant-123';
@@ -94,7 +94,7 @@ describe('CatalogService', () => {
           },
         },
         {
-          provide: AuditService,
+          provide: AuditPublisher,
           useValue: { log: jest.fn() },
         },
         {
@@ -112,7 +112,7 @@ describe('CatalogService', () => {
     packageRepo = module.get(getRepositoryToken(ServicePackage));
     taskTypeRepo = module.get(getRepositoryToken(TaskType));
     packageItemRepo = module.get(getRepositoryToken(PackageItem));
-    auditService = module.get(AuditService);
+    auditService = module.get(AuditPublisher);
     cacheUtils = module.get(CacheUtilsService);
 
     jest
@@ -294,7 +294,7 @@ describe('CatalogService', () => {
 
   describe('findAllTaskTypes', () => {
     it('should return all task types', async () => {
-      taskTypeRepo.find.mockResolvedValue([mockTaskType]);
+      taskTypeRepo.find.mockResolvedValue([mockTaskType as any]);
       const result = await service.findAllTaskTypes();
       expect(result).toEqual([mockTaskType]);
     });

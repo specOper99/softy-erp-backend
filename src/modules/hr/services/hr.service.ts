@@ -10,7 +10,7 @@ import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
@@ -27,7 +27,7 @@ export class HrService {
     @InjectRepository(EmployeeWallet)
     private readonly walletRepository: Repository<EmployeeWallet>,
     private readonly walletService: WalletService,
-    private readonly auditService: AuditService,
+    private readonly auditService: AuditPublisher,
     private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
   ) {}
@@ -62,20 +62,17 @@ export class HrService {
       const savedProfile = await queryRunner.manager.save(profile);
 
       // Step 3: Audit Log (outside transaction if preferred, but here included for consistency)
-      await this.auditService.log(
-        {
-          action: 'CREATE',
-          entityName: 'Profile',
-          entityId: savedProfile.id,
-          newValues: {
-            userId: dto.userId,
-            firstName: dto.firstName,
-            lastName: dto.lastName,
-            baseSalary: dto.baseSalary,
-          },
+      await this.auditService.log({
+        action: 'CREATE',
+        entityName: 'Profile',
+        entityId: savedProfile.id,
+        newValues: {
+          userId: dto.userId,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          baseSalary: dto.baseSalary,
         },
-        queryRunner.manager,
-      );
+      });
 
       await queryRunner.commitTransaction();
       return savedProfile;

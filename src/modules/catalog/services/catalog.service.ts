@@ -9,7 +9,7 @@ import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import {
   AddPackageItemsDto,
   ClonePackageDto,
@@ -31,7 +31,7 @@ export class CatalogService {
     private readonly taskTypeRepository: Repository<TaskType>,
     @InjectRepository(PackageItem)
     private readonly packageItemRepository: Repository<PackageItem>,
-    private readonly auditService: AuditService,
+    private readonly auditService: AuditPublisher,
     private readonly cacheUtils: CacheUtilsService,
   ) {}
 

@@ -8,7 +8,7 @@ import {
   createMockDataSource,
   createMockQueryRunner,
 } from '../../../../test/helpers/mock-factories';
-import { AuditService } from '../../audit/audit.service';
+import { AuditPublisher } from '../../audit/audit.publisher';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -22,7 +22,7 @@ describe('BookingWorkflowService', () => {
   let dataSource: DataSource;
   let queryRunner: QueryRunner;
   let financeService: FinanceService;
-  let auditService: AuditService;
+  let auditService: AuditPublisher;
   let eventBus: EventBus;
   let mockBooking: any;
 
@@ -83,7 +83,7 @@ describe('BookingWorkflowService', () => {
           },
         },
         {
-          provide: AuditService,
+          provide: AuditPublisher,
           useValue: {
             log: jest.fn(),
           },
@@ -116,7 +116,7 @@ describe('BookingWorkflowService', () => {
 
     service = module.get<BookingWorkflowService>(BookingWorkflowService);
     financeService = module.get<FinanceService>(FinanceService);
-    auditService = module.get<AuditService>(AuditService);
+    auditService = module.get<AuditPublisher>(AuditPublisher);
     eventBus = module.get<EventBus>(EventBus);
   });
 
