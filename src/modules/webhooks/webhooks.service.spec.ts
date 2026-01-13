@@ -1,10 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { createMockRepository, mockTenantContext } from '../../../test/helpers/mock-factories';
 import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
-import { Webhook } from './entities/webhook.entity';
+import { WebhookRepository } from './repositories/webhook.repository';
 import { WebhookService } from './webhooks.service';
 import { WebhookConfig, WebhookEvent } from './webhooks.types';
 
@@ -17,16 +17,11 @@ import { lookup } from 'node:dns/promises';
 
 describe('WebhookService', () => {
   let service: WebhookService;
+  let webhookRepository: jest.Mocked<WebhookRepository>;
 
+  const mockTenantId = 'tenant-1';
   const mockConfigService = {
     get: jest.fn(),
-  };
-
-  const mockWebhookRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    find: jest.fn(),
-    findOne: jest.fn(),
   };
 
   const mockEncryptionService = {
@@ -42,14 +37,18 @@ describe('WebhookService', () => {
         WebhookService,
         { provide: ConfigService, useValue: mockConfigService },
         {
-          provide: getRepositoryToken(Webhook),
-          useValue: mockWebhookRepository,
+          provide: WebhookRepository,
+          useValue: createMockRepository(),
         },
         { provide: EncryptionService, useValue: mockEncryptionService },
       ],
     }).compile();
 
     service = module.get<WebhookService>(WebhookService);
+    webhookRepository = module.get(WebhookRepository);
+
+    // Mock TenantContext
+    mockTenantContext(mockTenantId);
 
     // Mock global fetch correctly for Node
     (global as any).fetch = jest.fn().mockResolvedValue({
@@ -69,7 +68,7 @@ describe('WebhookService', () => {
   });
 
   describe('registerWebhook and emit', () => {
-    const tenantId = 'tenant-1';
+    const _tenantId = 'tenant-1';
     const config: WebhookConfig = {
       url: 'https://example.com/webhook',
       secret: TEST_SECRETS.WEBHOOK_SECRET,
@@ -77,12 +76,12 @@ describe('WebhookService', () => {
     };
 
     it('deliverWebhook should throw NotFoundException when webhook missing', async () => {
-      const partial = { id: 'missing', tenantId: tenantId } as any;
-      mockWebhookRepository.findOne.mockResolvedValue(null);
+      const partial = { id: 'missing', tenantId: mockTenantId } as any;
+      webhookRepository.findOne.mockResolvedValue(null);
       await expect(
         service.deliverWebhook(partial, {
           type: 'booking.created',
-          tenantId,
+          tenantId: mockTenantId,
           payload: {},
           timestamp: new Date().toISOString(),
         }),
@@ -91,13 +90,13 @@ describe('WebhookService', () => {
 
     const event: WebhookEvent = {
       type: 'booking.created',
-      tenantId: tenantId,
+      tenantId: mockTenantId,
       payload: { id: '123' },
       timestamp: new Date().toISOString(),
     };
 
     it('should send webhook if event type matches', async () => {
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as any);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -116,7 +115,7 @@ describe('WebhookService', () => {
 
     it('should send webhook if wildcard event is registered', async () => {
       const wildcardConfig = { ...config, events: ['*'] };
-      mockWebhookRepository.find.mockResolvedValue([wildcardConfig]);
+      webhookRepository.find.mockResolvedValue([wildcardConfig] as any);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalled();
@@ -124,7 +123,7 @@ describe('WebhookService', () => {
 
     it('should not send webhook if event type does not match', async () => {
       const unmatchedEvent: WebhookEvent = { ...event, type: 'task.created' };
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as any);
       await service.emit(unmatchedEvent);
 
       expect(global.fetch).not.toHaveBeenCalled();
@@ -138,7 +137,7 @@ describe('WebhookService', () => {
         statusText: 'Internal Server Error',
       } as Response);
 
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as any);
       await service.emit(event);
 
       expect(loggerErrorSpy).toHaveBeenCalled();
@@ -146,8 +145,6 @@ describe('WebhookService', () => {
   });
 
   describe('registerWebhook', () => {
-    const tenantId = 'tenant-1';
-
     it('should persist valid HTTPS webhook URL with sufficient secret', async () => {
       const config: WebhookConfig = {
         url: 'https://example.com/webhook',
@@ -155,19 +152,17 @@ describe('WebhookService', () => {
         events: ['booking.created'],
       };
 
-      mockWebhookRepository.create.mockReturnValue({
-        tenantId,
+      webhookRepository.create.mockReturnValue({
         ...config,
         secret: 'encrypted:' + config.secret,
-      });
-      mockWebhookRepository.save.mockResolvedValue({ id: 'webhook-1' });
+      } as any);
+      webhookRepository.save.mockResolvedValue({ id: 'webhook-1' } as any);
 
-      await service.registerWebhook(tenantId, config);
+      await service.registerWebhook(config);
 
       expect(mockEncryptionService.encrypt).toHaveBeenCalledWith(config.secret);
-      expect(mockWebhookRepository.create).toHaveBeenCalledWith(
+      expect(webhookRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          tenantId,
           url: config.url,
           secret: 'encrypted:' + config.secret,
           events: config.events,
@@ -175,7 +170,7 @@ describe('WebhookService', () => {
           ipsResolvedAt: expect.any(Date),
         }),
       );
-      expect(mockWebhookRepository.save).toHaveBeenCalled();
+      expect(webhookRepository.save).toHaveBeenCalled();
     });
 
     it('should reject invalid URL format', async () => {
@@ -185,7 +180,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.invalid_url');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.invalid_url');
     });
 
     it('should reject non-HTTP/HTTPS protocols', async () => {
@@ -195,11 +190,11 @@ describe('WebhookService', () => {
         events: ['booking.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(BadRequestException);
+      await expect(service.registerWebhook(config)).rejects.toThrow(BadRequestException);
       // Checking for key in parameterized error is complex with simple toThrow, skipping specific key check or using simpler check if possible.
       // Actually invalid_protocol is retained as Error inside try, but catch wraps it as BadRequest 'webhooks.invalid_url'
       // So checking type is good enough or substring of new message.
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.invalid_url');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.invalid_url');
     });
 
     it('should reject secrets shorter than minimum length', async () => {
@@ -210,7 +205,7 @@ describe('WebhookService', () => {
       };
 
       // Expect BadRequestException. If parameterized, message might not match directly.
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(BadRequestException);
+      await expect(service.registerWebhook(config)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject localhost URLs (SSRF prevention)', async () => {
@@ -220,7 +215,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.localhost_denied');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.localhost_denied');
     });
 
     it('should reject 127.0.0.1 URLs (SSRF prevention)', async () => {
@@ -230,7 +225,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.localhost_denied');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.localhost_denied');
     });
 
     it('should reject private IP ranges (10.x.x.x)', async () => {
@@ -240,7 +235,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject private IP ranges (192.168.x.x)', async () => {
@@ -250,7 +245,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject private IP ranges (172.16-31.x.x)', async () => {
@@ -260,7 +255,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject URLs that DNS-resolve to private IPs', async () => {
@@ -272,15 +267,14 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
   });
 
   describe('timeout handling', () => {
-    const tenantId = 'tenant-1';
     const event: WebhookEvent = {
       type: 'booking.created',
-      tenantId: tenantId,
+      tenantId: mockTenantId,
       payload: { id: '123' },
       timestamp: new Date().toISOString(),
     };
@@ -297,7 +291,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as any);
 
       const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
 
@@ -315,7 +309,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as any);
 
       const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
 
@@ -338,7 +332,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as any);
 
       const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
 
@@ -350,7 +344,6 @@ describe('WebhookService', () => {
 
   describe('webhook signature', () => {
     it('should include timestamp in signature header', async () => {
-      const tenantId = 'tenant-1';
       const config = {
         url: 'https://example.com/webhook',
         secret: 'encrypted:test-secret',
@@ -359,12 +352,12 @@ describe('WebhookService', () => {
       };
       const event: WebhookEvent = {
         type: 'booking.created',
-        tenantId: tenantId,
+        tenantId: mockTenantId,
         payload: { id: '123' },
         timestamp: new Date().toISOString(),
       };
 
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as any);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(

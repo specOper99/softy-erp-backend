@@ -8,6 +8,8 @@ import { BookingConfirmedWebhookHandler } from './handlers/booking-confirmed.han
 import { BookingUpdatedWebhookHandler } from './handlers/booking-updated.handler';
 import { TaskCompletedWebhookHandler } from './handlers/task-completed.handler';
 import { WebhookProcessor } from './processors/webhook.processor';
+import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
+import { WebhookRepository } from './repositories/webhook.repository';
 import { WebhookService } from './webhooks.service';
 import { WEBHOOK_QUEUE } from './webhooks.types';
 
@@ -35,7 +37,9 @@ import { WEBHOOK_QUEUE } from './webhooks.types';
     BookingConfirmedWebhookHandler,
     BookingUpdatedWebhookHandler,
     TaskCompletedWebhookHandler,
+    WebhookRepository,
+    WebhookDeliveryRepository,
   ],
-  exports: [WebhookService],
+  exports: [WebhookService, WebhookRepository, WebhookDeliveryRepository],
 })
 export class WebhooksModule {}

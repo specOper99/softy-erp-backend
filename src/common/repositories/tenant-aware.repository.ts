@@ -57,15 +57,28 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     } as any) as unknown as T;
   }
 
-  async save(entity: T, options?: SaveOptions): Promise<T> {
-    // Ensure tenantId is set before saving
+  async save<E extends T | T[]>(entityOrEntities: E, options?: SaveOptions): Promise<E> {
+    const tenantId = this.getTenantId();
+
+    if (Array.isArray(entityOrEntities)) {
+      for (const entity of entityOrEntities) {
+        const typedEntity = entity as T & { tenantId: string };
+        if (!typedEntity.tenantId) {
+          typedEntity.tenantId = tenantId;
+        } else if (typedEntity.tenantId !== tenantId) {
+          throw new ForbiddenException('common.cross_tenant_save_attempt');
+        }
+      }
+      return this.repository.save(entityOrEntities as any, options) as unknown as Promise<E>;
+    }
+
+    const entity = entityOrEntities as T & { tenantId: string };
     if (!entity.tenantId) {
-      entity.tenantId = this.getTenantId();
-    } else if (entity.tenantId !== this.getTenantId()) {
-      // Prevent cross-tenant save attempts if someone tries to be sneaky
+      entity.tenantId = tenantId;
+    } else if (entity.tenantId !== tenantId) {
       throw new ForbiddenException('common.cross_tenant_save_attempt');
     }
-    return this.repository.save(entity, options);
+    return this.repository.save(entity, options) as unknown as Promise<E>;
   }
 
   async find(options?: FindManyOptions<T>): Promise<T[]> {
@@ -108,21 +121,49 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     return this.repository.createQueryBuilder(alias);
   }
 
-  async remove(entity: T): Promise<T> {
+  async remove<E extends T | T[]>(entityOrEntities: E): Promise<E> {
+    const tenantId = this.getTenantId();
+
+    if (Array.isArray(entityOrEntities)) {
+      for (const entity of entityOrEntities as Array<T & { tenantId: string }>) {
+        if (!entity.tenantId) {
+          entity.tenantId = tenantId;
+        } else if (entity.tenantId !== tenantId) {
+          throw new ForbiddenException('common.cross_tenant_remove_attempt');
+        }
+      }
+      return this.repository.remove(entityOrEntities as any) as unknown as Promise<E>;
+    }
+
+    const entity = entityOrEntities as T & { tenantId: string };
     if (!entity.tenantId) {
-      entity.tenantId = this.getTenantId();
-    } else if (entity.tenantId !== this.getTenantId()) {
+      entity.tenantId = tenantId;
+    } else if (entity.tenantId !== tenantId) {
       throw new ForbiddenException('common.cross_tenant_remove_attempt');
     }
-    return this.repository.remove(entity);
+    return this.repository.remove(entity) as unknown as Promise<E>;
   }
 
-  async softRemove(entity: T): Promise<T> {
+  async softRemove<E extends T | T[]>(entityOrEntities: E): Promise<E> {
+    const tenantId = this.getTenantId();
+
+    if (Array.isArray(entityOrEntities)) {
+      for (const entity of entityOrEntities as Array<T & { tenantId: string }>) {
+        if (!entity.tenantId) {
+          entity.tenantId = tenantId;
+        } else if (entity.tenantId !== tenantId) {
+          throw new ForbiddenException('common.cross_tenant_remove_attempt');
+        }
+      }
+      return this.repository.softRemove(entityOrEntities as any) as unknown as Promise<E>;
+    }
+
+    const entity = entityOrEntities as T;
     if (!entity.tenantId) {
-      entity.tenantId = this.getTenantId();
-    } else if (entity.tenantId !== this.getTenantId()) {
+      entity.tenantId = tenantId;
+    } else if (entity.tenantId !== tenantId) {
       throw new ForbiddenException('common.cross_tenant_remove_attempt');
     }
-    return this.repository.softRemove(entity);
+    return this.repository.softRemove(entity) as unknown as Promise<E>;
   }
 }

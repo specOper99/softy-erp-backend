@@ -1,20 +1,18 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { PackageItem } from '../entities/package-item.entity';
-import { ServicePackage } from '../entities/service-package.entity';
-import { TaskType } from '../entities/task-type.entity';
+import { PackageItemRepository } from '../repositories/package-item.repository';
+import { ServicePackageRepository } from '../repositories/service-package.repository';
+import { TaskTypeRepository } from '../repositories/task-type.repository';
 import { CatalogService } from './catalog.service';
 
 describe('CatalogService', () => {
   let service: CatalogService;
-  let packageRepo: jest.Mocked<Repository<ServicePackage>>;
-  let taskTypeRepo: jest.Mocked<Repository<TaskType>>;
-  let packageItemRepo: jest.Mocked<Repository<PackageItem>>;
+  let packageRepo: jest.Mocked<ServicePackageRepository>;
+  let taskTypeRepo: jest.Mocked<TaskTypeRepository>;
+  let packageItemRepo: jest.Mocked<PackageItemRepository>;
   let auditService: jest.Mocked<AuditPublisher>;
   let cacheUtils: jest.Mocked<CacheUtilsService>;
 
@@ -46,52 +44,16 @@ describe('CatalogService', () => {
       providers: [
         CatalogService,
         {
-          provide: getRepositoryToken(ServicePackage),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            remove: jest.fn(),
-            createQueryBuilder: jest.fn(() => ({
-              leftJoinAndSelect: jest.fn().mockReturnThis(),
-              where: jest.fn().mockReturnThis(),
-              orderBy: jest.fn().mockReturnThis(),
-              addOrderBy: jest.fn().mockReturnThis(),
-              take: jest.fn().mockReturnThis(),
-              skip: jest.fn().mockReturnThis(),
-              andWhere: jest.fn().mockReturnThis(),
-              getMany: jest.fn().mockResolvedValue([mockPackage]),
-            })),
-          },
+          provide: ServicePackageRepository,
+          useValue: createMockRepository(),
         },
         {
-          provide: getRepositoryToken(TaskType),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            remove: jest.fn(),
-            createQueryBuilder: jest.fn(() => ({
-              where: jest.fn().mockReturnThis(),
-              orderBy: jest.fn().mockReturnThis(),
-              addOrderBy: jest.fn().mockReturnThis(),
-              take: jest.fn().mockReturnThis(),
-              skip: jest.fn().mockReturnThis(),
-              andWhere: jest.fn().mockReturnThis(),
-              getMany: jest.fn().mockResolvedValue([mockTaskType]),
-            })),
-          },
+          provide: TaskTypeRepository,
+          useValue: createMockRepository(),
         },
         {
-          provide: getRepositoryToken(PackageItem),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            findOne: jest.fn(),
-            remove: jest.fn(),
-          },
+          provide: PackageItemRepository,
+          useValue: createMockRepository(),
         },
         {
           provide: AuditPublisher,
@@ -109,13 +71,13 @@ describe('CatalogService', () => {
     }).compile();
 
     service = module.get<CatalogService>(CatalogService);
-    packageRepo = module.get(getRepositoryToken(ServicePackage));
-    taskTypeRepo = module.get(getRepositoryToken(TaskType));
-    packageItemRepo = module.get(getRepositoryToken(PackageItem));
+    packageRepo = module.get(ServicePackageRepository);
+    taskTypeRepo = module.get(TaskTypeRepository);
+    packageItemRepo = module.get(PackageItemRepository);
     auditService = module.get(AuditPublisher);
     cacheUtils = module.get(CacheUtilsService);
 
-    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);
+    mockTenantContext(mockTenantId);
   });
 
   afterEach(() => {
@@ -136,7 +98,6 @@ describe('CatalogService', () => {
 
       expect(packageRepo.create).toHaveBeenCalledWith({
         ...dto,
-        tenantId: mockTenantId,
       });
       expect(auditService.log).toHaveBeenCalled();
       expect(cacheUtils.del).toHaveBeenCalled();

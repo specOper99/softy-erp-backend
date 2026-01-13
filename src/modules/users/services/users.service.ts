@@ -1,8 +1,7 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -10,28 +9,22 @@ import { AuditPublisher } from '../../audit/audit.publisher';
 import { CreateUserDto, UpdateUserDto } from '../dto';
 import { User } from '../entities/user.entity';
 import { UserDeletedEvent } from '../events/user-deleted.event';
+import { UserRepository } from '../repositories/user.repository';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly userRepository: UserRepository,
     private readonly auditService: AuditPublisher,
     private readonly eventBus: EventBus,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
-
     const passwordHash = await bcrypt.hash(createUserDto.password, 12);
     const user = this.userRepository.create({
       email: createUserDto.email,
       passwordHash,
       role: createUserDto.role,
-      tenantId,
     });
     let savedUser: User;
     try {
@@ -69,9 +62,8 @@ export class UsersService {
   }
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<User[]> {
-    const tenantId = TenantContextService.getTenantId();
     return this.userRepository.find({
-      where: { tenantId },
+      where: {},
       relations: ['wallet'],
       skip: query.getSkip(),
       take: query.getTake(),
@@ -79,13 +71,12 @@ export class UsersService {
   }
 
   async findAllCursor(query: CursorPaginationDto): Promise<{ data: User[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantId();
     const limit = query.limit || 20;
 
     const qb = this.userRepository.createQueryBuilder('user');
 
     qb.leftJoinAndSelect('user.wallet', 'wallet')
-      .where('user.tenantId = :tenantId', { tenantId })
+      .where('user.tenantId = :tenantId', { tenantId: TenantContextService.getTenantId() })
       .orderBy('user.createdAt', 'DESC')
       .addOrderBy('user.id', 'DESC')
       .take(limit + 1);
@@ -112,9 +103,8 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User> {
-    const tenantId = TenantContextService.getTenantId();
     const user = await this.userRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: ['wallet'],
     });
     if (!user) {
@@ -124,11 +114,10 @@ export class UsersService {
   }
 
   async findByEmail(email: string, tenantId?: string): Promise<User | null> {
-    const where: FindOptionsWhere<User> = { email };
     if (tenantId) {
-      where.tenantId = tenantId;
+      return this.userRepository.findOne({ where: { email, tenantId } });
     }
-    return this.userRepository.findOne({ where });
+    return this.userRepository.findOne({ where: { email } });
   }
 
   async findMany(ids: string[]): Promise<User[]> {
@@ -147,32 +136,43 @@ export class UsersService {
   async findByEmailWithMfaSecret(email: string, tenantId?: string): Promise<User | null> {
     const qb = this.userRepository.createQueryBuilder('user').where('user.email = :email', { email });
 
-    if (tenantId) {
-      qb.andWhere('user.tenantId = :tenantId', { tenantId });
+    const finalTenantId = tenantId || TenantContextService.getTenantId();
+    if (finalTenantId) {
+      qb.andWhere('user.tenantId = :tenantId', { tenantId: finalTenantId });
     }
 
     return qb.addSelect('user.mfaSecret').getOne();
   }
 
   async findByIdWithRecoveryCodes(userId: string): Promise<User | null> {
-    return this.userRepository
-      .createQueryBuilder('user')
-      .where('user.id = :userId', { userId })
-      .addSelect('user.mfaRecoveryCodes')
-      .getOne();
+    const qb = this.userRepository.createQueryBuilder('user');
+    const tenantId = TenantContextService.getTenantId();
+
+    qb.where('user.id = :userId', { userId });
+    if (tenantId) {
+      qb.andWhere('user.tenantId = :tenantId', { tenantId });
+    }
+
+    return qb.addSelect('user.mfaRecoveryCodes').getOne();
   }
 
   async updateMfaSecret(userId: string, secret: string | null, enabled: boolean): Promise<void> {
-    await this.userRepository.update(userId, {
-      mfaSecret: secret ?? undefined,
-      isMfaEnabled: enabled,
-    });
+    await this.userRepository.update(
+      { id: userId },
+      {
+        mfaSecret: secret ?? undefined,
+        isMfaEnabled: enabled,
+      },
+    );
   }
 
   async updateMfaRecoveryCodes(userId: string, codes: string[]): Promise<void> {
-    await this.userRepository.update(userId, {
-      mfaRecoveryCodes: codes,
-    });
+    await this.userRepository.update(
+      { id: userId },
+      {
+        mfaRecoveryCodes: codes,
+      },
+    );
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {

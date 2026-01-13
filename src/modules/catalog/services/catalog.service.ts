@@ -1,6 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -17,16 +15,16 @@ import {
 import { PackageItem } from '../entities/package-item.entity';
 import { ServicePackage } from '../entities/service-package.entity';
 import { TaskType } from '../entities/task-type.entity';
+import { PackageItemRepository } from '../repositories/package-item.repository';
+import { ServicePackageRepository } from '../repositories/service-package.repository';
+import { TaskTypeRepository } from '../repositories/task-type.repository';
 
 @Injectable()
 export class CatalogService {
   constructor(
-    @InjectRepository(ServicePackage)
-    private readonly packageRepository: Repository<ServicePackage>,
-    @InjectRepository(TaskType)
-    private readonly taskTypeRepository: Repository<TaskType>,
-    @InjectRepository(PackageItem)
-    private readonly packageItemRepository: Repository<PackageItem>,
+    private readonly packageRepository: ServicePackageRepository,
+    private readonly taskTypeRepository: TaskTypeRepository,
+    private readonly packageItemRepository: PackageItemRepository,
     private readonly auditService: AuditPublisher,
     private readonly cacheUtils: CacheUtilsService,
   ) {}
@@ -60,7 +58,7 @@ export class CatalogService {
       throw new BadRequestException('catalog.price_must_be_positive');
     }
 
-    const pkg = this.packageRepository.create({ ...dto, tenantId });
+    const pkg = this.packageRepository.create({ ...dto });
     const savedPkg = await this.packageRepository.save(pkg);
 
     await this.auditService.log({
@@ -87,7 +85,7 @@ export class CatalogService {
     }
 
     const packages = await this.packageRepository.find({
-      where: { tenantId },
+      where: {},
       relations: ['packageItems', 'packageItems.taskType'],
       skip: query.getSkip(),
       take: query.getTake(),
@@ -104,14 +102,14 @@ export class CatalogService {
   async findAllPackagesCursor(
     query: CursorPaginationDto,
   ): Promise<{ data: ServicePackage[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantId();
+    const _tenantId = TenantContextService.getTenantId();
     const limit = query.limit || 20;
 
     const qb = this.packageRepository.createQueryBuilder('pkg');
 
     qb.leftJoinAndSelect('pkg.packageItems', 'items')
       .leftJoinAndSelect('items.taskType', 'taskType')
-      .where('pkg.tenantId = :tenantId', { tenantId })
+      .where('pkg.tenantId = :tenantId', { tenantId: TenantContextService.getTenantId() })
       .orderBy('pkg.createdAt', 'DESC')
       .addOrderBy('pkg.id', 'DESC')
       .take(limit + 1);
@@ -138,9 +136,9 @@ export class CatalogService {
   }
 
   async findPackageById(id: string): Promise<ServicePackage> {
-    const tenantId = TenantContextService.getTenantId();
+    const _tenantId = TenantContextService.getTenantId();
     const pkg = await this.packageRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: ['packageItems', 'packageItems.taskType'],
     });
     if (!pkg) {
@@ -203,13 +201,12 @@ export class CatalogService {
 
   async addPackageItems(packageId: string, dto: AddPackageItemsDto): Promise<PackageItem[]> {
     await this.findPackageById(packageId);
-    const tenantId = TenantContextService.getTenantId();
+    const _tenantId = TenantContextService.getTenantId();
     const items = dto.items.map((item) =>
       this.packageItemRepository.create({
         packageId,
         taskTypeId: item.taskTypeId,
         quantity: item.quantity,
-        tenantId,
       }),
     );
     const savedItems = await this.packageItemRepository.save(items);
@@ -226,9 +223,9 @@ export class CatalogService {
   }
 
   async removePackageItem(itemId: string): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
+    const _tenantId = TenantContextService.getTenantId();
     const item = await this.packageItemRepository.findOne({
-      where: { id: itemId, tenantId },
+      where: { id: itemId },
     });
     if (!item) {
       throw new NotFoundException(`PackageItem with ID ${itemId} not found`);
@@ -247,7 +244,7 @@ export class CatalogService {
   // Task Type Methods
   async createTaskType(dto: CreateTaskTypeDto): Promise<TaskType> {
     const tenantId = TenantContextService.getTenantId();
-    const taskType = this.taskTypeRepository.create({ ...dto, tenantId });
+    const taskType = this.taskTypeRepository.create({ ...dto });
     const savedTaskType = await this.taskTypeRepository.save(taskType);
 
     await this.auditService.log({
@@ -277,7 +274,7 @@ export class CatalogService {
     }
 
     const taskTypes = await this.taskTypeRepository.find({
-      where: { tenantId },
+      where: {},
       skip: query.getSkip(),
       take: query.getTake(),
     });
@@ -291,12 +288,12 @@ export class CatalogService {
   }
 
   async findAllTaskTypesCursor(query: CursorPaginationDto): Promise<{ data: TaskType[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantId();
+    const _tenantId = TenantContextService.getTenantId();
     const limit = query.limit || 20;
 
     const qb = this.taskTypeRepository.createQueryBuilder('tt');
 
-    qb.where('tt.tenantId = :tenantId', { tenantId })
+    qb.where('tt.tenantId = :tenantId', { tenantId: TenantContextService.getTenantId() })
       .orderBy('tt.createdAt', 'DESC')
       .addOrderBy('tt.id', 'DESC')
       .take(limit + 1);
@@ -323,9 +320,9 @@ export class CatalogService {
   }
 
   async findTaskTypeById(id: string): Promise<TaskType> {
-    const tenantId = TenantContextService.getTenantId();
+    const _tenantId = TenantContextService.getTenantId();
     const taskType = await this.taskTypeRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
     });
     if (!taskType) {
       throw new NotFoundException(`TaskType with ID ${id} not found`);
@@ -373,11 +370,11 @@ export class CatalogService {
   }
 
   async clonePackage(packageId: string, dto: ClonePackageDto): Promise<ServicePackage> {
-    const tenantId = TenantContextService.getTenantId();
+    const _tenantId = TenantContextService.getTenantId();
 
     // Load source package with all items
     const sourcePackage = await this.packageRepository.findOne({
-      where: { id: packageId, tenantId },
+      where: { id: packageId },
       relations: ['packageItems', 'packageItems.taskType'],
     });
 
@@ -393,7 +390,6 @@ export class CatalogService {
       isActive: true,
       isTemplate: false, // Clones are not templates by default
       templateCategory: null,
-      tenantId,
     });
 
     const savedPackage = await this.packageRepository.save(newPackage);
@@ -406,7 +402,6 @@ export class CatalogService {
           packageId: savedPackage.id,
           taskTypeId: item.taskTypeId,
           quantity: item.quantity,
-          tenantId,
         }),
       );
       await this.packageItemRepository.save(clonedItems);

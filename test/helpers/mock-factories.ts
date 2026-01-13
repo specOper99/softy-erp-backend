@@ -45,6 +45,7 @@ export function createMockRepository<T extends ObjectLiteral>(): MockRepository<
     update: jest.fn().mockResolvedValue({ affected: 1 }),
     delete: jest.fn().mockResolvedValue({ affected: 1 }),
     remove: jest.fn(),
+    softRemove: jest.fn(),
     count: jest.fn().mockResolvedValue(0),
     createQueryBuilder: jest.fn(() => ({
       where: jest.fn().mockReturnThis(),
