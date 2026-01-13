@@ -102,7 +102,6 @@ export class CatalogService {
   async findAllPackagesCursor(
     query: CursorPaginationDto,
   ): Promise<{ data: ServicePackage[]; nextCursor: string | null }> {
-    const _tenantId = TenantContextService.getTenantId();
     const limit = query.limit || 20;
 
     const qb = this.packageRepository.createQueryBuilder('pkg');
@@ -136,7 +135,6 @@ export class CatalogService {
   }
 
   async findPackageById(id: string): Promise<ServicePackage> {
-    const _tenantId = TenantContextService.getTenantId();
     const pkg = await this.packageRepository.findOne({
       where: { id },
       relations: ['packageItems', 'packageItems.taskType'],
@@ -201,7 +199,6 @@ export class CatalogService {
 
   async addPackageItems(packageId: string, dto: AddPackageItemsDto): Promise<PackageItem[]> {
     await this.findPackageById(packageId);
-    const _tenantId = TenantContextService.getTenantId();
     const items = dto.items.map((item) =>
       this.packageItemRepository.create({
         packageId,
@@ -223,7 +220,6 @@ export class CatalogService {
   }
 
   async removePackageItem(itemId: string): Promise<void> {
-    const _tenantId = TenantContextService.getTenantId();
     const item = await this.packageItemRepository.findOne({
       where: { id: itemId },
     });
@@ -288,7 +284,6 @@ export class CatalogService {
   }
 
   async findAllTaskTypesCursor(query: CursorPaginationDto): Promise<{ data: TaskType[]; nextCursor: string | null }> {
-    const _tenantId = TenantContextService.getTenantId();
     const limit = query.limit || 20;
 
     const qb = this.taskTypeRepository.createQueryBuilder('tt');
@@ -320,7 +315,6 @@ export class CatalogService {
   }
 
   async findTaskTypeById(id: string): Promise<TaskType> {
-    const _tenantId = TenantContextService.getTenantId();
     const taskType = await this.taskTypeRepository.findOne({
       where: { id },
     });
@@ -370,8 +364,6 @@ export class CatalogService {
   }
 
   async clonePackage(packageId: string, dto: ClonePackageDto): Promise<ServicePackage> {
-    const _tenantId = TenantContextService.getTenantId();
-
     // Load source package with all items
     const sourcePackage = await this.packageRepository.findOne({
       where: { id: packageId },

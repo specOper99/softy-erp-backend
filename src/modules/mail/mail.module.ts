@@ -13,7 +13,8 @@ import { BookingConfirmedMailHandler } from './handlers/booking-confirmed.handle
 import { PaymentReceivedHandler } from './handlers/payment-received.handler';
 import { TaskAssignedHandler } from './handlers/task-assigned.handler';
 import { MailService } from './mail.service';
-import { EMAIL_QUEUE, EmailProcessor } from './processors/email.processor';
+import { EMAIL_QUEUE } from './mail.types';
+import { EmailProcessor } from './processors/email.processor';
 import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 import { MailTemplateService } from './services/mail-template.service';

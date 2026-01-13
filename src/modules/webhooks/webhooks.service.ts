@@ -330,7 +330,6 @@ export class WebhookService {
 
       // SECURITY: Check for redirect responses - these could lead to private IPs
       if (response.status >= 300 && response.status < 400) {
-        const _location = response.headers.get('location');
         throw new BadRequestException('webhooks.redirect_blocked');
       }
 

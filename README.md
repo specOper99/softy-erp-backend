@@ -250,8 +250,10 @@ For a stable and reliable testing environment, please follow these guidelines:
 ### Writing Tests
 - **Secrets**: NEVER hardcode secrets in test files. Use `test/secrets.ts` which provides centralized, overridable constants.
 - **Mocking**:
-  - Always clear mocks in `afterEach`: `jest.clearAllMocks()`.
+  - Use `jest.clearAllMocks()` in `afterEach` for resetting mock call counts.
+  - Use `jest.restoreAllMocks()` when using `jest.spyOn()` to restore original implementations.
   - For tests involving global state or singletons, use `jest.resetModules()` in `beforeEach`.
+- **Tenant Context**: Use `mockTenantContext(tenantId)` helper to set up tenant scoping in tests.
 - **Database**: Integration tests use `testcontainers`. Ensure Docker is running.
 
 
@@ -301,12 +303,13 @@ MFA Recovery codes are stored as **bcrypt hashes** (jsonb column) instead of pla
 
 #### Data Isolation Best Practices
 
-- **Tenant Context**: Always use `TenantContextService.getTenantId()` for tenant scoping
-- **Multi-tenant Constraints**: Ensure composite foreign keys enforce cross-tenant isolation
-- **Query Filters**: Never omit tenantId from WHERE clauses
-- **Transaction Boundaries**: All operations within tenant-scoped transactions
-- **Audit Trail**: Tenant ID included in all audit log entries
-- **Testing**: Verify tenant isolation with integration tests
+- **TenantAwareRepository**: Use `TenantAwareRepository<T>` for all tenant-scoped entities. It automatically applies `tenantId` to `find`, `findOne`, `save`, `remove`, and `count` operations.
+- **Tenant Context**: `TenantContextService.getTenantId()` provides the current tenant ID from `AsyncLocalStorage`.
+- **Multi-tenant Constraints**: Ensure composite foreign keys enforce cross-tenant isolation at the database level.
+- **Query Filters**: For `createQueryBuilder`, manually add `tenantId` in WHERE clauses.
+- **Transaction Boundaries**: All operations within tenant-scoped transactions.
+- **Audit Trail**: Tenant ID included in all audit log entries.
+- **Testing**: Verify tenant isolation with integration tests using `mockTenantContext()`.
 
 #### API Security Guidelines
 
