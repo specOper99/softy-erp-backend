@@ -177,8 +177,7 @@ describe('Tenant Boundary Security E2E', () => {
 
       // Fetch the token directly from MailService mock
       expect(mailService.sendMagicLink).toHaveBeenCalled();
-      const callArgs = (mailService.sendMagicLink as jest.Mock).mock
-        .calls[0][0];
+      const callArgs = (mailService.sendMagicLink as jest.Mock).mock.calls[0][0];
       expect(callArgs.clientEmail).toBe(clientA.email);
       magicLinkToken = callArgs.token;
 
@@ -214,8 +213,7 @@ describe('Tenant Boundary Security E2E', () => {
         .send({ email: clientA.email })
         .expect(201);
 
-      const callArgs = (mailService.sendMagicLink as jest.Mock).mock
-        .calls[0][0];
+      const callArgs = (mailService.sendMagicLink as jest.Mock).mock.calls[0][0];
       magicLinkToken = callArgs.token;
     });
 

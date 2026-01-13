@@ -35,9 +35,7 @@ describe('ConsentService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    (TenantContextService.getTenantId as jest.Mock).mockReturnValue(
-      mockTenantId,
-    );
+    (TenantContextService.getTenantId as jest.Mock).mockReturnValue(mockTenantId);
 
     consentRepository = {
       find: jest.fn(),
@@ -47,10 +45,7 @@ describe('ConsentService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ConsentService,
-        { provide: getRepositoryToken(Consent), useValue: consentRepository },
-      ],
+      providers: [ConsentService, { provide: getRepositoryToken(Consent), useValue: consentRepository }],
     }).compile();
 
     service = module.get<ConsentService>(ConsentService);
@@ -76,9 +71,7 @@ describe('ConsentService', () => {
     it('should throw BadRequestException when tenant context is missing', async () => {
       (TenantContextService.getTenantId as jest.Mock).mockReturnValue(null);
 
-      await expect(service.getConsents(mockUserId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.getConsents(mockUserId)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -96,11 +89,7 @@ describe('ConsentService', () => {
       );
 
       expect(consentRepository.create).toHaveBeenCalled();
-      expect(newConsent.grant).toHaveBeenCalledWith(
-        '127.0.0.1',
-        'test-agent',
-        '1.0',
-      );
+      expect(newConsent.grant).toHaveBeenCalledWith('127.0.0.1', 'test-agent', '1.0');
       expect(result.type).toBe(ConsentType.MARKETING);
     });
 
@@ -115,20 +104,16 @@ describe('ConsentService', () => {
       });
 
       expect(consentRepository.create).not.toHaveBeenCalled();
-      expect(existingConsent.grant).toHaveBeenCalledWith(
-        undefined,
-        undefined,
-        '2.0',
-      );
+      expect(existingConsent.grant).toHaveBeenCalledWith(undefined, undefined, '2.0');
       expect(result.type).toBe(ConsentType.MARKETING);
     });
 
     it('should throw BadRequestException when tenant context is missing', async () => {
       (TenantContextService.getTenantId as jest.Mock).mockReturnValue(null);
 
-      await expect(
-        service.grantConsent(mockUserId, { type: ConsentType.MARKETING }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.grantConsent(mockUserId, { type: ConsentType.MARKETING })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -143,10 +128,7 @@ describe('ConsentService', () => {
       consentRepository.findOne.mockResolvedValue(existingConsent);
       consentRepository.save.mockResolvedValue(existingConsent);
 
-      const result = await service.revokeConsent(
-        mockUserId,
-        ConsentType.MARKETING,
-      );
+      const result = await service.revokeConsent(mockUserId, ConsentType.MARKETING);
 
       expect(existingConsent.revoke).toHaveBeenCalled();
       expect(result.granted).toBe(false);
@@ -155,9 +137,7 @@ describe('ConsentService', () => {
     it('should throw BadRequestException when consent not found', async () => {
       consentRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.revokeConsent(mockUserId, ConsentType.MARKETING),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.revokeConsent(mockUserId, ConsentType.MARKETING)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -165,10 +145,7 @@ describe('ConsentService', () => {
     it('should return true when consent exists and is granted', async () => {
       consentRepository.findOne.mockResolvedValue(mockConsent);
 
-      const result = await service.hasConsent(
-        mockUserId,
-        ConsentType.MARKETING,
-      );
+      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING);
 
       expect(result).toBe(true);
     });
@@ -176,10 +153,7 @@ describe('ConsentService', () => {
     it('should return false when consent not found', async () => {
       consentRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.hasConsent(
-        mockUserId,
-        ConsentType.MARKETING,
-      );
+      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING);
 
       expect(result).toBe(false);
     });
@@ -187,10 +161,7 @@ describe('ConsentService', () => {
     it('should return false when tenant context is missing', async () => {
       (TenantContextService.getTenantId as jest.Mock).mockReturnValue(null);
 
-      const result = await service.hasConsent(
-        mockUserId,
-        ConsentType.MARKETING,
-      );
+      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING);
 
       expect(result).toBe(false);
     });
@@ -200,17 +171,13 @@ describe('ConsentService', () => {
     it('should not throw when consent exists', async () => {
       consentRepository.findOne.mockResolvedValue(mockConsent);
 
-      await expect(
-        service.requireConsent(mockUserId, ConsentType.MARKETING),
-      ).resolves.not.toThrow();
+      await expect(service.requireConsent(mockUserId, ConsentType.MARKETING)).resolves.not.toThrow();
     });
 
     it('should throw BadRequestException when consent not granted', async () => {
       consentRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.requireConsent(mockUserId, ConsentType.MARKETING),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.requireConsent(mockUserId, ConsentType.MARKETING)).rejects.toThrow(BadRequestException);
     });
   });
 });

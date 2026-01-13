@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Response } from 'express';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -23,16 +19,8 @@ import { FinancialReportService } from './financial-report.service';
 
 // Minimal interface describing the subset of WalletService used by FinanceService.
 export type WalletServiceLike = {
-  subtractPendingCommission(
-    manager: EntityManager,
-    userId: string,
-    amount: number,
-  ): Promise<unknown>;
-  addPendingCommission(
-    manager: EntityManager,
-    userId: string,
-    amount: number,
-  ): Promise<unknown>;
+  subtractPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<unknown>;
+  addPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<unknown>;
 };
 
 @Injectable()
@@ -54,17 +42,11 @@ export class FinanceService {
     return this.createTransactionInternal(tenantId, dto);
   }
 
-  async createSystemTransaction(
-    tenantId: string,
-    dto: CreateTransactionDto,
-  ): Promise<Transaction> {
+  async createSystemTransaction(tenantId: string, dto: CreateTransactionDto): Promise<Transaction> {
     return this.createTransactionInternal(tenantId, dto);
   }
 
-  private async createTransactionInternal(
-    tenantId: string,
-    dto: CreateTransactionDto,
-  ): Promise<Transaction> {
+  private async createTransactionInternal(tenantId: string, dto: CreateTransactionDto): Promise<Transaction> {
     // Validate transaction amount with comprehensive checks
     this.validateTransactionAmount(dto.amount, dto.currency);
 
@@ -74,10 +56,7 @@ export class FinanceService {
     }
 
     const currency = dto.currency || tenant.baseCurrency;
-    const exchangeRate = this.currencyService.getExchangeRate(
-      currency,
-      tenant.baseCurrency,
-    );
+    const exchangeRate = this.currencyService.getExchangeRate(currency, tenant.baseCurrency);
 
     // Round amount to 2 decimal places for precision using safe math
     const roundedAmount = MathUtils.round(dto.amount, 2);
@@ -196,24 +175,14 @@ export class FinanceService {
     // Execute updates in order
     for (const update of updates) {
       if (update.action === 'subtract') {
-        await walletService.subtractPendingCommission(
-          manager,
-          update.userId,
-          commissionAmount,
-        );
+        await walletService.subtractPendingCommission(manager, update.userId, commissionAmount);
       } else {
-        await walletService.addPendingCommission(
-          manager,
-          update.userId,
-          commissionAmount,
-        );
+        await walletService.addPendingCommission(manager, update.userId, commissionAmount);
       }
     }
   }
 
-  async findAllTransactions(
-    filter?: TransactionFilterDto,
-  ): Promise<Transaction[]> {
+  async findAllTransactions(filter?: TransactionFilterDto): Promise<Transaction[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const queryBuilder = this.transactionRepository.createQueryBuilder('t');
 
@@ -230,11 +199,7 @@ export class FinanceService {
       });
     }
 
-    return queryBuilder
-      .orderBy('t.transactionDate', 'DESC')
-      .skip(filter?.getSkip())
-      .take(filter?.getTake())
-      .getMany();
+    return queryBuilder.orderBy('t.transactionDate', 'DESC').skip(filter?.getSkip()).take(filter?.getTake()).getMany();
   }
 
   async findAllTransactionsCursor(
@@ -323,12 +288,8 @@ export class FinanceService {
           taskId: typedRow.t_task_id ?? '',
           payoutId: typedRow.t_payout_id ?? '',
           description: typedRow.t_description ?? '',
-          transactionDate: typedRow.t_transaction_date
-            ? new Date(typedRow.t_transaction_date).toISOString()
-            : '',
-          createdAt: typedRow.t_created_at
-            ? new Date(typedRow.t_created_at).toISOString()
-            : '',
+          transactionDate: typedRow.t_transaction_date ? new Date(typedRow.t_transaction_date).toISOString() : '',
+          createdAt: typedRow.t_created_at ? new Date(typedRow.t_created_at).toISOString() : '',
         };
       };
 
@@ -341,11 +302,7 @@ export class FinanceService {
       );
     } finally {
       const streamWithDestroy = queryStream as unknown;
-      if (
-        streamWithDestroy &&
-        typeof streamWithDestroy === 'object' &&
-        'destroy' in streamWithDestroy
-      ) {
+      if (streamWithDestroy && typeof streamWithDestroy === 'object' && 'destroy' in streamWithDestroy) {
         await (streamWithDestroy as { destroy: () => Promise<void> }).destroy();
       }
     }
@@ -364,10 +321,7 @@ export class FinanceService {
       .createQueryBuilder('t')
       .where('t.tenantId = :tenantId', { tenantId })
       .select('t.type', 'type')
-      .addSelect(
-        'SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))',
-        'total',
-      )
+      .addSelect('SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))', 'total')
       .groupBy('t.type')
       .getRawMany<{ type: TransactionType; total: string }>();
 

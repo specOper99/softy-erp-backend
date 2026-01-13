@@ -123,9 +123,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
           autoLoadEntities: true,
           synchronize: configService.get<boolean>('database.synchronize'),
           logging: configService.get<boolean>('database.logging'),
-          logger: configService.get<boolean>('database.logging')
-            ? ('advanced-console' as const)
-            : undefined,
+          logger: configService.get<boolean>('database.logging') ? ('advanced-console' as const) : undefined,
           maxQueryExecutionTime: 100,
           extra: configService.get<Record<string, unknown>>('database.extra'),
         };

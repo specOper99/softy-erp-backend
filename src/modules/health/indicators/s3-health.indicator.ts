@@ -1,11 +1,7 @@
 import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  HealthCheckError,
-  HealthIndicator,
-  HealthIndicatorResult,
-} from '@nestjs/terminus';
+import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
 
 @Injectable()
 export class S3HealthIndicator extends HealthIndicator {
@@ -14,8 +10,7 @@ export class S3HealthIndicator extends HealthIndicator {
 
   constructor(private readonly configService: ConfigService) {
     super();
-    this.bucketName =
-      this.configService.get<string>('S3_BUCKET') || 'chapters-media';
+    this.bucketName = this.configService.get<string>('S3_BUCKET') || 'chapters-media';
 
     const endpoint = this.configService.get<string>('S3_ENDPOINT');
     const region = this.configService.get<string>('S3_REGION') || 'us-east-1';
@@ -33,17 +28,11 @@ export class S3HealthIndicator extends HealthIndicator {
 
   async isHealthy(key: string): Promise<HealthIndicatorResult> {
     try {
-      await this.s3Client.send(
-        new HeadBucketCommand({ Bucket: this.bucketName }),
-      );
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
       return this.getStatus(key, true, { bucket: this.bucketName });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'S3 connection failed';
-      throw new HealthCheckError(
-        `${key} check failed`,
-        this.getStatus(key, false, { message }),
-      );
+      const message = error instanceof Error ? error.message : 'S3 connection failed';
+      throw new HealthCheckError(`${key} check failed`, this.getStatus(key, false, { message }));
     }
   }
 }

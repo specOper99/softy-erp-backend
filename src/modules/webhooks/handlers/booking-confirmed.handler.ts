@@ -10,9 +10,7 @@ export class BookingConfirmedWebhookHandler implements IEventHandler<BookingConf
   constructor(private readonly webhookService: WebhookService) {}
 
   async handle(event: BookingConfirmedEvent) {
-    this.logger.log(
-      `Handling BookingConfirmedEvent for webhook: ${event.bookingId}`,
-    );
+    this.logger.log(`Handling BookingConfirmedEvent for webhook: ${event.bookingId}`);
 
     await this.webhookService.emit({
       tenantId: event.tenantId,

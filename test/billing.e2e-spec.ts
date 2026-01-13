@@ -48,9 +48,7 @@ const mockStripeService = {
     ],
   }),
   listInvoices: jest.fn().mockResolvedValue({
-    data: [
-      { id: 'in_test1', amount_due: 2900, status: 'paid', created: 1704067200 },
-    ],
+    data: [{ id: 'in_test1', amount_due: 2900, status: 'paid', created: 1704067200 }],
   }),
   createCheckoutSession: jest.fn().mockResolvedValue({
     id: 'cs_test_session',
@@ -69,9 +67,7 @@ describe('Billing Module E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -106,12 +102,10 @@ describe('Billing Module E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
 
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
 
     accessToken = loginResponse.body.data?.accessToken;
   });
@@ -133,9 +127,7 @@ describe('Billing Module E2E Tests', () => {
       });
 
       it('should fail without authentication', async () => {
-        await request(app.getHttpServer())
-          .get('/api/v1/billing/products')
-          .expect(401);
+        await request(app.getHttpServer()).get('/api/v1/billing/products').expect(401);
       });
     });
 

@@ -1,9 +1,6 @@
 import { Request, Response } from 'express';
 import { asyncLocalStorage } from '../logger/request-context';
-import {
-  CORRELATION_ID_HEADER,
-  CorrelationIdMiddleware,
-} from './correlation-id.middleware';
+import { CORRELATION_ID_HEADER, CorrelationIdMiddleware } from './correlation-id.middleware';
 
 describe('CorrelationIdMiddleware', () => {
   let middleware: CorrelationIdMiddleware;
@@ -34,10 +31,7 @@ describe('CorrelationIdMiddleware', () => {
 
       middleware.use(mockRequest, mockResponse, mockNext);
 
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        CORRELATION_ID_HEADER,
-        expect.any(String),
-      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(CORRELATION_ID_HEADER, expect.any(String));
       expect(mockNext).toHaveBeenCalled();
     });
 
@@ -58,10 +52,7 @@ describe('CorrelationIdMiddleware', () => {
 
       middleware.use(mockRequest, mockResponse, mockNext);
 
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        CORRELATION_ID_HEADER,
-        existingId,
-      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(CORRELATION_ID_HEADER, existingId);
       expect(mockNext).toHaveBeenCalled();
     });
 

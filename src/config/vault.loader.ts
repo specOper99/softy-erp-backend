@@ -38,10 +38,7 @@ function isVaultLoginResponse(data: unknown): data is VaultLoginResponse {
 
 function isVaultReadResponse(data: unknown): data is VaultReadResponse {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    'data' in data &&
-    typeof (data as VaultReadResponse).data === 'object'
+    typeof data === 'object' && data !== null && 'data' in data && typeof (data as VaultReadResponse).data === 'object'
   );
 }
 
@@ -51,9 +48,7 @@ interface TypedVaultClient {
   read<T>(path: string): Promise<T>;
 }
 
-const createTypedVaultClient = (
-  options: vault.VaultOptions,
-): TypedVaultClient => {
+const createTypedVaultClient = (options: vault.VaultOptions): TypedVaultClient => {
   const client = vault(options);
   return {
     get token() {
@@ -95,24 +90,18 @@ export const vaultLoader = async () => {
     }
 
     if (!process.env.VAULT_SECRET_PATH) {
-      VaultLogger.warn(
-        'VAULT_ENABLED is true but VAULT_SECRET_PATH is missing.',
-      );
+      VaultLogger.warn('VAULT_ENABLED is true but VAULT_SECRET_PATH is missing.');
       return {};
     }
 
-    const kvStore = await client.read<VaultReadResponse>(
-      process.env.VAULT_SECRET_PATH,
-    );
+    const kvStore = await client.read<VaultReadResponse>(process.env.VAULT_SECRET_PATH);
 
     if (!isVaultReadResponse(kvStore)) {
       throw new Error('Invalid Vault read response');
     }
     // Support KV Engine v1 and v2
     // v2 returns data in data.data, v1 in data
-    const secrets = kvStore.data.data
-      ? kvStore.data.data
-      : (kvStore.data as Record<string, string>);
+    const secrets = kvStore.data.data ? kvStore.data.data : (kvStore.data as Record<string, string>);
 
     // Validate if casting was correct using runtime check
     if (typeof secrets !== 'object' || secrets === null) {
@@ -125,9 +114,7 @@ export const vaultLoader = async () => {
 
     return secrets;
   } catch (error) {
-    VaultLogger.error(
-      `Failed to load secrets from Vault: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    VaultLogger.error(`Failed to load secrets from Vault: ${error instanceof Error ? error.message : String(error)}`);
     // In production, we might want to crash here if vault is critical
     if (process.env.NODE_ENV === 'production') {
       throw error;

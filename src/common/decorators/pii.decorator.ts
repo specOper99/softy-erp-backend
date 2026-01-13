@@ -26,15 +26,9 @@ export function PII(): PropertyDecorator {
   return (target: object, propertyKey: string | symbol) => {
     // Store PII metadata on the class prototype
     const existingPiiFields =
-      (Reflect.getMetadata(PII_METADATA_KEY, target.constructor) as
-        | (string | symbol)[]
-        | undefined) || [];
+      (Reflect.getMetadata(PII_METADATA_KEY, target.constructor) as (string | symbol)[] | undefined) || [];
     if (!existingPiiFields.includes(propertyKey)) {
-      Reflect.defineMetadata(
-        PII_METADATA_KEY,
-        [...existingPiiFields, propertyKey],
-        target.constructor,
-      );
+      Reflect.defineMetadata(PII_METADATA_KEY, [...existingPiiFields, propertyKey], target.constructor);
     }
   };
 }
@@ -81,12 +75,6 @@ export const PII_FIELD_PATTERNS = [
  * @param target - The class constructor to inspect
  * @returns Array of field names marked with @PII()
  */
-export function getPiiFields(
-  target: new (...args: unknown[]) => unknown,
-): (string | symbol)[] {
-  return (
-    (Reflect.getMetadata(PII_METADATA_KEY, target) as
-      | (string | symbol)[]
-      | undefined) || []
-  );
+export function getPiiFields(target: new (...args: unknown[]) => unknown): (string | symbol)[] {
+  return (Reflect.getMetadata(PII_METADATA_KEY, target) as (string | symbol)[] | undefined) || [];
 }

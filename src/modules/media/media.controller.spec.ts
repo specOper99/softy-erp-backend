@@ -106,12 +106,7 @@ describe('MediaController', () => {
 
       const result = await controller.getPresignedUploadUrl(dto);
 
-      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith(
-        dto.filename,
-        dto.mimeType,
-        undefined,
-        undefined,
-      );
+      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith(dto.filename, dto.mimeType, undefined, undefined);
       expect(result).toBe(expectedResult);
     });
 
@@ -124,12 +119,7 @@ describe('MediaController', () => {
       };
       mockMediaService.getPresignedUploadUrl.mockResolvedValue({});
       await controller.getPresignedUploadUrl(dto);
-      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith(
-        'test.png',
-        'image/png',
-        'b-1',
-        't-1',
-      );
+      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith('test.png', 'image/png', 'b-1', 't-1');
     });
   });
 
@@ -158,9 +148,7 @@ describe('MediaController', () => {
 
     it('should propagate errors', async () => {
       mockMediaService.create.mockRejectedValue(new Error('Create Error'));
-      await expect(controller.create({ url: 'http://u' })).rejects.toThrow(
-        'Create Error',
-      );
+      await expect(controller.create({ url: 'http://u' })).rejects.toThrow('Create Error');
     });
   });
 
@@ -204,12 +192,8 @@ describe('MediaController', () => {
     });
 
     it('should propagate errors', async () => {
-      mockMediaService.getDownloadUrl.mockRejectedValue(
-        new Error('Download Error'),
-      );
-      await expect(controller.getDownloadUrl('1')).rejects.toThrow(
-        'Download Error',
-      );
+      mockMediaService.getDownloadUrl.mockRejectedValue(new Error('Download Error'));
+      await expect(controller.getDownloadUrl('1')).rejects.toThrow('Download Error');
     });
   });
 
@@ -223,12 +207,8 @@ describe('MediaController', () => {
     });
 
     it('should propagate errors', async () => {
-      mockMediaService.findByBooking.mockRejectedValue(
-        new Error('Booking Error'),
-      );
-      await expect(controller.findByBooking('1')).rejects.toThrow(
-        'Booking Error',
-      );
+      mockMediaService.findByBooking.mockRejectedValue(new Error('Booking Error'));
+      await expect(controller.findByBooking('1')).rejects.toThrow('Booking Error');
     });
   });
 

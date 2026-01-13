@@ -84,8 +84,7 @@ export class Attendance extends BaseTenantEntity {
 
   calculateWorkedHours(): void {
     if (this.checkIn && this.checkOut) {
-      this.workedHours =
-        (this.checkOut.getTime() - this.checkIn.getTime()) / 3600000;
+      this.workedHours = (this.checkOut.getTime() - this.checkIn.getTime()) / 3600000;
     }
   }
 }

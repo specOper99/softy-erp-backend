@@ -14,10 +14,7 @@ describe('UserDeletedHandler', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UserDeletedHandler,
-        { provide: HrService, useValue: mockHrService },
-      ],
+      providers: [UserDeletedHandler, { provide: HrService, useValue: mockHrService }],
     }).compile();
 
     handler = module.get<UserDeletedHandler>(UserDeletedHandler);
@@ -29,37 +26,19 @@ describe('UserDeletedHandler', () => {
   });
 
   it('should call softDeleteProfileByUserId on UserDeletedEvent', async () => {
-    const event = new UserDeletedEvent(
-      'user-uuid-123',
-      'tenant-id',
-      'test@example.com',
-    );
+    const event = new UserDeletedEvent('user-uuid-123', 'tenant-id', 'test@example.com');
     await handler.handle(event);
-    expect(hrService.softDeleteProfileByUserId).toHaveBeenCalledWith(
-      'user-uuid-123',
-    );
+    expect(hrService.softDeleteProfileByUserId).toHaveBeenCalledWith('user-uuid-123');
   });
 
   it('should log error if deletion fails', async () => {
-    const loggerSpy = jest
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation();
-    mockHrService.softDeleteProfileByUserId.mockRejectedValueOnce(
-      new Error('Test error'),
-    );
-    const event = new UserDeletedEvent(
-      'user-uuid-123',
-      'tenant-id',
-      'test@example.com',
-    );
+    const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    mockHrService.softDeleteProfileByUserId.mockRejectedValueOnce(new Error('Test error'));
+    const event = new UserDeletedEvent('user-uuid-123', 'tenant-id', 'test@example.com');
 
     await handler.handle(event);
 
-    expect(hrService.softDeleteProfileByUserId).toHaveBeenCalledWith(
-      'user-uuid-123',
-    );
-    expect(loggerSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to delete profile'),
-    );
+    expect(hrService.softDeleteProfileByUserId).toHaveBeenCalledWith('user-uuid-123');
+    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to delete profile'));
   });
 });

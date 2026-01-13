@@ -29,9 +29,7 @@ describe('MessagePack Negotiation (e2e)', () => {
   });
 
   it('/api/v1/health/live (GET) - should return JSON by default', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/api/v1/health/live')
-      .expect(200);
+    const response = await request(app.getHttpServer()).get('/api/v1/health/live').expect(200);
 
     expect(response.headers['content-type']).toMatch(/application\/json/);
     expect(response.body).toHaveProperty('status');

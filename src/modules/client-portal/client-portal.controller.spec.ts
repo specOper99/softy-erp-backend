@@ -67,9 +67,7 @@ describe('ClientPortalController', () => {
         email: 'test@example.com',
       });
 
-      expect(clientAuthService.requestMagicLink).toHaveBeenCalledWith(
-        'test@example.com',
-      );
+      expect(clientAuthService.requestMagicLink).toHaveBeenCalledWith('test@example.com');
       expect(result).toEqual({ message: 'Magic link sent' });
     });
   });
@@ -86,9 +84,7 @@ describe('ClientPortalController', () => {
 
       const result = await controller.verifyMagicLink({ token: 'magic-token' });
 
-      expect(clientAuthService.verifyMagicLink).toHaveBeenCalledWith(
-        'magic-token',
-      );
+      expect(clientAuthService.verifyMagicLink).toHaveBeenCalledWith('magic-token');
       expect(result.accessToken).toBe('access-token-123');
       expect(result.client.id).toBe('client-1');
       expect(result.client.name).toBe('Test Client');
@@ -113,12 +109,8 @@ describe('ClientPortalController', () => {
 
   describe('getMyBookings', () => {
     it('should return bookings for authenticated client', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(
-        mockClient as Client,
-      );
-      clientPortalService.getMyBookings.mockResolvedValue([
-        mockBooking as Booking,
-      ]);
+      clientAuthService.validateClientToken.mockResolvedValue(mockClient as Client);
+      clientPortalService.getMyBookings.mockResolvedValue([mockBooking as Booking]);
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
@@ -126,13 +118,8 @@ describe('ClientPortalController', () => {
 
       const result = await controller.getMyBookings(req);
 
-      expect(clientAuthService.validateClientToken).toHaveBeenCalledWith(
-        'access-token-123',
-      );
-      expect(clientPortalService.getMyBookings).toHaveBeenCalledWith(
-        'client-1',
-        'tenant-1',
-      );
+      expect(clientAuthService.validateClientToken).toHaveBeenCalledWith('access-token-123');
+      expect(clientPortalService.getMyBookings).toHaveBeenCalledWith('client-1', 'tenant-1');
       expect(result).toEqual([mockBooking]);
     });
 
@@ -143,17 +130,13 @@ describe('ClientPortalController', () => {
         headers: { 'x-client-token': 'invalid-token' },
       } as any;
 
-      await expect(controller.getMyBookings(req)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(controller.getMyBookings(req)).rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('getBooking', () => {
     it('should return a specific booking for authenticated client', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(
-        mockClient as Client,
-      );
+      clientAuthService.validateClientToken.mockResolvedValue(mockClient as Client);
       clientPortalService.getBooking.mockResolvedValue(mockBooking as Booking);
 
       const req = {
@@ -162,11 +145,7 @@ describe('ClientPortalController', () => {
 
       const result = await controller.getBooking('booking-1', req);
 
-      expect(clientPortalService.getBooking).toHaveBeenCalledWith(
-        'booking-1',
-        'client-1',
-        'tenant-1',
-      );
+      expect(clientPortalService.getBooking).toHaveBeenCalledWith('booking-1', 'client-1', 'tenant-1');
       expect(result).toEqual(mockBooking);
     });
 
@@ -177,17 +156,13 @@ describe('ClientPortalController', () => {
         headers: { 'x-client-token': 'invalid-token' },
       } as any;
 
-      await expect(controller.getBooking('booking-1', req)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(controller.getBooking('booking-1', req)).rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('getProfile', () => {
     it('should return client profile for authenticated client', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(
-        mockClient as Client,
-      );
+      clientAuthService.validateClientToken.mockResolvedValue(mockClient as Client);
       clientPortalService.getClientProfile.mockResolvedValue({
         id: 'client-1',
         name: 'Test Client',
@@ -201,10 +176,7 @@ describe('ClientPortalController', () => {
 
       const result = await controller.getProfile(req);
 
-      expect(clientPortalService.getClientProfile).toHaveBeenCalledWith(
-        'client-1',
-        'tenant-1',
-      );
+      expect(clientPortalService.getClientProfile).toHaveBeenCalledWith('client-1', 'tenant-1');
       expect(result).toEqual({
         id: 'client-1',
         name: 'Test Client',
@@ -220,9 +192,7 @@ describe('ClientPortalController', () => {
         headers: { 'x-client-token': 'invalid-token' },
       } as any;
 
-      await expect(controller.getProfile(req)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(controller.getProfile(req)).rejects.toThrow(UnauthorizedException);
     });
   });
 });

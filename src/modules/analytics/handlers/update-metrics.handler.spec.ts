@@ -34,9 +34,7 @@ describe('UpdateMetricsHandler Integration', () => {
     }).compile();
 
     handler = module.get<UpdateMetricsHandler>(UpdateMetricsHandler);
-    metricsRepo = module.get<Repository<DailyMetrics>>(
-      getRepositoryToken(DailyMetrics),
-    );
+    metricsRepo = module.get<Repository<DailyMetrics>>(getRepositoryToken(DailyMetrics));
   });
 
   afterEach(async () => {
@@ -89,13 +87,7 @@ describe('UpdateMetricsHandler Integration', () => {
 
   it('should increment task count on TaskCompletedEvent', async () => {
     // taskId, tenantId, completedAt, commissionAccrued, assignedUserId
-    const event = new TaskCompletedEvent(
-      'task-1',
-      'tenant-1',
-      new Date(),
-      50,
-      'user-1',
-    );
+    const event = new TaskCompletedEvent('task-1', 'tenant-1', new Date(), 50, 'user-1');
     await handler.handle(event);
 
     const metrics = await metricsRepo.findOne({

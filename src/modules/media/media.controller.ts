@@ -13,20 +13,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import {
-  CreateAttachmentDto,
-  LinkAttachmentDto,
-  PresignedUploadDto,
-} from './dto';
+import { CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto';
 import { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
 
@@ -82,23 +72,13 @@ export class MediaController {
   @ApiOperation({
     summary: 'Get a pre-signed URL for direct upload to storage',
   })
-  async getPresignedUploadUrl(
-    @Body() dto: PresignedUploadDto,
-  ): Promise<{ uploadUrl: string; attachment: Attachment }> {
-    return this.mediaService.getPresignedUploadUrl(
-      dto.filename,
-      dto.mimeType,
-      dto.bookingId,
-      dto.taskId,
-    );
+  async getPresignedUploadUrl(@Body() dto: PresignedUploadDto): Promise<{ uploadUrl: string; attachment: Attachment }> {
+    return this.mediaService.getPresignedUploadUrl(dto.filename, dto.mimeType, dto.bookingId, dto.taskId);
   }
 
   @Post(':id/confirm')
   @ApiOperation({ summary: 'Confirm a pre-signed upload completed' })
-  async confirmUpload(
-    @Param('id') id: string,
-    @Body('size') size: number,
-  ): Promise<Attachment> {
+  async confirmUpload(@Param('id') id: string, @Body('size') size: number): Promise<Attachment> {
     return this.mediaService.confirmUpload(id, size);
   }
 
@@ -110,9 +90,7 @@ export class MediaController {
 
   @Get()
   @ApiOperation({ summary: 'Get all attachments' })
-  async findAll(
-    @Query() query: PaginationDto = new PaginationDto(),
-  ): Promise<Attachment[]> {
+  async findAll(@Query() query: PaginationDto = new PaginationDto()): Promise<Attachment[]> {
     return this.mediaService.findAll(query);
   }
 

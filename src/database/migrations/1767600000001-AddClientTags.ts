@@ -28,8 +28,6 @@ export class AddClientTags1767600000001 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_clients_tags"`);
 
     // Drop the tags column
-    await queryRunner.query(
-      `ALTER TABLE "clients" DROP COLUMN IF EXISTS "tags"`,
-    );
+    await queryRunner.query(`ALTER TABLE "clients" DROP COLUMN IF EXISTS "tags"`);
   }
 }

@@ -58,9 +58,7 @@ describe('AuditInterceptor', () => {
     reflector = module.get<Reflector>(Reflector);
     auditService = module.get(AuditService);
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
   });
 
   afterEach(() => {
@@ -212,11 +210,9 @@ describe('AuditInterceptor', () => {
         ],
       }).compile();
 
-      const trustedInterceptor =
-        trustedModule.get<AuditInterceptor>(AuditInterceptor);
+      const trustedInterceptor = trustedModule.get<AuditInterceptor>(AuditInterceptor);
       const trustedReflector = trustedModule.get<Reflector>(Reflector);
-      const trustedAuditService =
-        trustedModule.get<jest.Mocked<AuditService>>(AuditService);
+      const trustedAuditService = trustedModule.get<jest.Mocked<AuditService>>(AuditService);
 
       const requestWithForwarded = {
         ...mockRequest,
@@ -244,18 +240,16 @@ describe('AuditInterceptor', () => {
       };
 
       await new Promise<void>((resolve) => {
-        trustedInterceptor
-          .intercept(contextWithForwarded, mockCallHandler)
-          .subscribe({
-            complete: () => {
-              expect(trustedAuditService.log).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  ipAddress: '192.168.1.1',
-                }),
-              );
-              resolve();
-            },
-          });
+        trustedInterceptor.intercept(contextWithForwarded, mockCallHandler).subscribe({
+          complete: () => {
+            expect(trustedAuditService.log).toHaveBeenCalledWith(
+              expect.objectContaining({
+                ipAddress: '192.168.1.1',
+              }),
+            );
+            resolve();
+          },
+        });
       });
     });
 
@@ -272,17 +266,12 @@ describe('AuditInterceptor', () => {
       };
 
       // Mock the NestJS Logger error method
-      const loggerErrorSpy = jest
-        .spyOn(Logger.prototype, 'error')
-        .mockImplementation();
+      const loggerErrorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
         complete: () => {
           setTimeout(() => {
-            expect(loggerErrorSpy).toHaveBeenCalledWith(
-              'Audit logging failed',
-              expect.any(String),
-            );
+            expect(loggerErrorSpy).toHaveBeenCalledWith('Audit logging failed', expect.any(String));
             loggerErrorSpy.mockRestore();
             done();
           }, 50);

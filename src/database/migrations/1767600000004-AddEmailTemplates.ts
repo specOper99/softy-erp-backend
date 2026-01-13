@@ -25,9 +25,7 @@ export class AddEmailTemplates1735990000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_email_templates_tenant_name"`,
-    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_email_templates_tenant_name"`);
     await queryRunner.query(`DROP TABLE "email_templates"`);
   }
 }

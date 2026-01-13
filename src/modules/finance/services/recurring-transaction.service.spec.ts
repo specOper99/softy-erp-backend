@@ -1,10 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import {
-  createMockRepository,
-  mockTenantContext,
-} from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { RecurringStatus } from '../entities/recurring-transaction.entity';
 
 import { TransactionType } from '../enums/transaction-type.enum';
@@ -67,12 +64,8 @@ describe('RecurringTransactionService', () => {
       ],
     }).compile();
 
-    service = module.get<RecurringTransactionService>(
-      RecurringTransactionService,
-    );
-    recurringRepo = module.get<RecurringTransactionRepository>(
-      RecurringTransactionRepository,
-    );
+    service = module.get<RecurringTransactionService>(RecurringTransactionService);
+    recurringRepo = module.get<RecurringTransactionRepository>(RecurringTransactionRepository);
     financeService = module.get(FinanceService);
 
     mockTenantContext(mockTenantId);
@@ -143,9 +136,7 @@ describe('RecurringTransactionService', () => {
     it('should throw NotFoundException when not found', async () => {
       recurringRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -173,17 +164,13 @@ describe('RecurringTransactionService', () => {
 
       await service.remove('rt-123');
 
-      expect(recurringRepo.remove).toHaveBeenCalledWith(
-        mockRecurringTransaction,
-      );
+      expect(recurringRepo.remove).toHaveBeenCalledWith(mockRecurringTransaction);
     });
 
     it('should throw NotFoundException when not found', async () => {
       recurringRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.remove('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -208,9 +195,7 @@ describe('RecurringTransactionService', () => {
     it('should handle errors gracefully', async () => {
       const dueTransactions = [{ ...mockRecurringTransaction }];
       recurringRepo.find.mockResolvedValue(dueTransactions as any);
-      financeService.createSystemTransaction.mockRejectedValue(
-        new Error('Failed'),
-      );
+      financeService.createSystemTransaction.mockRejectedValue(new Error('Failed'));
 
       // Should not throw
       await expect(service.processDueTransactions()).resolves.not.toThrow();

@@ -29,10 +29,7 @@ export class MailTemplateService {
     private readonly templateRepository?: Repository<EmailTemplate>,
   ) {
     this.companyName = this.configService.get('COMPANY_NAME', 'Soft-y');
-    this.companyUrl = this.configService.get(
-      'COMPANY_URL',
-      'https://soft-y.com',
-    );
+    this.companyUrl = this.configService.get('COMPANY_URL', 'https://soft-y.com');
   }
 
   /**
@@ -76,9 +73,7 @@ export class MailTemplateService {
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      this.logger.warn(
-        `Failed to resolve DB template ${dbName}, falling back to file: ${errorMessage}`,
-      );
+      this.logger.warn(`Failed to resolve DB template ${dbName}, falling back to file: ${errorMessage}`);
     }
 
     return { template: fileTemplate };
@@ -87,10 +82,7 @@ export class MailTemplateService {
   /**
    * Inject locale-specific context variables and sanitize content
    */
-  sanitizeContext(
-    context: Record<string, unknown>,
-    locale = 'en',
-  ): Record<string, unknown> {
+  sanitizeContext(context: Record<string, unknown>, locale = 'en'): Record<string, unknown> {
     const isRtl = ['ar', 'ku'].includes(locale);
     const sanitized = this.recursiveSanitize(context);
 
@@ -153,9 +145,7 @@ export class MailTemplateService {
   /**
    * Build common email context with company info and current year
    */
-  buildCommonContext(
-    additionalContext: Record<string, unknown> = {},
-  ): Record<string, unknown> {
+  buildCommonContext(additionalContext: Record<string, unknown> = {}): Record<string, unknown> {
     return {
       ...additionalContext,
       year: new Date().getFullYear(),

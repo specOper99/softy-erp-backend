@@ -13,9 +13,7 @@ describe('Redis Cache Integration Tests', () => {
   beforeAll(async () => {
     // Start Redis container
     console.log('🐳 Starting Redis container...');
-    redisContainer = await new GenericContainer('redis:7-alpine')
-      .withExposedPorts(6379)
-      .start();
+    redisContainer = await new GenericContainer('redis:7-alpine').withExposedPorts(6379).start();
 
     const host = redisContainer.getHost();
     const port = redisContainer.getMappedPort(6379);
@@ -55,11 +53,7 @@ describe('Redis Cache Integration Tests', () => {
       await cm.reset();
     } else if (cm.store && typeof cm.store.reset === 'function') {
       await cm.store.reset();
-    } else if (
-      cm.store &&
-      typeof cm.store.keys === 'function' &&
-      typeof cm.store.del === 'function'
-    ) {
+    } else if (cm.store && typeof cm.store.keys === 'function' && typeof cm.store.del === 'function') {
       const keys = await cm.store.keys('*');
       if (keys && keys.length > 0) {
         await cm.store.del(keys);
@@ -244,9 +238,7 @@ describe('Redis Cache Integration Tests', () => {
       }
 
       const results = await Promise.all(reads);
-      const allSucceeded = results.every(
-        (result, index) => result && (result as any).index === index,
-      );
+      const allSucceeded = results.every((result, index) => result && (result as any).index === index);
 
       expect(allSucceeded).toBe(true);
     });

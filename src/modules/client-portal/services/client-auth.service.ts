@@ -1,10 +1,5 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Cache } from 'cache-manager';
@@ -126,9 +121,7 @@ export class ClientAuthService {
     }
   }
 
-  async verifyMagicLink(
-    token: string,
-  ): Promise<{ accessToken: string; expiresIn: number; client: Client }> {
+  async verifyMagicLink(token: string): Promise<{ accessToken: string; expiresIn: number; client: Client }> {
     const tenantId = TenantContextService.getTenantId();
     const tokenHash = this.hashToken(token);
 
@@ -187,10 +180,7 @@ export class ClientAuthService {
         client,
       };
     } catch (error) {
-      if (
-        !(error instanceof NotFoundException) &&
-        !(error instanceof UnauthorizedException)
-      ) {
+      if (!(error instanceof NotFoundException) && !(error instanceof UnauthorizedException)) {
         this.magicLinkVerifiedCounter.inc({
           tenant_id: tenantId,
           status: 'error',
@@ -204,9 +194,7 @@ export class ClientAuthService {
     try {
       // Check blacklist first
       const tokenHash = this.hashToken(token);
-      const isBlacklisted = await this.cacheManager.get(
-        `blacklist:${tokenHash}`,
-      );
+      const isBlacklisted = await this.cacheManager.get(`blacklist:${tokenHash}`);
       if (isBlacklisted) {
         return null; // Revoked
       }
@@ -240,12 +228,7 @@ export class ClientAuthService {
     try {
       const decodedUnknown: unknown = this.jwtService.decode(token);
       // Defensive checks to avoid unsafe `any` usage
-      if (
-        !decodedUnknown ||
-        typeof decodedUnknown !== 'object' ||
-        decodedUnknown === null
-      )
-        return;
+      if (!decodedUnknown || typeof decodedUnknown !== 'object' || decodedUnknown === null) return;
 
       const exp = (decodedUnknown as { exp?: number }).exp;
       if (!exp || typeof exp !== 'number') return;
@@ -256,11 +239,7 @@ export class ClientAuthService {
       if (ttl > 0) {
         const tokenHash = this.hashToken(token);
         // TTL in milliseconds for cache-manager
-        await this.cacheManager.set(
-          `blacklist:${tokenHash}`,
-          'revoked',
-          ttl * 1000,
-        );
+        await this.cacheManager.set(`blacklist:${tokenHash}`, 'revoked', ttl * 1000);
       }
     } catch {
       // Ignore decode errors on logout

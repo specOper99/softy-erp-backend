@@ -1,12 +1,7 @@
 // IMPORTANT: Import instrument.ts FIRST for Sentry to work correctly
 import './instrument';
 
-import {
-  ClassSerializerInterceptor,
-  Logger,
-  ValidationPipe,
-  VersioningType,
-} from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
@@ -90,13 +85,7 @@ async function bootstrap() {
   }
 
   app.enableCors({
-    origin: isProd
-      ? corsOrigins
-      : [
-          'http://localhost:3000',
-          'http://localhost:4200',
-          'http://localhost:5173',
-        ],
+    origin: isProd ? corsOrigins : ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -123,16 +112,10 @@ async function bootstrap() {
     .addTag('Client Portal', 'Client-facing portal and magic link auth')
     .addTag('Audit', 'System audit logs')
     .addTag('Metrics', 'System performance metrics')
-    .setLicense(
-      `Private - ${process.env.COMPANY_NAME || 'Soft-y'}`,
-      process.env.COMPANY_URL || 'https://soft-y.com',
-    )
+    .setLicense(`Private - ${process.env.COMPANY_NAME || 'Soft-y'}`, process.env.COMPANY_URL || 'https://soft-y.com')
     .build();
 
-  if (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.ENABLE_SWAGGER === 'true'
-  ) {
+  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
   }
@@ -143,10 +126,7 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log(`Server running on http://localhost:${port}`);
   logger.log(`API Base: http://localhost:${port}/api/v1`);
-  if (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.ENABLE_SWAGGER === 'true'
-  ) {
+  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
     logger.log(`Swagger: http://localhost:${port}/api/docs`);
   }
 }

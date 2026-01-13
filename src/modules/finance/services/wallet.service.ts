@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -15,10 +11,7 @@ import { WalletRepository } from '../repositories/wallet.repository';
 export class WalletService {
   constructor(private readonly walletRepository: WalletRepository) {}
 
-  async getOrCreateWallet(
-    userId: string,
-    manager?: EntityManager,
-  ): Promise<EmployeeWallet> {
+  async getOrCreateWallet(userId: string, manager?: EntityManager): Promise<EmployeeWallet> {
     if (manager) {
       return this.getOrCreateWalletWithManager(manager, userId);
     }
@@ -70,10 +63,7 @@ export class WalletService {
     return wallet;
   }
 
-  async getOrCreateWalletWithManager(
-    manager: EntityManager,
-    userId: string,
-  ): Promise<EmployeeWallet> {
+  async getOrCreateWalletWithManager(manager: EntityManager, userId: string): Promise<EmployeeWallet> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     let wallet = await manager.findOne(EmployeeWallet, {
       where: { userId, tenantId },
@@ -98,9 +88,7 @@ export class WalletService {
     });
   }
 
-  async getAllWallets(
-    query: PaginationDto = new PaginationDto(),
-  ): Promise<EmployeeWallet[]> {
+  async getAllWallets(query: PaginationDto = new PaginationDto()): Promise<EmployeeWallet[]> {
     return this.walletRepository.find({
       relations: ['user'],
       skip: query.getSkip(),
@@ -113,11 +101,7 @@ export class WalletService {
    * @requires MUST be called within an active transaction context
    * @throws Error if called outside transaction
    */
-  async addPendingCommission(
-    manager: EntityManager,
-    userId: string,
-    amount: number,
-  ): Promise<EmployeeWallet> {
+  async addPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
     this.assertTransactionActive(manager, 'addPendingCommission');
     if (amount <= 0) {
       throw new BadRequestException('wallet.commission_must_be_positive');
@@ -135,10 +119,7 @@ export class WalletService {
         tenantId,
       });
     }
-    wallet.pendingBalance = MathUtils.add(
-      Number(wallet.pendingBalance),
-      Number(amount),
-    );
+    wallet.pendingBalance = MathUtils.add(Number(wallet.pendingBalance), Number(amount));
     return manager.save(wallet);
   }
 
@@ -148,11 +129,7 @@ export class WalletService {
    * @requires MUST be called within an active transaction context
    * @throws Error if called outside transaction
    */
-  async subtractPendingCommission(
-    manager: EntityManager,
-    userId: string,
-    amount: number,
-  ): Promise<EmployeeWallet> {
+  async subtractPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
     this.assertTransactionActive(manager, 'subtractPendingCommission');
     if (amount <= 0) {
       throw new BadRequestException('wallet.commission_must_be_positive');
@@ -165,10 +142,7 @@ export class WalletService {
     if (!wallet) {
       throw new NotFoundException(`Wallet not found for user ${userId}`);
     }
-    const newBalance = MathUtils.subtract(
-      Number(wallet.pendingBalance),
-      Number(amount),
-    );
+    const newBalance = MathUtils.subtract(Number(wallet.pendingBalance), Number(amount));
     wallet.pendingBalance = Math.max(0, newBalance);
     return manager.save(wallet);
   }
@@ -178,11 +152,7 @@ export class WalletService {
    * @requires MUST be called within an active transaction context
    * @throws Error if called outside transaction
    */
-  async moveToPayable(
-    manager: EntityManager,
-    userId: string,
-    amount: number,
-  ): Promise<EmployeeWallet> {
+  async moveToPayable(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
     this.assertTransactionActive(manager, 'moveToPayable');
     if (amount <= 0) {
       throw new BadRequestException('wallet.transfer_must_be_positive');
@@ -207,10 +177,7 @@ export class WalletService {
     }
 
     wallet.pendingBalance = MathUtils.subtract(currentPending, transferAmount);
-    wallet.payableBalance = MathUtils.add(
-      Number(wallet.payableBalance),
-      transferAmount,
-    );
+    wallet.payableBalance = MathUtils.add(Number(wallet.payableBalance), transferAmount);
     return manager.save(wallet);
   }
 
@@ -219,10 +186,7 @@ export class WalletService {
    * @requires MUST be called within an active transaction context
    * @throws Error if called outside transaction
    */
-  async resetPayableBalance(
-    manager: EntityManager,
-    userId: string,
-  ): Promise<EmployeeWallet> {
+  async resetPayableBalance(manager: EntityManager, userId: string): Promise<EmployeeWallet> {
     this.assertTransactionActive(manager, 'resetPayableBalance');
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const wallet = await manager.findOne(EmployeeWallet, {
@@ -240,14 +204,9 @@ export class WalletService {
    * Validates that an EntityManager is within an active transaction.
    * Prevents wallet race conditions by ensuring atomic operations.
    */
-  private assertTransactionActive(
-    manager: EntityManager,
-    methodName: string,
-  ): void {
+  private assertTransactionActive(manager: EntityManager, methodName: string): void {
     if (!manager.queryRunner?.isTransactionActive) {
-      throw new Error(
-        `${methodName} must be called within an active transaction context`,
-      );
+      throw new Error(`${methodName} must be called within an active transaction context`);
     }
   }
 }

@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-} from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { Transaction } from './transaction.entity';

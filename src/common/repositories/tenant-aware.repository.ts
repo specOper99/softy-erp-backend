@@ -1,9 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
-import {
-  ForbiddenException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import {
   DeepPartial,
   DeleteResult,
@@ -36,9 +32,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     return TenantContextService.getTenantIdOrThrow();
   }
 
-  private applyTenantScope<O extends FindManyOptions<T> | FindOneOptions<T>>(
-    options: O,
-  ): O {
+  private applyTenantScope<O extends FindManyOptions<T> | FindOneOptions<T>>(options: O): O {
     const tenantId = this.getTenantId();
     const where = options.where || {};
 
@@ -82,14 +76,10 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     return this.repository.findOne(this.applyTenantScope(options));
   }
 
-  async findOneBy(
-    where: FindOptionsWhere<T> | FindOptionsWhere<T>[],
-  ): Promise<T | null> {
+  async findOneBy(where: FindOptionsWhere<T> | FindOptionsWhere<T>[]): Promise<T | null> {
     const tenantId = this.getTenantId();
     if (Array.isArray(where)) {
-      return this.repository.findOneBy(
-        where.map((w) => ({ ...w, tenantId }) as FindOptionsWhere<T>),
-      );
+      return this.repository.findOneBy(where.map((w) => ({ ...w, tenantId }) as FindOptionsWhere<T>));
     }
     return this.repository.findOneBy({
       ...where,
@@ -97,10 +87,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     } as FindOptionsWhere<T>);
   }
 
-  async update(
-    criteria: FindOptionsWhere<T>,
-    partialEntity: DeepPartial<T>,
-  ): Promise<UpdateResult> {
+  async update(criteria: FindOptionsWhere<T>, partialEntity: DeepPartial<T>): Promise<UpdateResult> {
     const tenantId = this.getTenantId();
     // Ensure we only update records belonging to tenant
     const scopedCriteria = { ...criteria, tenantId };

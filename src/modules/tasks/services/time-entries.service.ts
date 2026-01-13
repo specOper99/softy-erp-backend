@@ -1,16 +1,8 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import {
-  StartTimeEntryDto,
-  StopTimeEntryDto,
-  UpdateTimeEntryDto,
-} from '../dto/time-entry.dto';
+import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
 import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
 
 @Injectable()
@@ -32,9 +24,7 @@ export class TimeEntriesService {
     });
 
     if (activeTimer) {
-      throw new BadRequestException(
-        'You have an active timer. Please stop it first.',
-      );
+      throw new BadRequestException('You have an active timer. Please stop it first.');
     }
 
     const timeEntry = this.timeEntryRepository.create({
@@ -50,11 +40,7 @@ export class TimeEntriesService {
     return this.timeEntryRepository.save(timeEntry);
   }
 
-  async stopTimer(
-    userId: string,
-    id: string,
-    dto?: StopTimeEntryDto,
-  ): Promise<TimeEntry> {
+  async stopTimer(userId: string, id: string, dto?: StopTimeEntryDto): Promise<TimeEntry> {
     const tenantId = TenantContextService.getTenantId();
     const timeEntry = await this.timeEntryRepository.findOne({
       where: { id, userId, tenantId },
@@ -97,11 +83,7 @@ export class TimeEntriesService {
     });
   }
 
-  async update(
-    userId: string,
-    id: string,
-    dto: UpdateTimeEntryDto,
-  ): Promise<TimeEntry> {
+  async update(userId: string, id: string, dto: UpdateTimeEntryDto): Promise<TimeEntry> {
     const tenantId = TenantContextService.getTenantId();
     const timeEntry = await this.timeEntryRepository.findOne({
       where: { id, tenantId },
@@ -116,9 +98,7 @@ export class TimeEntriesService {
     if (dto.startTime || dto.endTime) {
       if (timeEntry.status === TimeEntryStatus.STOPPED && timeEntry.endTime) {
         timeEntry.durationMinutes = Math.round(
-          (new Date(timeEntry.endTime).getTime() -
-            new Date(timeEntry.startTime).getTime()) /
-            60000,
+          (new Date(timeEntry.endTime).getTime() - new Date(timeEntry.startTime).getTime()) / 60000,
         );
       }
     }

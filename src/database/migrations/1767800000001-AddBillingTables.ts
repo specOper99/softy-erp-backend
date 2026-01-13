@@ -99,9 +99,7 @@ export class AddBillingTables1767800000001 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE INDEX "IDX_payment_methods_tenant" ON "payment_methods" ("tenant_id")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_payment_methods_tenant" ON "payment_methods" ("tenant_id")`);
 
     await queryRunner.query(`
       ALTER TABLE "payment_methods"
@@ -136,43 +134,23 @@ export class AddBillingTables1767800000001 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_usage_records_tenant_reported"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_usage_records_tenant_metric_period"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_usage_records_tenant_reported"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_usage_records_tenant_metric_period"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "usage_records"`);
 
-    await queryRunner.query(
-      `ALTER TABLE "payment_methods" DROP CONSTRAINT IF EXISTS "FK_payment_methods_tenant"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_payment_methods_tenant"`,
-    );
+    await queryRunner.query(`ALTER TABLE "payment_methods" DROP CONSTRAINT IF EXISTS "FK_payment_methods_tenant"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_payment_methods_tenant"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "payment_methods"`);
 
-    await queryRunner.query(
-      `ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "FK_subscriptions_tenant"`,
-    );
+    await queryRunner.query(`ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "FK_subscriptions_tenant"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "subscriptions"`);
 
-    await queryRunner.query(
-      `ALTER TABLE "billing_customers" DROP CONSTRAINT IF EXISTS "FK_billing_customers_tenant"`,
-    );
+    await queryRunner.query(`ALTER TABLE "billing_customers" DROP CONSTRAINT IF EXISTS "FK_billing_customers_tenant"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "billing_customers"`);
 
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."usage_records_metric_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."payment_methods_type_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."subscriptions_billing_interval_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."subscriptions_status_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."usage_records_metric_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."payment_methods_type_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."subscriptions_billing_interval_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."subscriptions_status_enum"`);
   }
 }

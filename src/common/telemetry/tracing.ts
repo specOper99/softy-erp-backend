@@ -27,8 +27,7 @@ export function initTracing(): void {
     return;
   }
 
-  const zipkinUrl =
-    process.env.ZIPKIN_ENDPOINT || 'http://localhost:9411/api/v2/spans';
+  const zipkinUrl = process.env.ZIPKIN_ENDPOINT || 'http://localhost:9411/api/v2/spans';
 
   sdk = new NodeSDK({
     serviceName: 'chapters-studio-erp',
@@ -43,17 +42,13 @@ export function initTracing(): void {
   });
 
   sdk.start();
-  TracingLogger.log(
-    `OpenTelemetry tracing started. Exporting to Zipkin: ${zipkinUrl}`,
-  );
+  TracingLogger.log(`OpenTelemetry tracing started. Exporting to Zipkin: ${zipkinUrl}`);
 
   process.on('SIGTERM', () => {
     sdk
       ?.shutdown()
       .then(() => TracingLogger.log('OpenTelemetry SDK shut down'))
-      .catch((error) =>
-        TracingLogger.error('Error shutting down OpenTelemetry', error),
-      )
+      .catch((error) => TracingLogger.error('Error shutting down OpenTelemetry', error))
       .finally(() => process.exit(0));
   });
 }

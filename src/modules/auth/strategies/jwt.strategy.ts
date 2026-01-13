@@ -31,8 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(req: Request, payload: TokenPayload) {
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
     if (token) {
-      const isBlacklisted =
-        await this.tokenBlacklistService.isBlacklisted(token);
+      const isBlacklisted = await this.tokenBlacklistService.isBlacklisted(token);
       if (isBlacklisted) {
         return null; // Reject request
       }

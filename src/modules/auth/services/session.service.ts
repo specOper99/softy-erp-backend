@@ -27,10 +27,7 @@ export class SessionService {
     }
   }
 
-  async revokeOtherSessions(
-    userId: string,
-    currentRefreshToken: string,
-  ): Promise<number> {
+  async revokeOtherSessions(userId: string, currentRefreshToken: string): Promise<number> {
     const currentTokenHash = this.tokenService.hashToken(currentRefreshToken);
     return this.tokenService.revokeOtherSessions(userId, currentTokenHash);
   }
@@ -39,15 +36,10 @@ export class SessionService {
     return this.tokenService.revokeAllUserTokens(userId);
   }
 
-  async checkNewDevice(
-    userId: string,
-    userAgent: string,
-    ipAddress?: string,
-  ): Promise<void> {
+  async checkNewDevice(userId: string, userAgent: string, ipAddress?: string): Promise<void> {
     try {
       const ua = userAgent.substring(0, 500);
-      const previousLogin =
-        await this.tokenService.findPreviousLoginByUserAgent(userId, ua);
+      const previousLogin = await this.tokenService.findPreviousLoginByUserAgent(userId, ua);
 
       if (!previousLogin) {
         this.logger.warn({
@@ -61,9 +53,7 @@ export class SessionService {
           const user = await this.usersService.findOne(userId);
           const location = this.geoIpService.getLocation(ipAddress);
           const locationStr =
-            location.country !== 'Unknown'
-              ? `${location.city}, ${location.country}`
-              : 'Unknown Location';
+            location.country !== 'Unknown' ? `${location.city}, ${location.country}` : 'Unknown Location';
 
           if (user) {
             await this.mailService.queueNewDeviceLogin({
@@ -82,37 +72,23 @@ export class SessionService {
     }
   }
 
-  async checkSuspiciousActivity(
-    userId: string,
-    currentIp: string,
-  ): Promise<void> {
+  async checkSuspiciousActivity(userId: string, currentIp: string): Promise<void> {
     try {
       const currentLocation = this.geoIpService.getLocation(currentIp);
-      if (
-        currentLocation.country === 'Unknown' ||
-        currentLocation.country === 'Localhost'
-      ) {
+      if (currentLocation.country === 'Unknown' || currentLocation.country === 'Localhost') {
         return;
       }
 
       const oneHourAgo = new Date();
       oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
-      const recentSessions = await this.tokenService.getRecentSessions(
-        userId,
-        oneHourAgo,
-      );
+      const recentSessions = await this.tokenService.getRecentSessions(userId, oneHourAgo);
 
       for (const session of recentSessions) {
         if (!session.ipAddress || session.ipAddress === currentIp) continue;
 
-        const sessionLocation = this.geoIpService.getLocation(
-          session.ipAddress,
-        );
-        if (
-          sessionLocation.country === 'Unknown' ||
-          sessionLocation.country === 'Localhost'
-        ) {
+        const sessionLocation = this.geoIpService.getLocation(session.ipAddress);
+        if (sessionLocation.country === 'Unknown' || sessionLocation.country === 'Localhost') {
           continue;
         }
 

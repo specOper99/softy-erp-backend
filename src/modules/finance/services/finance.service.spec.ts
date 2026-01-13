@@ -2,10 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import {
-  createMockRepository,
-  mockTenantContext,
-} from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { TransactionFilterDto } from '../dto';
@@ -71,11 +68,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     manager: {
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((entity, data) => data),
-      save: jest
-        .fn()
-        .mockImplementation((data) =>
-          Promise.resolve({ id: 'wallet-uuid-123', ...data }),
-        ),
+      save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'wallet-uuid-123', ...data })),
       queryRunner: {
         isTransactionActive: true,
       },
@@ -84,22 +77,16 @@ describe('FinanceService - Comprehensive Tests', () => {
 
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
-    transaction: jest
-      .fn()
-      .mockImplementation((cb) => cb(mockQueryRunner.manager)),
+    transaction: jest.fn().mockImplementation((cb) => cb(mockQueryRunner.manager)),
   };
 
   const mockCurrencyService = {
     getExchangeRate: jest.fn().mockResolvedValue(1.0),
-    convert: jest
-      .fn()
-      .mockImplementation((amount, _from, _to) => Promise.resolve(amount)),
+    convert: jest.fn().mockImplementation((amount, _from, _to) => Promise.resolve(amount)),
   };
 
   const mockTenantsService = {
-    findOne: jest
-      .fn()
-      .mockResolvedValue({ id: 'tenant-123', baseCurrency: Currency.USD }),
+    findOne: jest.fn().mockResolvedValue({ id: 'tenant-123', baseCurrency: Currency.USD }),
   };
 
   beforeEach(async () => {
@@ -129,9 +116,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     // Configure other default behaviors
-    mockTransactionRepository.save.mockImplementation((txn: any) =>
-      Promise.resolve({ id: 'txn-uuid-123', ...txn }),
-    );
+    mockTransactionRepository.save.mockImplementation((txn: any) => Promise.resolve({ id: 'txn-uuid-123', ...txn }));
 
     mockBookingRepository = createMockRepository();
     mockBookingRepository.createQueryBuilder.mockReturnValue({
@@ -265,9 +250,7 @@ describe('FinanceService - Comprehensive Tests', () => {
         category: 'Test',
         transactionDate: '2024-12-31T00:00:00Z',
       };
-      await expect(service.createTransaction(dto)).rejects.toThrow(
-        'finance.amount_must_be_positive',
-      );
+      await expect(service.createTransaction(dto)).rejects.toThrow('finance.amount_must_be_positive');
     });
   });
 
@@ -278,18 +261,14 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for invalid id', async () => {
-      await expect(service.findTransactionById('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findTransactionById('invalid-id')).rejects.toThrow(NotFoundException);
     });
   });
 
   // ============ TRANSACTION QUERY TESTS ============
   describe('findAllTransactions', () => {
     it('should return all transactions without filters', async () => {
-      const result = await service.findAllTransactions(
-        new TransactionFilterDto(),
-      );
+      const result = await service.findAllTransactions(new TransactionFilterDto());
       expect(result.length).toBeGreaterThan(0);
     });
 
@@ -319,9 +298,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     it('should handle zero balances', async () => {
-      mockTransactionRepository
-        .createQueryBuilder()
-        .getRawMany.mockResolvedValueOnce([]);
+      mockTransactionRepository.createQueryBuilder().getRawMany.mockResolvedValueOnce([]);
       const result = await service.getTransactionSummary();
       expect(result.totalIncome).toBe(0);
       expect(result.totalExpenses).toBe(0);
@@ -336,9 +313,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     it('should stream transactions to response', async () => {
       const mockRes = {} as any;
       await service.exportTransactionsToCSV(mockRes);
-      expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalledWith(
-        't',
-      );
+      expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalledWith('t');
       expect(mockExportService.streamFromStream).toHaveBeenCalledWith(
         mockRes,
         expect.anything(),

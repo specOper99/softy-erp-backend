@@ -9,14 +9,7 @@ import { InvoiceController } from './controllers/invoice.controller';
 import { RecurringTransactionController } from './controllers/recurring-transaction.controller';
 import { TransactionsController } from './controllers/transactions.controller';
 import { WalletsController } from './controllers/wallets.controller';
-import {
-  DepartmentBudget,
-  EmployeeWallet,
-  Invoice,
-  Payout,
-  RecurringTransaction,
-  Transaction,
-} from './entities';
+import { DepartmentBudget, EmployeeWallet, Invoice, Payout, RecurringTransaction, Transaction } from './entities';
 import { TransactionCategory } from './entities/transaction-category.entity';
 import { DepartmentBudgetRepository } from './repositories/department-budget.repository';
 import { InvoiceRepository } from './repositories/invoice.repository';

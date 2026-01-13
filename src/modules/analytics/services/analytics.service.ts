@@ -6,11 +6,7 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { FinancialReportFilterDto } from '../../finance/dto/financial-report.dto';
-import {
-  RevenueByPackageEntry,
-  RevenueByPackageRaw,
-  TaxReportRaw,
-} from '../../finance/types/report.types';
+import { RevenueByPackageEntry, RevenueByPackageRaw, TaxReportRaw } from '../../finance/types/report.types';
 
 @Injectable()
 export class AnalyticsService {
@@ -24,11 +20,7 @@ export class AnalyticsService {
     private readonly cacheUtils: CacheUtilsService,
   ) {}
 
-  private getReportCacheKey(
-    tenantId: string,
-    reportType: string,
-    dateRange: string,
-  ): string {
+  private getReportCacheKey(tenantId: string, reportType: string, dateRange: string): string {
     return `analytics:report:${tenantId}:${reportType}:${dateRange}`;
   }
 
@@ -36,16 +28,11 @@ export class AnalyticsService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const dateRange = `${filter.startDate}_${filter.endDate}`;
-    const cacheKey = this.getReportCacheKey(
-      tenantId,
-      'revenue-by-package',
-      dateRange,
-    );
+    const cacheKey = this.getReportCacheKey(tenantId, 'revenue-by-package', dateRange);
 
     // Try cache first
     if (!nocache) {
-      const cached =
-        await this.cacheUtils.get<Array<RevenueByPackageEntry>>(cacheKey);
+      const cached = await this.cacheUtils.get<Array<RevenueByPackageEntry>>(cacheKey);
       if (cached) return cached;
     }
 

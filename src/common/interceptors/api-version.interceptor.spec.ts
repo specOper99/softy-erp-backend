@@ -39,19 +39,11 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe(() => {
-          expect(mockResponse.setHeader).toHaveBeenCalledWith(
-            'X-API-Version',
-            expect.any(String),
-          );
-          expect(mockResponse.setHeader).toHaveBeenCalledWith(
-            'X-API-Min-Version',
-            expect.any(String),
-          );
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe(() => {
+        expect(mockResponse.setHeader).toHaveBeenCalledWith('X-API-Version', expect.any(String));
+        expect(mockResponse.setHeader).toHaveBeenCalledWith('X-API-Min-Version', expect.any(String));
+        done();
+      });
     });
 
     it('should inject _meta into object responses', (done) => {
@@ -59,13 +51,11 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result: any) => {
-          expect(result._meta).toBeDefined();
-          expect(result._meta.apiVersion).toBeDefined();
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result: any) => {
+        expect(result._meta).toBeDefined();
+        expect(result._meta.apiVersion).toBeDefined();
+        done();
+      });
     });
 
     it('should not inject _meta into array responses', (done) => {
@@ -73,13 +63,11 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of([{ id: 1 }, { id: 2 }]),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result: any) => {
-          expect(Array.isArray(result)).toBe(true);
-          expect(result._meta).toBeUndefined();
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result: any) => {
+        expect(Array.isArray(result)).toBe(true);
+        expect(result._meta).toBeUndefined();
+        done();
+      });
     });
 
     it('should not inject _meta into Buffer responses', (done) => {
@@ -88,12 +76,10 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of(bufferData),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result).toBeInstanceOf(Buffer);
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result).toBeInstanceOf(Buffer);
+        done();
+      });
     });
 
     it('should not inject _meta into StreamableFile', (done) => {
@@ -102,12 +88,10 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of(streamable),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result).toBeInstanceOf(StreamableFile);
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result).toBeInstanceOf(StreamableFile);
+        done();
+      });
     });
 
     it('should return null as-is', (done) => {
@@ -115,12 +99,10 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of(null),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result).toBeNull();
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result).toBeNull();
+        done();
+      });
     });
   });
 });

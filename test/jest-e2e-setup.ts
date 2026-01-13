@@ -67,9 +67,7 @@ process.env.NODE_ENV = 'test';
 
 // Verify critical test overrides
 if (process.env.DISABLE_RATE_LIMITING !== 'true') {
-  console.warn(
-    'WARNING: DISABLE_RATE_LIMITING is not true. E2E tests may fail with 429 errors.',
-  );
+  console.warn('WARNING: DISABLE_RATE_LIMITING is not true. E2E tests may fail with 429 errors.');
 }
 
 // Logic to ensure REDIS_URL is not set for E2E tests if it wasn't already deleted or empty

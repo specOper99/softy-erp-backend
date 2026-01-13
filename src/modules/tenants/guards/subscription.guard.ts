@@ -1,17 +1,11 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { SubscriptionPlan } from '../enums/subscription-plan.enum';
 import { TenantsService } from '../tenants.service';
 
 export const SUBSCRIPTION_KEY = 'subscription_plan';
-export const RequireSubscription = (plan: SubscriptionPlan) =>
-  SetMetadata(SUBSCRIPTION_KEY, plan);
+export const RequireSubscription = (plan: SubscriptionPlan) => SetMetadata(SUBSCRIPTION_KEY, plan);
 
 import { SetMetadata } from '@nestjs/common';
 
@@ -23,10 +17,10 @@ export class SubscriptionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPlan = this.reflector.getAllAndOverride<SubscriptionPlan>(
-      SUBSCRIPTION_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredPlan = this.reflector.getAllAndOverride<SubscriptionPlan>(SUBSCRIPTION_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (!requiredPlan) {
       return true;
@@ -53,9 +47,7 @@ export class SubscriptionGuard implements CanActivate {
     const requiredTier = tiers[requiredPlan];
 
     if (currentTier < requiredTier) {
-      throw new ForbiddenException(
-        `Upgrade to ${requiredPlan} to access this feature.`,
-      );
+      throw new ForbiddenException(`Upgrade to ${requiredPlan} to access this feature.`);
     }
 
     return true;

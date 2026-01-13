@@ -57,10 +57,7 @@ describe('I18nExceptionFilter', () => {
 
   describe('catch', () => {
     it('should translate known error message', () => {
-      const exception = new HttpException(
-        'Unauthorized',
-        HttpStatus.UNAUTHORIZED,
-      );
+      const exception = new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
 
       filter.catch(exception, mockHost);
 
@@ -74,10 +71,7 @@ describe('I18nExceptionFilter', () => {
     });
 
     it('should handle object exception response', () => {
-      const exception = new HttpException(
-        { message: 'Invalid email or password' },
-        HttpStatus.UNAUTHORIZED,
-      );
+      const exception = new HttpException({ message: 'Invalid email or password' }, HttpStatus.UNAUTHORIZED);
 
       filter.catch(exception, mockHost);
 
@@ -89,10 +83,7 @@ describe('I18nExceptionFilter', () => {
     });
 
     it('should handle array message (validation errors)', () => {
-      const exception = new HttpException(
-        { message: ['Field is required', 'Invalid format'] },
-        HttpStatus.BAD_REQUEST,
-      );
+      const exception = new HttpException({ message: ['Field is required', 'Invalid format'] }, HttpStatus.BAD_REQUEST);
 
       filter.catch(exception, mockHost);
 
@@ -104,18 +95,11 @@ describe('I18nExceptionFilter', () => {
     });
 
     it('should handle { key, args } pattern', () => {
-      const exception = new HttpException(
-        { key: 'booking.not_found', args: { id: '123' } },
-        HttpStatus.NOT_FOUND,
-      );
+      const exception = new HttpException({ key: 'booking.not_found', args: { id: '123' } }, HttpStatus.NOT_FOUND);
 
       filter.catch(exception, mockHost);
 
-      expect(i18nService.translate).toHaveBeenCalledWith(
-        'booking.not_found',
-        'en',
-        { id: '123' },
-      );
+      expect(i18nService.translate).toHaveBeenCalledWith('booking.not_found', 'en', { id: '123' });
     });
 
     it('should parse Accept-Language header', () => {
@@ -138,10 +122,7 @@ describe('I18nExceptionFilter', () => {
 
     it('should return original message if no translation', () => {
       i18nService.translate.mockImplementation((key) => key);
-      const exception = new HttpException(
-        'Custom error',
-        HttpStatus.BAD_REQUEST,
-      );
+      const exception = new HttpException('Custom error', HttpStatus.BAD_REQUEST);
 
       filter.catch(exception, mockHost);
 

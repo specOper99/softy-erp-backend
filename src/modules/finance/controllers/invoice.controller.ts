@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -32,17 +24,11 @@ export class InvoiceController {
   @Get(':id/pdf')
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.CLIENT) // Clients can download their own? Security check is tenant for now.
   @ApiOperation({ summary: 'Download invoice PDF' })
-  async downloadPdf(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Res() res: Response,
-  ) {
+  async downloadPdf(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
     const pdfBuffer = await this.invoiceService.getInvoicePdf(id);
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="invoice-${id}.pdf"`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${id}.pdf"`);
     res.setHeader('Content-Length', pdfBuffer.length);
     res.send(Buffer.from(pdfBuffer));
   }

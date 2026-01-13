@@ -1,13 +1,6 @@
-import {
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  createMockRepository,
-  mockTenantContext,
-} from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from './attendance.service';
 
@@ -89,15 +82,15 @@ describe('AttendanceService', () => {
         throw new BadRequestException('Tenant context missing');
       });
 
-      await expect(
-        service.create({ userId: 'user-1', date: '2024-01-15' } as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create({ userId: 'user-1', date: '2024-01-15' } as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for invalid date format', async () => {
-      await expect(
-        service.create({ userId: 'user-1', date: 'invalid-date' } as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create({ userId: 'user-1', date: 'invalid-date' } as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when checkOut is before checkIn', async () => {
@@ -108,9 +101,7 @@ describe('AttendanceService', () => {
         checkOut: '2024-01-15T09:00:00', // Before checkIn
       };
 
-      await expect(service.create(dto as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw ConflictException on duplicate attendance', async () => {
@@ -121,9 +112,7 @@ describe('AttendanceService', () => {
       attendanceRepo.create.mockReturnValue(mockAttendance as any);
       attendanceRepo.save.mockRejectedValue({ code: '23505' });
 
-      await expect(service.create(dto as any)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.create(dto as any)).rejects.toThrow(ConflictException);
     });
   });
 
@@ -176,9 +165,7 @@ describe('AttendanceService', () => {
     it('should throw NotFoundException when not found', async () => {
       attendanceRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('not-found')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('not-found')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -209,9 +196,7 @@ describe('AttendanceService', () => {
     it('should throw NotFoundException when record not found', async () => {
       attendanceRepo.delete.mockResolvedValue({ affected: 0, raw: [] } as any);
 
-      await expect(service.remove('not-found')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('not-found')).rejects.toThrow(NotFoundException);
     });
   });
 });

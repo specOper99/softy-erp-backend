@@ -45,9 +45,7 @@ describe('TenantGuard', () => {
 
     it('should allow when tenantId is present', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-123');
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
 
       const result = guard.canActivate(mockExecutionContext);
 
@@ -56,16 +54,10 @@ describe('TenantGuard', () => {
 
     it('should throw UnauthorizedException when no tenantId', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined as any);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined as any);
 
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        UnauthorizedException,
-      );
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        'tenants.tenant_id_required',
-      );
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow('tenants.tenant_id_required');
     });
 
     it('should check both handler and class for SkipTenant', async () => {
@@ -73,10 +65,10 @@ describe('TenantGuard', () => {
 
       await guard.canActivate(mockExecutionContext);
 
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
-        SKIP_TENANT_KEY,
-        [mockExecutionContext.getHandler(), mockExecutionContext.getClass()],
-      );
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(SKIP_TENANT_KEY, [
+        mockExecutionContext.getHandler(),
+        mockExecutionContext.getClass(),
+      ]);
     });
   });
 });

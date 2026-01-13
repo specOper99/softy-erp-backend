@@ -22,10 +22,7 @@ import {
   StaffPerformanceDto,
 } from './dto/dashboard.dto';
 import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
-import {
-  UserDashboardConfig,
-  UserPreference,
-} from './entities/user-preference.entity';
+import { UserDashboardConfig, UserPreference } from './entities/user-preference.entity';
 
 @Injectable()
 export class DashboardService {
@@ -85,10 +82,7 @@ export class DashboardService {
     return { start, end };
   }
 
-  async getKpiSummary(
-    query: ReportQueryDto = {},
-    nocache = false,
-  ): Promise<DashboardKpiDto> {
+  async getKpiSummary(query: ReportQueryDto = {}, nocache = false): Promise<DashboardKpiDto> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
@@ -120,10 +114,7 @@ export class DashboardService {
       this.taskRepository
         .createQueryBuilder('t')
         .select('COUNT(t.id)', 'total')
-        .addSelect(
-          'SUM(CASE WHEN t.status = :completed THEN 1 ELSE 0 END)',
-          'completed',
-        )
+        .addSelect('SUM(CASE WHEN t.status = :completed THEN 1 ELSE 0 END)', 'completed')
         .where('t.tenantId = :tenantId', { tenantId })
         .andWhere('t.createdAt BETWEEN :start AND :end', { start, end })
         .setParameter('completed', TaskStatus.COMPLETED)
@@ -140,8 +131,7 @@ export class DashboardService {
     const result: DashboardKpiDto = {
       totalRevenue,
       totalBookings,
-      taskCompletionRate:
-        totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+      taskCompletionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
       averageBookingValue: totalBookings > 0 ? totalRevenue / totalBookings : 0,
       activeStaffCount: staffResult || 0,
     };
@@ -152,9 +142,7 @@ export class DashboardService {
     return result;
   }
 
-  async getBookingTrends(
-    query: ReportQueryDto = {},
-  ): Promise<BookingTrendDto[]> {
+  async getBookingTrends(query: ReportQueryDto = {}): Promise<BookingTrendDto[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
@@ -164,18 +152,9 @@ export class DashboardService {
       .createQueryBuilder('b')
       .select("to_char(b.createdAt, 'YYYY-MM-DD')", 'date')
       .addSelect('COUNT(b.id)', 'totalBookings')
-      .addSelect(
-        `SUM(CASE WHEN b.status = '${BookingStatus.CONFIRMED}' THEN 1 ELSE 0 END)`,
-        'confirmedBookings',
-      )
-      .addSelect(
-        `SUM(CASE WHEN b.status = '${BookingStatus.COMPLETED}' THEN 1 ELSE 0 END)`,
-        'completedBookings',
-      )
-      .addSelect(
-        `SUM(CASE WHEN b.status = '${BookingStatus.CANCELLED}' THEN 1 ELSE 0 END)`,
-        'cancelledBookings',
-      )
+      .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.CONFIRMED}' THEN 1 ELSE 0 END)`, 'confirmedBookings')
+      .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.COMPLETED}' THEN 1 ELSE 0 END)`, 'completedBookings')
+      .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.CANCELLED}' THEN 1 ELSE 0 END)`, 'cancelledBookings')
       .where('b.tenantId = :tenantId', { tenantId })
       .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
       .groupBy('date')
@@ -205,18 +184,9 @@ export class DashboardService {
 
     const totals = await this.transactionRepository
       .createQueryBuilder('t')
-      .select(
-        'SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)',
-        'revenue',
-      )
-      .addSelect(
-        'SUM(CASE WHEN t.type = :expense THEN t.amount ELSE 0 END)',
-        'expenses',
-      )
-      .addSelect(
-        'SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)',
-        'payroll',
-      )
+      .select('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'revenue')
+      .addSelect('SUM(CASE WHEN t.type = :expense THEN t.amount ELSE 0 END)', 'expenses')
+      .addSelect('SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)', 'payroll')
       .where('t.tenantId = :tenantId', { tenantId })
       .andWhere('t.transactionDate BETWEEN :start AND :end', { start, end })
       .setParameter('income', TransactionType.INCOME)
@@ -239,9 +209,7 @@ export class DashboardService {
     };
   }
 
-  async getRevenueSummary(
-    query: ReportQueryDto = {},
-  ): Promise<RevenueSummaryDto[]> {
+  async getRevenueSummary(query: ReportQueryDto = {}): Promise<RevenueSummaryDto[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
@@ -250,14 +218,8 @@ export class DashboardService {
     const stats = await this.transactionRepository
       .createQueryBuilder('t')
       .select("to_char(t.transactionDate, 'YYYY-MM')", 'month')
-      .addSelect(
-        'SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)',
-        'revenue',
-      )
-      .addSelect(
-        'SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)',
-        'payouts',
-      )
+      .addSelect('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'revenue')
+      .addSelect('SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)', 'payouts')
       .where('t.tenantId = :tenantId', { tenantId })
       .andWhere('t.transactionDate BETWEEN :start AND :end', { start, end })
       .setParameter('income', TransactionType.INCOME)
@@ -274,9 +236,7 @@ export class DashboardService {
     }));
   }
 
-  async getStaffPerformance(
-    query: ReportQueryDto = {},
-  ): Promise<StaffPerformanceDto[]> {
+  async getStaffPerformance(query: ReportQueryDto = {}): Promise<StaffPerformanceDto[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
@@ -308,9 +268,7 @@ export class DashboardService {
     }));
   }
 
-  async getPackageStats(
-    query: ReportQueryDto = {},
-  ): Promise<PackageStatsDto[]> {
+  async getPackageStats(query: ReportQueryDto = {}): Promise<PackageStatsDto[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
@@ -350,10 +308,7 @@ export class DashboardService {
     return config;
   }
 
-  async updateUserPreferences(
-    userId: string,
-    dto: UpdateDashboardPreferencesDto,
-  ): Promise<UserDashboardConfig> {
+  async updateUserPreferences(userId: string, dto: UpdateDashboardPreferencesDto): Promise<UserDashboardConfig> {
     let prefs = await this.preferenceRepository.findOne({
       where: { userId },
     });

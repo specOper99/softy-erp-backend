@@ -26,11 +26,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     UsersModule,
     TenantsModule,
     MailModule,
-    TypeOrmModule.forFeature([
-      RefreshToken,
-      PasswordResetToken,
-      EmailVerificationToken,
-    ]),
+    TypeOrmModule.forFeature([RefreshToken, PasswordResetToken, EmailVerificationToken]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -58,14 +54,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     GeoIpService,
     TokenBlacklistService,
   ],
-  exports: [
-    AuthService,
-    TokenService,
-    TokenBlacklistService,
-    MfaService,
-    SessionService,
-    JwtModule,
-    MfaRequiredGuard,
-  ],
+  exports: [AuthService, TokenService, TokenBlacklistService, MfaService, SessionService, JwtModule, MfaRequiredGuard],
 })
 export class AuthModule {}

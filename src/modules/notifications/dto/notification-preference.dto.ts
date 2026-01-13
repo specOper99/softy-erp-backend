@@ -1,8 +1,5 @@
 import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
-import {
-  NotificationFrequency,
-  NotificationType,
-} from '../enums/notification.enum';
+import { NotificationFrequency, NotificationType } from '../enums/notification.enum';
 
 export class UpdateNotificationPreferenceDto {
   @IsEnum(NotificationType)

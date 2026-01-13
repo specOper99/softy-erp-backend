@@ -24,9 +24,7 @@ describe('Time Entries E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -59,12 +57,10 @@ describe('Time Entries E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
 
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
 
     accessToken = loginResponse.body.data?.accessToken;
 
@@ -92,9 +88,7 @@ describe('Time Entries E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           clientId,
-          eventDate: new Date(
-            Date.now() + 30 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
+          eventDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           packageId,
         });
       const bookingId = bookingRes.body.data?.id;
@@ -110,9 +104,7 @@ describe('Time Entries E2E Tests', () => {
           .get('/api/v1/tasks')
           .set('Authorization', `Bearer ${accessToken}`);
 
-        const bookingTasks = tasksRes.body.data?.filter(
-          (t: any) => t.bookingId === bookingId,
-        );
+        const bookingTasks = tasksRes.body.data?.filter((t: any) => t.bookingId === bookingId);
         if (bookingTasks?.length > 0) {
           createdTaskId = bookingTasks[0].id;
         }

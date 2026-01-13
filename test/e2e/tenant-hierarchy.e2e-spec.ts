@@ -39,9 +39,7 @@ describe('Tenant Hierarchy & Quotas (e2e)', () => {
       for (const entity of entities) {
         const repository = dataSource.getRepository(entity.name);
         try {
-          await repository.query(
-            `TRUNCATE TABLE "${entity.tableName}" RESTART IDENTITY CASCADE;`,
-          );
+          await repository.query(`TRUNCATE TABLE "${entity.tableName}" RESTART IDENTITY CASCADE;`);
         } catch (error) {
           if (error.code !== '42P01') {
             // Ignore table not found

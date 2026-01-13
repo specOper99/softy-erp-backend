@@ -25,10 +25,7 @@ describe('TenantAwareRepository', () => {
   beforeEach(() => {
     // Log current test (helps diagnose ordering-dependent failures in full suite)
 
-    console.log(
-      'Running TenantAwareRepository test:',
-      expect.getState().currentTestName,
-    );
+    console.log('Running TenantAwareRepository test:', expect.getState().currentTestName);
 
     // Mock the inner TypeORM repository
     mockTypeOrmRepository = {
@@ -73,14 +70,10 @@ describe('TenantAwareRepository', () => {
     });
 
     it('should throw error if tenant context is missing', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantIdOrThrow')
-        .mockImplementation(() => {
-          throw new Error('Tenant context not available');
-        });
-      await expect(repository.find()).rejects.toThrow(
-        'Tenant context not available',
-      );
+      jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockImplementation(() => {
+        throw new Error('Tenant context not available');
+      });
+      await expect(repository.find()).rejects.toThrow('Tenant context not available');
     });
   });
 
@@ -101,14 +94,10 @@ describe('TenantAwareRepository', () => {
     });
 
     it('should throw error if tenant context is missing', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantIdOrThrow')
-        .mockImplementation(() => {
-          throw new Error('Tenant context not available');
-        });
-      await expect(
-        repository.findOne({ where: { id: '1' } } as any),
-      ).rejects.toThrow('Tenant context not available');
+      jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockImplementation(() => {
+        throw new Error('Tenant context not available');
+      });
+      await expect(repository.findOne({ where: { id: '1' } } as any)).rejects.toThrow('Tenant context not available');
     });
   });
 
@@ -141,14 +130,10 @@ describe('TenantAwareRepository', () => {
     });
 
     it('should throw error if tenant context is missing', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantIdOrThrow')
-        .mockImplementation(() => {
-          throw new Error('Tenant context not available');
-        });
-      await expect(repository.count()).rejects.toThrow(
-        'Tenant context not available',
-      );
+      jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockImplementation(() => {
+        throw new Error('Tenant context not available');
+      });
+      await expect(repository.count()).rejects.toThrow('Tenant context not available');
     });
   });
 });

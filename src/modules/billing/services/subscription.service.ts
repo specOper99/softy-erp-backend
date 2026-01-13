@@ -1,18 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Stripe from 'stripe';
 import { StripeService } from './stripe.service';
-import {
-  BillingInterval,
-  Subscription,
-  SubscriptionStatus,
-} from '../entities/subscription.entity';
+import { BillingInterval, Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 import { BillingCustomer } from '../entities/billing-customer.entity';
 import { PaymentMethod } from '../entities/payment-method.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
@@ -60,20 +51,14 @@ export class SubscriptionService {
     return this.customerRepo.save(customer);
   }
 
-  async createSubscription(
-    tenantId: string,
-    priceId: string,
-    paymentMethodId?: string,
-  ): Promise<Subscription> {
+  async createSubscription(tenantId: string, priceId: string, paymentMethodId?: string): Promise<Subscription> {
     const customer = await this.getOrCreateCustomer(tenantId);
 
     const existingSub = await this.subscriptionRepo.findOne({
       where: { tenantId },
     });
     if (existingSub?.isActive()) {
-      throw new BadRequestException(
-        'Tenant already has an active subscription',
-      );
+      throw new BadRequestException('Tenant already has an active subscription');
     }
 
     const params: Stripe.SubscriptionCreateParams = {
@@ -86,8 +71,7 @@ export class SubscriptionService {
       params.default_payment_method = paymentMethodId;
     }
 
-    const stripeSubscription =
-      await this.stripeService.createSubscription(params);
+    const stripeSubscription = await this.stripeService.createSubscription(params);
 
     const subscription = this.subscriptionRepo.create({
       tenantId,
@@ -96,16 +80,13 @@ export class SubscriptionService {
       stripePriceId: priceId,
       status: this.mapStripeStatus(stripeSubscription.status),
       billingInterval: this.mapInterval(
-        (stripeSubscription.items.data[0]?.price.recurring
-          ?.interval as string) ?? 'month',
+        (stripeSubscription.items.data[0]?.price.recurring?.interval as string) ?? 'month',
       ),
       currentPeriodStart: new Date(
-        (stripeSubscription as unknown as { current_period_start: number })
-          .current_period_start * 1000,
+        (stripeSubscription as unknown as { current_period_start: number }).current_period_start * 1000,
       ),
       currentPeriodEnd: new Date(
-        (stripeSubscription as unknown as { current_period_end: number })
-          .current_period_end * 1000,
+        (stripeSubscription as unknown as { current_period_end: number }).current_period_end * 1000,
       ),
       cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
       quantity: stripeSubscription.items.data[0]?.quantity ?? 1,
@@ -118,10 +99,7 @@ export class SubscriptionService {
     return saved;
   }
 
-  async cancelSubscription(
-    tenantId: string,
-    cancelImmediately = false,
-  ): Promise<Subscription> {
+  async cancelSubscription(tenantId: string, cancelImmediately = false): Promise<Subscription> {
     const subscription = await this.subscriptionRepo.findOne({
       where: { tenantId },
     });
@@ -130,16 +108,11 @@ export class SubscriptionService {
     }
 
     if (cancelImmediately) {
-      await this.stripeService.cancelSubscription(
-        subscription.stripeSubscriptionId,
-      );
+      await this.stripeService.cancelSubscription(subscription.stripeSubscriptionId);
       subscription.status = SubscriptionStatus.CANCELED;
       subscription.canceledAt = new Date();
     } else {
-      await this.stripeService.updateSubscription(
-        subscription.stripeSubscriptionId,
-        { cancel_at_period_end: true },
-      );
+      await this.stripeService.updateSubscription(subscription.stripeSubscriptionId, { cancel_at_period_end: true });
       subscription.cancelAtPeriodEnd = true;
     }
 
@@ -176,16 +149,12 @@ export class SubscriptionService {
     }
   }
 
-  private async syncSubscriptionFromStripe(
-    stripeSub: Stripe.Subscription,
-  ): Promise<void> {
+  private async syncSubscriptionFromStripe(stripeSub: Stripe.Subscription): Promise<void> {
     const customer = await this.customerRepo.findOne({
       where: { stripeCustomerId: stripeSub.customer as string },
     });
     if (!customer) {
-      this.logger.warn(
-        `Customer not found for Stripe subscription: ${stripeSub.id}`,
-      );
+      this.logger.warn(`Customer not found for Stripe subscription: ${stripeSub.id}`);
       return;
     }
 
@@ -207,23 +176,15 @@ export class SubscriptionService {
       current_period_start: number;
       current_period_end: number;
     };
-    subscription.currentPeriodStart = new Date(
-      stripeSubAny.current_period_start * 1000,
-    );
-    subscription.currentPeriodEnd = new Date(
-      stripeSubAny.current_period_end * 1000,
-    );
+    subscription.currentPeriodStart = new Date(stripeSubAny.current_period_start * 1000);
+    subscription.currentPeriodEnd = new Date(stripeSubAny.current_period_end * 1000);
     subscription.cancelAtPeriodEnd = stripeSub.cancel_at_period_end;
-    subscription.canceledAt = stripeSub.canceled_at
-      ? new Date(stripeSub.canceled_at * 1000)
-      : null;
+    subscription.canceledAt = stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null;
 
     await this.subscriptionRepo.save(subscription);
   }
 
-  private async handleSubscriptionDeleted(
-    stripeSub: Stripe.Subscription,
-  ): Promise<void> {
+  private async handleSubscriptionDeleted(stripeSub: Stripe.Subscription): Promise<void> {
     const subscription = await this.subscriptionRepo.findOne({
       where: { stripeSubscriptionId: stripeSub.id },
     });
@@ -266,17 +227,12 @@ export class SubscriptionService {
     await this.subscriptionRepo.save(subscription);
   }
 
-  private async updateTenantPlan(
-    tenantId: string,
-    priceId: string,
-  ): Promise<void> {
+  private async updateTenantPlan(tenantId: string, priceId: string): Promise<void> {
     const plan = this.mapPriceToSubscriptionPlan(priceId);
     await this.tenantRepo.update(tenantId, { subscriptionPlan: plan });
   }
 
-  private mapStripeStatus(
-    status: Stripe.Subscription.Status,
-  ): SubscriptionStatus {
+  private mapStripeStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
     const mapping: Record<Stripe.Subscription.Status, SubscriptionStatus> = {
       trialing: SubscriptionStatus.TRIALING,
       active: SubscriptionStatus.ACTIVE,

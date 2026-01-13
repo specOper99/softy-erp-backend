@@ -114,8 +114,6 @@ export class AddMissingBookingColumns1768000000001 implements MigrationInterface
       }
     }
 
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."payment_status_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."payment_status_enum"`);
   }
 }

@@ -51,10 +51,7 @@ export class TaskTypesController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update task type' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateTaskTypeDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTaskTypeDto) {
     return this.catalogService.updateTaskType(id, dto);
   }
 

@@ -31,11 +31,7 @@ export class CacheUtilsService {
     await this.cacheManager.del(lockKey);
   }
 
-  async withLock<T>(
-    lockKey: string,
-    ttlMs: number,
-    fn: () => Promise<T>,
-  ): Promise<T | null> {
+  async withLock<T>(lockKey: string, ttlMs: number, fn: () => Promise<T>): Promise<T | null> {
     const acquired = await this.acquireLock(lockKey, ttlMs);
     if (!acquired) {
       return null;

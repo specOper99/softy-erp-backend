@@ -132,12 +132,10 @@ describe('Auth & Users E2E Tests', () => {
 
   describe('POST /api/v1/auth/login', () => {
     it('should login with valid credentials', async () => {
-      const loginRes = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({
-          email: testEmail,
-          password: 'ComplexPass123!',
-        });
+      const loginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+        email: testEmail,
+        password: 'ComplexPass123!',
+      });
 
       expect(loginRes.status).toBe(200);
       expect(loginRes.body.data).toHaveProperty('accessToken');
@@ -188,12 +186,10 @@ describe('Auth & Users E2E Tests', () => {
       await userRepo.update(adminId, { role: 'ADMIN' });
 
       // 3. Login as the newly created admin
-      const adminLogin = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({
-          email: adminEmail,
-          password: adminPassword,
-        });
+      const adminLogin = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+        email: adminEmail,
+        password: adminPassword,
+      });
 
       expect(adminLogin.status).toBe(200);
 

@@ -38,9 +38,7 @@ describe('AnalyticsService', () => {
     cacheUtils = module.get(CacheUtilsService);
 
     // Mock tenant context
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(mockTenantId);
   });
 
   afterEach(() => {
@@ -55,9 +53,7 @@ describe('AnalyticsService', () => {
     const mockFilter = { startDate: '2024-01-01', endDate: '2024-12-31' };
 
     it('should return cached data if available', async () => {
-      const cachedData = [
-        { packageName: 'Basic', bookingCount: 10, totalRevenue: 5000 },
-      ];
+      const cachedData = [{ packageName: 'Basic', bookingCount: 10, totalRevenue: 5000 }];
       cacheUtils.get.mockResolvedValue(cachedData);
 
       const result = await service.getRevenueByPackage(mockFilter);
@@ -68,9 +64,7 @@ describe('AnalyticsService', () => {
     });
 
     it('should query database and cache result when no cache', async () => {
-      const mockRawResult = [
-        { packageName: 'Basic', bookingCount: '10', totalRevenue: '5000' },
-      ];
+      const mockRawResult = [{ packageName: 'Basic', bookingCount: '10', totalRevenue: '5000' }];
 
       cacheUtils.get.mockResolvedValue(null);
 
@@ -96,9 +90,7 @@ describe('AnalyticsService', () => {
     });
 
     it('should bypass cache when nocache is true', async () => {
-      const mockRawResult = [
-        { packageName: 'Premium', bookingCount: '5', totalRevenue: '10000' },
-      ];
+      const mockRawResult = [{ packageName: 'Premium', bookingCount: '5', totalRevenue: '10000' }];
 
       const mockQueryBuilder = {
         leftJoin: jest.fn().mockReturnThis(),

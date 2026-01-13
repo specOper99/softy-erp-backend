@@ -36,10 +36,7 @@ export class CursorPaginationHelper {
     if (cursor) {
       const { date, id } = decodeCursor(cursor);
 
-      qb.andWhere(
-        `(${alias}.createdAt < :date OR (${alias}.createdAt = :date AND ${alias}.id < :id))`,
-        { date, id },
-      );
+      qb.andWhere(`(${alias}.createdAt < :date OR (${alias}.createdAt = :date AND ${alias}.id < :id))`, { date, id });
     }
 
     const items = await qb.getMany();
@@ -58,10 +55,7 @@ export class CursorPaginationHelper {
     };
   }
 
-  static async paginateWithCustomDateField<
-    T extends ObjectLiteral & { id: string },
-    K extends keyof T = keyof T,
-  >(
+  static async paginateWithCustomDateField<T extends ObjectLiteral & { id: string }, K extends keyof T = keyof T>(
     qb: SelectQueryBuilder<T>,
     options: CursorPaginationOptions<T>,
     dateField: K,
@@ -82,10 +76,10 @@ export class CursorPaginationHelper {
     if (cursor) {
       const { date, id } = decodeCursor(cursor);
 
-      qb.andWhere(
-        `(${alias}.${dateFieldStr} < :date OR (${alias}.${dateFieldStr} = :date AND ${alias}.id < :id))`,
-        { date, id },
-      );
+      qb.andWhere(`(${alias}.${dateFieldStr} < :date OR (${alias}.${dateFieldStr} = :date AND ${alias}.id < :id))`, {
+        date,
+        id,
+      });
     }
 
     const items = await qb.getMany();

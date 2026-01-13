@@ -72,9 +72,7 @@ describe('BookingsService Integration Tests', () => {
         {
           provide: CatalogService,
           useValue: {
-            findPackageById: jest
-              .fn()
-              .mockImplementation((id) => packageRepository.findOneBy({ id })),
+            findPackageById: jest.fn().mockImplementation((id) => packageRepository.findOneBy({ id })),
           },
         },
         {
@@ -132,9 +130,7 @@ describe('BookingsService Integration Tests', () => {
 
     // Mock tenant context
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenant1);
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue(tenant1);
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenant1);
   });
 
   describe('create', () => {

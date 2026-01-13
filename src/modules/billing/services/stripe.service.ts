@@ -12,9 +12,7 @@ export class StripeService implements OnModuleInit {
   onModuleInit() {
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!secretKey) {
-      this.logger.warn(
-        'STRIPE_SECRET_KEY not configured - billing features disabled',
-      );
+      this.logger.warn('STRIPE_SECRET_KEY not configured - billing features disabled');
       return;
     }
 
@@ -32,16 +30,11 @@ export class StripeService implements OnModuleInit {
     return !!this.stripe;
   }
 
-  async createCustomer(
-    params: Stripe.CustomerCreateParams,
-  ): Promise<Stripe.Customer> {
+  async createCustomer(params: Stripe.CustomerCreateParams): Promise<Stripe.Customer> {
     return this.stripe.customers.create(params);
   }
 
-  async updateCustomer(
-    customerId: string,
-    params: Stripe.CustomerUpdateParams,
-  ): Promise<Stripe.Customer> {
+  async updateCustomer(customerId: string, params: Stripe.CustomerUpdateParams): Promise<Stripe.Customer> {
     return this.stripe.customers.update(customerId, params);
   }
 
@@ -49,15 +42,11 @@ export class StripeService implements OnModuleInit {
     return this.stripe.customers.del(customerId);
   }
 
-  async getCustomer(
-    customerId: string,
-  ): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
+  async getCustomer(customerId: string): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
     return this.stripe.customers.retrieve(customerId);
   }
 
-  async createSubscription(
-    params: Stripe.SubscriptionCreateParams,
-  ): Promise<Stripe.Subscription> {
+  async createSubscription(params: Stripe.SubscriptionCreateParams): Promise<Stripe.Subscription> {
     return this.stripe.subscriptions.create(params);
   }
 
@@ -79,18 +68,13 @@ export class StripeService implements OnModuleInit {
     return this.stripe.subscriptions.retrieve(subscriptionId);
   }
 
-  async attachPaymentMethod(
-    paymentMethodId: string,
-    customerId: string,
-  ): Promise<Stripe.PaymentMethod> {
+  async attachPaymentMethod(paymentMethodId: string, customerId: string): Promise<Stripe.PaymentMethod> {
     return this.stripe.paymentMethods.attach(paymentMethodId, {
       customer: customerId,
     });
   }
 
-  async detachPaymentMethod(
-    paymentMethodId: string,
-  ): Promise<Stripe.PaymentMethod> {
+  async detachPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
     return this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
@@ -104,9 +88,7 @@ export class StripeService implements OnModuleInit {
     });
   }
 
-  async createCheckoutSession(
-    params: Stripe.Checkout.SessionCreateParams,
-  ): Promise<Stripe.Checkout.Session> {
+  async createCheckoutSession(params: Stripe.Checkout.SessionCreateParams): Promise<Stripe.Checkout.Session> {
     return this.stripe.checkout.sessions.create(params);
   }
 
@@ -131,28 +113,20 @@ export class StripeService implements OnModuleInit {
     });
   }
 
-  async listInvoices(
-    customerId: string,
-    limit = 10,
-  ): Promise<Stripe.ApiList<Stripe.Invoice>> {
+  async listInvoices(customerId: string, limit = 10): Promise<Stripe.ApiList<Stripe.Invoice>> {
     return this.stripe.invoices.list({
       customer: customerId,
       limit,
     });
   }
 
-  async getUpcomingInvoice(
-    customerId: string,
-  ): Promise<Stripe.Response<Stripe.UpcomingInvoice>> {
+  async getUpcomingInvoice(customerId: string): Promise<Stripe.Response<Stripe.UpcomingInvoice>> {
     return this.stripe.invoices.createPreview({
       customer: customerId,
     });
   }
 
-  async listPrices(
-    productId?: string,
-    active = true,
-  ): Promise<Stripe.ApiList<Stripe.Price>> {
+  async listPrices(productId?: string, active = true): Promise<Stripe.ApiList<Stripe.Price>> {
     return this.stripe.prices.list({
       product: productId,
       active,
@@ -163,15 +137,7 @@ export class StripeService implements OnModuleInit {
     return this.stripe.products.list({ active });
   }
 
-  constructWebhookEvent(
-    payload: Buffer,
-    signature: string,
-    webhookSecret: string,
-  ): Stripe.Event {
-    return this.stripe.webhooks.constructEvent(
-      payload,
-      signature,
-      webhookSecret,
-    );
+  constructWebhookEvent(payload: Buffer, signature: string, webhookSecret: string): Stripe.Event {
+    return this.stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   }
 }

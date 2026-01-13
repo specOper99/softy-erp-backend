@@ -60,9 +60,7 @@ describe('GeoIpService', () => {
     });
 
     it('should return Unknown for IPv6 addresses', () => {
-      const result = service.getLocation(
-        '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
-      );
+      const result = service.getLocation('2001:0db8:85a3:0000:0000:8a2e:0370:7334');
       expect(result).toEqual({ country: 'Unknown', city: 'Unknown' });
     });
 

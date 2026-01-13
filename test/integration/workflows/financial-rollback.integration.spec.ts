@@ -141,9 +141,7 @@ describe('Financial Transaction Rollback Integration', () => {
       });
 
       expect(transactions).toHaveLength(1);
-      expect(transactions[0].description).toBe(
-        'Outer transaction - should commit',
-      );
+      expect(transactions[0].description).toBe('Outer transaction - should commit');
     });
   });
 
@@ -190,9 +188,7 @@ describe('Financial Transaction Rollback Integration', () => {
       });
 
       expect(transactions).toHaveLength(2);
-      expect(
-        transactions.every((t) => !t.description.includes('rolled back')),
-      ).toBe(true);
+      expect(transactions.every((t) => !t.description.includes('rolled back'))).toBe(true);
     });
   });
 

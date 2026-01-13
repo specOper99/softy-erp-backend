@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
@@ -36,8 +30,7 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
   private readonly trustProxyHeaders: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    this.trustProxyHeaders =
-      this.configService.get<string>('TRUST_PROXY') === 'true';
+    this.trustProxyHeaders = this.configService.get<string>('TRUST_PROXY') === 'true';
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -46,9 +39,7 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
     const startTime = Date.now();
 
     const correlationIdHeader = request.headers['x-correlation-id'];
-    const correlationId = Array.isArray(correlationIdHeader)
-      ? correlationIdHeader[0]
-      : correlationIdHeader;
+    const correlationId = Array.isArray(correlationIdHeader) ? correlationIdHeader[0] : correlationIdHeader;
 
     const logContext: LogContext = {
       correlationId,
@@ -82,15 +73,10 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
         },
         error: (error: unknown) => {
           const status =
-            error && typeof error === 'object' && 'status' in error
-              ? (error as { status: number }).status
-              : 500;
+            error && typeof error === 'object' && 'status' in error ? (error as { status: number }).status : 500;
           logContext.statusCode = status;
           logContext.duration = Date.now() - startTime;
-          this.logRequest(
-            logContext,
-            error instanceof Error ? error : new Error(String(error)),
-          );
+          this.logRequest(logContext, error instanceof Error ? error : new Error(String(error)));
         },
       }),
     );

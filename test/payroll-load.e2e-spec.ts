@@ -147,13 +147,9 @@ describe('Payroll Load E2E Tests', () => {
 
     // Call DB directly to check correct state
     const wallets = await walletRepo.find({ where: { tenantId } });
-    const outstandingBalances = wallets.filter(
-      (w) => Number(w.payableBalance) > 0,
-    );
+    const outstandingBalances = wallets.filter((w) => Number(w.payableBalance) > 0);
     expect(outstandingBalances.length).toBe(0);
 
-    console.log(
-      `Payroll processed ${data.totalEmployees} employees with total payout $${data.totalPayout}`,
-    );
+    console.log(`Payroll processed ${data.totalEmployees} employees with total payout $${data.totalPayout}`);
   }, 120000); // Long timeout for bulk ops
 });

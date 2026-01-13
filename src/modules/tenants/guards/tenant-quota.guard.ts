@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
@@ -37,10 +32,7 @@ export class TenantQuotaGuard implements CanActivate {
 
     // Determine the resource being accessed/created based on route or handler
     // Ideally this guard is used with a decorator specifying the resource type
-    const resourceType = this.reflector.get<string>(
-      'quotaResource',
-      context.getHandler(),
-    );
+    const resourceType = this.reflector.get<string>('quotaResource', context.getHandler());
 
     if (!resourceType) {
       return true;
@@ -62,23 +54,16 @@ export class TenantQuotaGuard implements CanActivate {
 
     const currentUsage = await this.getCurrentUsage(tenantId, resourceType);
     if (currentUsage >= limit) {
-      throw new ForbiddenException(
-        `Quota exceeded for ${resourceType}. Limit: ${limit}, Current: ${currentUsage}`,
-      );
+      throw new ForbiddenException(`Quota exceeded for ${resourceType}. Limit: ${limit}, Current: ${currentUsage}`);
     }
 
     return true;
   }
 
-  private async getCurrentUsage(
-    tenantId: string,
-    resourceType: string,
-  ): Promise<number> {
+  private async getCurrentUsage(tenantId: string, resourceType: string): Promise<number> {
     switch (resourceType) {
       case 'max_users':
-        return this.tenantRepository.manager
-          .getRepository('User')
-          .count({ where: { tenantId } });
+        return this.tenantRepository.manager.getRepository('User').count({ where: { tenantId } });
       // Add more cases here as needed (e.g. 'max_storage')
       default:
         return 0;

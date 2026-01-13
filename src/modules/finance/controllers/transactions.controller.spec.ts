@@ -24,9 +24,7 @@ describe('TransactionsController', () => {
             findAllTransactions: jest.fn().mockResolvedValue([mockTransaction]),
             findTransactionById: jest.fn().mockResolvedValue(mockTransaction),
             createTransaction: jest.fn().mockResolvedValue(mockTransaction),
-            getTransactionSummary: jest
-              .fn()
-              .mockResolvedValue({ totalIncome: 1000 }),
+            getTransactionSummary: jest.fn().mockResolvedValue({ totalIncome: 1000 }),
           },
         },
         {

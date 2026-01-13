@@ -21,9 +21,7 @@ export class CompositeKeys1767300000001 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "tasks" DROP CONSTRAINT "FK_task_user_composite"`,
-    );
+    await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT "FK_task_user_composite"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_user_composite_tenant"`);
   }
 }

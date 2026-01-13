@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
@@ -37,11 +31,7 @@ export class MediaService {
   /**
    * Validate that bookingId and taskId belong to the current tenant
    */
-  private async validateReferences(
-    tenantId: string,
-    bookingId?: string,
-    taskId?: string,
-  ): Promise<void> {
+  private async validateReferences(tenantId: string, bookingId?: string, taskId?: string): Promise<void> {
     if (bookingId) {
       const booking = await this.dataSource.manager.findOne('Booking', {
         where: { id: bookingId, tenantId },
@@ -84,9 +74,7 @@ export class MediaService {
     }
 
     if (typeInfo.mime !== mimeType) {
-      this.logger.warn(
-        `MIME mismatch: Claimed ${mimeType}, Detected ${typeInfo.mime}`,
-      );
+      this.logger.warn(`MIME mismatch: Claimed ${mimeType}, Detected ${typeInfo.mime}`);
       // We can either reject or correct it. For security, rejection is safer if they mismatch significantly.
       // But some browsers are weird. Let's strictly enforce detected type matches whitelist at least.
       if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
@@ -96,11 +84,7 @@ export class MediaService {
 
     // Generate storage key and upload to MinIO
     const key = await this.storageService.generateKey(originalName);
-    const uploadResult = await this.storageService.uploadFile(
-      buffer,
-      key,
-      mimeType,
-    );
+    const uploadResult = await this.storageService.uploadFile(buffer, key, mimeType);
 
     // Create attachment record
     const attachment = this.attachmentRepository.create({
@@ -148,10 +132,7 @@ export class MediaService {
     }
 
     const key = await this.storageService.generateKey(filename);
-    const uploadUrl = await this.storageService.getPresignedUploadUrl(
-      key,
-      mimeType,
-    );
+    const uploadUrl = await this.storageService.getPresignedUploadUrl(key, mimeType);
 
     // Create attachment record with pending status
     const attachment = this.attachmentRepository.create({
@@ -210,9 +191,7 @@ export class MediaService {
     return this.attachmentRepository.save(attachment);
   }
 
-  async findAll(
-    query: PaginationDto = new PaginationDto(),
-  ): Promise<Attachment[]> {
+  async findAll(query: PaginationDto = new PaginationDto()): Promise<Attachment[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -226,9 +205,7 @@ export class MediaService {
     });
   }
 
-  async findAllCursor(
-    query: CursorPaginationDto,
-  ): Promise<{ data: Attachment[]; nextCursor: string | null }> {
+  async findAllCursor(query: CursorPaginationDto): Promise<{ data: Attachment[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -249,10 +226,10 @@ export class MediaService {
       const [dateStr, id] = decoded.split('|');
       const date = new Date(dateStr);
 
-      qb.andWhere(
-        '(attachment.createdAt < :date OR (attachment.createdAt = :date AND attachment.id < :id))',
-        { date, id },
-      );
+      qb.andWhere('(attachment.createdAt < :date OR (attachment.createdAt = :date AND attachment.id < :id))', {
+        date,
+        id,
+      });
     }
 
     const attachments = await qb.getMany();

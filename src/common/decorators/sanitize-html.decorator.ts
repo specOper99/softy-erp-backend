@@ -15,8 +15,7 @@ export function SanitizeHtml(options?: SanitizeHtmlOptions): PropertyDecorator {
 
     return sanitizeHtml(value, {
       allowedTags: options?.allowedTags || sanitizeHtml.defaults.allowedTags,
-      allowedAttributes:
-        options?.allowedAttributes || sanitizeHtml.defaults.allowedAttributes,
+      allowedAttributes: options?.allowedAttributes || sanitizeHtml.defaults.allowedAttributes,
       disallowedTagsMode: 'discard',
     });
   });

@@ -1,13 +1,4 @@
-import {
-  Column,
-  DeleteDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  OneToOne,
-} from 'typeorm';
+import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne } from 'typeorm';
 import { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { Task } from '../../tasks/entities/task.entity';

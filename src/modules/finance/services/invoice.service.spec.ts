@@ -1,10 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import {
-  createMockRepository,
-  mockTenantContext,
-} from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { InvoiceStatus } from '../entities/invoice.entity';
 import { InvoiceRepository } from '../repositories/invoice.repository';
@@ -120,9 +117,7 @@ describe('InvoiceService', () => {
     it('should throw NotFoundException when booking not found', async () => {
       bookingRepo.findOne.mockResolvedValue(null as any);
 
-      await expect(service.createInvoice('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.createInvoice('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -147,9 +142,7 @@ describe('InvoiceService', () => {
     it('should throw NotFoundException when invoice not found', async () => {
       invoiceRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getInvoicePdf('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getInvoicePdf('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -19,11 +19,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import {
-  CreateEmailTemplateDto,
-  PreviewEmailTemplateDto,
-  UpdateEmailTemplateDto,
-} from '../dto/email-template.dto';
+import { CreateEmailTemplateDto, PreviewEmailTemplateDto, UpdateEmailTemplateDto } from '../dto/email-template.dto';
 import { EmailTemplate } from '../entities/email-template.entity';
 import { MailService } from '../mail.service';
 
@@ -132,9 +128,7 @@ export class EmailTemplatesController {
       return { html: rendered };
     } catch (error) {
       if (error instanceof Error) {
-        throw new BadRequestException(
-          `Template compilation failed: ${error.message}`,
-        );
+        throw new BadRequestException(`Template compilation failed: ${error.message}`);
       }
       throw new BadRequestException('Template compilation failed');
     }

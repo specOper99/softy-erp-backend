@@ -25,10 +25,7 @@ describe('RolesGuard', () => {
 
     expect(guard.canActivate(createExecutionContext())).toBe(true);
     expect(reflector.getAllAndOverride).toHaveBeenCalled();
-    expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
-      ROLES_KEY,
-      expect.any(Array),
-    );
+    expect(reflector.getAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, expect.any(Array));
   });
 
   it('throws UnauthorizedException when roles are required but user is missing', () => {
@@ -38,23 +35,17 @@ describe('RolesGuard', () => {
 
     const guard = new RolesGuard(reflector);
 
-    expect(() => guard.canActivate(createExecutionContext(undefined))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => guard.canActivate(createExecutionContext(undefined))).toThrow(UnauthorizedException);
   });
 
   it('returns true when user has a required role', () => {
     const reflector = {
-      getAllAndOverride: jest
-        .fn()
-        .mockReturnValue([Role.ADMIN, Role.OPS_MANAGER]),
+      getAllAndOverride: jest.fn().mockReturnValue([Role.ADMIN, Role.OPS_MANAGER]),
     } as unknown as Reflector;
 
     const guard = new RolesGuard(reflector);
 
-    expect(
-      guard.canActivate(createExecutionContext({ role: Role.ADMIN })),
-    ).toBe(true);
+    expect(guard.canActivate(createExecutionContext({ role: Role.ADMIN }))).toBe(true);
   });
 
   it('returns false when user lacks required roles', () => {
@@ -64,8 +55,6 @@ describe('RolesGuard', () => {
 
     const guard = new RolesGuard(reflector);
 
-    expect(
-      guard.canActivate(createExecutionContext({ role: Role.OPS_MANAGER })),
-    ).toBe(false);
+    expect(guard.canActivate(createExecutionContext({ role: Role.OPS_MANAGER }))).toBe(false);
   });
 });

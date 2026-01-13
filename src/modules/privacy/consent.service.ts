@@ -38,11 +38,7 @@ export class ConsentService {
     }));
   }
 
-  async grantConsent(
-    userId: string,
-    dto: GrantConsentDto,
-    context?: ConsentContext,
-  ): Promise<ConsentResponseDto> {
+  async grantConsent(userId: string, dto: GrantConsentDto, context?: ConsentContext): Promise<ConsentResponseDto> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -79,10 +75,7 @@ export class ConsentService {
     };
   }
 
-  async revokeConsent(
-    userId: string,
-    type: ConsentType,
-  ): Promise<ConsentResponseDto> {
+  async revokeConsent(userId: string, type: ConsentType): Promise<ConsentResponseDto> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -130,9 +123,7 @@ export class ConsentService {
   async requireConsent(userId: string, type: ConsentType): Promise<void> {
     const hasConsent = await this.hasConsent(userId, type);
     if (!hasConsent) {
-      throw new BadRequestException(
-        `User must grant ${type} consent to proceed`,
-      );
+      throw new BadRequestException(`User must grant ${type} consent to proceed`);
     }
   }
 }

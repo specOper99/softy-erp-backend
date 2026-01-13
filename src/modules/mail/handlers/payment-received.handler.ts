@@ -10,9 +10,7 @@ export class PaymentReceivedHandler implements IEventHandler<PaymentRecordedEven
   constructor(private readonly mailService: MailService) {}
 
   async handle(event: PaymentRecordedEvent) {
-    this.logger.log(
-      `Handling PaymentRecordedEvent for booking: ${event.bookingId}`,
-    );
+    this.logger.log(`Handling PaymentRecordedEvent for booking: ${event.bookingId}`);
 
     try {
       await this.mailService.sendPaymentReceipt({

@@ -7,11 +7,9 @@ import { Webhook, WebhookDelivery } from './entities';
 import { BookingConfirmedWebhookHandler } from './handlers/booking-confirmed.handler';
 import { BookingUpdatedWebhookHandler } from './handlers/booking-updated.handler';
 import { TaskCompletedWebhookHandler } from './handlers/task-completed.handler';
-import {
-  WEBHOOK_QUEUE,
-  WebhookProcessor,
-} from './processors/webhook.processor';
+import { WebhookProcessor } from './processors/webhook.processor';
 import { WebhookService } from './webhooks.service';
+import { WEBHOOK_QUEUE } from './webhooks.types';
 
 @Module({
   imports: [

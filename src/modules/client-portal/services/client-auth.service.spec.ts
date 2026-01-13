@@ -115,12 +115,8 @@ describe('ClientAuthService', () => {
     _jwtService = module.get(JwtService);
 
     // Mock tenant context
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(mockTenantId);
     jest.clearAllMocks();
   });
 
@@ -139,9 +135,7 @@ describe('ClientAuthService', () => {
 
       const result = await service.requestMagicLink('test@example.com');
 
-      expect(result.message).toBe(
-        'If an account exists, a magic link has been sent.',
-      );
+      expect(result.message).toBe('If an account exists, a magic link has been sent.');
       expect(mockClientRepository.save).toHaveBeenCalled();
       expect(mockMailService.sendMagicLink).toHaveBeenCalled();
     });
@@ -151,9 +145,7 @@ describe('ClientAuthService', () => {
 
       const result = await service.requestMagicLink('nonexistent@example.com');
 
-      expect(result.message).toBe(
-        'If an account exists, a magic link has been sent.',
-      );
+      expect(result.message).toBe('If an account exists, a magic link has been sent.');
       expect(mockClientRepository.save).not.toHaveBeenCalled();
       expect(mockMailService.sendMagicLink).not.toHaveBeenCalled();
     });
@@ -227,9 +219,7 @@ describe('ClientAuthService', () => {
     it('should throw NotFoundException for non-existent token', async () => {
       mockClientRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.verifyMagicLink('invalid-token')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.verifyMagicLink('invalid-token')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw UnauthorizedException for expired token', async () => {
@@ -241,9 +231,7 @@ describe('ClientAuthService', () => {
       });
       mockClientRepository.findOne.mockResolvedValue(expiredClient);
 
-      await expect(service.verifyMagicLink(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.verifyMagicLink(token)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should clear token after verification (single-use)', async () => {
@@ -284,9 +272,7 @@ describe('ClientAuthService', () => {
       mockCacheManager.get.mockResolvedValue('revoked');
       const result = await service.validateClientToken('blacklisted-token');
       expect(result).toBeNull();
-      expect(mockCacheManager.get).toHaveBeenCalledWith(
-        expect.stringMatching(/^blacklist:[a-f0-9]+$/),
-      );
+      expect(mockCacheManager.get).toHaveBeenCalledWith(expect.stringMatching(/^blacklist:[a-f0-9]+$/));
     });
 
     it('should return client for valid JWT token', async () => {

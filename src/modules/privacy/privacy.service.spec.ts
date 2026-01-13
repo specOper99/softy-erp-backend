@@ -8,11 +8,7 @@ import { Profile } from '../hr/entities/profile.entity';
 import { StorageService } from '../media/storage.service';
 import { Task } from '../tasks/entities/task.entity';
 import { User } from '../users/entities/user.entity';
-import {
-  PrivacyRequest,
-  PrivacyRequestStatus,
-  PrivacyRequestType,
-} from './entities/privacy-request.entity';
+import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
 import { PrivacyService } from './privacy.service';
 
 jest.mock('../../common/services/tenant-context.service');
@@ -65,9 +61,7 @@ describe('PrivacyService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    (TenantContextService.getTenantId as jest.Mock).mockReturnValue(
-      mockTenantId,
-    );
+    (TenantContextService.getTenantId as jest.Mock).mockReturnValue(mockTenantId);
 
     privacyRequestRepository = {
       find: jest.fn(),
@@ -191,9 +185,7 @@ describe('PrivacyService', () => {
     it('should throw NotFoundException when request not found', async () => {
       privacyRequestRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getRequestById('nonexistent', mockUserId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getRequestById('nonexistent', mockUserId)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -219,9 +211,7 @@ describe('PrivacyService', () => {
       };
       privacyRequestRepository.findOne.mockResolvedValue(completedRequest);
 
-      await expect(
-        service.cancelRequest('request-1', mockUserId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.cancelRequest('request-1', mockUserId)).rejects.toThrow(BadRequestException);
     });
   });
 

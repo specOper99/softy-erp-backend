@@ -65,16 +65,12 @@ export class EmailProcessor extends WorkerHost {
           break;
 
         default:
-          this.logger.warn(
-            `Unknown email job type: ${(job.data as EmailJobData).type} `,
-          );
+          this.logger.warn(`Unknown email job type: ${(job.data as EmailJobData).type} `);
       }
 
       this.logger.log(`Email job ${job.id} completed successfully`);
     } catch (error) {
-      this.logger.error(
-        `Email job ${job.id} failed: ${error instanceof Error ? error.message : String(error)} `,
-      );
+      this.logger.error(`Email job ${job.id} failed: ${error instanceof Error ? error.message : String(error)} `);
       throw error; // Re-throw to trigger BullMQ retry
     }
   }

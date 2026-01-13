@@ -10,9 +10,7 @@ import { WebhookConfig, WebhookEvent } from './webhooks.types';
 
 // Mock dns/promises
 jest.mock('node:dns/promises', () => ({
-  lookup: jest
-    .fn()
-    .mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+  lookup: jest.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
 }));
 
 import { lookup } from 'node:dns/promises';
@@ -33,12 +31,8 @@ describe('WebhookService', () => {
 
   const mockEncryptionService = {
     encrypt: jest.fn().mockImplementation((s: string) => `encrypted:${s}`),
-    decrypt: jest
-      .fn()
-      .mockImplementation((s: string) => s.replace('encrypted:', '')),
-    isEncrypted: jest
-      .fn()
-      .mockImplementation((s: string) => s.startsWith('encrypted:')),
+    decrypt: jest.fn().mockImplementation((s: string) => s.replace('encrypted:', '')),
+    isEncrypted: jest.fn().mockImplementation((s: string) => s.startsWith('encrypted:')),
   };
 
   beforeEach(async () => {
@@ -191,9 +185,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.invalid_url',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.invalid_url');
     });
 
     it('should reject non-HTTP/HTTPS protocols', async () => {
@@ -203,15 +195,11 @@ describe('WebhookService', () => {
         events: ['booking.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(BadRequestException);
       // Checking for key in parameterized error is complex with simple toThrow, skipping specific key check or using simpler check if possible.
       // Actually invalid_protocol is retained as Error inside try, but catch wraps it as BadRequest 'webhooks.invalid_url'
       // So checking type is good enough or substring of new message.
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.invalid_url',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.invalid_url');
     });
 
     it('should reject secrets shorter than minimum length', async () => {
@@ -222,9 +210,7 @@ describe('WebhookService', () => {
       };
 
       // Expect BadRequestException. If parameterized, message might not match directly.
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject localhost URLs (SSRF prevention)', async () => {
@@ -234,9 +220,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.localhost_denied',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.localhost_denied');
     });
 
     it('should reject 127.0.0.1 URLs (SSRF prevention)', async () => {
@@ -246,9 +230,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.localhost_denied',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.localhost_denied');
     });
 
     it('should reject private IP ranges (10.x.x.x)', async () => {
@@ -258,9 +240,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.private_ip_denied',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject private IP ranges (192.168.x.x)', async () => {
@@ -270,9 +250,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.private_ip_denied',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject private IP ranges (172.16-31.x.x)', async () => {
@@ -282,15 +260,11 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.private_ip_denied',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject URLs that DNS-resolve to private IPs', async () => {
-      (lookup as jest.Mock).mockResolvedValueOnce([
-        { address: '10.0.0.1', family: 4 },
-      ]);
+      (lookup as jest.Mock).mockResolvedValueOnce([{ address: '10.0.0.1', family: 4 }]);
 
       const config: WebhookConfig = {
         url: 'https://internal.example.com/webhook',
@@ -298,9 +272,7 @@ describe('WebhookService', () => {
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'webhooks.private_ip_denied',
-      );
+      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow('webhooks.private_ip_denied');
     });
   });
 
@@ -331,9 +303,7 @@ describe('WebhookService', () => {
 
       await service.emit(event);
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('request_timeout'),
-      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('request_timeout'));
     });
 
     it('should rethrow non-abort errors', async () => {
@@ -351,9 +321,7 @@ describe('WebhookService', () => {
 
       await service.emit(event);
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Network error'),
-      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Network error'));
     });
 
     it('should block redirects and log redirect_blocked', async () => {
@@ -376,9 +344,7 @@ describe('WebhookService', () => {
 
       await service.emit(event);
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('webhooks.redirect_blocked'),
-      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('webhooks.redirect_blocked'));
     });
   });
 

@@ -1,7 +1,4 @@
-import {
-  PostgreSqlContainer,
-  StartedPostgreSqlContainer,
-} from '@testcontainers/postgresql';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
 
 let postgresContainer: StartedPostgreSqlContainer;
@@ -51,10 +48,7 @@ export default async function globalSetup() {
   await dataSource.runMigrations();
   await dataSource.runMigrations();
   console.log('✅ Migrations complete');
-  console.log(
-    'Loaded entities:',
-    dataSource.entityMetadatas.map((m) => m.name).join(', '),
-  );
+  console.log('Loaded entities:', dataSource.entityMetadatas.map((m) => m.name).join(', '));
   console.log('\n');
 
   (global as any).__DATA_SOURCE__ = dataSource;

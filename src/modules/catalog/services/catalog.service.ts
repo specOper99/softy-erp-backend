@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
@@ -80,10 +76,7 @@ export class CatalogService {
     return savedPkg;
   }
 
-  async findAllPackages(
-    query: PaginationDto = new PaginationDto(),
-    nocache = false,
-  ): Promise<ServicePackage[]> {
+  async findAllPackages(query: PaginationDto = new PaginationDto(), nocache = false): Promise<ServicePackage[]> {
     const tenantId = TenantContextService.getTenantId();
     const cacheKey = this.getPackagesCacheKey(tenantId ?? 'default');
 
@@ -128,10 +121,7 @@ export class CatalogService {
       const [dateStr, id] = decoded.split('|');
       const date = new Date(dateStr);
 
-      qb.andWhere(
-        '(pkg.createdAt < :date OR (pkg.createdAt = :date AND pkg.id < :id))',
-        { date, id },
-      );
+      qb.andWhere('(pkg.createdAt < :date OR (pkg.createdAt = :date AND pkg.id < :id))', { date, id });
     }
 
     const packages = await qb.getMany();
@@ -159,10 +149,7 @@ export class CatalogService {
     return pkg;
   }
 
-  async updatePackage(
-    id: string,
-    dto: UpdateServicePackageDto,
-  ): Promise<ServicePackage> {
+  async updatePackage(id: string, dto: UpdateServicePackageDto): Promise<ServicePackage> {
     const pkg = await this.findPackageById(id);
     const oldValues = {
       name: pkg.name,
@@ -174,11 +161,7 @@ export class CatalogService {
     const savedPkg = await this.packageRepository.save(pkg);
 
     // Log price or status changes
-    if (
-      dto.price !== undefined ||
-      dto.isActive !== undefined ||
-      dto.name !== undefined
-    ) {
+    if (dto.price !== undefined || dto.isActive !== undefined || dto.name !== undefined) {
       await this.auditService.log({
         action: 'UPDATE',
         entityName: 'ServicePackage',
@@ -197,9 +180,7 @@ export class CatalogService {
     }
 
     // Invalidate cache
-    await this.invalidatePackagesCache(
-      TenantContextService.getTenantId() ?? 'default',
-    );
+    await this.invalidatePackagesCache(TenantContextService.getTenantId() ?? 'default');
 
     return savedPkg;
   }
@@ -217,15 +198,10 @@ export class CatalogService {
     await this.packageRepository.remove(pkg);
 
     // Invalidate cache
-    await this.invalidatePackagesCache(
-      TenantContextService.getTenantId() ?? 'default',
-    );
+    await this.invalidatePackagesCache(TenantContextService.getTenantId() ?? 'default');
   }
 
-  async addPackageItems(
-    packageId: string,
-    dto: AddPackageItemsDto,
-  ): Promise<PackageItem[]> {
+  async addPackageItems(packageId: string, dto: AddPackageItemsDto): Promise<PackageItem[]> {
     await this.findPackageById(packageId);
     const tenantId = TenantContextService.getTenantId();
     const items = dto.items.map((item) =>
@@ -290,10 +266,7 @@ export class CatalogService {
     return savedTaskType;
   }
 
-  async findAllTaskTypes(
-    query: PaginationDto = new PaginationDto(),
-    nocache = false,
-  ): Promise<TaskType[]> {
+  async findAllTaskTypes(query: PaginationDto = new PaginationDto(), nocache = false): Promise<TaskType[]> {
     const tenantId = TenantContextService.getTenantId();
     const cacheKey = this.getTaskTypesCacheKey(tenantId ?? 'default');
 
@@ -317,9 +290,7 @@ export class CatalogService {
     return taskTypes;
   }
 
-  async findAllTaskTypesCursor(
-    query: CursorPaginationDto,
-  ): Promise<{ data: TaskType[]; nextCursor: string | null }> {
+  async findAllTaskTypesCursor(query: CursorPaginationDto): Promise<{ data: TaskType[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantId();
     const limit = query.limit || 20;
 
@@ -335,10 +306,7 @@ export class CatalogService {
       const [dateStr, id] = decoded.split('|');
       const date = new Date(dateStr);
 
-      qb.andWhere(
-        '(tt.createdAt < :date OR (tt.createdAt = :date AND tt.id < :id))',
-        { date, id },
-      );
+      qb.andWhere('(tt.createdAt < :date OR (tt.createdAt = :date AND tt.id < :id))', { date, id });
     }
 
     const taskTypes = await qb.getMany();
@@ -404,10 +372,7 @@ export class CatalogService {
     await this.taskTypeRepository.remove(taskType);
   }
 
-  async clonePackage(
-    packageId: string,
-    dto: ClonePackageDto,
-  ): Promise<ServicePackage> {
+  async clonePackage(packageId: string, dto: ClonePackageDto): Promise<ServicePackage> {
     const tenantId = TenantContextService.getTenantId();
 
     // Load source package with all items
@@ -417,9 +382,7 @@ export class CatalogService {
     });
 
     if (!sourcePackage) {
-      throw new NotFoundException(
-        `ServicePackage with ID ${packageId} not found`,
-      );
+      throw new NotFoundException(`ServicePackage with ID ${packageId} not found`);
     }
 
     // Create new package (not a template by default)

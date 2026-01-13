@@ -115,9 +115,7 @@ describe('CatalogService', () => {
     auditService = module.get(AuditPublisher);
     cacheUtils = module.get(CacheUtilsService);
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);
   });
 
   afterEach(() => {
@@ -147,9 +145,7 @@ describe('CatalogService', () => {
 
     it('should reject zero price package', async () => {
       const dto = { name: 'Free Package', price: 0 };
-      await expect(service.createPackage(dto)).rejects.toThrow(
-        'catalog.price_must_be_positive',
-      );
+      await expect(service.createPackage(dto)).rejects.toThrow('catalog.price_must_be_positive');
     });
   });
 
@@ -198,9 +194,7 @@ describe('CatalogService', () => {
     it('should throw NotFoundException if not found', async () => {
       packageRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findPackageById('not-found')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findPackageById('not-found')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -286,9 +280,7 @@ describe('CatalogService', () => {
     it('should throw NotFoundException if not found', async () => {
       taskTypeRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findTaskTypeById('not-found')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findTaskTypeById('not-found')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -360,9 +352,7 @@ describe('CatalogService', () => {
         };
         packageRepo.findOne.mockResolvedValue(null);
 
-        await expect(service.addPackageItems('invalid', dto)).rejects.toThrow(
-          NotFoundException,
-        );
+        await expect(service.addPackageItems('invalid', dto)).rejects.toThrow(NotFoundException);
       });
     });
 
@@ -380,9 +370,7 @@ describe('CatalogService', () => {
       it('should throw NotFoundException for non-existent item', async () => {
         packageItemRepo.findOne.mockResolvedValue(null);
 
-        await expect(service.removePackageItem('invalid')).rejects.toThrow(
-          NotFoundException,
-        );
+        await expect(service.removePackageItem('invalid')).rejects.toThrow(NotFoundException);
       });
     });
   });

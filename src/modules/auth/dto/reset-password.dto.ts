@@ -11,8 +11,7 @@ export class ResetPasswordDto {
   token: string;
 
   @ApiProperty({
-    description:
-      'New password (min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)',
+    description: 'New password (min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)',
     example: 'NewSecure@Pass123',
     minLength: 8,
   })
@@ -20,8 +19,7 @@ export class ResetPasswordDto {
   @IsNotEmpty()
   @Length(8, 100)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
-    message:
-      'Password must contain uppercase, lowercase, number, and special character',
+    message: 'Password must contain uppercase, lowercase, number, and special character',
   })
   newPassword: string;
 }

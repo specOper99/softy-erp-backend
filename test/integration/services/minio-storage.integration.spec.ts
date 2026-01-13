@@ -1,8 +1,4 @@
-import {
-  CreateBucketCommand,
-  GetObjectCommand,
-  S3Client,
-} from '@aws-sdk/client-s3';
+import { CreateBucketCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
@@ -115,11 +111,7 @@ describe('MinIO Storage Integration Tests', () => {
       const fileContent = Buffer.from('Hello MinIO!', 'utf-8');
       const tenantId = 'tenant-123';
 
-      const result = await storageService.uploadFile(
-        fileContent,
-        `${tenantId}/${fileName}`,
-        'application/pdf',
-      );
+      const result = await storageService.uploadFile(fileContent, `${tenantId}/${fileName}`, 'application/pdf');
 
       expect(result).toBeDefined();
       expect(result.key).toContain(tenantId);
@@ -130,16 +122,10 @@ describe('MinIO Storage Integration Tests', () => {
     it('should upload image files', async () => {
       const fileName = 'test-image.jpg';
       // Create a minimal valid JPEG buffer
-      const fileContent = Buffer.from([
-        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
-      ]);
+      const fileContent = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
       const tenantId = 'tenant-456';
 
-      const result = await storageService.uploadFile(
-        fileContent,
-        `${tenantId}/${fileName}`,
-        'image/jpeg',
-      );
+      const result = await storageService.uploadFile(fileContent, `${tenantId}/${fileName}`, 'image/jpeg');
 
       expect(result).toBeDefined();
       expect(result.key).toContain(fileName);
@@ -149,17 +135,9 @@ describe('MinIO Storage Integration Tests', () => {
       const fileName = 'isolated-file.pdf';
       const content = Buffer.from('Tenant data', 'utf-8');
 
-      const tenant1Result = await storageService.uploadFile(
-        content,
-        'tenant-111/' + fileName,
-        'application/pdf',
-      );
+      const tenant1Result = await storageService.uploadFile(content, 'tenant-111/' + fileName, 'application/pdf');
 
-      const tenant2Result = await storageService.uploadFile(
-        content,
-        'tenant-222/' + fileName,
-        'application/pdf',
-      );
+      const tenant2Result = await storageService.uploadFile(content, 'tenant-222/' + fileName, 'application/pdf');
 
       expect(tenant1Result.key).toContain('tenant-111');
       expect(tenant2Result.key).toContain('tenant-222');
@@ -174,16 +152,10 @@ describe('MinIO Storage Integration Tests', () => {
       const content = Buffer.from('Download me!', 'utf-8');
       const tenantId = 'tenant-download';
 
-      const uploadResult = await storageService.uploadFile(
-        content,
-        `${tenantId}/${fileName}`,
-        'application/pdf',
-      );
+      const uploadResult = await storageService.uploadFile(content, `${tenantId}/${fileName}`, 'application/pdf');
 
       // Generate presigned URL
-      const url = await storageService.getPresignedDownloadUrl(
-        uploadResult.key,
-      );
+      const url = await storageService.getPresignedDownloadUrl(uploadResult.key);
 
       expect(url).toBeDefined();
       expect(url).toContain(minioEndpoint);
@@ -198,11 +170,7 @@ describe('MinIO Storage Integration Tests', () => {
 
       // Upload
 
-      const uploadResult = await storageService.uploadFile(
-        buffer,
-        `${tenantId}/${fileName}`,
-        'application/pdf',
-      );
+      const uploadResult = await storageService.uploadFile(buffer, `${tenantId}/${fileName}`, 'application/pdf');
 
       // Retrieve
       const command = new GetObjectCommand({
@@ -224,11 +192,7 @@ describe('MinIO Storage Integration Tests', () => {
       const tenantId = 'tenant-delete';
 
       // Upload
-      const uploadResult = await storageService.uploadFile(
-        content,
-        `${tenantId}/${fileName}`,
-        'application/pdf',
-      );
+      const uploadResult = await storageService.uploadFile(content, `${tenantId}/${fileName}`, 'application/pdf');
 
       // Delete
       await storageService.deleteFile(uploadResult.key);
@@ -250,13 +214,7 @@ describe('MinIO Storage Integration Tests', () => {
 
       for (let i = 0; i < 10; i++) {
         const content = Buffer.from(`File ${i}`, 'utf-8');
-        uploads.push(
-          storageService.uploadFile(
-            content,
-            `${tenantId}/concurrent-${i}.pdf`,
-            'application/pdf',
-          ),
-        );
+        uploads.push(storageService.uploadFile(content, `${tenantId}/concurrent-${i}.pdf`, 'application/pdf'));
       }
 
       const results = await Promise.all(uploads);
@@ -270,20 +228,14 @@ describe('MinIO Storage Integration Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid file keys gracefully', async () => {
-      await expect(
-        storageService.deleteFile('non-existent-key-123'),
-      ).resolves.not.toThrow();
+      await expect(storageService.deleteFile('non-existent-key-123')).resolves.not.toThrow();
     });
 
     it('should validate file uploads', async () => {
       const emptyBuffer = Buffer.alloc(0);
 
       await expect(
-        storageService.uploadFile(
-          emptyBuffer,
-          'tenant-test/empty.pdf',
-          'application/pdf',
-        ),
+        storageService.uploadFile(emptyBuffer, 'tenant-test/empty.pdf', 'application/pdf'),
       ).resolves.toBeDefined();
     });
   });

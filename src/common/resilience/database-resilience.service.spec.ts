@@ -41,30 +41,16 @@ describe('DatabaseResilienceService', () => {
     it('should register event listeners', () => {
       service.onModuleInit();
 
-      expect(mockCircuitBreaker.on).toHaveBeenCalledWith(
-        'open',
-        expect.any(Function),
-      );
-      expect(mockCircuitBreaker.on).toHaveBeenCalledWith(
-        'halfOpen',
-        expect.any(Function),
-      );
-      expect(mockCircuitBreaker.on).toHaveBeenCalledWith(
-        'close',
-        expect.any(Function),
-      );
-      expect(mockCircuitBreaker.on).toHaveBeenCalledWith(
-        'fallback',
-        expect.any(Function),
-      );
+      expect(mockCircuitBreaker.on).toHaveBeenCalledWith('open', expect.any(Function));
+      expect(mockCircuitBreaker.on).toHaveBeenCalledWith('halfOpen', expect.any(Function));
+      expect(mockCircuitBreaker.on).toHaveBeenCalledWith('close', expect.any(Function));
+      expect(mockCircuitBreaker.on).toHaveBeenCalledWith('fallback', expect.any(Function));
     });
 
     it('should log on open event', () => {
       service.onModuleInit();
 
-      const openCallback = mockCircuitBreaker.on.mock.calls.find(
-        (call) => call[0] === 'open',
-      )?.[1];
+      const openCallback = mockCircuitBreaker.on.mock.calls.find((call) => call[0] === 'open')?.[1];
       expect(openCallback).toBeDefined();
       // Call should not throw
       expect(() => openCallback()).not.toThrow();
@@ -73,9 +59,7 @@ describe('DatabaseResilienceService', () => {
     it('should log on halfOpen event', () => {
       service.onModuleInit();
 
-      const halfOpenCallback = mockCircuitBreaker.on.mock.calls.find(
-        (call) => call[0] === 'halfOpen',
-      )?.[1];
+      const halfOpenCallback = mockCircuitBreaker.on.mock.calls.find((call) => call[0] === 'halfOpen')?.[1];
       expect(halfOpenCallback).toBeDefined();
       expect(() => halfOpenCallback()).not.toThrow();
     });
@@ -83,9 +67,7 @@ describe('DatabaseResilienceService', () => {
     it('should log on close event', () => {
       service.onModuleInit();
 
-      const closeCallback = mockCircuitBreaker.on.mock.calls.find(
-        (call) => call[0] === 'close',
-      )?.[1];
+      const closeCallback = mockCircuitBreaker.on.mock.calls.find((call) => call[0] === 'close')?.[1];
       expect(closeCallback).toBeDefined();
       expect(() => closeCallback()).not.toThrow();
     });
@@ -93,9 +75,7 @@ describe('DatabaseResilienceService', () => {
     it('should log on fallback event', () => {
       service.onModuleInit();
 
-      const fallbackCallback = mockCircuitBreaker.on.mock.calls.find(
-        (call) => call[0] === 'fallback',
-      )?.[1];
+      const fallbackCallback = mockCircuitBreaker.on.mock.calls.find((call) => call[0] === 'fallback')?.[1];
       expect(fallbackCallback).toBeDefined();
       expect(() => fallbackCallback()).not.toThrow();
     });

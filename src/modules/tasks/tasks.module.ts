@@ -14,24 +14,9 @@ import { ExportService } from '../../common/services/export.service';
 import { TaskRepository } from './repositories/task.repository';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Task, TaskTemplate, TimeEntry]),
-    FinanceModule,
-    MailModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Task, TaskTemplate, TimeEntry]), FinanceModule, MailModule],
   controllers: [TasksController, TimeEntriesController],
-  providers: [
-    TasksService,
-    ExportService,
-    TimeEntriesService,
-    TasksExportService,
-    TaskRepository,
-  ],
-  exports: [
-    TasksService,
-    TimeEntriesService,
-    TasksExportService,
-    TaskRepository,
-  ],
+  providers: [TasksService, ExportService, TimeEntriesService, TasksExportService, TaskRepository],
+  exports: [TasksService, TimeEntriesService, TasksExportService, TaskRepository],
 })
 export class TasksModule {}

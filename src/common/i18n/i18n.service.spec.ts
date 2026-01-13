@@ -73,9 +73,7 @@ describe('I18nService', () => {
     });
 
     it('should parse quality values and return highest', () => {
-      expect(service.parseAcceptLanguage('en;q=0.5, ar;q=0.9, fr;q=0.3')).toBe(
-        'ar',
-      );
+      expect(service.parseAcceptLanguage('en;q=0.5, ar;q=0.9, fr;q=0.3')).toBe('ar');
     });
 
     it('should return default for unsupported language', () => {
@@ -105,15 +103,11 @@ describe('I18nService', () => {
     });
 
     it('should return key if translation not found', () => {
-      expect(service.translate('nonexistent.key', 'en')).toBe(
-        'nonexistent.key',
-      );
+      expect(service.translate('nonexistent.key', 'en')).toBe('nonexistent.key');
     });
 
     it('should use default language if specified language not loaded', () => {
-      expect(service.translate('common.success', 'de' as Language)).toBe(
-        'Success',
-      );
+      expect(service.translate('common.success', 'de' as Language)).toBe('Success');
     });
 
     it('should replace parameters in translation', () => {

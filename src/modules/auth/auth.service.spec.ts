@@ -95,18 +95,7 @@ describe('AuthService - Comprehensive Tests', () => {
     }),
     enableMfa: jest
       .fn()
-      .mockResolvedValue([
-        'code1',
-        'code2',
-        'code3',
-        'code4',
-        'code5',
-        'code6',
-        'code7',
-        'code8',
-        'code9',
-        'code10',
-      ]),
+      .mockResolvedValue(['code1', 'code2', 'code3', 'code4', 'code5', 'code6', 'code7', 'code8', 'code9', 'code10']),
     disableMfa: jest.fn().mockResolvedValue(undefined),
     verifyRecoveryCode: jest.fn().mockResolvedValue(false),
     getRemainingRecoveryCodes: jest.fn().mockResolvedValue(10),
@@ -122,9 +111,7 @@ describe('AuthService - Comprehensive Tests', () => {
   };
 
   const mockRefreshTokenRepository = {
-    create: jest
-      .fn()
-      .mockImplementation((data) => ({ id: 'token-id', ...data })),
+    create: jest.fn().mockImplementation((data) => ({ id: 'token-id', ...data })),
     save: jest.fn().mockImplementation((token) => Promise.resolve(token)),
     findOne: jest.fn(),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -178,9 +165,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
   const mockEncryptionService = {
     encrypt: jest.fn().mockImplementation((s: string) => `encrypted-${s}`),
-    decrypt: jest
-      .fn()
-      .mockImplementation((s: string) => s.replace(/^encrypted-/, '')),
+    decrypt: jest.fn().mockImplementation((s: string) => s.replace(/^encrypted-/, '')),
   };
 
   const mockGeoIpService = {
@@ -247,9 +232,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
     jest.clearAllMocks();
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
   });
 
   afterEach(() => {
@@ -258,9 +241,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
   describe('register', () => {
     it('should register new user and return auth response', async () => {
-      mockTenantsService.findBySlug.mockRejectedValue(
-        new NotFoundException('Not Found'),
-      );
+      mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
       mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.createWithManager.mockResolvedValue(mockUser);
@@ -279,9 +260,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should create user with ADMIN role when specified', async () => {
-      mockTenantsService.findBySlug.mockRejectedValue(
-        new NotFoundException('Not Found'),
-      );
+      mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
       mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.createWithManager.mockResolvedValue({
@@ -301,9 +280,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw ConflictException if user already exists', async () => {
-      mockTenantsService.findBySlug.mockRejectedValue(
-        new NotFoundException('Not Found'),
-      );
+      mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
       mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
 
@@ -312,9 +289,7 @@ describe('AuthService - Comprehensive Tests', () => {
         password: TEST_PASSWORD,
         companyName: 'Test Tenant',
       };
-      await expect(service.register(dto)).rejects.toThrow(
-        'auth.email_already_registered',
-      );
+      await expect(service.register(dto)).rejects.toThrow('auth.email_already_registered');
     });
 
     it('should throw ConflictException if tenant/slug already exists', async () => {
@@ -327,9 +302,7 @@ describe('AuthService - Comprehensive Tests', () => {
         password: TEST_PASSWORD,
         companyName: 'Test Tenant',
       };
-      await expect(service.register(dto)).rejects.toThrow(
-        'Tenant with this name or slug already exists',
-      );
+      await expect(service.register(dto)).rejects.toThrow('Tenant with this name or slug already exists');
     });
   });
 
@@ -411,9 +384,7 @@ describe('AuthService - Comprehensive Tests', () => {
         tenantId: 'tenant-other',
       };
 
-      await expect(service.validateUser(payload)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.validateUser(payload)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException for non-existent user', async () => {
@@ -425,9 +396,7 @@ describe('AuthService - Comprehensive Tests', () => {
         role: Role.FIELD_STAFF,
         tenantId: 'tenant-123',
       };
-      await expect(service.validateUser(payload)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.validateUser(payload)).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -435,21 +404,14 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should revoke specific token', async () => {
       await service.logout(mockUser.id, 'some-refresh-token');
 
-      expect(mockTokenService.hashToken).toHaveBeenCalledWith(
-        'some-refresh-token',
-      );
-      expect(mockTokenService.revokeToken).toHaveBeenCalledWith(
-        'mock-token-hash',
-        mockUser.id,
-      );
+      expect(mockTokenService.hashToken).toHaveBeenCalledWith('some-refresh-token');
+      expect(mockTokenService.revokeToken).toHaveBeenCalledWith('mock-token-hash', mockUser.id);
     });
 
     it('should revoke all tokens when no specific token provided', async () => {
       await service.logout(mockUser.id);
 
-      expect(mockTokenService.revokeAllUserTokens).toHaveBeenCalledWith(
-        mockUser.id,
-      );
+      expect(mockTokenService.revokeAllUserTokens).toHaveBeenCalledWith(mockUser.id);
     });
   });
 
@@ -491,13 +453,9 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw if MFA token invalid', async () => {
-      mockMfaService.enableMfa.mockRejectedValue(
-        new UnauthorizedException('Invalid MFA code'),
-      );
+      mockMfaService.enableMfa.mockRejectedValue(new UnauthorizedException('Invalid MFA code'));
 
-      await expect(
-        service.enableMfa(mockUser as any, '000000'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.enableMfa(mockUser as any, '000000')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should disable MFA', async () => {
@@ -535,9 +493,7 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should throw UnauthorizedException if token invalid', async () => {
       mockEmailVerificationRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.verifyEmail('invalid')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.verifyEmail('invalid')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException if token expired', async () => {
@@ -546,9 +502,7 @@ describe('AuthService - Comprehensive Tests', () => {
       };
       mockEmailVerificationRepository.findOne.mockResolvedValue(mockToken);
 
-      await expect(service.verifyEmail('expired')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.verifyEmail('expired')).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -558,9 +512,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
       await service.forgotPassword('test@example.com');
 
-      expect(passwordService.forgotPassword).toHaveBeenCalledWith(
-        'test@example.com',
-      );
+      expect(passwordService.forgotPassword).toHaveBeenCalledWith('test@example.com');
     });
   });
 
@@ -582,22 +534,16 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should throw UnauthorizedException if user is inactive in validateUser', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
       mockUsersService.findOne.mockResolvedValue(inactiveUser);
-      await expect(service.validateUser({ sub: 'u-1' } as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.validateUser({ sub: 'u-1' } as any)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException if account is locked out', async () => {
-      (service as any).lockoutService.isLockedOut = jest
-        .fn()
-        .mockResolvedValue({
-          locked: true,
-          remainingMs: 5000,
-        });
+      (service as any).lockoutService.isLockedOut = jest.fn().mockResolvedValue({
+        locked: true,
+        remainingMs: 5000,
+      });
 
-      await expect(
-        service.login({ email: 'a@a.com', password: 'p' }),
-      ).rejects.toThrow('Account temporarily locked');
+      await expect(service.login({ email: 'a@a.com', password: 'p' })).rejects.toThrow('Account temporarily locked');
     });
   });
 });

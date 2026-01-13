@@ -47,9 +47,7 @@ describe('EmailTemplatesController', () => {
     controller = module.get<EmailTemplatesController>(EmailTemplatesController);
     templateRepo = module.get(getRepositoryToken(EmailTemplate));
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);
   });
 
   afterEach(() => {
@@ -86,9 +84,7 @@ describe('EmailTemplatesController', () => {
     it('should throw NotFoundException if not found', async () => {
       templateRepo.findOne.mockResolvedValue(null);
 
-      await expect(controller.findOne('not-found')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(controller.findOne('not-found')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -116,9 +112,7 @@ describe('EmailTemplatesController', () => {
     it('should throw if template name exists', async () => {
       templateRepo.findOne.mockResolvedValue(mockTemplate as any);
 
-      await expect(
-        controller.create({ name: 'welcome' } as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.create({ name: 'welcome' } as any)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -154,9 +148,7 @@ describe('EmailTemplatesController', () => {
         isSystem: true,
       } as any);
 
-      await expect(controller.remove('template-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(controller.remove('template-123')).rejects.toThrow(BadRequestException);
     });
   });
 

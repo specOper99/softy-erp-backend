@@ -44,9 +44,7 @@ describe('HR Payroll Workflow Integration', () => {
 
   beforeAll(async () => {
     // Mock tenant context
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue(tenantId);
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
 
     const dbConfig = (global as any).__DB_CONFIG__;
@@ -98,9 +96,7 @@ describe('HR Payroll Workflow Integration', () => {
           provide: TenantsService,
           useValue: {
             findAll: jest.fn().mockResolvedValue([]),
-            findOne: jest
-              .fn()
-              .mockResolvedValue({ id: tenantId, baseCurrency: 'USD' }),
+            findOne: jest.fn().mockResolvedValue({ id: tenantId, baseCurrency: 'USD' }),
           },
         },
         {
@@ -151,9 +147,7 @@ describe('HR Payroll Workflow Integration', () => {
 
     hrService = module.get<HrService>(HrService);
     _financeService = module.get<FinanceService>(FinanceService);
-    paymentGateway = module.get<MockPaymentGatewayService>(
-      MockPaymentGatewayService,
-    );
+    paymentGateway = module.get<MockPaymentGatewayService>(MockPaymentGatewayService);
   });
 
   afterAll(async () => {

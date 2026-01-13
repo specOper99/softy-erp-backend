@@ -56,39 +56,23 @@ describe('SubscriptionGuard', () => {
     });
 
     it('should throw when no tenant context', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(SubscriptionPlan.PRO);
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined as any);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(SubscriptionPlan.PRO);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined as any);
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw when tenant not found', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(SubscriptionPlan.PRO);
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-123');
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(SubscriptionPlan.PRO);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
       tenantsService.findOne.mockResolvedValue(null);
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
-        'Tenant not found',
-      );
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow('Tenant not found');
     });
 
     it('should allow when tenant has sufficient plan', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(SubscriptionPlan.PRO);
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-123');
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(SubscriptionPlan.PRO);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
       tenantsService.findOne.mockResolvedValue({
         id: 'tenant-123',
         subscriptionPlan: SubscriptionPlan.PRO,
@@ -100,12 +84,8 @@ describe('SubscriptionGuard', () => {
     });
 
     it('should allow when tenant has higher plan', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(SubscriptionPlan.PRO);
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-123');
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(SubscriptionPlan.PRO);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
       tenantsService.findOne.mockResolvedValue({
         id: 'tenant-123',
         subscriptionPlan: SubscriptionPlan.ENTERPRISE,
@@ -117,12 +97,8 @@ describe('SubscriptionGuard', () => {
     });
 
     it('should throw when tenant has insufficient plan', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(SubscriptionPlan.ENTERPRISE);
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue('tenant-123');
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(SubscriptionPlan.ENTERPRISE);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
       tenantsService.findOne.mockResolvedValue({
         id: 'tenant-123',
         subscriptionPlan: SubscriptionPlan.FREE,

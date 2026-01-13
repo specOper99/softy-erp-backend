@@ -47,18 +47,14 @@ export class AuditService implements AuditPublisher {
         tenantId, // Pass tenantId explicitly as context won't exist in worker
       });
     } catch (error) {
-      this.logger.error(
-        `Failed to enqueue audit log: ${error instanceof Error ? error.message : String(error)}`,
-        { auditData: data },
-      );
+      this.logger.error(`Failed to enqueue audit log: ${error instanceof Error ? error.message : String(error)}`, {
+        auditData: data,
+      });
       // We do not rethrow to avoid breaking the main flow if audit queue fails
     }
   }
 
-  async verifyChainIntegrity(
-    tenantId?: string,
-    limit = 1000,
-  ): Promise<ChainVerificationResult> {
+  async verifyChainIntegrity(tenantId?: string, limit = 1000): Promise<ChainVerificationResult> {
     const effectiveTenantId = tenantId ?? TenantContextService.getTenantId();
 
     const logs = await this.auditRepository.find({
@@ -98,9 +94,7 @@ export class AuditService implements AuditPublisher {
     return { valid: true, totalChecked: logs.length };
   }
 
-  async findAllCursor(
-    query: AuditLogFilterDto,
-  ): Promise<{ data: AuditLog[]; nextCursor: string | null }> {
+  async findAllCursor(query: AuditLogFilterDto): Promise<{ data: AuditLog[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantId();
 
     const queryBuilder = this.auditRepository.createQueryBuilder('audit');
@@ -160,8 +154,7 @@ export class AuditService implements AuditPublisher {
     for (const key of Object.keys(sanitized)) {
       const lowerKey = key.toLowerCase().replace(/[^a-z]/g, '');
       const isSensitive = PII_FIELD_PATTERNS.some(
-        (pattern) =>
-          pattern === lowerKey || lowerKey.includes(pattern.replace(/_/g, '')),
+        (pattern) => pattern === lowerKey || lowerKey.includes(pattern.replace(/_/g, '')),
       );
 
       if (isSensitive) {

@@ -12,18 +12,12 @@ type TransitionMap = Record<BookingStatus, BookingStatus[]>;
 export class BookingStateMachineService {
   private readonly allowedTransitions: TransitionMap = {
     [BookingStatus.DRAFT]: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
-    [BookingStatus.CONFIRMED]: [
-      BookingStatus.COMPLETED,
-      BookingStatus.CANCELLED,
-    ],
+    [BookingStatus.CONFIRMED]: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
     [BookingStatus.COMPLETED]: [],
     [BookingStatus.CANCELLED]: [],
   };
 
-  canTransition(
-    currentStatus: BookingStatus,
-    targetStatus: BookingStatus,
-  ): TransitionResult {
+  canTransition(currentStatus: BookingStatus, targetStatus: BookingStatus): TransitionResult {
     if (currentStatus === targetStatus) {
       return {
         isValid: false,
@@ -44,10 +38,7 @@ export class BookingStateMachineService {
     return { isValid: true };
   }
 
-  validateTransition(
-    currentStatus: BookingStatus,
-    targetStatus: BookingStatus,
-  ): void {
+  validateTransition(currentStatus: BookingStatus, targetStatus: BookingStatus): void {
     const result = this.canTransition(currentStatus, targetStatus);
     if (!result.isValid) {
       throw new BadRequestException(result.errorMessage);
@@ -59,9 +50,7 @@ export class BookingStateMachineService {
   }
 
   isTerminalState(status: BookingStatus): boolean {
-    return (
-      status === BookingStatus.COMPLETED || status === BookingStatus.CANCELLED
-    );
+    return status === BookingStatus.COMPLETED || status === BookingStatus.CANCELLED;
   }
 
   canBeCancelled(status: BookingStatus): boolean {

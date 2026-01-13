@@ -2,10 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import {
-  createMockRepository,
-  mockTenantContext,
-} from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
@@ -64,9 +61,7 @@ describe('HrService - Comprehensive Tests', () => {
   const mockWalletService = {
     getOrCreateWallet: jest.fn().mockResolvedValue(mockWallet),
     getOrCreateWalletWithManager: jest.fn().mockResolvedValue(mockWallet),
-    resetPayableBalance: jest
-      .fn()
-      .mockResolvedValue({ ...mockWallet, payableBalance: 0 }),
+    resetPayableBalance: jest.fn().mockResolvedValue({ ...mockWallet, payableBalance: 0 }),
   };
 
   const mockAuditService = {
@@ -90,9 +85,7 @@ describe('HrService - Comprehensive Tests', () => {
       create: jest.fn().mockImplementation((entity, data) => data),
       save: jest.fn().mockImplementation((data) => {
         if (Array.isArray(data)) {
-          return Promise.resolve(
-            data.map((item, i) => ({ id: `id-${i}`, ...item })),
-          );
+          return Promise.resolve(data.map((item, i) => ({ id: `id-${i}`, ...item })));
         }
         return Promise.resolve({ id: 'payout-uuid-123', ...data });
       }),
@@ -253,9 +246,7 @@ describe('HrService - Comprehensive Tests', () => {
       baseSalary: 2000.0,
     };
     mockQueryRunner.manager.save.mockRejectedValueOnce({ code: '23505' });
-    await expect(service.createProfile(dto)).rejects.toThrow(
-      'Profile already exists',
-    );
+    await expect(service.createProfile(dto)).rejects.toThrow('Profile already exists');
   });
 
   it('should throw generic error on failure', async () => {
@@ -264,9 +255,7 @@ describe('HrService - Comprehensive Tests', () => {
       firstName: 'John',
       baseSalary: 2000.0,
     };
-    mockQueryRunner.manager.save.mockRejectedValueOnce(
-      new Error('Database error'),
-    );
+    mockQueryRunner.manager.save.mockRejectedValueOnce(new Error('Database error'));
     await expect(service.createProfile(dto)).rejects.toThrow('Database error');
   });
 
@@ -297,9 +286,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for invalid id', async () => {
-      await expect(service.findProfileById('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findProfileById('invalid-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -326,9 +313,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for non-existent profile', async () => {
-      await expect(
-        service.updateProfile('invalid-id', { firstName: 'Test' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateProfile('invalid-id', { firstName: 'Test' })).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -340,9 +325,7 @@ describe('HrService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for non-existent profile', async () => {
-      await expect(service.deleteProfile('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.deleteProfile('invalid-id')).rejects.toThrow(NotFoundException);
     });
   });
 

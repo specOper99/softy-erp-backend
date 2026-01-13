@@ -20,20 +20,12 @@ export default registerAs('database', () => {
     type: 'postgres' as const,
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
     autoLoadEntities: true,
-    logging:
-      process.env.DB_LOGGING === 'true' ||
-      process.env.NODE_ENV === 'development',
+    logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
     extra: {
       max: parseInt(process.env.DB_POOL_SIZE || defaultPoolSize.toString(), 10),
-      connectionTimeoutMillis: parseInt(
-        process.env.DB_CONNECTION_TIMEOUT || '30000',
-        10,
-      ),
+      connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000', 10),
       idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '600000', 10),
-      statement_timeout: parseInt(
-        process.env.DB_STATEMENT_TIMEOUT || '60000',
-        10,
-      ),
+      statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT || '60000', 10),
     },
   };
 
@@ -50,10 +42,7 @@ export default registerAs('database', () => {
         },
         slaves: replicaHosts.map((host) => ({
           host,
-          port: parseInt(
-            process.env.DB_REPLICA_PORT || process.env.DB_PORT || '5432',
-            10,
-          ),
+          port: parseInt(process.env.DB_REPLICA_PORT || process.env.DB_PORT || '5432', 10),
           username: process.env.DB_REPLICA_USERNAME || process.env.DB_USERNAME,
           password: process.env.DB_REPLICA_PASSWORD || process.env.DB_PASSWORD,
           database: process.env.DB_DATABASE,

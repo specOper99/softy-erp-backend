@@ -72,9 +72,7 @@ describe('S3HealthIndicator', () => {
 
     it('should handle non-Error rejection', async () => {
       mockSend.mockRejectedValue('String Error');
-      await expect(indicator.isHealthy('s3')).rejects.toThrow(
-        's3 check failed',
-      );
+      await expect(indicator.isHealthy('s3')).rejects.toThrow('s3 check failed');
     });
   });
 

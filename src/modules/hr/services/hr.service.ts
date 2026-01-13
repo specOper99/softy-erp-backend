@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -48,10 +42,7 @@ export class HrService {
       }
 
       // Step 2: Create wallet for the user within the profile transaction
-      await this.walletService.getOrCreateWalletWithManager(
-        queryRunner.manager,
-        dto.userId,
-      );
+      await this.walletService.getOrCreateWalletWithManager(queryRunner.manager, dto.userId);
 
       // Step 2: Create profile
       const profile = this.profileRepository.create({
@@ -79,9 +70,7 @@ export class HrService {
       await queryRunner.rollbackTransaction();
       if ((e as { code?: string }).code === '23505') {
         this.logger.warn(`Profile already exists for user ${dto.userId}`);
-        throw new ConflictException(
-          `Profile already exists for user ${dto.userId}`,
-        );
+        throw new ConflictException(`Profile already exists for user ${dto.userId}`);
       }
       this.logger.error('Failed to create profile', e);
       throw e;
@@ -90,9 +79,7 @@ export class HrService {
     }
   }
 
-  async findAllProfiles(
-    query: PaginationDto = new PaginationDto(),
-  ): Promise<Profile[]> {
+  async findAllProfiles(query: PaginationDto = new PaginationDto()): Promise<Profile[]> {
     const profiles = await this.profileRepository.find({
       skip: query.getSkip(),
       take: query.getTake(),
@@ -108,9 +95,7 @@ export class HrService {
     return profiles;
   }
 
-  async findAllProfilesCursor(
-    query: CursorPaginationDto,
-  ): Promise<{ data: Profile[]; nextCursor: string | null }> {
+  async findAllProfilesCursor(query: CursorPaginationDto): Promise<{ data: Profile[]; nextCursor: string | null }> {
     const limit = query.limit || 20;
 
     const qb = this.profileRepository.createQueryBuilder('profile');
@@ -124,10 +109,7 @@ export class HrService {
       const [dateStr, id] = decoded.split('|');
       const date = new Date(dateStr);
 
-      qb.andWhere(
-        '(profile.createdAt < :date OR (profile.createdAt = :date AND profile.id < :id))',
-        { date, id },
-      );
+      qb.andWhere('(profile.createdAt < :date OR (profile.createdAt = :date AND profile.id < :id))', { date, id });
     }
 
     const profiles = await qb.getMany();

@@ -22,9 +22,7 @@ describe('Analytics Module E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -57,12 +55,10 @@ describe('Analytics Module E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
 
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
 
     accessToken = loginResponse.body.data?.accessToken;
   });
@@ -76,9 +72,7 @@ describe('Analytics Module E2E Tests', () => {
       it('should return revenue by package data', async () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
-          .get(
-            `/api/v1/analytics/revenue-by-package?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`,
-          )
+          .get(`/api/v1/analytics/revenue-by-package?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -93,9 +87,7 @@ describe('Analytics Module E2E Tests', () => {
       });
 
       it('should fail without authentication', async () => {
-        await request(app.getHttpServer())
-          .get('/api/v1/analytics/revenue-by-package')
-          .expect(401);
+        await request(app.getHttpServer()).get('/api/v1/analytics/revenue-by-package').expect(401);
       });
     });
   });
@@ -105,9 +97,7 @@ describe('Analytics Module E2E Tests', () => {
       it('should return tax report data', async () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
-          .get(
-            `/api/v1/analytics/tax-report?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`,
-          )
+          .get(`/api/v1/analytics/tax-report?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -119,9 +109,7 @@ describe('Analytics Module E2E Tests', () => {
       it('should filter by date range', async () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
-          .get(
-            `/api/v1/analytics/tax-report?startDate=${currentYear}-01-01&endDate=${currentYear}-06-30`,
-          )
+          .get(`/api/v1/analytics/tax-report?startDate=${currentYear}-01-01&endDate=${currentYear}-06-30`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -133,9 +121,7 @@ describe('Analytics Module E2E Tests', () => {
       it('should return PDF file', async () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
-          .get(
-            `/api/v1/analytics/revenue-by-package/pdf?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`,
-          )
+          .get(`/api/v1/analytics/revenue-by-package/pdf?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 

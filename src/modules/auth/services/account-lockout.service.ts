@@ -23,23 +23,15 @@ export class AccountLockoutService {
     private readonly configService: ConfigService,
   ) {
     // Default: 5 attempts within 15 minutes, 30 minute lockout
-    this.maxAttempts = this.configService.get<number>(
-      'LOCKOUT_MAX_ATTEMPTS',
-      5,
-    );
-    this.lockoutDurationMs =
-      this.configService.get<number>('LOCKOUT_DURATION_SECONDS', 30 * 60) *
-      1000;
-    this.attemptWindowMs =
-      this.configService.get<number>('LOCKOUT_WINDOW_SECONDS', 15 * 60) * 1000;
+    this.maxAttempts = this.configService.get<number>('LOCKOUT_MAX_ATTEMPTS', 5);
+    this.lockoutDurationMs = this.configService.get<number>('LOCKOUT_DURATION_SECONDS', 30 * 60) * 1000;
+    this.attemptWindowMs = this.configService.get<number>('LOCKOUT_WINDOW_SECONDS', 15 * 60) * 1000;
   }
 
   /**
    * Check if an account is currently locked out
    */
-  async isLockedOut(
-    email: string,
-  ): Promise<{ locked: boolean; remainingMs?: number }> {
+  async isLockedOut(email: string): Promise<{ locked: boolean; remainingMs?: number }> {
     const key = this.getKey(email);
     const info = await this.cacheService.get<LockoutInfo>(key);
 
@@ -75,9 +67,7 @@ export class AccountLockoutService {
 
     if (info.attempts >= this.maxAttempts) {
       info.lockedUntil = Date.now() + this.lockoutDurationMs;
-      this.logger.warn(
-        `Account ${email} locked out for ${this.lockoutDurationMs / 1000}s`,
-      );
+      this.logger.warn(`Account ${email} locked out for ${this.lockoutDurationMs / 1000}s`);
     }
 
     // Store with TTL matching attempt window (or lockout duration if locked)

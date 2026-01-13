@@ -40,9 +40,7 @@ export class MetricsFactory {
   /**
    * Get an existing counter or create a new one if it doesn't exist.
    */
-  getOrCreateCounter<T extends string = string>(
-    config: CounterConfig,
-  ): Counter<T> {
+  getOrCreateCounter<T extends string = string>(config: CounterConfig): Counter<T> {
     const existing = register.getSingleMetric(config.name);
     if (existing) {
       return existing as Counter<T>;
@@ -57,9 +55,7 @@ export class MetricsFactory {
   /**
    * Get an existing histogram or create a new one if it doesn't exist.
    */
-  getOrCreateHistogram<T extends string = string>(
-    config: HistogramConfig,
-  ): Histogram<T> {
+  getOrCreateHistogram<T extends string = string>(config: HistogramConfig): Histogram<T> {
     const existing = register.getSingleMetric(config.name);
     if (existing) {
       return existing as Histogram<T>;

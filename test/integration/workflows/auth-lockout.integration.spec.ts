@@ -202,9 +202,7 @@ describe('Auth Lockout Integration', () => {
     );
 
     // 4. Verify correct password also rejected while locked
-    await expect(
-      authService.login({ ...loginDto, password: 'Password123!' }),
-    ).rejects.toThrow(
+    await expect(authService.login({ ...loginDto, password: 'Password123!' })).rejects.toThrow(
       expect.objectContaining({
         message: expect.stringContaining('Account temporarily locked'),
       }),

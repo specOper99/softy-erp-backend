@@ -12,13 +12,7 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { AnalyticsController } from './controllers';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([DailyMetrics, Booking]),
-    CqrsModule,
-    DashboardModule,
-    AuthModule,
-    TenantsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([DailyMetrics, Booking]), CqrsModule, DashboardModule, AuthModule, TenantsModule],
   controllers: [AnalyticsController],
   providers: [UpdateMetricsHandler, AnalyticsService],
   exports: [AnalyticsService],

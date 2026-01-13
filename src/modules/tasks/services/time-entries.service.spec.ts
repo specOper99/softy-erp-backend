@@ -46,9 +46,7 @@ describe('TimeEntriesService', () => {
     service = module.get<TimeEntriesService>(TimeEntriesService);
     timeEntryRepo = module.get(getRepositoryToken(TimeEntry));
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);
   });
 
   afterEach(() => {
@@ -83,9 +81,7 @@ describe('TimeEntriesService', () => {
     it('should throw if user has active timer', async () => {
       timeEntryRepo.findOne.mockResolvedValue(mockTimeEntry as any);
 
-      await expect(
-        service.startTimer(mockUserId, { taskId: 'task-123' } as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.startTimer(mockUserId, { taskId: 'task-123' } as any)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -110,9 +106,7 @@ describe('TimeEntriesService', () => {
     it('should throw NotFoundException if not found', async () => {
       timeEntryRepo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.stopTimer(mockUserId, 'non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.stopTimer(mockUserId, 'non-existent')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException if not running', async () => {
@@ -122,9 +116,7 @@ describe('TimeEntriesService', () => {
       };
       timeEntryRepo.findOne.mockResolvedValue(stoppedEntry as any);
 
-      await expect(service.stopTimer(mockUserId, 'entry-123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.stopTimer(mockUserId, 'entry-123')).rejects.toThrow(BadRequestException);
     });
 
     it('should use provided end time', async () => {
@@ -139,9 +131,7 @@ describe('TimeEntriesService', () => {
         endTime: '2024-01-15T18:00:00Z',
       });
 
-      expect(runningEntry.stop).toHaveBeenCalledWith(
-        new Date('2024-01-15T18:00:00Z'),
-      );
+      expect(runningEntry.stop).toHaveBeenCalledWith(new Date('2024-01-15T18:00:00Z'));
     });
   });
 
@@ -204,9 +194,7 @@ describe('TimeEntriesService', () => {
     it('should throw NotFoundException if not found', async () => {
       timeEntryRepo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.update(mockUserId, 'non-existent', {} as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update(mockUserId, 'non-existent', {} as any)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -225,9 +213,7 @@ describe('TimeEntriesService', () => {
     it('should throw NotFoundException if not found', async () => {
       timeEntryRepo.delete.mockResolvedValue({ affected: 0 } as any);
 
-      await expect(service.delete('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.delete('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 });

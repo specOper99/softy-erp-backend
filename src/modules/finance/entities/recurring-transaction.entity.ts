@@ -99,8 +99,7 @@ export class RecurringTransaction extends BaseTenantEntity {
   isComplete(): boolean {
     if (this.status === RecurringStatus.COMPLETED) return true;
     if (this.endDate && new Date() > this.endDate) return true;
-    if (this.maxOccurrences && this.runCount >= this.maxOccurrences)
-      return true;
+    if (this.maxOccurrences && this.runCount >= this.maxOccurrences) return true;
     return false;
   }
 

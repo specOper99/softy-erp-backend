@@ -10,9 +10,7 @@ export class BookingCancelledHandler implements IEventHandler<BookingCancelledEv
   constructor(private readonly mailService: MailService) {}
 
   async handle(event: BookingCancelledEvent) {
-    this.logger.log(
-      `Handling BookingCancelledEvent for booking: ${event.bookingId}`,
-    );
+    this.logger.log(`Handling BookingCancelledEvent for booking: ${event.bookingId}`);
 
     try {
       await this.mailService.sendCancellationEmail({

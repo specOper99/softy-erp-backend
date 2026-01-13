@@ -70,9 +70,7 @@ export class I18nService implements OnModuleInit {
     lang: Language = this.defaultLanguage,
     params?: Record<string, string | number>,
   ): string {
-    const translations =
-      this.translations.get(lang) ||
-      this.translations.get(this.defaultLanguage);
+    const translations = this.translations.get(lang) || this.translations.get(this.defaultLanguage);
 
     if (!translations) {
       return key;
@@ -95,10 +93,7 @@ export class I18nService implements OnModuleInit {
     });
   }
 
-  private getNestedValue(
-    obj: TranslationData,
-    path: string,
-  ): string | TranslationData | undefined {
+  private getNestedValue(obj: TranslationData, path: string): string | TranslationData | undefined {
     const keys = path.split('.');
     let current: string | TranslationData | undefined = obj;
 
@@ -112,11 +107,7 @@ export class I18nService implements OnModuleInit {
     return current;
   }
 
-  t(
-    key: TranslationKey,
-    lang?: Language,
-    params?: Record<string, string | number>,
-  ): string {
+  t(key: TranslationKey, lang?: Language, params?: Record<string, string | number>): string {
     return this.translate(key, lang, params);
   }
 }

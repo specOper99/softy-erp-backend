@@ -14,9 +14,7 @@ export class AddMissingIndexes1767800000004 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "idx_tasks_assigned_user_id" ON "tasks" ("tenant_id", "assigned_user_id")`,
     );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "idx_tasks_status" ON "tasks" ("tenant_id", "status")`,
-    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_tasks_status" ON "tasks" ("tenant_id", "status")`);
 
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "idx_transactions_booking_id" ON "transactions" ("tenant_id", "booking_id")`,
@@ -33,12 +31,8 @@ export class AddMissingIndexes1767800000004 implements MigrationInterface {
       `CREATE INDEX IF NOT EXISTS "idx_profiles_hire_date" ON "profiles" ("tenant_id", "hire_date")`,
     );
 
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "idx_clients_email" ON "clients" ("tenant_id", "email")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "idx_clients_phone" ON "clients" ("tenant_id", "phone")`,
-    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_clients_email" ON "clients" ("tenant_id", "email")`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_clients_phone" ON "clients" ("tenant_id", "phone")`);
 
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "idx_packages_active" ON "service_packages" ("tenant_id", "is_active") WHERE is_active = true`,

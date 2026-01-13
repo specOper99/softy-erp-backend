@@ -75,9 +75,6 @@ export class AuditProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, error: Error) {
-    this.logger.error(
-      `Audit log job ${job.id} failed: ${error.message}`,
-      error.stack,
-    );
+    this.logger.error(`Audit log job ${job.id} failed: ${error.message}`, error.stack);
   }
 }

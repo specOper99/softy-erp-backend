@@ -236,10 +236,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
 
     return { tenantId, admin, staff, pkg, taskType, client };
   } catch (outerError: unknown) {
-    console.error(
-      'Seeder error:',
-      outerError instanceof Error ? outerError.message : String(outerError),
-    );
+    console.error('Seeder error:', outerError instanceof Error ? outerError.message : String(outerError));
     throw outerError;
   }
 }

@@ -61,11 +61,7 @@ export class BillingController {
   @ApiOperation({ summary: 'Create a new subscription' })
   async createSubscription(@Body() dto: CreateSubscriptionDto) {
     const tenantId = this.getTenantIdOrThrow();
-    return this.subscriptionService.createSubscription(
-      tenantId,
-      dto.priceId,
-      dto.paymentMethodId,
-    );
+    return this.subscriptionService.createSubscription(tenantId, dto.priceId, dto.paymentMethodId);
   }
 
   @Delete('subscription')
@@ -74,10 +70,7 @@ export class BillingController {
   async cancelSubscription(@Body() dto: UpdateSubscriptionDto) {
     const tenantId = this.getTenantIdOrThrow();
     const cancelImmediately = !dto.cancelAtPeriodEnd;
-    return this.subscriptionService.cancelSubscription(
-      tenantId,
-      cancelImmediately,
-    );
+    return this.subscriptionService.cancelSubscription(tenantId, cancelImmediately);
   }
 
   @Post('checkout-session')
@@ -85,8 +78,7 @@ export class BillingController {
   @ApiOperation({ summary: 'Create Stripe Checkout session' })
   async createCheckoutSession(@Body() dto: CreateCheckoutSessionDto) {
     const tenantId = this.getTenantIdOrThrow();
-    const customer =
-      await this.subscriptionService.getOrCreateCustomer(tenantId);
+    const customer = await this.subscriptionService.getOrCreateCustomer(tenantId);
 
     const session = await this.stripeService.createCheckoutSession({
       customer: customer.stripeCustomerId,
@@ -105,8 +97,7 @@ export class BillingController {
   @ApiOperation({ summary: 'Create Stripe Customer Portal session' })
   async createPortalSession(@Body() dto: CreatePortalSessionDto) {
     const tenantId = this.getTenantIdOrThrow();
-    const customer =
-      await this.subscriptionService.getOrCreateCustomer(tenantId);
+    const customer = await this.subscriptionService.getOrCreateCustomer(tenantId);
 
     const session = await this.stripeService.createBillingPortalSession({
       customer: customer.stripeCustomerId,
@@ -121,8 +112,7 @@ export class BillingController {
   @ApiOperation({ summary: 'List invoices' })
   async listInvoices() {
     const tenantId = this.getTenantIdOrThrow();
-    const customer =
-      await this.subscriptionService.getOrCreateCustomer(tenantId);
+    const customer = await this.subscriptionService.getOrCreateCustomer(tenantId);
     return this.stripeService.listInvoices(customer.stripeCustomerId);
   }
 
@@ -131,8 +121,7 @@ export class BillingController {
   @ApiOperation({ summary: 'Get upcoming invoice preview' })
   async getUpcomingInvoice() {
     const tenantId = this.getTenantIdOrThrow();
-    const customer =
-      await this.subscriptionService.getOrCreateCustomer(tenantId);
+    const customer = await this.subscriptionService.getOrCreateCustomer(tenantId);
     return this.stripeService.getUpcomingInvoice(customer.stripeCustomerId);
   }
 
@@ -164,9 +153,7 @@ export class BillingWebhookController {
     @Req() req: RawBodyRequest<Request> & { rawBody?: Buffer },
     @Headers('stripe-signature') signature: string,
   ) {
-    const webhookSecret = this.configService.get<string>(
-      'STRIPE_WEBHOOK_SECRET',
-    );
+    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
     if (!webhookSecret) {
       throw new Error('billing.stripe_config_error');
     }
@@ -176,11 +163,7 @@ export class BillingWebhookController {
       throw new BadRequestException('billing.raw_body_error');
     }
 
-    const event = this.stripeService.constructWebhookEvent(
-      rawBody,
-      signature,
-      webhookSecret,
-    );
+    const event = this.stripeService.constructWebhookEvent(rawBody, signature, webhookSecret);
 
     await this.subscriptionService.handleWebhookEvent(event);
 

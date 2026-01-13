@@ -94,9 +94,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if not found', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.findOne('invalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('invalid')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -111,9 +109,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if not found by slug', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.findBySlug('invalid-slug')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findBySlug('invalid-slug')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -130,9 +126,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if tenant to update not found', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.update('invalid', {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.update('invalid', {})).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -147,9 +141,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if tenant to remove not found', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.remove('invalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('invalid')).rejects.toThrow(NotFoundException);
     });
   });
 });

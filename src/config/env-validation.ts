@@ -1,12 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import {
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MinLength,
-  validateSync,
-} from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, MinLength, validateSync } from 'class-validator';
 
 enum NodeEnv {
   Development = 'development',
@@ -202,9 +195,7 @@ export function validate(config: Record<string, unknown>) {
   // Final security enforcement for production
   if (isProd) {
     if (!validatedConfig.JWT_SECRET || validatedConfig.JWT_SECRET.length < 32) {
-      throw new Error(
-        'SECURITY: JWT_SECRET must be at least 32 characters in production environments.',
-      );
+      throw new Error('SECURITY: JWT_SECRET must be at least 32 characters in production environments.');
     }
   }
 

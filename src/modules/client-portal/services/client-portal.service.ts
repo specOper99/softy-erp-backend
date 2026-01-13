@@ -15,10 +15,7 @@ export class ClientPortalService {
     private readonly bookingRepository: Repository<Booking>,
   ) {}
 
-  async getClientProfile(
-    clientId: string,
-    tenantId: string,
-  ): Promise<Partial<Client>> {
+  async getClientProfile(clientId: string, tenantId: string): Promise<Partial<Client>> {
     const client = await this.clientRepository.findOne({
       where: { id: clientId },
     });
@@ -43,11 +40,7 @@ export class ClientPortalService {
     });
   }
 
-  async getBooking(
-    bookingId: string,
-    clientId: string,
-    tenantId: string,
-  ): Promise<Booking> {
+  async getBooking(bookingId: string, clientId: string, tenantId: string): Promise<Booking> {
     const booking = await this.bookingRepository.findOne({
       where: { id: bookingId, clientId, tenantId },
       relations: ['servicePackage', 'tasks'],

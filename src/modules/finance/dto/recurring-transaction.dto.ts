@@ -12,10 +12,7 @@ import {
 } from 'class-validator';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
-import {
-  RecurringFrequency,
-  RecurringStatus,
-} from '../entities/recurring-transaction.entity';
+import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
 
 export class CreateRecurringTransactionDto {
   @IsString()
@@ -89,9 +86,7 @@ export class CreateRecurringTransactionDto {
   notifyBeforeDays?: number;
 }
 
-export class UpdateRecurringTransactionDto extends PartialType(
-  CreateRecurringTransactionDto,
-) {
+export class UpdateRecurringTransactionDto extends PartialType(CreateRecurringTransactionDto) {
   @IsEnum(RecurringStatus)
   @IsOptional()
   @ApiPropertyOptional({ enum: RecurringStatus })

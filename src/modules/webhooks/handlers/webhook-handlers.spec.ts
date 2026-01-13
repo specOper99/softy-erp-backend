@@ -28,15 +28,9 @@ describe('Webhook Handlers', () => {
     }).compile();
 
     webhookService = module.get<WebhookService>(WebhookService);
-    bookingConfirmedHandler = module.get<BookingConfirmedWebhookHandler>(
-      BookingConfirmedWebhookHandler,
-    );
-    bookingUpdatedHandler = module.get<BookingUpdatedWebhookHandler>(
-      BookingUpdatedWebhookHandler,
-    );
-    taskCompletedHandler = module.get<TaskCompletedWebhookHandler>(
-      TaskCompletedWebhookHandler,
-    );
+    bookingConfirmedHandler = module.get<BookingConfirmedWebhookHandler>(BookingConfirmedWebhookHandler);
+    bookingUpdatedHandler = module.get<BookingUpdatedWebhookHandler>(BookingUpdatedWebhookHandler);
+    taskCompletedHandler = module.get<TaskCompletedWebhookHandler>(TaskCompletedWebhookHandler);
 
     jest.clearAllMocks();
   });
@@ -70,12 +64,7 @@ describe('Webhook Handlers', () => {
 
   describe('BookingUpdatedWebhookHandler', () => {
     it('should emit webhook on BookingUpdatedEvent', async () => {
-      const event = new BookingUpdatedEvent(
-        'booking-id',
-        'tenant-id',
-        { status: 'CONFIRMED' },
-        new Date(),
-      );
+      const event = new BookingUpdatedEvent('booking-id', 'tenant-id', { status: 'CONFIRMED' }, new Date());
 
       await bookingUpdatedHandler.handle(event);
 
@@ -94,13 +83,7 @@ describe('Webhook Handlers', () => {
 
   describe('TaskCompletedWebhookHandler', () => {
     it('should emit webhook on TaskCompletedEvent', async () => {
-      const event = new TaskCompletedEvent(
-        'task-id',
-        'tenant-id',
-        new Date(),
-        50,
-        'user-id',
-      );
+      const event = new TaskCompletedEvent('task-id', 'tenant-id', new Date(), 50, 'user-id');
 
       await taskCompletedHandler.handle(event);
 

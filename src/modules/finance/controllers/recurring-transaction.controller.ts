@@ -1,25 +1,11 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import {
-  CreateRecurringTransactionDto,
-  UpdateRecurringTransactionDto,
-} from '../dto/recurring-transaction.dto';
+import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringTransactionService } from '../services/recurring-transaction.service';
 
 @ApiTags('Recurring Transactions')
@@ -27,9 +13,7 @@ import { RecurringTransactionService } from '../services/recurring-transaction.s
 @Controller('finance/recurring-transactions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RecurringTransactionController {
-  constructor(
-    private readonly recurringTransactionService: RecurringTransactionService,
-  ) {}
+  constructor(private readonly recurringTransactionService: RecurringTransactionService) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
@@ -55,10 +39,7 @@ export class RecurringTransactionController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update recurring transaction' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateRecurringTransactionDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRecurringTransactionDto) {
     return this.recurringTransactionService.update(id, dto);
   }
 

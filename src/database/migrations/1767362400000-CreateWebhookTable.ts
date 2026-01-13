@@ -30,9 +30,7 @@ export class CreateWebhookTable1767362400000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      'DROP INDEX IF EXISTS "IDX_webhook_composite_tenant"',
-    );
+    await queryRunner.query('DROP INDEX IF EXISTS "IDX_webhook_composite_tenant"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_webhooks_tenant"');
     await queryRunner.query('DROP TABLE IF EXISTS "webhooks"');
   }

@@ -84,12 +84,8 @@ describe('AuthController', () => {
         password: 'password',
         companyName: 'c',
       };
-      (authService.register as jest.Mock).mockRejectedValue(
-        new Error('Service Error'),
-      );
-      await expect(
-        controller.register(dto, mockRequest, mockIp),
-      ).rejects.toThrow('Service Error');
+      (authService.register as jest.Mock).mockRejectedValue(new Error('Service Error'));
+      await expect(controller.register(dto, mockRequest, mockIp)).rejects.toThrow('Service Error');
     });
   });
 
@@ -106,22 +102,14 @@ describe('AuthController', () => {
 
     it('should propagate errors', async () => {
       const dto = { email: 'test@example.com', password: 'password' };
-      (authService.login as jest.Mock).mockRejectedValue(
-        new Error('Login Failed'),
-      );
-      await expect(controller.login(dto, mockRequest, mockIp)).rejects.toThrow(
-        'Login Failed',
-      );
+      (authService.login as jest.Mock).mockRejectedValue(new Error('Login Failed'));
+      await expect(controller.login(dto, mockRequest, mockIp)).rejects.toThrow('Login Failed');
     });
   });
 
   describe('refreshTokens', () => {
     it('should call authService.refreshTokens', async () => {
-      const result = await controller.refreshTokens(
-        { refreshToken: 'old-refresh' },
-        mockRequest,
-        mockIp,
-      );
+      const result = await controller.refreshTokens({ refreshToken: 'old-refresh' }, mockRequest, mockIp);
       expect(authService.refreshTokens).toHaveBeenCalledWith('old-refresh', {
         userAgent: 'test-agent',
         ipAddress: mockIp,
@@ -130,23 +118,17 @@ describe('AuthController', () => {
     });
 
     it('should propagate errors', async () => {
-      (authService.refreshTokens as jest.Mock).mockRejectedValue(
-        new Error('Refresh Failed'),
+      (authService.refreshTokens as jest.Mock).mockRejectedValue(new Error('Refresh Failed'));
+      await expect(controller.refreshTokens({ refreshToken: 'old' }, mockRequest, mockIp)).rejects.toThrow(
+        'Refresh Failed',
       );
-      await expect(
-        controller.refreshTokens({ refreshToken: 'old' }, mockRequest, mockIp),
-      ).rejects.toThrow('Refresh Failed');
     });
   });
 
   describe('logout', () => {
     it('should call authService.logout', async () => {
       await controller.logout(mockUser, { refreshToken: 'token' }, mockRequest);
-      expect(authService.logout).toHaveBeenCalledWith(
-        mockUser.id,
-        'token',
-        undefined,
-      );
+      expect(authService.logout).toHaveBeenCalledWith(mockUser.id, 'token', undefined);
     });
 
     it('should call authService.logoutAllSessions if allSessions is true', async () => {
@@ -155,12 +137,8 @@ describe('AuthController', () => {
     });
 
     it('should propagate errors', async () => {
-      (authService.logout as jest.Mock).mockRejectedValue(
-        new Error('Logout Failed'),
-      );
-      await expect(
-        controller.logout(mockUser, { refreshToken: 't' }, mockRequest),
-      ).rejects.toThrow('Logout Failed');
+      (authService.logout as jest.Mock).mockRejectedValue(new Error('Logout Failed'));
+      await expect(controller.logout(mockUser, { refreshToken: 't' }, mockRequest)).rejects.toThrow('Logout Failed');
     });
   });
 
@@ -188,9 +166,7 @@ describe('AuthController', () => {
         lastUsedAt: new Date(),
         toSessionInfo: jest.fn().mockReturnValue({ id: 's1' }),
       };
-      (authService.getActiveSessions as jest.Mock).mockResolvedValue([
-        mockSession,
-      ]);
+      (authService.getActiveSessions as jest.Mock).mockResolvedValue([mockSession]);
       const result = await controller.getSessions({ id: 'u-1' } as any);
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('s1');

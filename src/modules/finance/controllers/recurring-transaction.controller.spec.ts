@@ -35,9 +35,7 @@ describe('RecurringTransactionController', () => {
       ],
     }).compile();
 
-    controller = module.get<RecurringTransactionController>(
-      RecurringTransactionController,
-    );
+    controller = module.get<RecurringTransactionController>(RecurringTransactionController);
     service = module.get(RecurringTransactionService);
   });
 

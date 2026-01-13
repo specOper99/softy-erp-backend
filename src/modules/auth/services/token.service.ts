@@ -32,25 +32,15 @@ export class TokenService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
   ) {
-    this.accessTokenExpiresIn = this.configService.get<number>(
-      'auth.jwtAccessExpires',
-      900,
-    );
-    this.refreshTokenExpiresIn = this.configService.get<number>(
-      'auth.jwtRefreshExpires',
-      7,
-    );
+    this.accessTokenExpiresIn = this.configService.get<number>('auth.jwtAccessExpires', 900);
+    this.refreshTokenExpiresIn = this.configService.get<number>('auth.jwtRefreshExpires', 7);
   }
 
   async generateTokens(
     user: User,
     context?: RequestContext,
     rememberMe?: boolean,
-    onNewDevice?: (
-      userId: string,
-      userAgent: string,
-      ipAddress?: string,
-    ) => void,
+    onNewDevice?: (userId: string, userAgent: string, ipAddress?: string) => void,
   ): Promise<TokensDto> {
     const payload: TokenPayload = {
       sub: user.id,
@@ -65,13 +55,7 @@ export class TokenService {
 
     const refreshToken = this.generateRefreshToken();
 
-    await this.storeRefreshToken(
-      user.id,
-      refreshToken,
-      context,
-      rememberMe,
-      onNewDevice,
-    );
+    await this.storeRefreshToken(user.id, refreshToken, context, rememberMe, onNewDevice);
 
     return {
       accessToken,
@@ -93,11 +77,7 @@ export class TokenService {
     token: string,
     context?: RequestContext,
     rememberMe?: boolean,
-    onNewDevice?: (
-      userId: string,
-      userAgent: string,
-      ipAddress?: string,
-    ) => void,
+    onNewDevice?: (userId: string, userAgent: string, ipAddress?: string) => void,
   ): Promise<RefreshToken> {
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date();
@@ -127,24 +107,15 @@ export class TokenService {
   }
 
   async revokeToken(tokenHash: string, userId: string): Promise<void> {
-    await this.refreshTokenRepository.update(
-      { tokenHash, userId },
-      { isRevoked: true },
-    );
+    await this.refreshTokenRepository.update({ tokenHash, userId }, { isRevoked: true });
   }
 
   async revokeAllUserTokens(userId: string): Promise<number> {
-    const result = await this.refreshTokenRepository.update(
-      { userId, isRevoked: false },
-      { isRevoked: true },
-    );
+    const result = await this.refreshTokenRepository.update({ userId, isRevoked: false }, { isRevoked: true });
     return result.affected || 0;
   }
 
-  async revokeOtherSessions(
-    userId: string,
-    currentTokenHash: string,
-  ): Promise<number> {
+  async revokeOtherSessions(userId: string, currentTokenHash: string): Promise<number> {
     const result = await this.refreshTokenRepository.update(
       {
         userId,
@@ -186,10 +157,7 @@ export class TokenService {
     return result.affected || 0;
   }
 
-  async getRecentSessions(
-    userId: string,
-    since: Date,
-  ): Promise<RefreshToken[]> {
+  async getRecentSessions(userId: string, since: Date): Promise<RefreshToken[]> {
     return this.refreshTokenRepository.find({
       where: {
         userId,
@@ -200,10 +168,7 @@ export class TokenService {
     });
   }
 
-  async findPreviousLoginByUserAgent(
-    userId: string,
-    userAgent: string,
-  ): Promise<RefreshToken | null> {
+  async findPreviousLoginByUserAgent(userId: string, userAgent: string): Promise<RefreshToken | null> {
     return this.refreshTokenRepository.findOne({
       where: { userId, userAgent },
       select: ['id'],

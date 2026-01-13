@@ -7,10 +7,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
 import { FinancialReportFilterDto } from '../../finance/dto/financial-report.dto';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
-import {
-  RequireSubscription,
-  SubscriptionGuard,
-} from '../../tenants/guards/subscription.guard';
+import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
 import { Role } from '../../users/enums/role.enum';
 import { AnalyticsService } from '../services/analytics.service';
 
@@ -35,13 +32,9 @@ export class AnalyticsController {
   @Get('revenue-by-package/pdf')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get Revenue by Package Report (PDF)' })
-  async getRevenueByPackagePdf(
-    @Query() filter: FinancialReportFilterDto,
-    @Res() res: Response,
-  ) {
+  async getRevenueByPackagePdf(@Query() filter: FinancialReportFilterDto, @Res() res: Response) {
     const data = await this.analyticsService.getRevenueByPackage(filter);
-    const pdfBytes =
-      await this.reportGeneratorService.generateRevenueByPackagePdf(data);
+    const pdfBytes = await this.reportGeneratorService.generateRevenueByPackagePdf(data);
 
     res.set({
       'Content-Type': 'application/pdf',
@@ -54,10 +47,7 @@ export class AnalyticsController {
   @Get('tax-report')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get Tax Report (JSON)' })
-  async getTaxReport(
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
-  ) {
+  async getTaxReport(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
     return this.analyticsService.getTaxReport(startDate, endDate);
   }
 }

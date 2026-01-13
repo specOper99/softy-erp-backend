@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  createMockRepository,
-  mockTenantContext,
-} from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { DepartmentBudgetRepository } from '../repositories/department-budget.repository';
@@ -48,9 +45,7 @@ describe('FinancialReportService', () => {
 
     mockTenantContext(mockTenantId);
     // Mock getTenantIdOrThrow specifically if needed, but mockTenantContext does it for getTenantId
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(mockTenantId);
   });
 
   afterEach(() => {
@@ -152,9 +147,7 @@ describe('FinancialReportService', () => {
           maxEnd: new Date(),
         }),
         groupBy: jest.fn().mockReturnThis(),
-        getRawMany: jest
-          .fn()
-          .mockResolvedValue([{ department: 'Eng', total: '500' }]),
+        getRawMany: jest.fn().mockResolvedValue([{ department: 'Eng', total: '500' }]),
       };
       budgetRepo.createQueryBuilder = jest.fn().mockReturnValue(qbMock);
 

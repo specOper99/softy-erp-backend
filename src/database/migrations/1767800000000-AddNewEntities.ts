@@ -130,15 +130,11 @@ export class AddNewEntities1767800000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_consents_tenant_id" ON "consents" ("tenant_id", "id")`,
-    );
+    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_consents_tenant_id" ON "consents" ("tenant_id", "id")`);
     await queryRunner.query(
       `CREATE UNIQUE INDEX "IDX_consents_tenant_user_type" ON "consents" ("tenant_id", "user_id", "type")`,
     );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_consents_tenant_type" ON "consents" ("tenant_id", "type")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_consents_tenant_type" ON "consents" ("tenant_id", "type")`);
 
     await queryRunner.query(`
       ALTER TABLE "consents"
@@ -262,15 +258,11 @@ export class AddNewEntities1767800000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_attendance_tenant_id" ON "attendance" ("tenant_id", "id")`,
-    );
+    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_attendance_tenant_id" ON "attendance" ("tenant_id", "id")`);
     await queryRunner.query(
       `CREATE UNIQUE INDEX "IDX_attendance_tenant_user_date" ON "attendance" ("tenant_id", "user_id", "date")`,
     );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_attendance_tenant_date" ON "attendance" ("tenant_id", "date")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_attendance_tenant_date" ON "attendance" ("tenant_id", "date")`);
 
     await queryRunner.query(`
       ALTER TABLE "attendance"
@@ -308,9 +300,7 @@ export class AddNewEntities1767800000000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE UNIQUE INDEX "IDX_task_templates_tenant_id" ON "task_templates" ("tenant_id", "id")`,
     );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_task_templates_tenant_name" ON "task_templates" ("tenant_id", "name")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_task_templates_tenant_name" ON "task_templates" ("tenant_id", "name")`);
 
     // 7. Time Entries Table
     await queryRunner.query(`
@@ -331,15 +321,9 @@ export class AddNewEntities1767800000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_time_entries_tenant_id" ON "time_entries" ("tenant_id", "id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_time_entries_tenant_task" ON "time_entries" ("tenant_id", "task_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_time_entries_tenant_user" ON "time_entries" ("tenant_id", "user_id")`,
-    );
+    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_time_entries_tenant_id" ON "time_entries" ("tenant_id", "id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_time_entries_tenant_task" ON "time_entries" ("tenant_id", "task_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_time_entries_tenant_user" ON "time_entries" ("tenant_id", "user_id")`);
     await queryRunner.query(
       `CREATE INDEX "IDX_time_entries_tenant_start" ON "time_entries" ("tenant_id", "start_time")`,
     );
@@ -428,91 +412,45 @@ export class AddNewEntities1767800000000 implements MigrationInterface {
     // Drop tables in reverse order of creation (respect FK dependencies)
 
     // 9. Recurring Transactions
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_recurring_transactions_tenant_next_run"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_recurring_transactions_tenant_status"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_recurring_transactions_tenant_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_recurring_transactions_tenant_next_run"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_recurring_transactions_tenant_status"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_recurring_transactions_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "recurring_transactions"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."recurring_transactions_status_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."recurring_transactions_frequency_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."recurring_transactions_status_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."recurring_transactions_frequency_enum"`);
 
     // 8. Transaction Categories
     await queryRunner.query(
       `ALTER TABLE "transaction_categories" DROP CONSTRAINT IF EXISTS "FK_transaction_categories_parent"`,
     );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_transaction_categories_tenant_name"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_transaction_categories_tenant_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_transaction_categories_tenant_name"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_transaction_categories_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "transaction_categories"`);
 
     // 7. Time Entries
-    await queryRunner.query(
-      `ALTER TABLE "time_entries" DROP CONSTRAINT IF EXISTS "FK_time_entries_user"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "time_entries" DROP CONSTRAINT IF EXISTS "FK_time_entries_task"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_start"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_user"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_task"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "time_entries" DROP CONSTRAINT IF EXISTS "FK_time_entries_user"`);
+    await queryRunner.query(`ALTER TABLE "time_entries" DROP CONSTRAINT IF EXISTS "FK_time_entries_task"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_start"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_user"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_task"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_time_entries_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "time_entries"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."time_entries_status_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."time_entries_status_enum"`);
 
     // 6. Task Templates
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_task_templates_tenant_name"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_task_templates_tenant_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_task_templates_tenant_name"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_task_templates_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "task_templates"`);
 
     // 5. Attendance
-    await queryRunner.query(
-      `ALTER TABLE "attendance" DROP CONSTRAINT IF EXISTS "FK_attendance_approver"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "attendance" DROP CONSTRAINT IF EXISTS "FK_attendance_user"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_attendance_tenant_date"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_attendance_tenant_user_date"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_attendance_tenant_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "attendance" DROP CONSTRAINT IF EXISTS "FK_attendance_approver"`);
+    await queryRunner.query(`ALTER TABLE "attendance" DROP CONSTRAINT IF EXISTS "FK_attendance_user"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_attendance_tenant_date"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_attendance_tenant_user_date"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_attendance_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "attendance"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."attendance_leave_type_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."attendance_status_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."attendance_leave_type_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."attendance_status_enum"`);
 
     // 4. Performance Reviews
     await queryRunner.query(
@@ -521,90 +459,42 @@ export class AddNewEntities1767800000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "performance_reviews" DROP CONSTRAINT IF EXISTS "FK_performance_reviews_user"`,
     );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_status"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_reviewer"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_user_period"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_status"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_reviewer"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_user_period"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_performance_reviews_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "performance_reviews"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."performance_reviews_period_type_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."performance_reviews_status_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."performance_reviews_period_type_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."performance_reviews_status_enum"`);
 
     // 3. Webhook Deliveries
     await queryRunner.query(
       `ALTER TABLE "webhook_deliveries" DROP CONSTRAINT IF EXISTS "FK_webhook_deliveries_webhook"`,
     );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_created"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_status"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_webhook"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_created"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_status"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_webhook"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_webhook_deliveries_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "webhook_deliveries"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."webhook_deliveries_status_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."webhook_deliveries_status_enum"`);
 
     // 2. Consents
-    await queryRunner.query(
-      `ALTER TABLE "consents" DROP CONSTRAINT IF EXISTS "FK_consents_user"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_consents_tenant_type"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_consents_tenant_user_type"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_consents_tenant_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "consents" DROP CONSTRAINT IF EXISTS "FK_consents_user"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_consents_tenant_type"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_consents_tenant_user_type"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_consents_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "consents"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."consents_type_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."consents_type_enum"`);
 
     // 1. Privacy Requests
-    await queryRunner.query(
-      `ALTER TABLE "privacy_requests" DROP CONSTRAINT IF EXISTS "FK_privacy_requests_processor"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "privacy_requests" DROP CONSTRAINT IF EXISTS "FK_privacy_requests_user"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_type"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_status"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_user"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "privacy_requests" DROP CONSTRAINT IF EXISTS "FK_privacy_requests_processor"`);
+    await queryRunner.query(`ALTER TABLE "privacy_requests" DROP CONSTRAINT IF EXISTS "FK_privacy_requests_user"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_type"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_status"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_user"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_privacy_requests_tenant_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "privacy_requests"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."privacy_requests_status_enum"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."privacy_requests_type_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."privacy_requests_status_enum"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."privacy_requests_type_enum"`);
   }
 }

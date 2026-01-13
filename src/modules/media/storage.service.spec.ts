@@ -43,9 +43,7 @@ describe('StorageService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: keyof typeof mockConfig) => mockConfig[key]),
-            getOrThrow: jest.fn(
-              (key: keyof typeof mockConfig) => mockConfig[key],
-            ),
+            getOrThrow: jest.fn((key: keyof typeof mockConfig) => mockConfig[key]),
           },
         },
         {
@@ -102,9 +100,7 @@ describe('StorageService', () => {
       const key = 'test-key';
       const unsupportedType = 'application/x-executable';
 
-      await expect(
-        service.uploadFile(buffer, key, unsupportedType),
-      ).rejects.toThrow('Unsupported file type');
+      await expect(service.uploadFile(buffer, key, unsupportedType)).rejects.toThrow('Unsupported file type');
     });
   });
 

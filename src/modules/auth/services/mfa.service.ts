@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { authenticator } from 'otplib';
@@ -20,11 +15,7 @@ export class MfaService {
 
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
     const secret = authenticator.generateSecret();
-    const otpauthUrl = authenticator.keyuri(
-      user.email,
-      'Chapters Studio ERP',
-      secret,
-    );
+    const otpauthUrl = authenticator.keyuri(user.email, 'Chapters Studio ERP', secret);
     const qrCodeUrl = await toDataURL(otpauthUrl);
 
     await this.usersService.updateMfaSecret(user.id, secret, false);
@@ -36,10 +27,7 @@ export class MfaService {
   }
 
   async enableMfa(user: User, code: string): Promise<string[]> {
-    const userWithSecret = await this.usersService.findByEmailWithMfaSecret(
-      user.email,
-      user.tenantId,
-    );
+    const userWithSecret = await this.usersService.findByEmailWithMfaSecret(user.email, user.tenantId);
 
     if (!userWithSecret || !userWithSecret.mfaSecret) {
       throw new BadRequestException('auth.mfa_setup_not_started');
@@ -59,11 +47,7 @@ export class MfaService {
       throw new UnauthorizedException('Invalid MFA code');
     }
 
-    await this.usersService.updateMfaSecret(
-      user.id,
-      userWithSecret.mfaSecret,
-      true,
-    );
+    await this.usersService.updateMfaSecret(user.id, userWithSecret.mfaSecret, true);
 
     const recoveryCodes = await this.generateRecoveryCodes(user);
 
@@ -82,9 +66,7 @@ export class MfaService {
       codes.push(crypto.randomBytes(4).toString('hex').toUpperCase());
     }
 
-    const hashedCodes = await Promise.all(
-      codes.map((code) => bcrypt.hash(code, 12)),
-    );
+    const hashedCodes = await Promise.all(codes.map((code) => bcrypt.hash(code, 12)));
 
     await this.usersService.updateMfaRecoveryCodes(user.id, hashedCodes);
 
@@ -98,24 +80,16 @@ export class MfaService {
   }
 
   async verifyRecoveryCode(user: User, code: string): Promise<boolean> {
-    const userWithCodes = await this.usersService.findByIdWithRecoveryCodes(
-      user.id,
-    );
+    const userWithCodes = await this.usersService.findByIdWithRecoveryCodes(user.id);
 
-    if (
-      !userWithCodes ||
-      !userWithCodes.mfaRecoveryCodes ||
-      userWithCodes.mfaRecoveryCodes.length === 0
-    ) {
+    if (!userWithCodes || !userWithCodes.mfaRecoveryCodes || userWithCodes.mfaRecoveryCodes.length === 0) {
       return false;
     }
 
     for (const hashedCode of userWithCodes.mfaRecoveryCodes) {
       const isValid = await bcrypt.compare(code, hashedCode);
       if (isValid) {
-        const updatedCodes = userWithCodes.mfaRecoveryCodes.filter(
-          (c) => c !== hashedCode,
-        );
+        const updatedCodes = userWithCodes.mfaRecoveryCodes.filter((c) => c !== hashedCode);
         await this.usersService.updateMfaRecoveryCodes(user.id, updatedCodes);
 
         this.logger.log({
@@ -133,9 +107,7 @@ export class MfaService {
   }
 
   async getRemainingRecoveryCodes(user: User): Promise<number> {
-    const userWithCodes = await this.usersService.findByIdWithRecoveryCodes(
-      user.id,
-    );
+    const userWithCodes = await this.usersService.findByIdWithRecoveryCodes(user.id);
     return userWithCodes?.mfaRecoveryCodes?.length || 0;
   }
 

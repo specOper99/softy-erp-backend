@@ -37,10 +37,7 @@ export class PasswordService {
       return;
     }
 
-    await this.passwordResetRepository.update(
-      { email, used: false },
-      { used: true },
-    );
+    await this.passwordResetRepository.update({ email, used: false }, { used: true });
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1);
@@ -87,16 +84,9 @@ export class PasswordService {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await this.dataSource.manager.update(
-      User,
-      { id: user.id },
-      { passwordHash },
-    );
+    await this.dataSource.manager.update(User, { id: user.id }, { passwordHash });
 
-    await this.passwordResetRepository.update(
-      { id: resetToken.id },
-      { used: true },
-    );
+    await this.passwordResetRepository.update({ id: resetToken.id }, { used: true });
 
     // Callback to logout all sessions
     if (onResetComplete) {

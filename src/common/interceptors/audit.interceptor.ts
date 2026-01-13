@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
@@ -51,15 +45,11 @@ export class AuditInterceptor implements NestInterceptor {
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
   ) {
-    this.trustProxyHeaders =
-      this.configService.get<string>('TRUST_PROXY') === 'true';
+    this.trustProxyHeaders = this.configService.get<string>('TRUST_PROXY') === 'true';
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const auditOptions = this.reflector.get<AuditOptions>(
-      AUDIT_KEY,
-      context.getHandler(),
-    );
+    const auditOptions = this.reflector.get<AuditOptions>(AUDIT_KEY, context.getHandler());
 
     // Skip if endpoint is not decorated with @Audit
     if (!auditOptions) {
@@ -118,14 +108,10 @@ export class AuditInterceptor implements NestInterceptor {
       userAgent: request.headers['user-agent'],
       status,
       durationMs,
-      ...(options.includeBody &&
-      typeof request.body === 'object' &&
-      request.body !== null
+      ...(options.includeBody && typeof request.body === 'object' && request.body !== null
         ? { requestBody: this.sanitizeData(request.body) }
         : {}),
-      ...(options.includeResponse && response !== undefined
-        ? { responseData: this.sanitizeData(response) }
-        : {}),
+      ...(options.includeResponse && response !== undefined ? { responseData: this.sanitizeData(response) } : {}),
       ...(error ? { error } : {}),
       timestamp: new Date().toISOString(),
     };
@@ -147,10 +133,7 @@ export class AuditInterceptor implements NestInterceptor {
         durationMs: auditData.durationMs,
       });
     } catch (e) {
-      this.logger.error(
-        'Audit logging failed',
-        e instanceof Error ? e.stack : String(e),
-      );
+      this.logger.error('Audit logging failed', e instanceof Error ? e.stack : String(e));
     }
   }
 
@@ -176,14 +159,9 @@ export class AuditInterceptor implements NestInterceptor {
     ];
 
     for (const key of Object.keys(sanitized)) {
-      if (
-        sensitiveKeys.some((k) => key.toLowerCase().includes(k.toLowerCase()))
-      ) {
+      if (sensitiveKeys.some((k) => key.toLowerCase().includes(k.toLowerCase()))) {
         sanitized[key] = '[REDACTED]';
-      } else if (
-        typeof sanitized[key] === 'object' &&
-        sanitized[key] !== null
-      ) {
+      } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
         sanitized[key] = this.sanitizeData(sanitized[key]);
       }
     }

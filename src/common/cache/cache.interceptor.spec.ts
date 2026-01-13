@@ -47,9 +47,7 @@ describe('GlobalCacheInterceptor', () => {
     cacheService = module.get(CacheUtilsService);
     reflector = module.get<Reflector>(Reflector);
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
   });
 
   afterEach(() => {
@@ -87,10 +85,7 @@ describe('GlobalCacheInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      const result = await interceptor.intercept(
-        mockExecutionContext,
-        mockCallHandler,
-      );
+      const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
       result.subscribe((data) => {
         expect(data).toEqual({ data: 'test' });
       });
@@ -107,19 +102,14 @@ describe('GlobalCacheInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      const result = await interceptor.intercept(
-        mockExecutionContext,
-        mockCallHandler,
-      );
+      const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
       result.subscribe((data) => {
         expect(data).toEqual({ data: 'test' });
       });
     });
 
     it('should skip when no tenantId', async () => {
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined as any);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined as any);
       jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
         if (key === CACHEABLE_KEY) return true;
         return undefined;
@@ -129,10 +119,7 @@ describe('GlobalCacheInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      const result = await interceptor.intercept(
-        mockExecutionContext,
-        mockCallHandler,
-      );
+      const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
       result.subscribe((data) => {
         expect(data).toEqual({ data: 'test' });
       });
@@ -149,10 +136,7 @@ describe('GlobalCacheInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      const result = await interceptor.intercept(
-        mockExecutionContext,
-        mockCallHandler,
-      );
+      const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
       result.subscribe((data) => {
         expect(data).toEqual({ cached: true });
       });
@@ -170,10 +154,7 @@ describe('GlobalCacheInterceptor', () => {
         handle: () => of({ fresh: true }),
       };
 
-      const result = await interceptor.intercept(
-        mockExecutionContext,
-        mockCallHandler,
-      );
+      const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
       result.subscribe(() => {
         // Allow async cache set to complete
         setTimeout(() => {
@@ -193,10 +174,7 @@ describe('GlobalCacheInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      const result = await interceptor.intercept(
-        mockExecutionContext,
-        mockCallHandler,
-      );
+      const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
       result.subscribe((data) => {
         expect(data).toEqual({ data: 'test' });
       });

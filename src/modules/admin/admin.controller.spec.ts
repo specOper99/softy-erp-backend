@@ -56,9 +56,7 @@ describe('AdminController', () => {
     });
 
     it('should propagate errors from key rotation service', async () => {
-      keyRotationService.rotateKeys.mockRejectedValue(
-        new Error('Rotation failed'),
-      );
+      keyRotationService.rotateKeys.mockRejectedValue(new Error('Rotation failed'));
 
       await expect(controller.rotateKeys()).rejects.toThrow('Rotation failed');
     });
@@ -71,10 +69,7 @@ describe('AdminController', () => {
 
       const result = await controller.verifyAuditChain();
 
-      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith(
-        undefined,
-        1000,
-      );
+      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith(undefined, 1000);
       expect(result).toEqual(mockResult);
     });
 
@@ -84,10 +79,7 @@ describe('AdminController', () => {
 
       const result = await controller.verifyAuditChain(500);
 
-      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith(
-        undefined,
-        500,
-      );
+      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith(undefined, 500);
       expect(result).toEqual(mockResult);
     });
 

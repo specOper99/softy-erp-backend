@@ -35,15 +35,13 @@ describe('TransformInterceptor', () => {
         handle: () => of(testData),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result).toHaveProperty('data', testData);
-          expect(result).toHaveProperty('statusCode', 200);
-          expect(result).toHaveProperty('timestamp');
-          expect(typeof result.timestamp).toBe('string');
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result).toHaveProperty('data', testData);
+        expect(result).toHaveProperty('statusCode', 200);
+        expect(result).toHaveProperty('timestamp');
+        expect(typeof result.timestamp).toBe('string');
+        done();
+      });
     });
 
     it('should handle array data', (done) => {
@@ -52,13 +50,11 @@ describe('TransformInterceptor', () => {
         handle: () => of(testData),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result.data).toEqual(testData);
-          expect(result.data).toHaveLength(2);
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result.data).toEqual(testData);
+        expect(result.data).toHaveLength(2);
+        done();
+      });
     });
 
     it('should handle null data', (done) => {
@@ -66,13 +62,11 @@ describe('TransformInterceptor', () => {
         handle: () => of(null),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result.data).toBeNull();
-          expect(result.statusCode).toBe(200);
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result.data).toBeNull();
+        expect(result.statusCode).toBe(200);
+        done();
+      });
     });
 
     it('should handle undefined data', (done) => {
@@ -80,13 +74,11 @@ describe('TransformInterceptor', () => {
         handle: () => of(undefined),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result.data).toBeUndefined();
-          expect(result.statusCode).toBe(200);
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result.data).toBeUndefined();
+        expect(result.statusCode).toBe(200);
+        done();
+      });
     });
 
     it('should reflect correct status code', (done) => {
@@ -96,13 +88,11 @@ describe('TransformInterceptor', () => {
         handle: () => of(testData),
       };
 
-      interceptor
-        .intercept(mockExecutionContext, mockCallHandler)
-        .subscribe((result) => {
-          expect(result.statusCode).toBe(201);
-          mockResponse.statusCode = 200; // Reset
-          done();
-        });
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        expect(result.statusCode).toBe(201);
+        mockResponse.statusCode = 200; // Reset
+        done();
+      });
     });
   });
 });

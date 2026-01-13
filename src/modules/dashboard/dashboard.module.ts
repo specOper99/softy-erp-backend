@@ -14,17 +14,7 @@ import { AuthModule } from '../auth/auth.module';
 import { UserPreference } from './entities/user-preference.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      Booking,
-      Transaction,
-      Task,
-      Profile,
-      UserPreference,
-      DailyMetrics,
-    ]),
-    AuthModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Booking, Transaction, Task, Profile, UserPreference, DailyMetrics]), AuthModule],
   controllers: [DashboardController],
   providers: [DashboardService, ReportGeneratorService, DashboardGateway],
   exports: [DashboardGateway, ReportGeneratorService],

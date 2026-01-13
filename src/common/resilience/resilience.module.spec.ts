@@ -10,16 +10,10 @@ describe('ResilienceModule', () => {
   describe('forRoot', () => {
     it('should provide circuit breakers with correct names', async () => {
       const module: TestingModule = await Test.createTestingModule({
-        imports: [
-          ResilienceModule.forRoot([
-            { name: 'test_breaker', errorThresholdPercentage: 50 },
-          ]),
-        ],
+        imports: [ResilienceModule.forRoot([{ name: 'test_breaker', errorThresholdPercentage: 50 }])],
       }).compile();
 
-      const breaker = module.get<CircuitBreaker>(
-        'CIRCUIT_BREAKER_TEST_BREAKER',
-      );
+      const breaker = module.get<CircuitBreaker>('CIRCUIT_BREAKER_TEST_BREAKER');
       expect(breaker).toBeDefined();
       expect(breaker).toBeInstanceOf(CircuitBreaker);
     });
@@ -40,9 +34,7 @@ describe('ResilienceModule', () => {
         imports: [ResilienceModule.forRoot([{ name: 'fire_breaker' }])],
       }).compile();
 
-      const breaker = module.get<CircuitBreaker>(
-        'CIRCUIT_BREAKER_FIRE_BREAKER',
-      );
+      const breaker = module.get<CircuitBreaker>('CIRCUIT_BREAKER_FIRE_BREAKER');
       const mockFn = jest.fn().mockResolvedValue('success');
       const result = await breaker.fire(mockFn);
 

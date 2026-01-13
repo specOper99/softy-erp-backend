@@ -18,12 +18,7 @@ import { Repository } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
-import {
-  WEBHOOK_QUEUE,
-  WebhookConfig,
-  WebhookEvent,
-  WebhookJobData,
-} from './webhooks.types';
+import { WEBHOOK_QUEUE, WebhookConfig, WebhookEvent, WebhookJobData } from './webhooks.types';
 
 /**
  * Webhook service for sending event notifications to external systems.
@@ -52,10 +47,7 @@ export class WebhookService {
   /**
    * Register a webhook endpoint for a tenant (persisted in DB)
    */
-  async registerWebhook(
-    tenantId: string,
-    config: WebhookConfig,
-  ): Promise<void> {
+  async registerWebhook(tenantId: string, config: WebhookConfig): Promise<void> {
     // URL Validation
     let url: URL;
     try {
@@ -91,9 +83,7 @@ export class WebhookService {
     });
 
     await this.webhookRepository.save(webhook);
-    this.logger.log(
-      `Registered and persisted webhook for tenant ${tenantId}: ${config.url}`,
-    );
+    this.logger.log(`Registered and persisted webhook for tenant ${tenantId}: ${config.url}`);
   }
 
   /**
@@ -104,12 +94,7 @@ export class WebhookService {
     const hostname = url.hostname;
 
     // Block localhost variants
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '::1' ||
-      hostname === '0.0.0.0'
-    ) {
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
       throw new BadRequestException('webhooks.localhost_denied');
     }
 
@@ -136,9 +121,7 @@ export class WebhookService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      this.logger.warn(
-        `DNS lookup failed for ${hostname}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.warn(`DNS lookup failed for ${hostname}: ${error instanceof Error ? error.message : String(error)}`);
       // Fail closed: unresolved hosts are not safe to deliver to.
       throw new BadRequestException('webhooks.dns_lookup_failed');
     }
@@ -215,10 +198,7 @@ export class WebhookService {
         return;
       }
 
-      if (
-        !webhook.events.includes(event.type) &&
-        !webhook.events.includes('*')
-      ) {
+      if (!webhook.events.includes(event.type) && !webhook.events.includes('*')) {
         return;
       }
 
@@ -244,9 +224,7 @@ export class WebhookService {
         this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
       } else {
         // Fallback to inline delivery with concurrency limit
-        return this.concurrencyLimit(() =>
-          this.sendWebhookWithRetry(webhook, event),
-        );
+        return this.concurrencyLimit(() => this.sendWebhookWithRetry(webhook, event));
       }
     });
 
@@ -275,10 +253,7 @@ export class WebhookService {
   /**
    * Send webhook with exponential backoff retry and jitter
    */
-  private async sendWebhookWithRetry(
-    webhook: Webhook,
-    event: WebhookEvent,
-  ): Promise<void> {
+  private async sendWebhookWithRetry(webhook: Webhook, event: WebhookEvent): Promise<void> {
     for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
       try {
         await this.sendWebhookOnce(webhook, event);
@@ -304,10 +279,7 @@ export class WebhookService {
    * SECURITY: Always re-validate DNS to prevent DNS rebinding attacks.
    * Block redirects to prevent SSRF via redirect to private IPs.
    */
-  private async sendWebhookOnce(
-    webhook: Webhook,
-    event: WebhookEvent,
-  ): Promise<void> {
+  private async sendWebhookOnce(webhook: Webhook, event: WebhookEvent): Promise<void> {
     const url = new URL(webhook.url);
 
     // SECURITY: Validate DNS and enforce allowlisted IPs to resist DNS rebinding.
@@ -324,16 +296,10 @@ export class WebhookService {
       : webhook.secret; // Handle legacy unencrypted secrets
 
     // Include timestamp in signature to prevent replay attacks
-    const signature = this.createSignature(
-      `${timestamp}.${body}`,
-      decryptedSecret,
-    );
+    const signature = this.createSignature(`${timestamp}.${body}`, decryptedSecret);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.WEBHOOK_TIMEOUT,
-    );
+    const timeoutId = setTimeout(() => controller.abort(), this.WEBHOOK_TIMEOUT);
 
     try {
       const response = await fetch(webhook.url, {
@@ -360,9 +326,7 @@ export class WebhookService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      this.logger.log(
-        `Webhook delivered to ${webhook.url} for event ${event.type}`,
-      );
+      this.logger.log(`Webhook delivered to ${webhook.url} for event ${event.type}`);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         throw new RequestTimeoutException('webhooks.request_timeout');

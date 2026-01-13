@@ -54,10 +54,7 @@ export class StorageService implements OnModuleInit {
   ]);
 
   onModuleInit() {
-    this.endpoint = this.configService.get(
-      'MINIO_ENDPOINT',
-      'http://localhost:9000',
-    );
+    this.endpoint = this.configService.get('MINIO_ENDPOINT', 'http://localhost:9000');
     this.bucket = this.configService.get('MINIO_BUCKET', 'chapters-studio');
     this.publicUrl = this.configService.get('MINIO_PUBLIC_URL', this.endpoint);
 
@@ -66,25 +63,18 @@ export class StorageService implements OnModuleInit {
       region: this.configService.get('MINIO_REGION', 'us-east-1'),
       credentials: {
         accessKeyId: this.configService.getOrThrow<string>('MINIO_ACCESS_KEY'),
-        secretAccessKey:
-          this.configService.getOrThrow<string>('MINIO_SECRET_KEY'),
+        secretAccessKey: this.configService.getOrThrow<string>('MINIO_SECRET_KEY'),
       },
       forcePathStyle: true, // Required for MinIO
     });
 
-    this.logger.log(
-      `Storage service initialized with endpoint: ${this.endpoint}`,
-    );
+    this.logger.log(`Storage service initialized with endpoint: ${this.endpoint}`);
   }
 
   /**
    * Upload a file to MinIO
    */
-  async uploadFile(
-    buffer: Buffer,
-    key: string,
-    mimeType: string,
-  ): Promise<UploadedFile> {
+  async uploadFile(buffer: Buffer, key: string, mimeType: string): Promise<UploadedFile> {
     // Security: Validate MIME type against whitelist
     if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
       throw new BadRequestException(
@@ -180,11 +170,7 @@ export class StorageService implements OnModuleInit {
   /**
    * Generate a pre-signed URL for direct upload
    */
-  async getPresignedUploadUrl(
-    key: string,
-    mimeType: string,
-    expiresIn = 3600,
-  ): Promise<string> {
+  async getPresignedUploadUrl(key: string, mimeType: string, expiresIn = 3600): Promise<string> {
     // Security: Validate MIME type against whitelist
     if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
       throw new BadRequestException(
@@ -204,10 +190,7 @@ export class StorageService implements OnModuleInit {
   /**
    * Generate a pre-signed URL for direct download
    */
-  async getPresignedDownloadUrl(
-    key: string,
-    expiresIn = 3600,
-  ): Promise<string> {
+  async getPresignedDownloadUrl(key: string, expiresIn = 3600): Promise<string> {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: key,

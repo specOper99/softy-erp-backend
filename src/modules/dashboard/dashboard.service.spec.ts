@@ -42,9 +42,7 @@ describe('DashboardService', () => {
   };
 
   beforeEach(async () => {
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -81,14 +79,10 @@ describe('DashboardService', () => {
     }).compile();
 
     service = module.get<DashboardService>(DashboardService);
-    transactionRepo = module.get<Repository<Transaction>>(
-      getRepositoryToken(Transaction),
-    );
+    transactionRepo = module.get<Repository<Transaction>>(getRepositoryToken(Transaction));
     taskRepo = module.get<Repository<Task>>(getRepositoryToken(Task));
     bookingRepo = module.get<Repository<Booking>>(getRepositoryToken(Booking));
-    metricsRepo = module.get<Repository<DailyMetrics>>(
-      getRepositoryToken(DailyMetrics),
-    );
+    metricsRepo = module.get<Repository<DailyMetrics>>(getRepositoryToken(DailyMetrics));
   });
 
   afterEach(() => {
@@ -138,10 +132,7 @@ describe('DashboardService', () => {
       const result = await service.getRevenueSummary();
 
       expect(transactionRepo.createQueryBuilder).toHaveBeenCalledWith('t');
-      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith(
-        'income',
-        TransactionType.INCOME,
-      );
+      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith('income', TransactionType.INCOME);
       expect(result).toEqual([
         { month: '2023-01', revenue: 1000, payouts: 200, net: 800 },
         { month: '2023-02', revenue: 1500, payouts: 300, net: 1200 },
@@ -153,9 +144,7 @@ describe('DashboardService', () => {
 
       const result = await service.getRevenueSummary();
 
-      expect(result).toEqual([
-        { month: '2023-01', revenue: 0, payouts: 0, net: 0 },
-      ]);
+      expect(result).toEqual([{ month: '2023-01', revenue: 0, payouts: 0, net: 0 }]);
     });
   });
 
@@ -173,17 +162,9 @@ describe('DashboardService', () => {
       const result = await service.getStaffPerformance();
 
       expect(taskRepo.createQueryBuilder).toHaveBeenCalledWith('task');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'task.tenantId = :tenantId',
-        { tenantId: 'tenant-123' },
-      );
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'task.status = :status',
-        { status: TaskStatus.COMPLETED },
-      );
-      expect(result).toEqual([
-        { staffName: 'John Doe', completedTasks: 10, totalCommission: 500 },
-      ]);
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('task.tenantId = :tenantId', { tenantId: 'tenant-123' });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('task.status = :status', { status: TaskStatus.COMPLETED });
+      expect(result).toEqual([{ staffName: 'John Doe', completedTasks: 10, totalCommission: 500 }]);
     });
 
     it('should handle null values in staff performance', async () => {
@@ -198,9 +179,7 @@ describe('DashboardService', () => {
 
       const result = await service.getStaffPerformance();
 
-      expect(result).toEqual([
-        { staffName: 'Unknown Staff', completedTasks: 0, totalCommission: 0 },
-      ]);
+      expect(result).toEqual([{ staffName: 'Unknown Staff', completedTasks: 0, totalCommission: 0 }]);
     });
   });
 

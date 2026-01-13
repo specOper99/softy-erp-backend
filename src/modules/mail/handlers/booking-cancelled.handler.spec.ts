@@ -60,9 +60,7 @@ describe('BookingCancelledHandler', () => {
     });
 
     it('should handle mail service error gracefully', async () => {
-      mailService.sendCancellationEmail.mockRejectedValue(
-        new Error('SMTP error'),
-      );
+      mailService.sendCancellationEmail.mockRejectedValue(new Error('SMTP error'));
 
       const event: BookingCancelledEvent = {
         bookingId: 'booking-456',

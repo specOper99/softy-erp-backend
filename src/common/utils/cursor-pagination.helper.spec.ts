@@ -25,11 +25,7 @@ describe('CursorPaginationHelper', () => {
       (qb.getMany as jest.Mock).mockResolvedValue([]);
 
       // Should compile fine
-      await CursorPaginationHelper.paginateWithCustomDateField<TestEntity>(
-        qb,
-        { alias: 'e' },
-        'customDate',
-      );
+      await CursorPaginationHelper.paginateWithCustomDateField<TestEntity>(qb, { alias: 'e' }, 'customDate');
 
       expect(qb.orderBy).toHaveBeenCalledWith('e.customDate', 'DESC');
     });

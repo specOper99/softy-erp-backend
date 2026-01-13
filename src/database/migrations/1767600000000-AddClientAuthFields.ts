@@ -12,10 +12,7 @@ export class AddClientAuthFields1767600000000 implements MigrationInterface {
     }
 
     // Add accessToken column if it doesn't exist
-    const hasAccessToken = await queryRunner.hasColumn(
-      'clients',
-      'accessToken',
-    );
+    const hasAccessToken = await queryRunner.hasColumn('clients', 'accessToken');
     if (!hasAccessToken) {
       await queryRunner.addColumn(
         'clients',
@@ -28,10 +25,7 @@ export class AddClientAuthFields1767600000000 implements MigrationInterface {
     }
 
     // Add accessTokenExpiry column if it doesn't exist
-    const hasTokenExpiry = await queryRunner.hasColumn(
-      'clients',
-      'accessTokenExpiry',
-    );
+    const hasTokenExpiry = await queryRunner.hasColumn('clients', 'accessTokenExpiry');
     if (!hasTokenExpiry) {
       await queryRunner.addColumn(
         'clients',
@@ -48,18 +42,12 @@ export class AddClientAuthFields1767600000000 implements MigrationInterface {
     const hasTable = await queryRunner.hasTable('clients');
     if (!hasTable) return;
 
-    const hasAccessToken = await queryRunner.hasColumn(
-      'clients',
-      'accessToken',
-    );
+    const hasAccessToken = await queryRunner.hasColumn('clients', 'accessToken');
     if (hasAccessToken) {
       await queryRunner.dropColumn('clients', 'accessToken');
     }
 
-    const hasTokenExpiry = await queryRunner.hasColumn(
-      'clients',
-      'accessTokenExpiry',
-    );
+    const hasTokenExpiry = await queryRunner.hasColumn('clients', 'accessTokenExpiry');
     if (hasTokenExpiry) {
       await queryRunner.dropColumn('clients', 'accessTokenExpiry');
     }

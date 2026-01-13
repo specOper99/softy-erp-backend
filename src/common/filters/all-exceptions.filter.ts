@@ -1,11 +1,5 @@
 import type { ArgumentsHost } from '@nestjs/common';
-import {
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 interface ErrorResponse {
@@ -58,9 +52,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = isProduction
-        ? 'An unexpected error occurred. Please try again later.'
-        : exception.message;
+      message = isProduction ? 'An unexpected error occurred. Please try again later.' : exception.message;
       _error = 'InternalServerError';
 
       this.logger.error({
@@ -74,9 +66,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       });
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = isProduction
-        ? 'An unexpected error occurred. Please try again later.'
-        : 'Unknown error occurred';
+      message = isProduction ? 'An unexpected error occurred. Please try again later.' : 'Unknown error occurred';
       _error = 'InternalServerError';
 
       this.logger.error({

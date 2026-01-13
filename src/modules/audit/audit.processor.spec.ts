@@ -34,9 +34,7 @@ describe('AuditProcessor', () => {
     }).compile();
 
     processor = module.get<AuditProcessor>(AuditProcessor);
-    _repository = module.get<Repository<AuditLog>>(
-      getRepositoryToken(AuditLog),
-    );
+    _repository = module.get<Repository<AuditLog>>(getRepositoryToken(AuditLog));
     jest.clearAllMocks();
   });
 
@@ -55,9 +53,7 @@ describe('AuditProcessor', () => {
         },
       } as Job;
 
-      const processSpy = jest
-        .spyOn(processor as any, 'handleLog')
-        .mockResolvedValue(undefined);
+      const processSpy = jest.spyOn(processor as any, 'handleLog').mockResolvedValue(undefined);
 
       await processor.process(job);
 
@@ -133,9 +129,7 @@ describe('AuditProcessor', () => {
 
     it('should rethrow errors', async () => {
       mockRepository.findOne.mockRejectedValue(new Error('DB Error'));
-      await expect((processor as any).handleLog(logData)).rejects.toThrow(
-        'DB Error',
-      );
+      await expect((processor as any).handleLog(logData)).rejects.toThrow('DB Error');
     });
   });
 });

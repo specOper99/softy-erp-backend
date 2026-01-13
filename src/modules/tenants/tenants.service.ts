@@ -18,10 +18,7 @@ export class TenantsService {
     return this.tenantRepository.save(tenant);
   }
 
-  async createWithManager(
-    manager: EntityManager,
-    createTenantDto: CreateTenantDto,
-  ): Promise<Tenant> {
+  async createWithManager(manager: EntityManager, createTenantDto: CreateTenantDto): Promise<Tenant> {
     const tenant = manager.create(Tenant, createTenantDto);
     return manager.save(tenant);
   }

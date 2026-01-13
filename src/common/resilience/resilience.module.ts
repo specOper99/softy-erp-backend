@@ -14,10 +14,7 @@ export class ResilienceModule {
       useFactory: () => {
         // This is a dummy function that we'll wrap with the breaker
         const breaker = new CircuitBreaker(
-          async (
-            fn: (...args: unknown[]) => Promise<unknown>,
-            ...args: unknown[]
-          ) => await fn(...args),
+          async (fn: (...args: unknown[]) => Promise<unknown>, ...args: unknown[]) => await fn(...args),
           {
             ...opt,
             errorThresholdPercentage: opt.errorThresholdPercentage || 50,

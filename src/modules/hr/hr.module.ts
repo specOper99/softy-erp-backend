@@ -19,13 +19,7 @@ import { PayrollService } from './services/payroll.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Profile,
-      PayrollRun,
-      EmployeeWallet,
-      Attendance,
-      PerformanceReview,
-    ]),
+    TypeOrmModule.forFeature([Profile, PayrollRun, EmployeeWallet, Attendance, PerformanceReview]),
     FinanceModule,
     MailModule,
     TenantsModule,
@@ -41,8 +35,7 @@ import { PayrollService } from './services/payroll.service';
     UserDeletedHandler,
     {
       provide: TENANT_REPO_ATTENDANCE,
-      useFactory: (repo: Repository<Attendance>) =>
-        new TenantAwareRepository(repo),
+      useFactory: (repo: Repository<Attendance>) => new TenantAwareRepository(repo),
       inject: [getRepositoryToken(Attendance)],
     },
   ],

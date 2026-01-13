@@ -5,10 +5,7 @@ import { DataSource } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { EncryptionService } from '../../../src/common/services/encryption.service';
 import { Webhook } from '../../../src/modules/webhooks/entities/webhook.entity';
-import {
-  WebhookEvent,
-  WebhookService,
-} from '../../../src/modules/webhooks/webhooks.service';
+import { WebhookEvent, WebhookService } from '../../../src/modules/webhooks/webhooks.service';
 
 // Mock ConfigService
 const mockConfigService = {
@@ -57,11 +54,7 @@ describe('Webhook Delivery Integration', () => {
         }),
         TypeOrmModule.forFeature([Webhook]),
       ],
-      providers: [
-        WebhookService,
-        EncryptionService,
-        { provide: ConfigService, useValue: mockConfigService },
-      ],
+      providers: [WebhookService, EncryptionService, { provide: ConfigService, useValue: mockConfigService }],
     }).compile();
 
     webhookService = module.get<WebhookService>(WebhookService);
@@ -74,11 +67,7 @@ describe('Webhook Delivery Integration', () => {
   });
 
   beforeEach(async () => {
-    await dataSource
-      .getRepository(Webhook)
-      .createQueryBuilder()
-      .delete()
-      .execute();
+    await dataSource.getRepository(Webhook).createQueryBuilder().delete().execute();
     mockFetch.mockReset();
   });
 

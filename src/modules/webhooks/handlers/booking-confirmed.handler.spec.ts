@@ -20,9 +20,7 @@ describe('BookingConfirmedWebhookHandler', () => {
       ],
     }).compile();
 
-    handler = module.get<BookingConfirmedWebhookHandler>(
-      BookingConfirmedWebhookHandler,
-    );
+    handler = module.get<BookingConfirmedWebhookHandler>(BookingConfirmedWebhookHandler);
     webhookService = module.get(WebhookService);
   });
 

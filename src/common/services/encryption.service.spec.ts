@@ -11,10 +11,7 @@ describe('EncryptionService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EncryptionService,
-        { provide: ConfigService, useValue: mockConfigService },
-      ],
+      providers: [EncryptionService, { provide: ConfigService, useValue: mockConfigService }],
     }).compile();
 
     service = module.get<EncryptionService>(EncryptionService);
@@ -65,9 +62,7 @@ describe('EncryptionService', () => {
     });
 
     it('should throw on invalid ciphertext format', () => {
-      expect(() => service.decrypt('invalid')).toThrow(
-        'Invalid ciphertext format',
-      );
+      expect(() => service.decrypt('invalid')).toThrow('Invalid ciphertext format');
       expect(() => service.decrypt('a:b')).toThrow('Invalid ciphertext format');
     });
   });
@@ -141,10 +136,7 @@ describe('EncryptionService', () => {
     it('should log warning when ENCRYPTION_KEY is not set', async () => {
       const warnConfig = { get: jest.fn().mockReturnValue(undefined) };
       const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          EncryptionService,
-          { provide: ConfigService, useValue: warnConfig },
-        ],
+        providers: [EncryptionService, { provide: ConfigService, useValue: warnConfig }],
       }).compile();
 
       const noKeyService = module.get<EncryptionService>(EncryptionService);

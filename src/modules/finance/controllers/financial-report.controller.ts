@@ -30,10 +30,7 @@ export class FinancialReportController {
 
   @Get('pnl/pdf')
   @ApiOperation({ summary: 'Get Profit & Loss Report (PDF)' })
-  async getProfitAndLossPdf(
-    @Query() filter: FinancialReportFilterDto,
-    @Res() res: Response,
-  ) {
+  async getProfitAndLossPdf(@Query() filter: FinancialReportFilterDto, @Res() res: Response) {
     const data = await this.financialReportService.getProfitAndLoss(filter);
     const pdfBytes = await this.reportGeneratorService.generatePnLPdf(data);
 
@@ -53,13 +50,9 @@ export class FinancialReportController {
 
   @Get('revenue-by-package/pdf')
   @ApiOperation({ summary: 'Get Revenue by Package Report (PDF)' })
-  async getRevenueByPackagePdf(
-    @Query() filter: FinancialReportFilterDto,
-    @Res() res: Response,
-  ) {
+  async getRevenueByPackagePdf(@Query() filter: FinancialReportFilterDto, @Res() res: Response) {
     const data = await this.analyticsService.getRevenueByPackage(filter);
-    const pdfBytes =
-      await this.reportGeneratorService.generateRevenueByPackagePdf(data);
+    const pdfBytes = await this.reportGeneratorService.generateRevenueByPackagePdf(data);
 
     res.set({
       'Content-Type': 'application/pdf',

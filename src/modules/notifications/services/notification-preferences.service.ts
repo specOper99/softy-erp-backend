@@ -21,10 +21,7 @@ export class NotificationPreferencesService {
     return preferences;
   }
 
-  async updatePreferences(
-    userId: string,
-    updates: UpdateNotificationPreferenceDto[],
-  ) {
+  async updatePreferences(userId: string, updates: UpdateNotificationPreferenceDto[]) {
     // Process bulk updates
     const results = [];
     for (const update of updates) {
@@ -39,10 +36,8 @@ export class NotificationPreferencesService {
         });
       }
 
-      if (update.emailEnabled !== undefined)
-        pref.emailEnabled = update.emailEnabled;
-      if (update.inAppEnabled !== undefined)
-        pref.inAppEnabled = update.inAppEnabled;
+      if (update.emailEnabled !== undefined) pref.emailEnabled = update.emailEnabled;
+      if (update.inAppEnabled !== undefined) pref.inAppEnabled = update.inAppEnabled;
       if (update.frequency !== undefined) pref.frequency = update.frequency;
 
       results.push(await this.preferenceRepo.save(pref));
@@ -50,10 +45,7 @@ export class NotificationPreferencesService {
     return results;
   }
 
-  async getPreference(
-    userId: string,
-    type: NotificationType,
-  ): Promise<NotificationPreference | null> {
+  async getPreference(userId: string, type: NotificationType): Promise<NotificationPreference | null> {
     return this.preferenceRepo.findOne({
       where: { userId, notificationType: type },
     });

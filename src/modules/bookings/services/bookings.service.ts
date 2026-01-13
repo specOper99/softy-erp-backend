@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
@@ -17,12 +12,7 @@ import { CatalogService } from '../../catalog/services/catalog.service';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
-import {
-  BookingFilterDto,
-  CreateBookingDto,
-  RecordPaymentDto,
-  UpdateBookingDto,
-} from '../dto';
+import { BookingFilterDto, CreateBookingDto, RecordPaymentDto, UpdateBookingDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
 
 import { BookingStatus } from '../enums/booking-status.enum';
@@ -96,9 +86,7 @@ export class BookingsService {
     return savedBooking;
   }
 
-  async findAll(
-    query: BookingFilterDto = new BookingFilterDto(),
-  ): Promise<Booking[]> {
+  async findAll(query: BookingFilterDto = new BookingFilterDto()): Promise<Booking[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const qb = this.bookingRepository.createQueryBuilder('booking');
 
@@ -115,17 +103,14 @@ export class BookingsService {
     qb.skip(query.getSkip()).take(query.getTake());
 
     if (query.search) {
-      qb.andWhere(
-        '(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)',
-        { search: `%${query.search}%` },
-      );
+      qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
+        search: `%${query.search}%`,
+      });
     }
 
     if (query.status && query.status.length > 0) {
       // If status comes as a single string (from query params issue), wrap it
-      const statuses = Array.isArray(query.status)
-        ? query.status
-        : [query.status];
+      const statuses = Array.isArray(query.status) ? query.status : [query.status];
       qb.andWhere('booking.status IN (:...statuses)', { statuses });
     }
 
@@ -168,9 +153,7 @@ export class BookingsService {
     return qb.getMany();
   }
 
-  async findAllCursor(
-    query: CursorPaginationDto,
-  ): Promise<{ data: Booking[]; nextCursor: string | null }> {
+  async findAllCursor(query: CursorPaginationDto): Promise<{ data: Booking[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const qb = this.bookingRepository.createQueryBuilder('booking');
@@ -213,12 +196,8 @@ export class BookingsService {
     // SECURITY: Only allow limited updates on non-draft bookings
     if (booking.status !== BookingStatus.DRAFT) {
       const allowedUpdates = ['status', 'notes'];
-      const attemptedUpdates = Object.keys(dto).filter(
-        (k) => dto[k as keyof UpdateBookingDto] !== undefined,
-      );
-      const disallowed = attemptedUpdates.filter(
-        (k) => !allowedUpdates.includes(k),
-      );
+      const attemptedUpdates = Object.keys(dto).filter((k) => dto[k as keyof UpdateBookingDto] !== undefined);
+      const disallowed = attemptedUpdates.filter((k) => !allowedUpdates.includes(k));
       if (disallowed.length > 0) {
         throw new BadRequestException('booking.cannot_update_non_draft');
       }

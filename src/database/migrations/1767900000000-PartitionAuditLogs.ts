@@ -4,19 +4,11 @@ export class PartitionAuditLogs1767900000000 implements MigrationInterface {
   name = 'PartitionAuditLogs1767900000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "audit_logs" RENAME TO "audit_logs_old"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "audit_logs_old" RENAME CONSTRAINT "PK_audit_logs" TO "PK_audit_logs_old"`,
-    );
+    await queryRunner.query(`ALTER TABLE "audit_logs" RENAME TO "audit_logs_old"`);
+    await queryRunner.query(`ALTER TABLE "audit_logs_old" RENAME CONSTRAINT "PK_audit_logs" TO "PK_audit_logs_old"`);
 
-    await queryRunner.query(
-      `ALTER INDEX IF EXISTS "IDX_audit_logs_hash" RENAME TO "IDX_audit_logs_hash_old"`,
-    );
-    await queryRunner.query(
-      `ALTER INDEX IF EXISTS "IDX_audit_logs_sequence" RENAME TO "IDX_audit_logs_sequence_old"`,
-    );
+    await queryRunner.query(`ALTER INDEX IF EXISTS "IDX_audit_logs_hash" RENAME TO "IDX_audit_logs_hash_old"`);
+    await queryRunner.query(`ALTER INDEX IF EXISTS "IDX_audit_logs_sequence" RENAME TO "IDX_audit_logs_sequence_old"`);
 
     await queryRunner.query(`
       CREATE TABLE "audit_logs" (
@@ -43,25 +35,13 @@ export class PartitionAuditLogs1767900000000 implements MigrationInterface {
       ) PARTITION BY RANGE ("created_at")
     `);
 
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_tenant_id" ON "audit_logs" ("tenant_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_entity_id" ON "audit_logs" ("entity_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_user_id" ON "audit_logs" ("user_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_hash" ON "audit_logs" ("hash")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_sequence" ON "audit_logs" ("tenant_id", "sequence_number")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_tenant_id" ON "audit_logs" ("tenant_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_entity_id" ON "audit_logs" ("entity_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_user_id" ON "audit_logs" ("user_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_hash" ON "audit_logs" ("hash")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_sequence" ON "audit_logs" ("tenant_id", "sequence_number")`);
 
-    await queryRunner.query(
-      `CREATE TABLE "audit_logs_default" PARTITION OF "audit_logs" DEFAULT`,
-    );
+    await queryRunner.query(`CREATE TABLE "audit_logs_default" PARTITION OF "audit_logs" DEFAULT`);
 
     await queryRunner.query(`
       CREATE TABLE "audit_logs_y2024" PARTITION OF "audit_logs"
@@ -93,9 +73,7 @@ export class PartitionAuditLogs1767900000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "audit_logs" RENAME TO "audit_logs_partitioned"`,
-    );
+    await queryRunner.query(`ALTER TABLE "audit_logs" RENAME TO "audit_logs_partitioned"`);
 
     await queryRunner.query(`
       CREATE TABLE "audit_logs" (
@@ -122,21 +100,11 @@ export class PartitionAuditLogs1767900000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_tenant_id" ON "audit_logs" ("tenant_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_entity_id" ON "audit_logs" ("entity_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_user_id" ON "audit_logs" ("user_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_hash" ON "audit_logs" ("hash")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_audit_logs_sequence" ON "audit_logs" ("tenant_id", "sequence_number")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_tenant_id" ON "audit_logs" ("tenant_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_entity_id" ON "audit_logs" ("entity_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_user_id" ON "audit_logs" ("user_id")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_hash" ON "audit_logs" ("hash")`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_sequence" ON "audit_logs" ("tenant_id", "sequence_number")`);
 
     await queryRunner.query(`
        CREATE RULE prevent_audit_update AS ON UPDATE TO "audit_logs" DO INSTEAD NOTHING

@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -18,10 +7,7 @@ import { RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
-import {
-  RequireSubscription,
-  SubscriptionGuard,
-} from '../../tenants/guards/subscription.guard';
+import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
 import { Role } from '../../users/enums/role.enum';
 import { CreateProfileDto, UpdateProfileDto } from '../dto';
 import { HrService } from '../services/hr.service';
@@ -78,10 +64,7 @@ export class HrController {
   @Roles(Role.ADMIN)
   @MfaRequired()
   @ApiOperation({ summary: 'Update profile (Admin only)' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateProfileDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateProfileDto) {
     return this.hrService.updateProfile(id, dto);
   }
 

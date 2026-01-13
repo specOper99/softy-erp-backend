@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import {
-  BudgetResponseDto,
-  CreateBudgetDto,
-  FinancialReportFilterDto,
-} from '../dto';
+import { BudgetResponseDto, CreateBudgetDto, FinancialReportFilterDto } from '../dto';
 import { DepartmentBudget } from '../entities/department-budget.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { PnLEntry } from '../types/report.types';
@@ -24,12 +20,7 @@ export class FinancialReportService {
   // Cache TTL: 5 minutes for financial reports (staleness allowed for performance)
   private readonly REPORT_CACHE_TTL = 5 * 60 * 1000;
 
-  private getReportCacheKey(
-    tenantId: string,
-    version: string,
-    reportType: string,
-    dateRange: string,
-  ): string {
+  private getReportCacheKey(tenantId: string, version: string, reportType: string, dateRange: string): string {
     return `finance:report:${tenantId}:v${version}:${reportType}:${dateRange}`;
   }
 
@@ -82,12 +73,7 @@ export class FinancialReportService {
 
     const dateRange = `${filter.startDate}_${filter.endDate}`;
     const version = await this.getFinancialVersion(tenantId);
-    const cacheKey = this.getReportCacheKey(
-      tenantId,
-      version,
-      'pnl',
-      dateRange,
-    );
+    const cacheKey = this.getReportCacheKey(tenantId, version, 'pnl', dateRange);
 
     // Try cache first
     if (!nocache) {
@@ -111,18 +97,9 @@ export class FinancialReportService {
       })
       .andWhere('t.transactionDate <= :endDate', { endDate: filter.endDate })
       .select("to_char(t.transactionDate, 'YYYY-MM')", 'period')
-      .addSelect(
-        "SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END)",
-        'income',
-      )
-      .addSelect(
-        "SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END)",
-        'expenses',
-      )
-      .addSelect(
-        "SUM(CASE WHEN t.type = 'PAYROLL' THEN t.amount ELSE 0 END)",
-        'payroll',
-      )
+      .addSelect("SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END)", 'income')
+      .addSelect("SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END)", 'expenses')
+      .addSelect("SUM(CASE WHEN t.type = 'PAYROLL' THEN t.amount ELSE 0 END)", 'payroll')
       .groupBy('period')
       .orderBy('period', 'ASC')
       .getRawMany<{
@@ -181,10 +158,7 @@ export class FinancialReportService {
     const spendingByDepartment = await this.transactionRepository
       .createQueryBuilder('t')
       .select('t.department', 'department')
-      .addSelect(
-        'SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))',
-        'total',
-      )
+      .addSelect('SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))', 'total')
       .where('t.tenantId = :tenantId', { tenantId })
       .andWhere('t.department IN (:...departments)', {
         departments: budgetDepartments,
@@ -208,9 +182,7 @@ export class FinancialReportService {
       const actualSpent = spendingMap.get(budget.department) || 0;
       const variance = Number(budget.budgetAmount) - actualSpent;
       const utilizationPercentage =
-        Number(budget.budgetAmount) > 0
-          ? (actualSpent / Number(budget.budgetAmount)) * 100
-          : 0;
+        Number(budget.budgetAmount) > 0 ? (actualSpent / Number(budget.budgetAmount)) * 100 : 0;
 
       return {
         id: budget.id,

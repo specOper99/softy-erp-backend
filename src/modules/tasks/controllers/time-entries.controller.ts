@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -16,11 +6,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Role } from '../../users/enums/role.enum';
 import { User } from '../../users/entities/user.entity';
-import {
-  StartTimeEntryDto,
-  StopTimeEntryDto,
-  UpdateTimeEntryDto,
-} from '../dto/time-entry.dto';
+import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
 import { TimeEntriesService } from '../services/time-entries.service';
 
 @ApiTags('Time Entries')
@@ -38,11 +24,7 @@ export class TimeEntriesController {
 
   @Post(':id/stop')
   @ApiOperation({ summary: 'Stop an active timer' })
-  async stopTimer(
-    @CurrentUser() user: User,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: StopTimeEntryDto,
-  ) {
+  async stopTimer(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string, @Body() dto: StopTimeEntryDto) {
     return this.timeEntriesService.stopTimer(user.id, id, dto);
   }
 
@@ -60,11 +42,7 @@ export class TimeEntriesController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a time entry' })
-  async update(
-    @CurrentUser() user: User,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateTimeEntryDto,
-  ) {
+  async update(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTimeEntryDto) {
     return this.timeEntriesService.update(user.id, id, dto);
   }
 

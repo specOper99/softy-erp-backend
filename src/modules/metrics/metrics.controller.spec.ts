@@ -103,18 +103,14 @@ describe('MetricsController', () => {
     });
 
     it('should handle errors from service.getMetrics', async () => {
-      mockMetricsService.getMetrics.mockRejectedValue(
-        new Error('Metrics Error'),
-      );
+      mockMetricsService.getMetrics.mockRejectedValue(new Error('Metrics Error'));
 
       const mockRes = {
         set: jest.fn(),
         send: jest.fn(),
       } as unknown as Response;
 
-      await expect(controller.getMetrics(mockRes)).rejects.toThrow(
-        'Metrics Error',
-      );
+      await expect(controller.getMetrics(mockRes)).rejects.toThrow('Metrics Error');
 
       expect(mockRes.set).toHaveBeenCalledWith('Content-Type', 'text/plain');
     });

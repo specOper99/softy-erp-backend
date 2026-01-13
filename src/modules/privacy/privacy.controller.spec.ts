@@ -1,11 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '../users/entities/user.entity';
 import { ConsentService } from './consent.service';
-import {
-  PrivacyRequest,
-  PrivacyRequestStatus,
-  PrivacyRequestType,
-} from './entities/privacy-request.entity';
+import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
 import { PrivacyController } from './privacy.controller';
 import { PrivacyService } from './privacy.service';
 
@@ -65,9 +61,7 @@ describe('PrivacyController', () => {
 
   describe('createRequest', () => {
     it('should create a privacy request', async () => {
-      privacyService.createRequest.mockResolvedValue(
-        mockPrivacyRequest as PrivacyRequest,
-      );
+      privacyService.createRequest.mockResolvedValue(mockPrivacyRequest as PrivacyRequest);
 
       const result = await controller.createRequest(mockUser as User, {
         type: PrivacyRequestType.DATA_EXPORT,
@@ -82,9 +76,7 @@ describe('PrivacyController', () => {
 
   describe('getMyRequests', () => {
     it('should return user privacy requests', async () => {
-      privacyService.getMyRequests.mockResolvedValue([
-        mockPrivacyRequest as PrivacyRequest,
-      ]);
+      privacyService.getMyRequests.mockResolvedValue([mockPrivacyRequest as PrivacyRequest]);
 
       const result = await controller.getMyRequests(mockUser as User);
 
@@ -95,16 +87,11 @@ describe('PrivacyController', () => {
 
   describe('getRequest', () => {
     it('should return a specific privacy request', async () => {
-      privacyService.getRequestById.mockResolvedValue(
-        mockPrivacyRequest as PrivacyRequest,
-      );
+      privacyService.getRequestById.mockResolvedValue(mockPrivacyRequest as PrivacyRequest);
 
       const result = await controller.getRequest(mockUser as User, 'request-1');
 
-      expect(privacyService.getRequestById).toHaveBeenCalledWith(
-        'request-1',
-        'user-1',
-      );
+      expect(privacyService.getRequestById).toHaveBeenCalledWith('request-1', 'user-1');
       expect(result.id).toBe('request-1');
     });
   });
@@ -115,19 +102,11 @@ describe('PrivacyController', () => {
         ...mockPrivacyRequest,
         status: PrivacyRequestStatus.CANCELLED,
       };
-      privacyService.cancelRequest.mockResolvedValue(
-        cancelledRequest as PrivacyRequest,
-      );
+      privacyService.cancelRequest.mockResolvedValue(cancelledRequest as PrivacyRequest);
 
-      const result = await controller.cancelRequest(
-        mockUser as User,
-        'request-1',
-      );
+      const result = await controller.cancelRequest(mockUser as User, 'request-1');
 
-      expect(privacyService.cancelRequest).toHaveBeenCalledWith(
-        'request-1',
-        'user-1',
-      );
+      expect(privacyService.cancelRequest).toHaveBeenCalledWith('request-1', 'user-1');
       expect(result.status).toBe(PrivacyRequestStatus.CANCELLED);
     });
   });
@@ -138,9 +117,7 @@ describe('PrivacyController', () => {
 
       const result = await controller.processExport('request-1');
 
-      expect(privacyService.processDataExport).toHaveBeenCalledWith(
-        'request-1',
-      );
+      expect(privacyService.processDataExport).toHaveBeenCalledWith('request-1');
       expect(result.message).toBe('Data export processed successfully');
     });
   });
@@ -149,24 +126,16 @@ describe('PrivacyController', () => {
     it('should process a data deletion request', async () => {
       privacyService.processDataDeletion.mockResolvedValue(undefined);
 
-      const result = await controller.processDeletion(
-        mockUser as User,
-        'request-1',
-      );
+      const result = await controller.processDeletion(mockUser as User, 'request-1');
 
-      expect(privacyService.processDataDeletion).toHaveBeenCalledWith(
-        'request-1',
-        'user-1',
-      );
+      expect(privacyService.processDataDeletion).toHaveBeenCalledWith('request-1', 'user-1');
       expect(result.message).toBe('Data deletion processed successfully');
     });
   });
 
   describe('getPendingRequests', () => {
     it('should return all pending privacy requests', async () => {
-      privacyService.getPendingRequests.mockResolvedValue([
-        mockPrivacyRequest as PrivacyRequest,
-      ]);
+      privacyService.getPendingRequests.mockResolvedValue([mockPrivacyRequest as PrivacyRequest]);
 
       const result = await controller.getPendingRequests();
 
@@ -177,9 +146,7 @@ describe('PrivacyController', () => {
 
   describe('getConsents', () => {
     it('should return user consents', async () => {
-      const mockConsents = [
-        { type: 'marketing', granted: true, grantedAt: new Date() },
-      ];
+      const mockConsents = [{ type: 'marketing', granted: true, grantedAt: new Date() }];
       consentService.getConsents.mockResolvedValue(mockConsents as any);
 
       const result = await controller.getConsents(mockUser as User);
@@ -225,15 +192,9 @@ describe('PrivacyController', () => {
       };
       consentService.revokeConsent.mockResolvedValue(mockConsent as any);
 
-      const result = await controller.revokeConsent(
-        mockUser as User,
-        'marketing',
-      );
+      const result = await controller.revokeConsent(mockUser as User, 'marketing');
 
-      expect(consentService.revokeConsent).toHaveBeenCalledWith(
-        'user-1',
-        'marketing',
-      );
+      expect(consentService.revokeConsent).toHaveBeenCalledWith('user-1', 'marketing');
       expect(result).toEqual(mockConsent);
     });
   });

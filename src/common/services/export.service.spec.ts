@@ -34,28 +34,14 @@ describe('ExportService', () => {
     });
 
     it('should set proper headers', () => {
-      service.streamFromStream(
-        mockResponse as Response,
-        mockStream,
-        'test.csv',
-      );
+      service.streamFromStream(mockResponse as Response, mockStream, 'test.csv');
 
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        'Content-Type',
-        'text/csv',
-      );
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        'attachment; filename="test.csv"',
-      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv');
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="test.csv"');
     });
 
     it('should sanitize filename', () => {
-      service.streamFromStream(
-        mockResponse as Response,
-        mockStream,
-        'bad/file:name.csv',
-      );
+      service.streamFromStream(mockResponse as Response, mockStream, 'bad/file:name.csv');
 
       expect(mockResponse.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',

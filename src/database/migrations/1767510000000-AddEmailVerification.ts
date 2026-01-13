@@ -5,9 +5,7 @@ export class AddEmailVerification1767510000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add email_verified to users
-    await queryRunner.query(
-      `ALTER TABLE "users" ADD "email_verified" boolean NOT NULL DEFAULT false`,
-    );
+    await queryRunner.query(`ALTER TABLE "users" ADD "email_verified" boolean NOT NULL DEFAULT false`);
 
     // Create email_verification_tokens table
     await queryRunner.query(`
@@ -30,9 +28,7 @@ export class AddEmailVerification1767510000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "IDX_email_verification_tokens_token_hash"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_email_verification_tokens_token_hash"`);
     await queryRunner.query(`DROP INDEX "IDX_email_verification_tokens_email"`);
     await queryRunner.query(`DROP TABLE "email_verification_tokens"`);
     await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "email_verified"`);

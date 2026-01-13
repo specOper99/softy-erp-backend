@@ -53,9 +53,7 @@ export class MailQueueService {
       },
       this.defaultJobOptions,
     );
-    this.logger.log(
-      `Queued booking confirmation email for ${data.clientEmail}`,
-    );
+    this.logger.log(`Queued booking confirmation email for ${data.clientEmail}`);
   }
 
   async queueTaskAssignment(data: TaskAssignmentEmailData): Promise<void> {
@@ -101,9 +99,7 @@ export class MailQueueService {
       },
       this.defaultJobOptions,
     );
-    this.logger.log(
-      `Queued payroll notification email for ${data.employeeEmail}`,
-    );
+    this.logger.log(`Queued payroll notification email for ${data.employeeEmail}`);
   }
 
   async queuePasswordReset(data: PasswordResetEmailData): Promise<void> {
@@ -126,9 +122,7 @@ export class MailQueueService {
     this.logger.log(`Queued password reset email for ${data.email}`);
   }
 
-  async queueEmailVerification(
-    data: EmailVerificationEmailData,
-  ): Promise<void> {
+  async queueEmailVerification(data: EmailVerificationEmailData): Promise<void> {
     if (!this.emailQueue) {
       this.logger.warn('Email queue not available, sending directly');
       if (this.senderService) {
@@ -171,9 +165,7 @@ export class MailQueueService {
     this.logger.log(`Queued new device login alert for ${data.email}`);
   }
 
-  async queueSuspiciousActivity(
-    data: SuspiciousActivityEmailData,
-  ): Promise<void> {
+  async queueSuspiciousActivity(data: SuspiciousActivityEmailData): Promise<void> {
     if (!this.emailQueue) {
       this.logger.warn('Email queue not available, sending directly');
       if (this.senderService) {
@@ -198,9 +190,7 @@ export class MailQueueService {
 
   async queueCancellationEmail(data: CancellationEmailData): Promise<void> {
     if (!this.emailQueue) {
-      this.logger.warn(
-        `Email queue not available. Skipping cancellation email to ${data.to}`,
-      );
+      this.logger.warn(`Email queue not available. Skipping cancellation email to ${data.to}`);
       return;
     }
 
@@ -221,9 +211,7 @@ export class MailQueueService {
 
   async queuePaymentReceipt(data: PaymentReceiptEmailData): Promise<void> {
     if (!this.emailQueue) {
-      this.logger.warn(
-        `Email queue not available. Skipping payment receipt email to ${data.to}`,
-      );
+      this.logger.warn(`Email queue not available. Skipping payment receipt email to ${data.to}`);
       return;
     }
 

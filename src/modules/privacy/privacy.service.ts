@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import archiver from 'archiver';
 import { createWriteStream, promises as fs } from 'node:fs';
@@ -17,11 +12,7 @@ import { StorageService } from '../media/storage.service';
 import { Task } from '../tasks/entities/task.entity';
 import { User } from '../users/entities/user.entity';
 import { CreatePrivacyRequestDto } from './dto/privacy.dto';
-import {
-  PrivacyRequest,
-  PrivacyRequestStatus,
-  PrivacyRequestType,
-} from './entities/privacy-request.entity';
+import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
 
 interface UserDataExport {
   exportedAt: string;
@@ -61,10 +52,7 @@ export class PrivacyService {
     private readonly storageService: StorageService,
   ) {}
 
-  async createRequest(
-    userId: string,
-    dto: CreatePrivacyRequestDto,
-  ): Promise<PrivacyRequest> {
+  async createRequest(userId: string, dto: CreatePrivacyRequestDto): Promise<PrivacyRequest> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -80,9 +68,7 @@ export class PrivacyService {
     });
 
     if (existingPending) {
-      throw new BadRequestException(
-        `A pending ${dto.type} request already exists`,
-      );
+      throw new BadRequestException(`A pending ${dto.type} request already exists`);
     }
 
     const request = this.privacyRequestRepository.create({
@@ -110,10 +96,7 @@ export class PrivacyService {
     });
   }
 
-  async getRequestById(
-    requestId: string,
-    userId: string,
-  ): Promise<PrivacyRequest> {
+  async getRequestById(requestId: string, userId: string): Promise<PrivacyRequest> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -130,10 +113,7 @@ export class PrivacyService {
     return request;
   }
 
-  async cancelRequest(
-    requestId: string,
-    userId: string,
-  ): Promise<PrivacyRequest> {
+  async cancelRequest(requestId: string, userId: string): Promise<PrivacyRequest> {
     const request = await this.getRequestById(requestId, userId);
 
     if (request.status !== PrivacyRequestStatus.PENDING) {
@@ -167,22 +147,15 @@ export class PrivacyService {
 
     try {
       const exportData = await this.collectUserData(request.userId, tenantId);
-      const { filePath, key } = await this.createExportZip(
-        request.userId,
-        exportData,
-      );
-      const downloadUrl = await this.storageService.getPresignedDownloadUrl(
-        key,
-        7 * 24 * 3600,
-      );
+      const { filePath, key } = await this.createExportZip(request.userId, exportData);
+      const downloadUrl = await this.storageService.getPresignedDownloadUrl(key, 7 * 24 * 3600);
 
       request.complete(downloadUrl, filePath);
       await this.privacyRequestRepository.save(request);
 
       this.logger.log(`Data export completed for user ${request.userId}`);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       request.fail(errorMessage);
       await this.privacyRequestRepository.save(request);
       this.logger.error(`Data export failed for user ${request.userId}`, error);
@@ -190,10 +163,7 @@ export class PrivacyService {
     }
   }
 
-  private async collectUserData(
-    userId: string,
-    tenantId: string,
-  ): Promise<UserDataExport> {
+  private async collectUserData(userId: string, tenantId: string): Promise<UserDataExport> {
     const user = await this.userRepository.findOne({
       where: { id: userId, tenantId },
     });
@@ -260,10 +230,7 @@ export class PrivacyService {
     };
   }
 
-  private async createExportZip(
-    userId: string,
-    data: UserDataExport,
-  ): Promise<{ filePath: string; key: string }> {
+  private async createExportZip(userId: string, data: UserDataExport): Promise<{ filePath: string; key: string }> {
     await fs.mkdir(this.tempDir, { recursive: true });
 
     const timestamp = Date.now();
@@ -307,10 +274,7 @@ export class PrivacyService {
     return { filePath: localPath, key };
   }
 
-  async processDataDeletion(
-    requestId: string,
-    processedBy: string,
-  ): Promise<void> {
+  async processDataDeletion(requestId: string, processedBy: string): Promise<void> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -340,22 +304,15 @@ export class PrivacyService {
 
       this.logger.log(`Data deletion completed for user ${request.userId}`);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       request.fail(errorMessage);
       await this.privacyRequestRepository.save(request);
-      this.logger.error(
-        `Data deletion failed for user ${request.userId}`,
-        error,
-      );
+      this.logger.error(`Data deletion failed for user ${request.userId}`, error);
       throw error;
     }
   }
 
-  private async anonymizeUserData(
-    userId: string,
-    tenantId: string,
-  ): Promise<void> {
+  private async anonymizeUserData(userId: string, tenantId: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId, tenantId },
     });

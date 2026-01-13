@@ -111,9 +111,7 @@ describe('Webhooks Load E2E Tests', () => {
     // Debug: Check if webhooks exist
     // Check if webhooks exist
     const dataSource = app.get(DataSource);
-    const webhooks = await dataSource
-      .getRepository(Webhook)
-      .find({ where: { tenantId: testTenantId } });
+    const webhooks = await dataSource.getRepository(Webhook).find({ where: { tenantId: testTenantId } });
     expect(webhooks.length).toBe(webhookCount);
 
     const startTime = Date.now();

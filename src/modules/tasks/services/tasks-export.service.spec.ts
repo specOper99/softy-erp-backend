@@ -43,9 +43,7 @@ describe('TasksExportService', () => {
 
     service = module.get<TasksExportService>(TasksExportService);
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
   });
 
   afterEach(() => {
@@ -60,9 +58,7 @@ describe('TasksExportService', () => {
     it('should stream export csv', async () => {
       await service.exportToCSV(mockResponse);
 
-      expect(mockTaskRepository.createQueryBuilder).toHaveBeenCalledWith(
-        'task',
-      );
+      expect(mockTaskRepository.createQueryBuilder).toHaveBeenCalledWith('task');
       expect(mockExportService.streamFromStream).toHaveBeenCalledWith(
         mockResponse,
         mockQueryStream,

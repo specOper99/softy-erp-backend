@@ -30,44 +30,32 @@ describe('HealthController', () => {
         {
           provide: TypeOrmHealthIndicator,
           useValue: {
-            pingCheck: jest
-              .fn()
-              .mockResolvedValue({ database: { status: 'up' } }),
+            pingCheck: jest.fn().mockResolvedValue({ database: { status: 'up' } }),
           },
         },
         {
           provide: MemoryHealthIndicator,
           useValue: {
-            checkHeap: jest
-              .fn()
-              .mockResolvedValue({ memory_heap: { status: 'up' } }),
-            checkRSS: jest
-              .fn()
-              .mockResolvedValue({ memory_rss: { status: 'up' } }),
+            checkHeap: jest.fn().mockResolvedValue({ memory_heap: { status: 'up' } }),
+            checkRSS: jest.fn().mockResolvedValue({ memory_rss: { status: 'up' } }),
           },
         },
         {
           provide: DiskHealthIndicator,
           useValue: {
-            checkStorage: jest
-              .fn()
-              .mockResolvedValue({ disk: { status: 'up' } }),
+            checkStorage: jest.fn().mockResolvedValue({ disk: { status: 'up' } }),
           },
         },
         {
           provide: S3HealthIndicator,
           useValue: {
-            isHealthy: jest
-              .fn()
-              .mockResolvedValue({ storage_s3: { status: 'up' } }),
+            isHealthy: jest.fn().mockResolvedValue({ storage_s3: { status: 'up' } }),
           },
         },
         {
           provide: SmtpHealthIndicator,
           useValue: {
-            isHealthy: jest
-              .fn()
-              .mockResolvedValue({ email_smtp: { status: 'up' } }),
+            isHealthy: jest.fn().mockResolvedValue({ email_smtp: { status: 'up' } }),
           },
         },
         {

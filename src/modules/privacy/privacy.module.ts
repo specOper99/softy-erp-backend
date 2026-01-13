@@ -14,15 +14,7 @@ import { PrivacyService } from './privacy.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      PrivacyRequest,
-      Consent,
-      User,
-      Booking,
-      Task,
-      Transaction,
-      Profile,
-    ]),
+    TypeOrmModule.forFeature([PrivacyRequest, Consent, User, Booking, Task, Transaction, Profile]),
     MediaModule,
   ],
   controllers: [PrivacyController],

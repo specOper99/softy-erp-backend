@@ -56,9 +56,7 @@ export class MailService {
     return this.queueService.queuePasswordReset(data);
   }
 
-  async queueEmailVerification(
-    data: EmailVerificationEmailData,
-  ): Promise<void> {
+  async queueEmailVerification(data: EmailVerificationEmailData): Promise<void> {
     return this.queueService.queueEmailVerification(data);
   }
 
@@ -66,9 +64,7 @@ export class MailService {
     return this.queueService.queueNewDeviceLogin(data);
   }
 
-  async queueSuspiciousActivity(
-    data: SuspiciousActivityEmailData,
-  ): Promise<void> {
+  async queueSuspiciousActivity(data: SuspiciousActivityEmailData): Promise<void> {
     return this.queueService.queueSuspiciousActivity(data);
   }
 
@@ -78,9 +74,7 @@ export class MailService {
     return this.senderService.sendBookingConfirmation(data);
   }
 
-  async sendTaskAssignment(
-    data: TaskAssignmentEmailData,
-  ): Promise<EmailResult> {
+  async sendTaskAssignment(data: TaskAssignmentEmailData): Promise<EmailResult> {
     return this.senderService.sendTaskAssignment(data);
   }
 
@@ -88,10 +82,7 @@ export class MailService {
     return this.senderService.sendPayrollNotification(data);
   }
 
-  async sendMagicLink(
-    data: MagicLinkEmailData,
-    locale = 'en',
-  ): Promise<EmailResult> {
+  async sendMagicLink(data: MagicLinkEmailData, locale = 'en'): Promise<EmailResult> {
     return this.senderService.sendMagicLink(data, locale);
   }
 
@@ -99,21 +90,15 @@ export class MailService {
     return this.senderService.sendPasswordReset(data);
   }
 
-  async sendEmailVerification(
-    data: EmailVerificationEmailData,
-  ): Promise<EmailResult> {
+  async sendEmailVerification(data: EmailVerificationEmailData): Promise<EmailResult> {
     return this.senderService.sendEmailVerification(data);
   }
 
-  async sendNewDeviceLogin(
-    data: NewDeviceLoginEmailData,
-  ): Promise<EmailResult> {
+  async sendNewDeviceLogin(data: NewDeviceLoginEmailData): Promise<EmailResult> {
     return this.senderService.sendNewDeviceLogin(data);
   }
 
-  async sendSuspiciousActivityAlert(
-    data: SuspiciousActivityEmailData,
-  ): Promise<EmailResult> {
+  async sendSuspiciousActivityAlert(data: SuspiciousActivityEmailData): Promise<EmailResult> {
     return this.senderService.sendSuspiciousActivityAlert(data);
   }
 

@@ -78,10 +78,7 @@ export class Subscription extends BaseEntity {
   tenant: Tenant;
 
   isActive(): boolean {
-    return (
-      this.status === SubscriptionStatus.ACTIVE ||
-      this.status === SubscriptionStatus.TRIALING
-    );
+    return this.status === SubscriptionStatus.ACTIVE || this.status === SubscriptionStatus.TRIALING;
   }
 
   isPastDue(): boolean {

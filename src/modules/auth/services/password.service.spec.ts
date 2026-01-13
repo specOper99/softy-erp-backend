@@ -69,9 +69,7 @@ describe('PasswordService', () => {
     }).compile();
 
     service = module.get<PasswordService>(PasswordService);
-    passwordResetRepository = module.get<Repository<PasswordResetToken>>(
-      getRepositoryToken(PasswordResetToken),
-    );
+    passwordResetRepository = module.get<Repository<PasswordResetToken>>(getRepositoryToken(PasswordResetToken));
     usersService = module.get<UsersService>(UsersService);
     mailService = module.get<MailService>(MailService);
     _dataSource = module.get<DataSource>(DataSource);
@@ -89,9 +87,7 @@ describe('PasswordService', () => {
 
       await service.forgotPassword('nonexistent@example.com');
 
-      expect(usersService.findByEmail).toHaveBeenCalledWith(
-        'nonexistent@example.com',
-      );
+      expect(usersService.findByEmail).toHaveBeenCalledWith('nonexistent@example.com');
       // Ensure we didn't save anything
       expect(passwordResetRepository.save).not.toHaveBeenCalled();
       expect(mailService.queuePasswordReset).not.toHaveBeenCalled();

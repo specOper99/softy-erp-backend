@@ -22,9 +22,7 @@ describe('BookingsController', () => {
           useValue: {
             create: jest.fn().mockResolvedValue(mockBooking),
             findAll: jest.fn().mockResolvedValue([mockBooking]),
-            findAllCursor: jest
-              .fn()
-              .mockResolvedValue({ data: [mockBooking], nextCursor: null }),
+            findAllCursor: jest.fn().mockResolvedValue({ data: [mockBooking], nextCursor: null }),
             findOne: jest.fn().mockResolvedValue(mockBooking),
             update: jest.fn().mockResolvedValue(mockBooking),
             remove: jest.fn().mockResolvedValue(undefined),
@@ -51,9 +49,7 @@ describe('BookingsController', () => {
 
     controller = module.get<BookingsController>(BookingsController);
     service = module.get<BookingsService>(BookingsService);
-    workflowService = module.get<BookingWorkflowService>(
-      BookingWorkflowService,
-    );
+    workflowService = module.get<BookingWorkflowService>(BookingWorkflowService);
     exportService = module.get<BookingExportService>(BookingExportService);
   });
 

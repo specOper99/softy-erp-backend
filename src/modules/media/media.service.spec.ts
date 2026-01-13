@@ -9,9 +9,7 @@ import { StorageService } from './storage.service';
 
 jest.mock('../../common/utils/file-type.util', () => ({
   FileTypeUtil: {
-    validateBuffer: jest
-      .fn()
-      .mockResolvedValue({ mime: 'image/png', ext: 'png' }),
+    validateBuffer: jest.fn().mockResolvedValue({ mime: 'image/png', ext: 'png' }),
   },
 }));
 
@@ -27,9 +25,7 @@ describe('MediaService', () => {
   };
 
   beforeEach(async () => {
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
 
     // Reset mocks
     mockDataSource.manager.findOne.mockReset();
@@ -46,11 +42,7 @@ describe('MediaService', () => {
           provide: getRepositoryToken(Attachment),
           useValue: {
             create: jest.fn().mockImplementation((dto) => dto),
-            save: jest
-              .fn()
-              .mockImplementation((entity) =>
-                Promise.resolve({ id: 'uuid', ...entity }),
-              ),
+            save: jest.fn().mockImplementation((entity) => Promise.resolve({ id: 'uuid', ...entity })),
             findOne: jest.fn(),
             find: jest.fn(),
             remove: jest.fn(),
@@ -61,13 +53,9 @@ describe('MediaService', () => {
           useValue: {
             generateKey: jest.fn().mockResolvedValue('mock-key'),
             uploadFile: jest.fn().mockResolvedValue({ url: 'http://mock-url' }), // This line was intended to be replaced, but the provided replacement was syntactically incorrect. Keeping original for valid syntax.
-            getPresignedUploadUrl: jest
-              .fn()
-              .mockResolvedValue('http://presigned-url'),
+            getPresignedUploadUrl: jest.fn().mockResolvedValue('http://presigned-url'),
             extractKeyFromUrl: jest.fn().mockReturnValue('mock-key'),
-            getPresignedDownloadUrl: jest
-              .fn()
-              .mockResolvedValue('http://download-url'),
+            getPresignedDownloadUrl: jest.fn().mockResolvedValue('http://download-url'),
             deleteFile: jest.fn().mockResolvedValue(undefined),
           },
         },
@@ -79,9 +67,7 @@ describe('MediaService', () => {
     }).compile();
 
     service = module.get<MediaService>(MediaService);
-    attachmentRepository = module.get<Repository<Attachment>>(
-      getRepositoryToken(Attachment),
-    );
+    attachmentRepository = module.get<Repository<Attachment>>(getRepositoryToken(Attachment));
     storageService = module.get<StorageService>(StorageService);
   });
 
@@ -110,10 +96,7 @@ describe('MediaService', () => {
 
   describe('getPresignedUploadUrl', () => {
     it('should return a presigned URL and a pending attachment', async () => {
-      const result = await service.getPresignedUploadUrl(
-        'test.png',
-        'image/png',
-      );
+      const result = await service.getPresignedUploadUrl('test.png', 'image/png');
 
       expect(storageService.getPresignedUploadUrl).toHaveBeenCalled();
       expect(attachmentRepository.save).toHaveBeenCalled();
@@ -125,33 +108,25 @@ describe('MediaService', () => {
   describe('confirmUpload', () => {
     it('should update attachment size', async () => {
       const mockAttachment = { id: 'uuid', name: 'test.png' } as Attachment;
-      jest
-        .spyOn(attachmentRepository, 'findOne')
-        .mockResolvedValue(mockAttachment);
+      jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
 
       const result = await service.confirmUpload('uuid', 1024);
 
-      expect(attachmentRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ size: 1024 }),
-      );
+      expect(attachmentRepository.save).toHaveBeenCalledWith(expect.objectContaining({ size: 1024 }));
       expect(result.size).toBe(1024);
     });
 
     it('should throw NotFoundException if attachment not found', async () => {
       jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.confirmUpload('invalid', 1024)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.confirmUpload('invalid', 1024)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('findOne', () => {
     it('should return an attachment', async () => {
       const mockAttachment = { id: 'uuid' } as Attachment;
-      jest
-        .spyOn(attachmentRepository, 'findOne')
-        .mockResolvedValue(mockAttachment);
+      jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
 
       const result = await service.findOne('uuid');
       expect(result).toEqual(mockAttachment);
@@ -169,15 +144,11 @@ describe('MediaService', () => {
         id: 'uuid',
         url: 'http://mock-url',
       } as Attachment;
-      jest
-        .spyOn(attachmentRepository, 'findOne')
-        .mockResolvedValue(mockAttachment);
+      jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
 
       const result = await service.getDownloadUrl('uuid');
 
-      expect(storageService.getPresignedDownloadUrl).toHaveBeenCalledWith(
-        'mock-key',
-      );
+      expect(storageService.getPresignedDownloadUrl).toHaveBeenCalledWith('mock-key');
       expect(result).toBe('http://download-url');
     });
 
@@ -186,9 +157,7 @@ describe('MediaService', () => {
         id: 'uuid',
         url: 'http://external-url',
       } as Attachment;
-      jest
-        .spyOn(attachmentRepository, 'findOne')
-        .mockResolvedValue(mockAttachment);
+      jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
       jest.spyOn(storageService, 'extractKeyFromUrl').mockReturnValue(null);
 
       const result = await service.getDownloadUrl('uuid');
@@ -202,9 +171,7 @@ describe('MediaService', () => {
         id: 'uuid',
         url: 'http://mock-url',
       } as Attachment;
-      jest
-        .spyOn(attachmentRepository, 'findOne')
-        .mockResolvedValue(mockAttachment);
+      jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
 
       await service.remove('uuid');
 
@@ -222,12 +189,8 @@ describe('MediaService', () => {
         id: 'uuid',
         url: 'http://mock-url',
       } as Attachment;
-      jest
-        .spyOn(attachmentRepository, 'findOne')
-        .mockResolvedValue(mockAttachment);
-      (storageService.deleteFile as jest.Mock).mockRejectedValue(
-        new Error('Storage fail'),
-      );
+      jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
+      (storageService.deleteFile as jest.Mock).mockRejectedValue(new Error('Storage fail'));
 
       await service.remove('uuid');
       expect(attachmentRepository.remove).toHaveBeenCalledWith(mockAttachment);
@@ -237,9 +200,7 @@ describe('MediaService', () => {
   describe('findByBooking', () => {
     it('should call repository.find with bookingId', async () => {
       const mockAttachments = [{ id: '1' }] as Attachment[];
-      jest
-        .spyOn(attachmentRepository, 'find')
-        .mockResolvedValue(mockAttachments);
+      jest.spyOn(attachmentRepository, 'find').mockResolvedValue(mockAttachments);
 
       const result = await service.findByBooking('b-id');
       expect(attachmentRepository.find).toHaveBeenCalledWith({
@@ -253,9 +214,7 @@ describe('MediaService', () => {
   describe('findByTask', () => {
     it('should call repository.find with taskId', async () => {
       const mockAttachments = [{ id: '1' }] as Attachment[];
-      jest
-        .spyOn(attachmentRepository, 'find')
-        .mockResolvedValue(mockAttachments);
+      jest.spyOn(attachmentRepository, 'find').mockResolvedValue(mockAttachments);
 
       const result = await service.findByTask('t-id');
       expect(attachmentRepository.find).toHaveBeenCalledWith({

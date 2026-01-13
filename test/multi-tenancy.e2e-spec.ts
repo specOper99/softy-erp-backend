@@ -64,19 +64,14 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
   });
 
   it('should register Tenant A and User A', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send({
-        email: tenantA_Email,
-        password: tenantA_Password,
-        companyName: tenantA_Company,
-      });
+    const response = await request(app.getHttpServer()).post('/api/v1/auth/register').send({
+      email: tenantA_Email,
+      password: tenantA_Password,
+      companyName: tenantA_Company,
+    });
 
     if (response.status !== 201) {
-      console.error(
-        'Register Tenant A Failed:',
-        JSON.stringify(response.body, null, 2),
-      );
+      console.error('Register Tenant A Failed:', JSON.stringify(response.body, null, 2));
     }
     expect(response.status).toBe(201);
 

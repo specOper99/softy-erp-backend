@@ -196,9 +196,7 @@ describe('EmailProcessor', () => {
         },
       } as unknown as Job<EmailJobData>;
 
-      await expect(processor.process(job)).rejects.toThrow(
-        'Email sending failed',
-      );
+      await expect(processor.process(job)).rejects.toThrow('Email sending failed');
     });
   });
 });

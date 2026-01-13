@@ -43,10 +43,7 @@ export class TenantMiddleware implements NestMiddleware {
               tenantId = tenant.id;
             } catch (error) {
               // Tenant not found or DB error, ignore
-              this.logger.debug(
-                `Failed to resolve tenant slug ${potentialId}`,
-                error,
-              );
+              this.logger.debug(`Failed to resolve tenant slug ${potentialId}`, error);
             }
           }
         }

@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { TransactionType } from '../enums/transaction-type.enum';
 
 export class CreateTransactionCategoryDto {
@@ -33,9 +27,7 @@ export class CreateTransactionCategoryDto {
   parentId?: string;
 }
 
-export class UpdateTransactionCategoryDto extends PartialType(
-  CreateTransactionCategoryDto,
-) {
+export class UpdateTransactionCategoryDto extends PartialType(CreateTransactionCategoryDto) {
   @IsOptional()
   @ApiPropertyOptional({ description: 'Whether category is active' })
   isActive?: boolean;

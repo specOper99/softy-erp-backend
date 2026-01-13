@@ -174,9 +174,7 @@ export class ReportGeneratorService {
     }
   }
 
-  async generateRevenueByPackagePdf(
-    data: RevenueByPackageRow[],
-  ): Promise<Uint8Array> {
+  async generateRevenueByPackagePdf(data: RevenueByPackageRow[]): Promise<Uint8Array> {
     try {
       const pdfDoc = await PDFDocument.create();
       let page = pdfDoc.addPage();

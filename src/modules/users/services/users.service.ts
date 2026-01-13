@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -42,12 +37,7 @@ export class UsersService {
     try {
       savedUser = await this.userRepository.save(user);
     } catch (error: unknown) {
-      if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        (error as { code: string }).code === '23505'
-      ) {
+      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
         throw new ConflictException('auth.email_already_registered');
       }
       throw error;
@@ -63,10 +53,7 @@ export class UsersService {
     return savedUser;
   }
 
-  async createWithManager(
-    manager: EntityManager,
-    createUserDto: CreateUserDto & { tenantId: string },
-  ): Promise<User> {
+  async createWithManager(manager: EntityManager, createUserDto: CreateUserDto & { tenantId: string }): Promise<User> {
     const passwordHash = await bcrypt.hash(createUserDto.password, 12);
     const user = manager.create(User, {
       email: createUserDto.email,
@@ -91,9 +78,7 @@ export class UsersService {
     });
   }
 
-  async findAllCursor(
-    query: CursorPaginationDto,
-  ): Promise<{ data: User[]; nextCursor: string | null }> {
+  async findAllCursor(query: CursorPaginationDto): Promise<{ data: User[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantId();
     const limit = query.limit || 20;
 
@@ -110,10 +95,7 @@ export class UsersService {
       const [dateStr, id] = decoded.split('|');
       const date = new Date(dateStr);
 
-      qb.andWhere(
-        '(user.createdAt < :date OR (user.createdAt = :date AND user.id < :id))',
-        { date, id },
-      );
+      qb.andWhere('(user.createdAt < :date OR (user.createdAt = :date AND user.id < :id))', { date, id });
     }
 
     const users = await qb.getMany();
@@ -153,9 +135,7 @@ export class UsersService {
     if (!ids.length) return [];
 
     const tenantId = TenantContextService.getTenantId();
-    const qb = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.id IN (:...ids)', { ids });
+    const qb = this.userRepository.createQueryBuilder('user').where('user.id IN (:...ids)', { ids });
 
     if (tenantId) {
       qb.andWhere('user.tenantId = :tenantId', { tenantId });
@@ -164,13 +144,8 @@ export class UsersService {
     return qb.getMany();
   }
 
-  async findByEmailWithMfaSecret(
-    email: string,
-    tenantId?: string,
-  ): Promise<User | null> {
-    const qb = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.email = :email', { email });
+  async findByEmailWithMfaSecret(email: string, tenantId?: string): Promise<User | null> {
+    const qb = this.userRepository.createQueryBuilder('user').where('user.email = :email', { email });
 
     if (tenantId) {
       qb.andWhere('user.tenantId = :tenantId', { tenantId });
@@ -187,11 +162,7 @@ export class UsersService {
       .getOne();
   }
 
-  async updateMfaSecret(
-    userId: string,
-    secret: string | null,
-    enabled: boolean,
-  ): Promise<void> {
+  async updateMfaSecret(userId: string, secret: string | null, enabled: boolean): Promise<void> {
     await this.userRepository.update(userId, {
       mfaSecret: secret ?? undefined,
       isMfaEnabled: enabled,
@@ -210,36 +181,21 @@ export class UsersService {
 
     // SECURITY: Explicit field assignment to prevent mass assignment attacks
     // Only allow safe fields to be updated - never assign isAdmin or sensitive role fields directly
-    const allowedFields = [
-      'email',
-      'role',
-      'isActive',
-      'emailVerified',
-    ] as const;
+    const allowedFields = ['email', 'role', 'isActive', 'emailVerified'] as const;
     for (const field of allowedFields) {
       if (updateUserDto[field] !== undefined) {
-        (user as unknown as Record<string, unknown>)[field] =
-          updateUserDto[field];
+        (user as unknown as Record<string, unknown>)[field] = updateUserDto[field];
       }
     }
     const savedUser = await this.userRepository.save(user);
 
     // Log role or status changes
-    if (
-      updateUserDto.role !== undefined ||
-      updateUserDto.isActive !== undefined
-    ) {
+    if (updateUserDto.role !== undefined || updateUserDto.isActive !== undefined) {
       // Determine audit note based on what changed
       let auditNote: string | undefined;
-      if (
-        updateUserDto.role !== undefined &&
-        updateUserDto.role !== oldValues.role
-      ) {
+      if (updateUserDto.role !== undefined && updateUserDto.role !== oldValues.role) {
         auditNote = `Role changed from ${oldValues.role} to ${savedUser.role}`;
-      } else if (
-        updateUserDto.isActive !== undefined &&
-        updateUserDto.isActive !== oldValues.isActive
-      ) {
+      } else if (updateUserDto.isActive !== undefined && updateUserDto.isActive !== oldValues.isActive) {
         auditNote = `Account ${savedUser.isActive ? 'activated' : 'deactivated'}`;
       }
 
@@ -268,9 +224,7 @@ export class UsersService {
 
     await this.userRepository.softRemove(user);
 
-    this.eventBus.publish(
-      new UserDeletedEvent(user.id, user.tenantId, user.email),
-    );
+    this.eventBus.publish(new UserDeletedEvent(user.id, user.tenantId, user.email));
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {

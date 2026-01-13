@@ -4,10 +4,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { UpdateNotificationPreferenceDto } from '../../src/modules/notifications/dto/notification-preference.dto';
-import {
-  NotificationFrequency,
-  NotificationType,
-} from '../../src/modules/notifications/enums/notification.enum';
+import { NotificationFrequency, NotificationType } from '../../src/modules/notifications/enums/notification.enum';
 import { User } from '../../src/modules/users/entities/user.entity';
 import { Role } from '../../src/modules/users/enums/role.enum';
 
@@ -84,15 +81,11 @@ describe('Notification Preferences Controller (e2e)', () => {
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body.length).toBeGreaterThanOrEqual(2);
 
-    const bookingPref = response.body.find(
-      (p: any) => p.notificationType === NotificationType.BOOKING_CREATED,
-    );
+    const bookingPref = response.body.find((p: any) => p.notificationType === NotificationType.BOOKING_CREATED);
     expect(bookingPref).toBeDefined();
     expect(bookingPref.emailEnabled).toBe(false);
 
-    const taskPref = response.body.find(
-      (p: any) => p.notificationType === NotificationType.TASK_ASSIGNED,
-    );
+    const taskPref = response.body.find((p: any) => p.notificationType === NotificationType.TASK_ASSIGNED);
     expect(taskPref).toBeDefined();
     expect(taskPref.frequency).toBe(NotificationFrequency.DAILY_DIGEST);
   });
@@ -103,9 +96,7 @@ describe('Notification Preferences Controller (e2e)', () => {
       .set('Authorization', `Bearer ${jwtToken}`)
       .expect(200);
 
-    const bookingPref = response.body.find(
-      (p: any) => p.notificationType === NotificationType.BOOKING_CREATED,
-    );
+    const bookingPref = response.body.find((p: any) => p.notificationType === NotificationType.BOOKING_CREATED);
     expect(bookingPref).toBeDefined();
     expect(bookingPref.emailEnabled).toBe(false);
     expect(bookingPref.userId).toBe(userId);

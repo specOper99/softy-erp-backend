@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { Response } from 'express';
 import { DataSource } from 'typeorm';
@@ -58,9 +52,7 @@ export class TasksService {
     return qb.getMany();
   }
 
-  async findAllCursor(
-    query: CursorPaginationDto,
-  ): Promise<{ data: Task[]; nextCursor: string | null }> {
+  async findAllCursor(query: CursorPaginationDto): Promise<{ data: Task[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantId();
 
     const qb = this.taskRepository.createQueryBuilder('task');
@@ -123,9 +115,7 @@ export class TasksService {
           where: { id: dto.parentId },
         });
         if (!parent) {
-          throw new NotFoundException(
-            `Parent task with ID ${dto.parentId} not found`,
-          );
+          throw new NotFoundException(`Parent task with ID ${dto.parentId} not found`);
         }
       }
     }
@@ -136,9 +126,7 @@ export class TasksService {
 
     // Guard against unauthorized status changes
     if ('status' in dto) {
-      throw new BadRequestException(
-        'Status updates must use dedicated endpoints (start/complete)',
-      );
+      throw new BadRequestException('Status updates must use dedicated endpoints (start/complete)');
     }
     Object.assign(task, {
       ...dto,
@@ -182,11 +170,7 @@ export class TasksService {
       const oldUserId = task.assignedUserId;
 
       // Step 3: Validate new user belongs to the same tenant
-      const assignedUser = await this.validateUserInTenant(
-        queryRunner.manager,
-        dto.userId,
-        tenantId,
-      );
+      const assignedUser = await this.validateUserInTenant(queryRunner.manager, dto.userId, tenantId);
 
       task.assignedUserId = dto.userId;
 
@@ -194,9 +178,7 @@ export class TasksService {
       const savedTask = await queryRunner.manager.save(task);
 
       // Step 5: Handle commission transfers
-      const commissionAmount = MathUtils.round(
-        Number(task.commissionSnapshot) || 0,
-      );
+      const commissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
       await this.financeService.transferPendingCommission(
         queryRunner.manager,
         oldUserId,
@@ -206,13 +188,7 @@ export class TasksService {
       );
 
       // Step 6: Audit Log
-      await this.logTaskAssignment(
-        queryRunner.manager,
-        task,
-        oldUserId,
-        dto.userId,
-        commissionAmount,
-      );
+      await this.logTaskAssignment(queryRunner.manager, task, oldUserId, dto.userId, commissionAmount);
 
       // Ensure booking.client is loaded for the email
       await this.ensureClientLoaded(queryRunner.manager, task, tenantId);
@@ -293,9 +269,7 @@ export class TasksService {
         where: { id: task.booking.clientId, tenantId },
       });
       if (!client) {
-        throw new NotFoundException(
-          `Action Interrupted: Client data is missing for Booking ${task.bookingId}`,
-        );
+        throw new NotFoundException(`Action Interrupted: Client data is missing for Booking ${task.bookingId}`);
       }
       task.booking.client = client;
     }
@@ -307,9 +281,7 @@ export class TasksService {
     this.assertCanUpdateTaskStatus(user, task);
 
     if (task.status !== TaskStatus.PENDING) {
-      throw new BadRequestException(
-        `Cannot start task: current status is ${task.status}`,
-      );
+      throw new BadRequestException(`Cannot start task: current status is ${task.status}`);
     }
 
     task.status = TaskStatus.IN_PROGRESS;
@@ -383,17 +355,11 @@ export class TasksService {
       await queryRunner.manager.save(task);
 
       // Step 3: Move commission to payable balance (NaN-safe)
-      const commissionAmount = MathUtils.round(
-        Number(task.commissionSnapshot) || 0,
-      );
+      const commissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
       let walletUpdated = false;
 
       if (commissionAmount > 0) {
-        await this.walletService.moveToPayable(
-          queryRunner.manager,
-          task.assignedUserId,
-          commissionAmount,
-        );
+        await this.walletService.moveToPayable(queryRunner.manager, task.assignedUserId, commissionAmount);
         walletUpdated = true;
       }
 

@@ -18,12 +18,7 @@ import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import {
-  AddPackageItemsDto,
-  ClonePackageDto,
-  CreateServicePackageDto,
-  UpdateServicePackageDto,
-} from '../dto';
+import { AddPackageItemsDto, ClonePackageDto, CreateServicePackageDto, UpdateServicePackageDto } from '../dto';
 import { CatalogService } from '../services/catalog.service';
 
 @ApiTags('Service Packages')
@@ -64,10 +59,7 @@ export class PackagesController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update service package' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateServicePackageDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateServicePackageDto) {
     return this.catalogService.updatePackage(id, dto);
   }
 
@@ -81,10 +73,7 @@ export class PackagesController {
   @Post(':id/items')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Add items to service package' })
-  addItems(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: AddPackageItemsDto,
-  ) {
+  addItems(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddPackageItemsDto) {
     return this.catalogService.addPackageItems(id, dto);
   }
 
@@ -98,10 +87,7 @@ export class PackagesController {
   @Post(':id/clone')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Clone a service package (template or regular)' })
-  clonePackage(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ClonePackageDto,
-  ) {
+  clonePackage(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ClonePackageDto) {
     return this.catalogService.clonePackage(id, dto);
   }
 }

@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import * as crypto from 'node:crypto';
@@ -24,10 +18,7 @@ export class GlobalCacheInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  async intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Promise<Observable<unknown>> {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const request = context.switchToHttp().getRequest<Request>();
     const method = request.method;
     const url = request.url;
@@ -47,10 +38,7 @@ export class GlobalCacheInterceptor implements NestInterceptor {
     }
 
     // Check for @NoCache decorator
-    const noCache = this.reflector.getAllAndOverride<boolean>(NO_CACHE_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const noCache = this.reflector.getAllAndOverride<boolean>(NO_CACHE_KEY, [context.getHandler(), context.getClass()]);
     if (noCache) {
       return next.handle();
     }
@@ -85,8 +73,7 @@ export class GlobalCacheInterceptor implements NestInterceptor {
             // Cache for 60 seconds (default) or use metadata for custom TTL
             await this.cacheService.set(key, response, 60000); // 60s in ms
           } catch (error: unknown) {
-            const message =
-              error instanceof Error ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             this.logger.warn(`Cache write error: ${message}`);
           }
         })().catch((err: unknown) => {
@@ -116,10 +103,7 @@ export class GlobalCacheInterceptor implements NestInterceptor {
     const authHeader = request.headers.authorization;
     if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const tokenHash =
-        token.length > 0
-          ? crypto.createHash('sha256').update(token).digest('hex')
-          : 'empty';
+      const tokenHash = token.length > 0 ? crypto.createHash('sha256').update(token).digest('hex') : 'empty';
       return `token:${tokenHash}`;
     }
 

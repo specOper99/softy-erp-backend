@@ -11,9 +11,7 @@ describe('BookingStateMachineService', () => {
       providers: [BookingStateMachineService],
     }).compile();
 
-    service = module.get<BookingStateMachineService>(
-      BookingStateMachineService,
-    );
+    service = module.get<BookingStateMachineService>(BookingStateMachineService);
   });
 
   it('should be defined', () => {
@@ -22,64 +20,40 @@ describe('BookingStateMachineService', () => {
 
   describe('canTransition', () => {
     it('should allow DRAFT → CONFIRMED', () => {
-      const result = service.canTransition(
-        BookingStatus.DRAFT,
-        BookingStatus.CONFIRMED,
-      );
+      const result = service.canTransition(BookingStatus.DRAFT, BookingStatus.CONFIRMED);
       expect(result.isValid).toBe(true);
     });
 
     it('should allow DRAFT → CANCELLED', () => {
-      const result = service.canTransition(
-        BookingStatus.DRAFT,
-        BookingStatus.CANCELLED,
-      );
+      const result = service.canTransition(BookingStatus.DRAFT, BookingStatus.CANCELLED);
       expect(result.isValid).toBe(true);
     });
 
     it('should allow CONFIRMED → COMPLETED', () => {
-      const result = service.canTransition(
-        BookingStatus.CONFIRMED,
-        BookingStatus.COMPLETED,
-      );
+      const result = service.canTransition(BookingStatus.CONFIRMED, BookingStatus.COMPLETED);
       expect(result.isValid).toBe(true);
     });
 
     it('should allow CONFIRMED → CANCELLED', () => {
-      const result = service.canTransition(
-        BookingStatus.CONFIRMED,
-        BookingStatus.CANCELLED,
-      );
+      const result = service.canTransition(BookingStatus.CONFIRMED, BookingStatus.CANCELLED);
       expect(result.isValid).toBe(true);
     });
 
     it('should NOT allow same status transition', () => {
-      const result = service.canTransition(
-        BookingStatus.DRAFT,
-        BookingStatus.DRAFT,
-      );
+      const result = service.canTransition(BookingStatus.DRAFT, BookingStatus.DRAFT);
       expect(result.isValid).toBe(false);
       expect(result.errorMessage).toContain('already in');
     });
 
     it('should NOT allow DRAFT → COMPLETED', () => {
-      const result = service.canTransition(
-        BookingStatus.DRAFT,
-        BookingStatus.COMPLETED,
-      );
+      const result = service.canTransition(BookingStatus.DRAFT, BookingStatus.COMPLETED);
       expect(result.isValid).toBe(false);
       expect(result.errorMessage).toContain('Cannot transition');
     });
 
     it('should NOT allow transitions from terminal states', () => {
-      const completedResult = service.canTransition(
-        BookingStatus.COMPLETED,
-        BookingStatus.DRAFT,
-      );
-      const cancelledResult = service.canTransition(
-        BookingStatus.CANCELLED,
-        BookingStatus.DRAFT,
-      );
+      const completedResult = service.canTransition(BookingStatus.COMPLETED, BookingStatus.DRAFT);
+      const cancelledResult = service.canTransition(BookingStatus.CANCELLED, BookingStatus.DRAFT);
 
       expect(completedResult.isValid).toBe(false);
       expect(cancelledResult.isValid).toBe(false);
@@ -88,21 +62,13 @@ describe('BookingStateMachineService', () => {
 
   describe('validateTransition', () => {
     it('should not throw for valid transitions', () => {
-      expect(() =>
-        service.validateTransition(
-          BookingStatus.DRAFT,
-          BookingStatus.CONFIRMED,
-        ),
-      ).not.toThrow();
+      expect(() => service.validateTransition(BookingStatus.DRAFT, BookingStatus.CONFIRMED)).not.toThrow();
     });
 
     it('should throw BadRequestException for invalid transitions', () => {
-      expect(() =>
-        service.validateTransition(
-          BookingStatus.DRAFT,
-          BookingStatus.COMPLETED,
-        ),
-      ).toThrow(BadRequestException);
+      expect(() => service.validateTransition(BookingStatus.DRAFT, BookingStatus.COMPLETED)).toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -114,12 +80,8 @@ describe('BookingStateMachineService', () => {
     });
 
     it('should return empty array for terminal states', () => {
-      expect(
-        service.getAvailableTransitions(BookingStatus.COMPLETED),
-      ).toHaveLength(0);
-      expect(
-        service.getAvailableTransitions(BookingStatus.CANCELLED),
-      ).toHaveLength(0);
+      expect(service.getAvailableTransitions(BookingStatus.COMPLETED)).toHaveLength(0);
+      expect(service.getAvailableTransitions(BookingStatus.CANCELLED)).toHaveLength(0);
     });
   });
 

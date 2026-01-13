@@ -51,10 +51,7 @@ export class PayrollService {
   async runScheduledPayroll(): Promise<void> {
     // [C-01] Distributed Lock: Prevent concurrent execution
     const lockId = 1001;
-    const queryResult: unknown = await this.dataSource.query(
-      'SELECT pg_try_advisory_lock($1) as locked',
-      [lockId],
-    );
+    const queryResult: unknown = await this.dataSource.query('SELECT pg_try_advisory_lock($1) as locked', [lockId]);
     const typedResult = queryResult as Array<{
       locked?: boolean;
       pg_try_advisory_lock?: boolean;
@@ -62,14 +59,10 @@ export class PayrollService {
     const lockResult = typedResult[0];
 
     // Handle different driver return formats (boolean or row)
-    const isLocked =
-      lockResult &&
-      (lockResult.locked === true || lockResult.pg_try_advisory_lock === true);
+    const isLocked = lockResult && (lockResult.locked === true || lockResult.pg_try_advisory_lock === true);
 
     if (!isLocked) {
-      this.logger.warn(
-        'Skipping payroll run: another instance is already holding the lock.',
-      );
+      this.logger.warn('Skipping payroll run: another instance is already holding the lock.');
       return;
     }
 
@@ -82,10 +75,7 @@ export class PayrollService {
       // PERFORMANCE FIX: Use bounded concurrency instead of sequential processing
       const limit = pLimit(5); // Max 5 concurrent tenant payroll runs
 
-      const processPayrollForTenant = async (tenant: {
-        id: string;
-        slug: string;
-      }) => {
+      const processPayrollForTenant = async (tenant: { id: string; slug: string }) => {
         try {
           // Run payroll within tenant context
           await new Promise<void>((resolve, reject) => {
@@ -98,23 +88,16 @@ export class PayrollService {
                   resolve();
                 })
                 .catch((error: unknown) => {
-                  reject(
-                    error instanceof Error ? error : new Error(String(error)),
-                  );
+                  reject(error instanceof Error ? error : new Error(String(error)));
                 });
             });
           });
         } catch (error) {
-          this.logger.error(
-            `Payroll run failed for tenant ${tenant.slug}`,
-            error,
-          );
+          this.logger.error(`Payroll run failed for tenant ${tenant.slug}`, error);
         }
       };
 
-      await Promise.all(
-        tenants.map((tenant) => limit(() => processPayrollForTenant(tenant))),
-      );
+      await Promise.all(tenants.map((tenant) => limit(() => processPayrollForTenant(tenant))));
 
       this.logger.log('Scheduled payroll run completed for all tenants');
     } finally {
@@ -132,9 +115,7 @@ export class PayrollService {
     });
 
     if (totalCount === 0) {
-      this.logger.log(
-        `No profiles found for tenant ${tenantId}, skipping payroll`,
-      );
+      this.logger.log(`No profiles found for tenant ${tenantId}, skipping payroll`);
       return {
         totalEmployees: 0,
         totalPayout: 0,
@@ -148,20 +129,14 @@ export class PayrollService {
     let totalEmployeesProcessed = 0;
     const batchCount = Math.ceil(totalCount / this.PAYROLL_BATCH_SIZE);
 
-    this.logger.log(
-      `Starting payroll for tenant ${tenantId}: ${totalCount} profiles in ${batchCount} batches`,
-    );
+    this.logger.log(`Starting payroll for tenant ${tenantId}: ${totalCount} profiles in ${batchCount} batches`);
 
     // Process each batch in its own transaction
     for (let batchIndex = 0; batchIndex < batchCount; batchIndex++) {
       const skip = batchIndex * this.PAYROLL_BATCH_SIZE;
 
       try {
-        const batchResult = await this.processPayrollBatch(
-          tenantId,
-          skip,
-          this.PAYROLL_BATCH_SIZE,
-        );
+        const batchResult = await this.processPayrollBatch(tenantId, skip, this.PAYROLL_BATCH_SIZE);
 
         allTransactionIds.push(...batchResult.transactionIds);
         totalPayout += batchResult.totalPayout;
@@ -171,10 +146,7 @@ export class PayrollService {
           `Payroll batch ${batchIndex + 1}/${batchCount} completed: ${batchResult.employeesProcessed} employees, $${batchResult.totalPayout}`,
         );
       } catch (error) {
-        this.logger.error(
-          `Payroll batch ${batchIndex + 1}/${batchCount} failed for tenant ${tenantId}`,
-          error,
-        );
+        this.logger.error(`Payroll batch ${batchIndex + 1}/${batchCount} failed for tenant ${tenantId}`, error);
         // Continue with next batch - partial payroll is better than none
       }
     }
@@ -213,9 +185,7 @@ export class PayrollService {
     };
   }
 
-  async getPayrollHistory(
-    query: PaginationDto = new PaginationDto(),
-  ): Promise<PayrollRun[]> {
+  async getPayrollHistory(query: PaginationDto = new PaginationDto()): Promise<PayrollRun[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.payrollRunRepository.find({
       where: { tenantId },
@@ -289,9 +259,7 @@ export class PayrollService {
           });
           await payoutRepository.save(payout);
         } else if (payout.status === (PayoutStatus.COMPLETED as unknown)) {
-          this.logger.log(
-            `Skipping already completed payout for ${referenceId}`,
-          );
+          this.logger.log(`Skipping already completed payout for ${referenceId}`);
           continue;
         }
 
@@ -325,25 +293,18 @@ export class PayrollService {
           await queryRunner.manager.save(payout);
 
           // Create PAYROLL transaction (ERP bookkeeping)
-          const transaction =
-            await this.financeService.createTransactionWithManager(
-              queryRunner.manager,
-              {
-                type: TransactionType.PAYROLL,
-                amount: totalAmount,
-                category: 'Monthly Payroll',
-                payoutId: payout.id,
-                description: `Payroll for ${profile.firstName || ''} ${profile.lastName || ''}: Salary $${baseSalary} + Commission $${commissionPayable}`,
-                transactionDate: new Date(),
-              },
-            );
+          const transaction = await this.financeService.createTransactionWithManager(queryRunner.manager, {
+            type: TransactionType.PAYROLL,
+            amount: totalAmount,
+            category: 'Monthly Payroll',
+            payoutId: payout.id,
+            description: `Payroll for ${profile.firstName || ''} ${profile.lastName || ''}: Salary $${baseSalary} + Commission $${commissionPayable}`,
+            transactionDate: new Date(),
+          });
 
           // Reset payable balance to 0
           if (wallet && commissionPayable > 0) {
-            await this.walletService.resetPayableBalance(
-              queryRunner.manager,
-              profile.userId,
-            );
+            await this.walletService.resetPayableBalance(queryRunner.manager, profile.userId);
           }
 
           await queryRunner.commitTransaction();
@@ -363,12 +324,7 @@ export class PayrollService {
                 totalPayout: totalAmount,
                 payrollDate: new Date(),
               })
-              .catch((err) =>
-                this.logger.error(
-                  `Failed to send payroll email to ${profile.user?.email}`,
-                  err,
-                ),
-              );
+              .catch((err) => this.logger.error(`Failed to send payroll email to ${profile.user?.email}`, err));
           }
         } catch (error) {
           await queryRunner.rollbackTransaction();
@@ -381,10 +337,7 @@ export class PayrollService {
           await queryRunner.release();
         }
       } catch (error) {
-        this.logger.error(
-          `Payroll processing failed for ${profile.firstName} ${profile.lastName}`,
-          error,
-        );
+        this.logger.error(`Payroll processing failed for ${profile.firstName} ${profile.lastName}`, error);
         // Continue with next employee
       }
     }

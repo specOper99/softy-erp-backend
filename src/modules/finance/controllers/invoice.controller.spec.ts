@@ -61,18 +61,12 @@ describe('InvoiceController', () => {
       await controller.downloadPdf('invoice-123', mockResponse as any);
 
       expect(invoiceService.getInvoicePdf).toHaveBeenCalledWith('invoice-123');
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        'Content-Type',
-        'application/pdf',
-      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
       expect(mockResponse.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
         'attachment; filename="invoice-invoice-123.pdf"',
       );
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        'Content-Length',
-        mockPdfBuffer.length,
-      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Length', mockPdfBuffer.length);
       expect(mockResponse.send).toHaveBeenCalledWith(expect.any(Buffer));
     });
   });

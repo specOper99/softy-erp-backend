@@ -20,10 +20,7 @@ export class RenameAccessTokenToHash1736469350000 implements MigrationInterface 
     }
 
     // Check if accessToken column exists
-    const hasAccessToken = await queryRunner.hasColumn(
-      'clients',
-      'accessToken',
-    );
+    const hasAccessToken = await queryRunner.hasColumn('clients', 'accessToken');
     if (!hasAccessToken) {
       // Column doesn't exist yet, skip this migration
       return;

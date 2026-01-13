@@ -24,9 +24,7 @@ export class KeyRotationService {
     // 1. Rotate Webhook Secrets
     const webhookResult = await this.rotateWebhookSecrets();
 
-    this.logger.log(
-      `Key rotation complete. Processed: ${webhookResult.processed}, Errors: ${webhookResult.errors}`,
-    );
+    this.logger.log(`Key rotation complete. Processed: ${webhookResult.processed}, Errors: ${webhookResult.errors}`);
 
     return webhookResult;
   }
@@ -64,10 +62,7 @@ export class KeyRotationService {
           await this.webhookRepository.save(webhook);
           processed++;
         } catch (e) {
-          this.logger.error(
-            `Failed to rotate key for webhook ${webhook.id}`,
-            e,
-          );
+          this.logger.error(`Failed to rotate key for webhook ${webhook.id}`, e);
           errors++;
         }
       }

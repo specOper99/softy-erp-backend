@@ -41,10 +41,7 @@ describe('NotificationsService', () => {
         inAppEnabled: true,
       } as any);
 
-      const result = await service.shouldSendEmail(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.shouldSendEmail(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(result).toBe(true);
     });
@@ -55,10 +52,7 @@ describe('NotificationsService', () => {
         inAppEnabled: true,
       } as any);
 
-      const result = await service.shouldSendEmail(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.shouldSendEmail(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(result).toBe(false);
     });
@@ -66,10 +60,7 @@ describe('NotificationsService', () => {
     it('should return true as default when no preference exists', async () => {
       preferencesService.getPreference.mockResolvedValue(null);
 
-      const result = await service.shouldSendEmail(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.shouldSendEmail(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(result).toBe(true);
     });
@@ -82,10 +73,7 @@ describe('NotificationsService', () => {
         inAppEnabled: true,
       } as any);
 
-      const result = await service.shouldSendInApp(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.shouldSendInApp(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(result).toBe(true);
     });
@@ -96,10 +84,7 @@ describe('NotificationsService', () => {
         inAppEnabled: false,
       } as any);
 
-      const result = await service.shouldSendInApp(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.shouldSendInApp(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(result).toBe(false);
     });
@@ -107,10 +92,7 @@ describe('NotificationsService', () => {
     it('should return true as default when no preference exists', async () => {
       preferencesService.getPreference.mockResolvedValue(null);
 
-      const result = await service.shouldSendInApp(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.shouldSendInApp(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(result).toBe(true);
     });

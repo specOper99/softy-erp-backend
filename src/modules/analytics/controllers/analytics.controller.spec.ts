@@ -65,15 +65,11 @@ describe('AnalyticsController', () => {
   describe('getRevenueByPackagePdf', () => {
     it('should generate and return PDF', async () => {
       const filter = { startDate: '2024-01-01', endDate: '2024-12-31' };
-      const mockData = [
-        { packageName: 'Basic', bookingCount: 10, totalRevenue: 5000 },
-      ];
+      const mockData = [{ packageName: 'Basic', bookingCount: 10, totalRevenue: 5000 }];
       const mockPdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 
       analyticsService.getRevenueByPackage.mockResolvedValue(mockData);
-      reportGeneratorService.generateRevenueByPackagePdf.mockResolvedValue(
-        mockPdfBytes,
-      );
+      reportGeneratorService.generateRevenueByPackagePdf.mockResolvedValue(mockPdfBytes);
 
       const mockResponse = {
         set: jest.fn(),
@@ -83,9 +79,7 @@ describe('AnalyticsController', () => {
       await controller.getRevenueByPackagePdf(filter, mockResponse as any);
 
       expect(analyticsService.getRevenueByPackage).toHaveBeenCalledWith(filter);
-      expect(
-        reportGeneratorService.generateRevenueByPackagePdf,
-      ).toHaveBeenCalledWith(mockData);
+      expect(reportGeneratorService.generateRevenueByPackagePdf).toHaveBeenCalledWith(mockData);
       expect(mockResponse.set).toHaveBeenCalledWith({
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename=revenue_by_package.pdf',
@@ -111,10 +105,7 @@ describe('AnalyticsController', () => {
 
       const result = await controller.getTaxReport(startDate, endDate);
 
-      expect(analyticsService.getTaxReport).toHaveBeenCalledWith(
-        startDate,
-        endDate,
-      );
+      expect(analyticsService.getTaxReport).toHaveBeenCalledWith(startDate, endDate);
       expect(result).toEqual(mockReport);
     });
   });

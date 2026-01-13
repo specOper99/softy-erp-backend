@@ -22,8 +22,7 @@ export class MessagePackInterceptor implements NestInterceptor {
 
     // Check if the client accepts MessagePack
     const acceptHeader = request.headers.accept;
-    const wantsMessagePack =
-      acceptHeader && acceptHeader.includes('application/x-msgpack');
+    const wantsMessagePack = acceptHeader && acceptHeader.includes('application/x-msgpack');
 
     if (!wantsMessagePack) {
       // Pass through if MessagePack is not requested

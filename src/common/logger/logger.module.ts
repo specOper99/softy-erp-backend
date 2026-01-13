@@ -48,12 +48,8 @@ const correlationFormat = winston.format((info) => {
                       const corrId = correlationId
                         ? `[${typeof correlationId === 'string' ? correlationId.substring(0, 8) : JSON.stringify(correlationId).substring(0, 8)}]`
                         : '';
-                      const ctx = context
-                        ? `[${typeof context === 'string' ? context : JSON.stringify(context)}]`
-                        : '';
-                      const metaStr = Object.keys(meta).length
-                        ? JSON.stringify(meta)
-                        : '';
+                      const ctx = context ? `[${typeof context === 'string' ? context : JSON.stringify(context)}]` : '';
+                      const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
                       return `${String(timestamp)} ${String(level)} ${corrId}${ctx} ${String(message)} ${metaStr}`;
                     },
                   ),
@@ -80,17 +76,14 @@ const correlationFormat = winston.format((info) => {
                     host: configService.get<string>('LOKI_HOST') as string,
                     labels: {
                       app: 'chapters-studio-erp',
-                      environment:
-                        configService.get<string>('NODE_ENV') ?? 'development',
+                      environment: configService.get<string>('NODE_ENV') ?? 'development',
                     },
                     json: true,
                     batching: true,
                     interval: 5,
                     replaceTimestamp: true,
                     onConnectionError: (err: Error) => {
-                      process.stderr.write(
-                        `[LoggerModule] Loki connection error: ${err.message}\n`,
-                      );
+                      process.stderr.write(`[LoggerModule] Loki connection error: ${err.message}\n`);
                     },
                   }),
                 ]

@@ -43,21 +43,11 @@ export class AddDashboardIndexes1735858000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_bookings_tenant_event_date"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_bookings_tenant_status_date"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_transactions_tenant_date"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_transactions_tenant_type_date"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_tasks_tenant_completed_date"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_bookings_tenant_event_date"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_bookings_tenant_status_date"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_tenant_date"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_tenant_type_date"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_tenant_completed_date"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_tenant_status"`);
   }
 }

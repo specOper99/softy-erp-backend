@@ -159,8 +159,7 @@ export class InvoiceService {
       y: height - margin - 60,
       size: fontSize,
       font: boldFont,
-      color:
-        invoice.status === InvoiceStatus.PAID ? rgb(0, 0.5, 0) : rgb(0.5, 0, 0),
+      color: invoice.status === InvoiceStatus.PAID ? rgb(0, 0.5, 0) : rgb(0.5, 0, 0),
     });
 
     yPos -= 60;

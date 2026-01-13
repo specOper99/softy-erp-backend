@@ -53,9 +53,7 @@ describe('TaskAssignedHandler', () => {
     });
 
     it('should propagate errors from mail service', async () => {
-      mailService.sendTaskAssignment.mockRejectedValue(
-        new Error('Mail failed'),
-      );
+      mailService.sendTaskAssignment.mockRejectedValue(new Error('Mail failed'));
 
       const event: TaskAssignedEvent = {
         taskId: 'task-456',

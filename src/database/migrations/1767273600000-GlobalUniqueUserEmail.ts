@@ -21,9 +21,7 @@ export class GlobalUniqueUserEmail1767273600000 implements MigrationInterface {
         .slice(0, 10)
         .map((d) => `${d.email} (count=${d.cnt})`)
         .join(', ');
-      throw new Error(
-        `Cannot enforce global-unique emails: duplicates exist. Sample: ${sample}`,
-      );
+      throw new Error(`Cannot enforce global-unique emails: duplicates exist. Sample: ${sample}`);
     }
 
     // Drop any unique composite indexes on (email, tenant_id)
@@ -46,9 +44,7 @@ export class GlobalUniqueUserEmail1767273600000 implements MigrationInterface {
     `);
 
     // Create new unique index on email
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_email_unique" ON "users" ("email")`,
-    );
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_email_unique" ON "users" ("email")`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

@@ -64,24 +64,12 @@ export class AddPhase3Indexes1767700000000 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_clients_tenant_email"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_clients_tenant_phone"`);
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_profiles_tenant_hire_date"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_packages_tenant_active"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_refresh_tokens_expires_at"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_profiles_tenant_hire_date"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_packages_tenant_active"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_refresh_tokens_expires_at"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_tasks_tenant_due_date"`);
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_transactions_tenant_category"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_bookings_tenant_client"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_wallets_tenant_payable"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_transactions_tenant_category"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_bookings_tenant_client"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_wallets_tenant_payable"`);
   }
 }

@@ -1,26 +1,11 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Ip,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Ip, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { CreatePrivacyRequestDto } from './dto/privacy.dto';
-import {
-  GrantConsentDto,
-  RevokeConsentDto,
-  ConsentResponseDto,
-} from './dto/consent.dto';
+import { GrantConsentDto, RevokeConsentDto, ConsentResponseDto } from './dto/consent.dto';
 import { PrivacyService } from './privacy.service';
 import { ConsentService } from './consent.service';
 import { PrivacyRequest } from './entities/privacy-request.entity';
@@ -42,10 +27,7 @@ export class PrivacyController {
   @ApiOperation({
     summary: 'Create a privacy request (data export or deletion)',
   })
-  async createRequest(
-    @CurrentUser() user: User,
-    @Body() dto: CreatePrivacyRequestDto,
-  ): Promise<PrivacyRequest> {
+  async createRequest(@CurrentUser() user: User, @Body() dto: CreatePrivacyRequestDto): Promise<PrivacyRequest> {
     return this.privacyService.createRequest(user.id, dto);
   }
 
@@ -57,19 +39,13 @@ export class PrivacyController {
 
   @Get('requests/:id')
   @ApiOperation({ summary: 'Get a specific privacy request' })
-  async getRequest(
-    @CurrentUser() user: User,
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<PrivacyRequest> {
+  async getRequest(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<PrivacyRequest> {
     return this.privacyService.getRequestById(id, user.id);
   }
 
   @Delete('requests/:id')
   @ApiOperation({ summary: 'Cancel a pending privacy request' })
-  async cancelRequest(
-    @CurrentUser() user: User,
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<PrivacyRequest> {
+  async cancelRequest(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<PrivacyRequest> {
     return this.privacyService.cancelRequest(id, user.id);
   }
 
@@ -77,9 +53,7 @@ export class PrivacyController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Process a data export request (Admin only)' })
-  async processExport(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<{ message: string }> {
+  async processExport(@Param('id', ParseUUIDPipe) id: string): Promise<{ message: string }> {
     await this.privacyService.processDataExport(id);
     return { message: 'Data export processed successfully' };
   }
@@ -126,13 +100,7 @@ export class PrivacyController {
 
   @Delete('consents/:type')
   @ApiOperation({ summary: 'Revoke consent' })
-  async revokeConsent(
-    @CurrentUser() user: User,
-    @Param('type') type: string,
-  ): Promise<ConsentResponseDto> {
-    return this.consentService.revokeConsent(
-      user.id,
-      type as RevokeConsentDto['type'],
-    );
+  async revokeConsent(@CurrentUser() user: User, @Param('type') type: string): Promise<ConsentResponseDto> {
+    return this.consentService.revokeConsent(user.id, type as RevokeConsentDto['type']);
   }
 }

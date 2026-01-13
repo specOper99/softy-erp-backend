@@ -1,10 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, Unique } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/abstract.entity';
 import type { User } from '../../users/entities/user.entity';
-import {
-  NotificationFrequency,
-  NotificationType,
-} from '../enums/notification.enum';
+import { NotificationFrequency, NotificationType } from '../enums/notification.enum';
 
 @Entity('notification_preferences')
 @Unique(['userId', 'notificationType'])

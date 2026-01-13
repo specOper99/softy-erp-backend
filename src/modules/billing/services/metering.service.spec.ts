@@ -65,11 +65,7 @@ describe('MeteringService', () => {
       usageRecordRepo.save.mockResolvedValue(mockUsageRecord as any);
       subscriptionService.getSubscription.mockResolvedValue(null);
 
-      const result = await service.recordUsage(
-        mockTenantId,
-        UsageMetric.API_CALLS,
-        100,
-      );
+      const result = await service.recordUsage(mockTenantId, UsageMetric.API_CALLS, 100);
 
       expect(usageRecordRepo.create).toHaveBeenCalledWith({
         tenantId: mockTenantId,
@@ -89,19 +85,11 @@ describe('MeteringService', () => {
         ...mockUsageRecord,
         subscriptionId: 'sub-123',
       } as any);
-      subscriptionService.getSubscription.mockResolvedValue(
-        mockSubscription as any,
-      );
+      subscriptionService.getSubscription.mockResolvedValue(mockSubscription as any);
 
-      const result = await service.recordUsage(
-        mockTenantId,
-        UsageMetric.API_CALLS,
-        50,
-      );
+      const result = await service.recordUsage(mockTenantId, UsageMetric.API_CALLS, 50);
 
-      expect(subscriptionService.getSubscription).toHaveBeenCalledWith(
-        mockTenantId,
-      );
+      expect(subscriptionService.getSubscription).toHaveBeenCalledWith(mockTenantId);
       expect(result).toBeDefined();
     });
 
@@ -111,16 +99,9 @@ describe('MeteringService', () => {
       usageRecordRepo.save.mockResolvedValue(mockUsageRecord as any);
       subscriptionService.getSubscription.mockResolvedValue(null);
 
-      await service.recordUsage(
-        mockTenantId,
-        UsageMetric.API_CALLS,
-        1,
-        metadata,
-      );
+      await service.recordUsage(mockTenantId, UsageMetric.API_CALLS, 1, metadata);
 
-      expect(usageRecordRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ metadata }),
-      );
+      expect(usageRecordRepo.create).toHaveBeenCalledWith(expect.objectContaining({ metadata }));
     });
 
     it('should handle Stripe sync errors gracefully', async () => {
@@ -130,11 +111,7 @@ describe('MeteringService', () => {
       stripeService.isConfigured.mockReturnValue(true);
 
       // Should not throw even if Stripe sync fails
-      const result = await service.recordUsage(
-        mockTenantId,
-        UsageMetric.STORAGE_GB,
-        10,
-      );
+      const result = await service.recordUsage(mockTenantId, UsageMetric.STORAGE_GB, 10);
 
       expect(result).toEqual(mockUsageRecord);
     });
@@ -155,18 +132,12 @@ describe('MeteringService', () => {
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue(mockRawResults),
       };
-      usageRecordRepo.createQueryBuilder.mockReturnValue(
-        mockQueryBuilder as any,
-      );
+      usageRecordRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       const startDate = new Date('2024-01-01');
       const endDate = new Date('2024-01-31');
 
-      const result = await service.getUsageSummary(
-        mockTenantId,
-        startDate,
-        endDate,
-      );
+      const result = await service.getUsageSummary(mockTenantId, startDate, endDate);
 
       expect(usageRecordRepo.createQueryBuilder).toHaveBeenCalledWith('record');
       expect(result[UsageMetric.API_CALLS]).toBe(500);
@@ -182,15 +153,9 @@ describe('MeteringService', () => {
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([]),
       };
-      usageRecordRepo.createQueryBuilder.mockReturnValue(
-        mockQueryBuilder as any,
-      );
+      usageRecordRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
-      const result = await service.getUsageSummary(
-        mockTenantId,
-        new Date('2024-01-01'),
-        new Date('2024-01-31'),
-      );
+      const result = await service.getUsageSummary(mockTenantId, new Date('2024-01-01'), new Date('2024-01-31'));
 
       expect(Object.keys(result)).toHaveLength(0);
     });

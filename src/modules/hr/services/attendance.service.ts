@@ -1,16 +1,7 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TENANT_REPO_ATTENDANCE } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
-import {
-  CreateAttendanceDto,
-  UpdateAttendanceDto,
-} from '../dto/attendance.dto';
+import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
 import { Attendance } from '../entities/attendance.entity';
 
 @Injectable()
@@ -42,9 +33,7 @@ export class AttendanceService {
 
     // Validate checkOut >= checkIn
     if (checkIn && checkOut && checkOut < checkIn) {
-      throw new BadRequestException(
-        'attendance.checkout_must_be_after_checkin',
-      );
+      throw new BadRequestException('attendance.checkout_must_be_after_checkin');
     }
 
     const attendance = this.attendanceRepository.create({
@@ -58,9 +47,7 @@ export class AttendanceService {
       return await this.attendanceRepository.save(attendance);
     } catch (err) {
       if ((err as { code?: string })?.code === '23505') {
-        throw new ConflictException(
-          'Attendance record for this user and date already exists',
-        );
+        throw new ConflictException('Attendance record for this user and date already exists');
       }
       throw err;
     }

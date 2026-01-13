@@ -77,25 +77,15 @@ export class AddCriticalIndexesAndConstraints1736389200000 implements MigrationI
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop all created indexes and constraint in reverse order
-    await queryRunner.query(
-      `ALTER TABLE invoices DROP CONSTRAINT IF EXISTS uq_invoice_booking_tenant;`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS idx_notification_preference_tenant;`,
-    );
+    await queryRunner.query(`ALTER TABLE invoices DROP CONSTRAINT IF EXISTS uq_invoice_booking_tenant;`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_notification_preference_tenant;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_email_template_tenant;`);
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS idx_task_type_tenant_active;`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS idx_service_package_tenant_active;`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_task_type_tenant_active;`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_service_package_tenant_active;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_webhook_tenant_active;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_user_preference_user;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_audit_tenant_created;`);
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS idx_transaction_tenant_type_date;`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_transaction_tenant_type_date;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_task_tenant_status_due;`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_booking_tenant_created;`);
   }

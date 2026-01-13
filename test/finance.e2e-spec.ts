@@ -23,9 +23,7 @@ describe('Finance Module E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -66,12 +64,10 @@ describe('Finance Module E2E Tests', () => {
     const seedData = await seedTestDatabase(dataSource);
 
     // Login as admin
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
 
     accessToken = loginResponse.body.data?.accessToken;
   });
@@ -122,10 +118,7 @@ describe('Finance Module E2E Tests', () => {
             bookingId: bookingRes.body.data.id, // satisfying constraint
           });
 
-        console.log(
-          'Transaction create response:',
-          JSON.stringify(response.body, null, 2),
-        );
+        console.log('Transaction create response:', JSON.stringify(response.body, null, 2));
         expect(response.status).toBe(201);
         expect(response.body.data).toHaveProperty('id');
         expect(response.body.data.amount).toBe(1000);
@@ -178,10 +171,7 @@ describe('Finance Module E2E Tests', () => {
             transactionDate: new Date().toISOString(),
           });
 
-        console.log(
-          'E2E DEBUG: Transaction create response:',
-          JSON.stringify(response.body.data, null, 2),
-        );
+        console.log('E2E DEBUG: Transaction create response:', JSON.stringify(response.body.data, null, 2));
         expect(response.status).toBe(201);
         expect(response.body.data.bookingId).toBe(bookingId);
       });

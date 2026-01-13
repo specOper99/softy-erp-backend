@@ -44,13 +44,9 @@ describe('StructuredLoggingInterceptor', () => {
       ],
     }).compile();
 
-    interceptor = module.get<StructuredLoggingInterceptor>(
-      StructuredLoggingInterceptor,
-    );
+    interceptor = module.get<StructuredLoggingInterceptor>(StructuredLoggingInterceptor);
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
   });
 
   afterEach(() => {

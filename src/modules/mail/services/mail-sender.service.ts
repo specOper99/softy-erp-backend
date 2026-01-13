@@ -48,9 +48,7 @@ export class MailSenderService {
         if (attempt < this.maxRetries) {
           retried = true;
           const delay = this.retryDelayMs * Math.pow(2, attempt);
-          this.logger.warn(
-            `${context} failed (attempt ${attempt + 1}/${this.maxRetries + 1}), retrying in ${delay}ms`,
-          );
+          this.logger.warn(`${context} failed (attempt ${attempt + 1}/${this.maxRetries + 1}), retrying in ${delay}ms`);
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
@@ -61,18 +59,13 @@ export class MailSenderService {
 
   async sendBookingConfirmation(data: BookingEmailData): Promise<EmailResult> {
     if (!this.isEnabled) {
-      this.logger.log(
-        `[DEV] Booking confirmation email to ${data.clientEmail}`,
-        data,
-      );
+      this.logger.log(`[DEV] Booking confirmation email to ${data.clientEmail}`, data);
       return { success: true, email: data.clientEmail };
     }
 
-    const templateData = await this.templateService.resolveTemplate(
-      'booking-confirmation',
-      'booking-confirmation',
-      { clientName: data.clientName },
-    );
+    const templateData = await this.templateService.resolveTemplate('booking-confirmation', 'booking-confirmation', {
+      clientName: data.clientName,
+    });
 
     const { retried, error } = await this.withRetry(
       () =>
@@ -86,9 +79,7 @@ export class MailSenderService {
                 clientName: data.clientName,
                 eventDate: this.templateService.formatDate(data.eventDate),
                 packageName: data.packageName,
-                totalPrice: this.templateService.formatCurrency(
-                  data.totalPrice,
-                ),
+                totalPrice: this.templateService.formatCurrency(data.totalPrice),
                 bookingId: data.bookingId,
               }),
             ),
@@ -110,20 +101,13 @@ export class MailSenderService {
       };
     }
 
-    this.logger.log(
-      `Booking confirmation sent to ${data.clientEmail}${retried ? ' (after retry)' : ''}`,
-    );
+    this.logger.log(`Booking confirmation sent to ${data.clientEmail}${retried ? ' (after retry)' : ''}`);
     return { success: true, email: data.clientEmail, retried };
   }
 
-  async sendTaskAssignment(
-    data: TaskAssignmentEmailData,
-  ): Promise<EmailResult> {
+  async sendTaskAssignment(data: TaskAssignmentEmailData): Promise<EmailResult> {
     if (!this.isEnabled) {
-      this.logger.log(
-        `[DEV] Task assignment email to ${data.employeeEmail}`,
-        data,
-      );
+      this.logger.log(`[DEV] Task assignment email to ${data.employeeEmail}`, data);
       return { success: true, email: data.employeeEmail };
     }
 
@@ -140,9 +124,7 @@ export class MailSenderService {
                 taskType: data.taskType,
                 clientName: data.clientName,
                 eventDate: this.templateService.formatDate(data.eventDate),
-                commission: this.templateService.formatCurrency(
-                  data.commission,
-                ),
+                commission: this.templateService.formatCurrency(data.commission),
               }),
             ),
           }),
@@ -163,18 +145,13 @@ export class MailSenderService {
       };
     }
 
-    this.logger.log(
-      `Task assignment sent to ${data.employeeEmail}${retried ? ' (after retry)' : ''}`,
-    );
+    this.logger.log(`Task assignment sent to ${data.employeeEmail}${retried ? ' (after retry)' : ''}`);
     return { success: true, email: data.employeeEmail, retried };
   }
 
   async sendPayrollNotification(data: PayrollEmailData): Promise<EmailResult> {
     if (!this.isEnabled) {
-      this.logger.log(
-        `[DEV] Payroll notification email to ${data.employeeEmail}`,
-        data,
-      );
+      this.logger.log(`[DEV] Payroll notification email to ${data.employeeEmail}`, data);
       return { success: true, email: data.employeeEmail };
     }
 
@@ -188,15 +165,9 @@ export class MailSenderService {
             context: this.templateService.sanitizeContext(
               this.templateService.buildCommonContext({
                 employeeName: data.employeeName,
-                baseSalary: this.templateService.formatCurrency(
-                  data.baseSalary,
-                ),
-                commission: this.templateService.formatCurrency(
-                  data.commission,
-                ),
-                totalPayout: this.templateService.formatCurrency(
-                  data.totalPayout,
-                ),
+                baseSalary: this.templateService.formatCurrency(data.baseSalary),
+                commission: this.templateService.formatCurrency(data.commission),
+                totalPayout: this.templateService.formatCurrency(data.totalPayout),
                 payrollDate: this.templateService.formatDate(data.payrollDate),
               }),
             ),
@@ -218,20 +189,12 @@ export class MailSenderService {
       };
     }
 
-    this.logger.log(
-      `Payroll notification sent to ${data.employeeEmail}${retried ? ' (after retry)' : ''}`,
-    );
+    this.logger.log(`Payroll notification sent to ${data.employeeEmail}${retried ? ' (after retry)' : ''}`);
     return { success: true, email: data.employeeEmail, retried };
   }
 
-  async sendMagicLink(
-    data: MagicLinkEmailData,
-    locale = 'en',
-  ): Promise<EmailResult> {
-    const portalUrl = this.configService.get<string>(
-      'CLIENT_PORTAL_URL',
-      'https://portal.example.com',
-    );
+  async sendMagicLink(data: MagicLinkEmailData, locale = 'en'): Promise<EmailResult> {
+    const portalUrl = this.configService.get<string>('CLIENT_PORTAL_URL', 'https://portal.example.com');
     const magicLinkUrl = `${portalUrl}/auth/verify?token=${data.token}`;
 
     if (!this.isEnabled) {
@@ -275,17 +238,12 @@ export class MailSenderService {
       };
     }
 
-    this.logger.log(
-      `Magic link sent to ${data.clientEmail}${retried ? ' (after retry)' : ''}`,
-    );
+    this.logger.log(`Magic link sent to ${data.clientEmail}${retried ? ' (after retry)' : ''}`);
     return { success: true, email: data.clientEmail, retried };
   }
 
   async sendPasswordReset(data: PasswordResetEmailData): Promise<EmailResult> {
-    const appUrl = this.configService.get<string>(
-      'FRONTEND_URL',
-      'https://app.example.com',
-    );
+    const appUrl = this.configService.get<string>('FRONTEND_URL', 'https://app.example.com');
     const resetUrl = `${appUrl}/auth/reset-password?token=${data.token}`;
 
     if (!this.isEnabled) {
@@ -316,10 +274,7 @@ export class MailSenderService {
     );
 
     if (error) {
-      this.logger.error(
-        `Failed to send password reset to ${data.email}`,
-        error,
-      );
+      this.logger.error(`Failed to send password reset to ${data.email}`, error);
       return {
         success: false,
         email: data.email,
@@ -331,13 +286,8 @@ export class MailSenderService {
     return { success: true, email: data.email, retried };
   }
 
-  async sendEmailVerification(
-    data: EmailVerificationEmailData,
-  ): Promise<EmailResult> {
-    const appUrl = this.configService.get<string>(
-      'FRONTEND_URL',
-      'https://app.example.com',
-    );
+  async sendEmailVerification(data: EmailVerificationEmailData): Promise<EmailResult> {
+    const appUrl = this.configService.get<string>('FRONTEND_URL', 'https://app.example.com');
     const verificationUrl = `${appUrl}/auth/verify-email?token=${data.token}`;
 
     if (!this.isEnabled) {
@@ -367,10 +317,7 @@ export class MailSenderService {
     );
 
     if (error) {
-      this.logger.error(
-        `Failed to send email verification to ${data.email}`,
-        error,
-      );
+      this.logger.error(`Failed to send email verification to ${data.email}`, error);
       return {
         success: false,
         email: data.email,
@@ -382,9 +329,7 @@ export class MailSenderService {
     return { success: true, email: data.email, retried };
   }
 
-  async sendNewDeviceLogin(
-    data: NewDeviceLoginEmailData,
-  ): Promise<EmailResult> {
+  async sendNewDeviceLogin(data: NewDeviceLoginEmailData): Promise<EmailResult> {
     if (!this.isEnabled) {
       this.logger.log(`[DEV] New device login email to ${data.email}`, data);
       return { success: true, email: data.email };
@@ -412,10 +357,7 @@ export class MailSenderService {
     );
 
     if (error) {
-      this.logger.error(
-        `Failed to send new device login alert to ${data.email}`,
-        error,
-      );
+      this.logger.error(`Failed to send new device login alert to ${data.email}`, error);
       return {
         success: false,
         email: data.email,
@@ -427,9 +369,7 @@ export class MailSenderService {
     return { success: true, email: data.email, retried };
   }
 
-  async sendSuspiciousActivityAlert(
-    data: SuspiciousActivityEmailData,
-  ): Promise<EmailResult> {
+  async sendSuspiciousActivityAlert(data: SuspiciousActivityEmailData): Promise<EmailResult> {
     if (!this.isEnabled) {
       this.logger.log(`[DEV] Suspicious activity email to ${data.email}`, data);
       return { success: true, email: data.email };
@@ -458,10 +398,7 @@ export class MailSenderService {
     );
 
     if (error) {
-      this.logger.error(
-        `Failed to send suspicious activity alert to ${data.email}`,
-        error,
-      );
+      this.logger.error(`Failed to send suspicious activity alert to ${data.email}`, error);
       return {
         success: false,
         email: data.email,

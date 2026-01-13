@@ -1,11 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  scryptSync,
-} from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 
 /**
  * Service for encrypting and decrypting sensitive data using AES-256-GCM.
@@ -20,25 +15,16 @@ export class EncryptionService {
 
   constructor(private readonly configService: ConfigService) {
     const currentKey = this.configService.get<string>('ENCRYPTION_KEY');
-    const currentVersion =
-      this.configService.get<string>('ENCRYPTION_KEY_VERSION') || 'v1';
-    const previousKey = this.configService.get<string>(
-      'ENCRYPTION_KEY_PREVIOUS',
-    );
-    const previousVersion = this.configService.get<string>(
-      'ENCRYPTION_KEY_PREVIOUS_VERSION',
-    );
+    const currentVersion = this.configService.get<string>('ENCRYPTION_KEY_VERSION') || 'v1';
+    const previousKey = this.configService.get<string>('ENCRYPTION_KEY_PREVIOUS');
+    const previousVersion = this.configService.get<string>('ENCRYPTION_KEY_PREVIOUS_VERSION');
 
     if (!currentKey) {
       // CRITICAL: Encryption key MUST be configured in production
       if (process.env.NODE_ENV === 'production') {
-        throw new Error(
-          'SECURITY: ENCRYPTION_KEY must be configured in production',
-        );
+        throw new Error('SECURITY: ENCRYPTION_KEY must be configured in production');
       }
-      this.logger.warn(
-        'ENCRYPTION_KEY not configured - using ephemeral development key',
-      );
+      this.logger.warn('ENCRYPTION_KEY not configured - using ephemeral development key');
       // Use random key per process to prevent cross-process test data leakage
       this.currentVersion = 'dev';
       this.keys.set('dev', randomBytes(32));
@@ -50,10 +36,7 @@ export class EncryptionService {
 
       if (previousKey && previousVersion) {
         const previousSalt = `chapters-erp-${previousVersion}`;
-        this.keys.set(
-          previousVersion,
-          scryptSync(previousKey, previousSalt, 32),
-        );
+        this.keys.set(previousVersion, scryptSync(previousKey, previousSalt, 32));
       }
     }
   }
@@ -107,12 +90,7 @@ export class EncryptionService {
       throw new Error(`Unknown encryption key version: ${version}`);
     }
 
-    return this.performDecryption(
-      key,
-      ivBase64,
-      authTagBase64,
-      encryptedBase64,
-    );
+    return this.performDecryption(key, ivBase64, authTagBase64, encryptedBase64);
   }
 
   private decryptLegacy(parts: string[]): string {
@@ -121,13 +99,7 @@ export class EncryptionService {
     // Attempt with current key
     try {
       const key = this.keys.get(this.currentVersion);
-      if (key)
-        return this.performDecryption(
-          key,
-          ivBase64,
-          authTagBase64,
-          encryptedBase64,
-        );
+      if (key) return this.performDecryption(key, ivBase64, authTagBase64, encryptedBase64);
     } catch {
       // Ignore and try next
     }
@@ -136,12 +108,7 @@ export class EncryptionService {
     for (const [version, key] of this.keys.entries()) {
       if (version === this.currentVersion) continue;
       try {
-        return this.performDecryption(
-          key,
-          ivBase64,
-          authTagBase64,
-          encryptedBase64,
-        );
+        return this.performDecryption(key, ivBase64, authTagBase64, encryptedBase64);
       } catch {
         continue;
       }
@@ -150,12 +117,7 @@ export class EncryptionService {
     throw new Error('Failed to decrypt legacy ciphertext');
   }
 
-  private performDecryption(
-    key: Buffer,
-    ivB64: string,
-    tagB64: string,
-    encB64: string,
-  ): string {
+  private performDecryption(key: Buffer, ivB64: string, tagB64: string, encB64: string): string {
     const iv = Buffer.from(ivB64, 'base64');
     const authTag = Buffer.from(tagB64, 'base64');
     const encrypted = Buffer.from(encB64, 'base64');

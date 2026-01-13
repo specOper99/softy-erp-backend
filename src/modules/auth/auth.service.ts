@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
@@ -15,13 +9,7 @@ import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { UsersService } from '../users/services/users.service';
-import {
-  AuthResponseDto,
-  LoginDto,
-  MfaResponseDto,
-  RegisterDto,
-  TokensDto,
-} from './dto';
+import { AuthResponseDto, LoginDto, MfaResponseDto, RegisterDto, TokensDto } from './dto';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { AccountLockoutService } from './services/account-lockout.service';
@@ -29,11 +17,7 @@ import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
-import {
-  RequestContext,
-  TokenPayload,
-  TokenService,
-} from './services/token.service';
+import { RequestContext, TokenPayload, TokenService } from './services/token.service';
 
 @Injectable()
 export class AuthService {
@@ -56,13 +40,9 @@ export class AuthService {
 
   // A valid bcrypt hash (cost 10) to simulate password check time
   // This hash corresponds to 'password' or similar, but we never expect it to match
-  private readonly DUMMY_PASSWORD_HASH =
-    '$2b$10$nOUIs5kJ7naTuTFkBy1veuK0kSx.BNfviYuZFt.vl5vU1KbGytp.6';
+  private readonly DUMMY_PASSWORD_HASH = '$2b$10$nOUIs5kJ7naTuTFkBy1veuK0kSx.BNfviYuZFt.vl5vU1KbGytp.6';
 
-  async register(
-    registerDto: RegisterDto,
-    context?: RequestContext,
-  ): Promise<AuthResponseDto> {
+  async register(registerDto: RegisterDto, context?: RequestContext): Promise<AuthResponseDto> {
     const slug = registerDto.companyName
       .toLowerCase()
       .replaceAll(/[^a-z0-9]+/g, '-')
@@ -75,45 +55,30 @@ export class AuthService {
     try {
       let tenant;
       try {
-        tenant = await this.tenantsService.createWithManager(
-          queryRunner.manager,
-          {
-            name: registerDto.companyName,
-            slug,
-          },
-        );
+        tenant = await this.tenantsService.createWithManager(queryRunner.manager, {
+          name: registerDto.companyName,
+          slug,
+        });
       } catch (error: unknown) {
-        if (
-          error &&
-          typeof error === 'object' &&
-          'code' in error &&
-          (error as { code: string }).code === '23505'
-        ) {
-          throw new ConflictException(
-            'Tenant with this name or slug already exists',
-          );
+        if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+          throw new ConflictException('Tenant with this name or slug already exists');
         }
         throw error;
       }
 
       const tenantId = tenant.id;
 
-      const existingUser = await this.usersService.findByEmail(
-        registerDto.email,
-      );
+      const existingUser = await this.usersService.findByEmail(registerDto.email);
       if (existingUser) {
         throw new ConflictException('auth.email_already_registered');
       }
 
-      const user = await this.usersService.createWithManager(
-        queryRunner.manager,
-        {
-          email: registerDto.email,
-          password: registerDto.password,
-          role: Role.ADMIN,
-          tenantId: tenantId,
-        },
-      );
+      const user = await this.usersService.createWithManager(queryRunner.manager, {
+        email: registerDto.email,
+        password: registerDto.password,
+        role: Role.ADMIN,
+        tenantId: tenantId,
+      });
 
       await queryRunner.commitTransaction();
 
@@ -127,11 +92,7 @@ export class AuthService {
         await queryRunner.rollbackTransaction();
       }
 
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        (error as { code: string }).code === '23505'
-      ) {
+      if (error instanceof Error && 'code' in error && (error as { code: string }).code === '23505') {
         throw new BadRequestException('auth.email_already_registered');
       }
       throw error;
@@ -142,21 +103,14 @@ export class AuthService {
     }
   }
 
-  async login(
-    loginDto: LoginDto,
-    context?: RequestContext,
-  ): Promise<AuthResponseDto> {
+  async login(loginDto: LoginDto, context?: RequestContext): Promise<AuthResponseDto> {
     const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
     if (lockoutStatus.locked) {
       const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
-      throw new UnauthorizedException(
-        `Account temporarily locked. Try again in ${remainingSecs} seconds.`,
-      );
+      throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
     }
 
-    const user = await this.usersService.findByEmailWithMfaSecret(
-      loginDto.email,
-    );
+    const user = await this.usersService.findByEmailWithMfaSecret(loginDto.email);
     if (!user) {
       await this.lockoutService.recordFailedAttempt(loginDto.email);
       // Timing Attack Mitigation:
@@ -170,10 +124,7 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    const isPasswordValid = await this.usersService.validatePassword(
-      user,
-      loginDto.password,
-    );
+    const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
     if (!isPasswordValid) {
       await this.lockoutService.recordFailedAttempt(loginDto.email);
       throw new UnauthorizedException('Invalid credentials');
@@ -195,10 +146,7 @@ export class AuthService {
       }
 
       if (!isValid) {
-        const isRecoveryCodeValid = await this.mfaService.verifyRecoveryCode(
-          user,
-          loginDto.code,
-        );
+        const isRecoveryCodeValid = await this.mfaService.verifyRecoveryCode(user, loginDto.code);
         if (!isRecoveryCodeValid) {
           await this.lockoutService.recordFailedAttempt(loginDto.email);
           throw new UnauthorizedException('Invalid MFA code or recovery code');
@@ -209,10 +157,7 @@ export class AuthService {
     await this.lockoutService.clearAttempts(loginDto.email);
 
     if (context?.ipAddress) {
-      void this.sessionService.checkSuspiciousActivity(
-        user.id,
-        context.ipAddress,
-      );
+      void this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress);
     }
 
     return this.generateAuthResponse(user, context, loginDto.rememberMe);
@@ -242,10 +187,7 @@ export class AuthService {
     return this.mfaService.getRemainingRecoveryCodes(user);
   }
 
-  async refreshTokens(
-    refreshToken: string,
-    context?: RequestContext,
-  ): Promise<TokensDto> {
+  async refreshTokens(refreshToken: string, context?: RequestContext): Promise<TokensDto> {
     const tokenHash = this.tokenService.hashToken(refreshToken);
 
     return this.dataSource.transaction(async (manager) => {
@@ -268,11 +210,7 @@ export class AuthService {
             ipAddress: context?.ipAddress,
             userAgent: context?.userAgent,
           });
-          await manager.update(
-            RefreshToken,
-            { userId: storedToken.userId, isRevoked: false },
-            { isRevoked: true },
-          );
+          await manager.update(RefreshToken, { userId: storedToken.userId, isRevoked: false }, { isRevoked: true });
         }
         throw new UnauthorizedException('Refresh token expired or revoked');
       }
@@ -286,28 +224,16 @@ export class AuthService {
       storedToken.lastUsedAt = new Date();
       await manager.save(storedToken);
 
-      return this.tokenService.generateTokens(
-        user,
-        context,
-        false,
-        (userId, userAgent, ipAddress) => {
-          void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
-        },
-      );
+      return this.tokenService.generateTokens(user, context, false, (userId, userAgent, ipAddress) => {
+        void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
+      });
     });
   }
 
-  async logout(
-    userId: string,
-    refreshToken?: string,
-    accessToken?: string,
-  ): Promise<void> {
+  async logout(userId: string, refreshToken?: string, accessToken?: string): Promise<void> {
     if (accessToken) {
       // Blacklist access token
-      await this.tokenBlacklistService.blacklist(
-        accessToken,
-        this.tokenService.accessTokenExpiresIn,
-      );
+      await this.tokenBlacklistService.blacklist(accessToken, this.tokenService.accessTokenExpiresIn);
     }
 
     if (refreshToken) {
@@ -343,10 +269,7 @@ export class AuthService {
     return this.sessionService.revokeSession(userId, sessionId);
   }
 
-  async revokeOtherSessions(
-    userId: string,
-    currentRefreshToken: string,
-  ): Promise<number> {
+  async revokeOtherSessions(userId: string, currentRefreshToken: string): Promise<number> {
     return this.sessionService.revokeOtherSessions(userId, currentRefreshToken);
   }
 
@@ -410,14 +333,9 @@ export class AuthService {
     context?: RequestContext,
     rememberMe?: boolean,
   ): Promise<AuthResponseDto> {
-    const tokens = await this.tokenService.generateTokens(
-      user,
-      context,
-      rememberMe,
-      (userId, userAgent, ipAddress) => {
-        void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
-      },
-    );
+    const tokens = await this.tokenService.generateTokens(user, context, rememberMe, (userId, userAgent, ipAddress) => {
+      void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
+    });
 
     return {
       ...tokens,

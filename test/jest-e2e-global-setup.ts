@@ -22,9 +22,7 @@ export default async () => {
 
   // Safety rail
   if (!/test/i.test(databaseName)) {
-    throw new Error(
-      `Refusing to run e2e migrations against non-test database: ${databaseName}.`,
-    );
+    throw new Error(`Refusing to run e2e migrations against non-test database: ${databaseName}.`);
   }
 
   const adminDatabase = process.env.DB_ADMIN_DATABASE || 'postgres';
@@ -42,10 +40,7 @@ export default async () => {
 
   try {
     await adminDataSource.initialize();
-    const exists = await adminDataSource.query(
-      'SELECT 1 FROM pg_database WHERE datname = $1',
-      [databaseName],
-    );
+    const exists = await adminDataSource.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName]);
     if (!exists?.length) {
       await adminDataSource.query(`CREATE DATABASE "${databaseName}"`);
     }
@@ -63,9 +58,7 @@ export default async () => {
         await testDbDataSource.query('CREATE SCHEMA public');
       }
 
-      await testDbDataSource.query(
-        `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
-      );
+      await testDbDataSource.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
     } finally {
       if (testDbDataSource.isInitialized) {
         await testDbDataSource.destroy();
@@ -80,8 +73,8 @@ export default async () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const migrationDataSource = require('../src/database/data-source').default;
 
-  const registeredEntities = migrationDataSource.options.entities.map(
-    (e: any) => (typeof e === 'function' ? e.name : e),
+  const registeredEntities = migrationDataSource.options.entities.map((e: any) =>
+    typeof e === 'function' ? e.name : e,
   );
   console.log('E2E Migration DataSource Entities:', registeredEntities);
 

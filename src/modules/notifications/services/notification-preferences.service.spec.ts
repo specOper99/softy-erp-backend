@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotificationPreference } from '../entities/notification-preference.entity';
-import {
-  NotificationFrequency,
-  NotificationType,
-} from '../enums/notification.enum';
+import { NotificationFrequency, NotificationType } from '../enums/notification.enum';
 import { NotificationPreferencesService } from './notification-preferences.service';
 
 describe('NotificationPreferencesService', () => {
@@ -47,9 +44,7 @@ describe('NotificationPreferencesService', () => {
       ],
     }).compile();
 
-    service = module.get<NotificationPreferencesService>(
-      NotificationPreferencesService,
-    );
+    service = module.get<NotificationPreferencesService>(NotificationPreferencesService);
   });
 
   it('should be defined', () => {
@@ -124,9 +119,7 @@ describe('NotificationPreferencesService', () => {
     it('should handle multiple updates', async () => {
       preferenceRepository.findOne.mockResolvedValue(null);
       preferenceRepository.create.mockImplementation((data) => data);
-      preferenceRepository.save.mockImplementation((data) =>
-        Promise.resolve(data),
-      );
+      preferenceRepository.save.mockImplementation((data) => Promise.resolve(data));
 
       const updates = [
         {
@@ -150,10 +143,7 @@ describe('NotificationPreferencesService', () => {
     it('should return a specific preference', async () => {
       preferenceRepository.findOne.mockResolvedValue(mockPreference);
 
-      const result = await service.getPreference(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.getPreference(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(preferenceRepository.findOne).toHaveBeenCalledWith({
         where: {
@@ -167,10 +157,7 @@ describe('NotificationPreferencesService', () => {
     it('should return null when preference not found', async () => {
       preferenceRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.getPreference(
-        mockUserId,
-        NotificationType.BOOKING_UPDATED,
-      );
+      const result = await service.getPreference(mockUserId, NotificationType.BOOKING_UPDATED);
 
       expect(result).toBeNull();
     });

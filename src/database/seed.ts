@@ -14,30 +14,20 @@ class SeedLogger {
     process.stderr.write(`${message}\n`);
     if (error) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : typeof error === 'string'
-            ? error
-            : JSON.stringify(error);
+        error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error);
       process.stderr.write(`${errorMessage}\n`);
     }
   }
 }
 
 // Validate required environment variables
-const requiredEnvVars = [
-  'SEED_ADMIN_PASSWORD',
-  'SEED_STAFF_PASSWORD',
-  'SEED_OPS_PASSWORD',
-] as const;
+const requiredEnvVars = ['SEED_ADMIN_PASSWORD', 'SEED_STAFF_PASSWORD', 'SEED_OPS_PASSWORD'] as const;
 
 const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 if (missingEnvVars.length > 0) {
   SeedLogger.error('Missing required environment variables:');
   missingEnvVars.forEach((envVar) => SeedLogger.error(`   - ${envVar}`));
-  SeedLogger.error(
-    '\nPlease set these in your .env file before running the seeder.',
-  );
+  SeedLogger.error('\nPlease set these in your .env file before running the seeder.');
   process.exit(1);
 }
 
@@ -62,18 +52,7 @@ const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [
-    Tenant,
-    User,
-    Profile,
-    EmployeeWallet,
-    Transaction,
-    ServicePackage,
-    TaskType,
-    PackageItem,
-    Booking,
-    Task,
-  ],
+  entities: [Tenant, User, Profile, EmployeeWallet, Transaction, ServicePackage, TaskType, PackageItem, Booking, Task],
   synchronize: true, // Only for seeding - creates tables
 });
 
@@ -120,10 +99,7 @@ async function seed() {
 
     let _adminUser: User;
     if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(
-        process.env.SEED_ADMIN_PASSWORD!,
-        10,
-      );
+      const passwordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD!, 10);
       _adminUser = userRepo.create({
         email: 'admin@chapters.studio',
         passwordHash,
@@ -193,8 +169,7 @@ async function seed() {
     const packagesData = [
       {
         name: 'Wedding Premium',
-        description:
-          'Complete wedding coverage with photography, videography, drone, and full editing',
+        description: 'Complete wedding coverage with photography, videography, drone, and full editing',
         price: 2500,
         items: [
           { taskTypeName: 'Photography', quantity: 2 },
@@ -249,9 +224,7 @@ async function seed() {
 
         // Add package items
         for (const itemData of pkgData.items) {
-          const taskType = taskTypes.find(
-            (t) => t.name === itemData.taskTypeName,
-          );
+          const taskType = taskTypes.find((t) => t.name === itemData.taskTypeName);
           if (taskType) {
             const item = packageItemRepo.create({
               packageId: pkg.id,
@@ -296,10 +269,7 @@ async function seed() {
     for (const data of staffData) {
       let user = await userRepo.findOne({ where: { email: data.email } });
       if (!user) {
-        const passwordHash = await bcrypt.hash(
-          process.env.SEED_STAFF_PASSWORD!,
-          10,
-        );
+        const passwordHash = await bcrypt.hash(process.env.SEED_STAFF_PASSWORD!, 10);
         user = userRepo.create({
           email: data.email,
           passwordHash,
@@ -340,10 +310,7 @@ async function seed() {
       where: { email: 'ops@chapters.studio' },
     });
     if (!existingOps) {
-      const passwordHash = await bcrypt.hash(
-        process.env.SEED_OPS_PASSWORD!,
-        10,
-      );
+      const passwordHash = await bcrypt.hash(process.env.SEED_OPS_PASSWORD!, 10);
       const opsUser = userRepo.create({
         email: 'ops@chapters.studio',
         passwordHash,
@@ -364,15 +331,9 @@ async function seed() {
     SeedLogger.log('Login credentials:');
     SeedLogger.log('  Admin:    admin@chapters.studio / [SEED_ADMIN_PASSWORD]');
     SeedLogger.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');
-    SeedLogger.log(
-      '  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]',
-    );
-    SeedLogger.log(
-      '            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]',
-    );
-    SeedLogger.log(
-      '            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]\n',
-    );
+    SeedLogger.log('  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]\n');
   } catch (error) {
     SeedLogger.error('Seed failed:', error);
     process.exit(1);

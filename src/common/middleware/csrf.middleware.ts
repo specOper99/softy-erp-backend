@@ -1,9 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NestMiddleware,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { doubleCsrf } from 'csrf-csrf';
 import { NextFunction, Request, Response } from 'express';
@@ -15,22 +10,13 @@ export class CsrfMiddleware implements NestMiddleware {
   private readonly logger = new Logger(CsrfMiddleware.name);
   private readonly enabled: boolean;
   private readonly excludedPaths: string[];
-  private readonly doubleCsrfProtection: ReturnType<
-    typeof doubleCsrf
-  >['doubleCsrfProtection'];
-  private readonly generateCsrfToken: ReturnType<
-    typeof doubleCsrf
-  >['generateCsrfToken'];
+  private readonly doubleCsrfProtection: ReturnType<typeof doubleCsrf>['doubleCsrfProtection'];
+  private readonly generateCsrfToken: ReturnType<typeof doubleCsrf>['generateCsrfToken'];
 
   constructor(private readonly configService: ConfigService) {
     const enabled = this.configService.get<boolean>('CSRF_ENABLED', true);
     this.enabled = String(enabled) !== 'false';
-    this.excludedPaths = [
-      '/api/v1/webhooks',
-      '/api/v1/billing/webhooks',
-      '/api/v1/health',
-      '/api/v1/metrics',
-    ];
+    this.excludedPaths = ['/api/v1/webhooks', '/api/v1/billing/webhooks', '/api/v1/health', '/api/v1/metrics'];
 
     const isProd = this.configService.get('NODE_ENV') === 'production';
     const secret = this.configService.get<string>('CSRF_SECRET');
@@ -38,14 +24,10 @@ export class CsrfMiddleware implements NestMiddleware {
     // SECURITY: Enforce strong CSRF secret in production
     if (isProd && this.enabled) {
       if (!secret || secret.length < 32) {
-        throw new Error(
-          'CSRF_SECRET must be set and at least 32 characters in production when CSRF is enabled',
-        );
+        throw new Error('CSRF_SECRET must be set and at least 32 characters in production when CSRF is enabled');
       }
       if (secret === 'csrf-secret-change-in-production') {
-        throw new Error(
-          'CSRF_SECRET must be changed from the default value in production',
-        );
+        throw new Error('CSRF_SECRET must be changed from the default value in production');
       }
     }
 
@@ -60,9 +42,7 @@ export class CsrfMiddleware implements NestMiddleware {
         const tenantId = TenantContextService.getTenantId();
         if (tenantId) return tenantId;
 
-        const sessionId = (req.cookies as Record<string, string>)?.[
-          'session_id'
-        ];
+        const sessionId = (req.cookies as Record<string, string>)?.['session_id'];
         if (sessionId) return sessionId;
 
         // Fallback: hash IP + truncated user-agent for stable identifier

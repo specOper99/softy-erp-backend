@@ -29,18 +29,10 @@ export class AddAuditLogChaining1767800000002 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP RULE IF EXISTS prevent_audit_delete ON "audit_logs"`,
-    );
-    await queryRunner.query(
-      `DROP RULE IF EXISTS prevent_audit_update ON "audit_logs"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_audit_logs_sequence"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_audit_logs_hash"`,
-    );
+    await queryRunner.query(`DROP RULE IF EXISTS prevent_audit_delete ON "audit_logs"`);
+    await queryRunner.query(`DROP RULE IF EXISTS prevent_audit_update ON "audit_logs"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_audit_logs_sequence"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_audit_logs_hash"`);
     await queryRunner.query(`
       ALTER TABLE "audit_logs"
       DROP COLUMN IF EXISTS "sequence_number",

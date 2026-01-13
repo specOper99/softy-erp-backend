@@ -34,9 +34,7 @@ describe('Workflow Integration Tests (E2E)', () => {
 
     // Validate required environment variables
     if (!adminPassword || !staffPassword) {
-      throw new Error(
-        'Missing required environment variables: SEED_ADMIN_PASSWORD and/or SEED_STAFF_PASSWORD',
-      );
+      throw new Error('Missing required environment variables: SEED_ADMIN_PASSWORD and/or SEED_STAFF_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -82,12 +80,10 @@ describe('Workflow Integration Tests (E2E)', () => {
     adminToken = adminLoginRes.body.data.accessToken;
 
     // Login as staff (seeded user)
-    const staffLoginRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.staff.email,
-        password: staffPassword,
-      });
+    const staffLoginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: seedData.staff.email,
+      password: staffPassword,
+    });
     staffToken = staffLoginRes.body.data.accessToken;
 
     staffUserId = staffLoginRes.body.data.user.id;
@@ -124,8 +120,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
 
         .send({
-          clientId: (global as unknown as { testClientId: string })
-            .testClientId,
+          clientId: (global as unknown as { testClientId: string }).testClientId,
           eventDate: eventDate.toISOString(),
           packageId: packageId,
           notes: 'E2E workflow test booking',
@@ -155,9 +150,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       }
 
       expect(res.status).toBe(200);
-      expect(res.body.data.booking?.status || res.body.data.status).toBe(
-        BookingStatus.CONFIRMED,
-      );
+      expect(res.body.data.booking?.status || res.body.data.status).toBe(BookingStatus.CONFIRMED);
     });
 
     it('should have created tasks for the booking', async () => {
@@ -166,14 +159,10 @@ describe('Workflow Integration Tests (E2E)', () => {
         return;
       }
 
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/tasks')
-        .set('Authorization', `Bearer ${adminToken}`);
+      const res = await request(app.getHttpServer()).get('/api/v1/tasks').set('Authorization', `Bearer ${adminToken}`);
       // Handle wrapped response format { data: [...] }
       const tasks = res.body.data || res.body;
-      const bookingTasks = Array.isArray(tasks)
-        ? tasks.filter((t: Task) => t.bookingId === bookingId)
-        : [];
+      const bookingTasks = Array.isArray(tasks) ? tasks.filter((t: Task) => t.bookingId === bookingId) : [];
       expect(bookingTasks.length).toBeGreaterThan(0);
       expect(bookingTasks[0].status).toBe(TaskStatus.PENDING);
     });
@@ -191,10 +180,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       // Handle wrapped response format { data: [...] }
       const transactions = res.body.data || res.body;
       const bookingTransaction = Array.isArray(transactions)
-        ? transactions.find(
-            (t: Transaction) =>
-              t.bookingId === bookingId && t.type === TransactionType.INCOME,
-          )
+        ? transactions.find((t: Transaction) => t.bookingId === bookingId && t.type === TransactionType.INCOME)
         : undefined;
       expect(bookingTransaction).toBeDefined();
     });
@@ -211,9 +197,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`);
       // Handle wrapped response format { data: [...] }
       const tasks = tasksRes.body.data || tasksRes.body;
-      const pendingTask = Array.isArray(tasks)
-        ? tasks.find((t: Task) => t.status === TaskStatus.PENDING)
-        : undefined;
+      const pendingTask = Array.isArray(tasks) ? tasks.find((t: Task) => t.status === TaskStatus.PENDING) : undefined;
 
       if (pendingTask) {
         taskId = pendingTask.id;
@@ -293,9 +277,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       expect(res.status).toBe(200);
       // Handle wrapped response format { data: [...] }
       const transactions = res.body.data || res.body;
-      expect(
-        Array.isArray(transactions) ? transactions.length : 0,
-      ).toBeGreaterThan(0);
+      expect(Array.isArray(transactions) ? transactions.length : 0).toBeGreaterThan(0);
     });
   });
 

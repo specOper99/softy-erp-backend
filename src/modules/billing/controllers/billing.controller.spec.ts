@@ -51,9 +51,7 @@ describe('BillingController', () => {
     stripeService = module.get(StripeService);
 
     // Mock TenantContextService
-    jest
-      .spyOn(TenantContextServiceModule.TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
+    jest.spyOn(TenantContextServiceModule.TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);
   });
 
   afterEach(() => {
@@ -67,26 +65,18 @@ describe('BillingController', () => {
   describe('getSubscription', () => {
     it('should return subscription for tenant', async () => {
       const mockSubscription = { id: 'sub-1', status: 'active' };
-      subscriptionService.getSubscription.mockResolvedValue(
-        mockSubscription as any,
-      );
+      subscriptionService.getSubscription.mockResolvedValue(mockSubscription as any);
 
       const result = await controller.getSubscription();
 
-      expect(subscriptionService.getSubscription).toHaveBeenCalledWith(
-        mockTenantId,
-      );
+      expect(subscriptionService.getSubscription).toHaveBeenCalledWith(mockTenantId);
       expect(result).toEqual(mockSubscription);
     });
 
     it('should throw BadRequestException when no tenant context', async () => {
-      jest
-        .spyOn(TenantContextServiceModule.TenantContextService, 'getTenantId')
-        .mockReturnValue(undefined);
+      jest.spyOn(TenantContextServiceModule.TenantContextService, 'getTenantId').mockReturnValue(undefined);
 
-      await expect(controller.getSubscription()).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(controller.getSubscription()).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -94,9 +84,7 @@ describe('BillingController', () => {
     it('should create a subscription', async () => {
       const dto = { priceId: 'price_123', paymentMethodId: 'pm_123' };
       const mockSubscription = { id: 'sub-1', status: 'active' };
-      subscriptionService.createSubscription.mockResolvedValue(
-        mockSubscription as any,
-      );
+      subscriptionService.createSubscription.mockResolvedValue(mockSubscription as any);
 
       const result = await controller.createSubscription(dto);
 
@@ -113,9 +101,7 @@ describe('BillingController', () => {
     it('should cancel subscription immediately', async () => {
       const dto = { cancelAtPeriodEnd: false };
       const mockSubscription = { id: 'sub-1', status: 'canceled' };
-      subscriptionService.cancelSubscription.mockResolvedValue(
-        mockSubscription as any,
-      );
+      subscriptionService.cancelSubscription.mockResolvedValue(mockSubscription as any);
 
       const result = await controller.cancelSubscription(dto);
 
@@ -129,16 +115,11 @@ describe('BillingController', () => {
     it('should schedule cancellation at period end', async () => {
       const dto = { cancelAtPeriodEnd: true };
       const mockSubscription = { id: 'sub-1', cancelAtPeriodEnd: true };
-      subscriptionService.cancelSubscription.mockResolvedValue(
-        mockSubscription as any,
-      );
+      subscriptionService.cancelSubscription.mockResolvedValue(mockSubscription as any);
 
       const result = await controller.cancelSubscription(dto);
 
-      expect(subscriptionService.cancelSubscription).toHaveBeenCalledWith(
-        mockTenantId,
-        false,
-      );
+      expect(subscriptionService.cancelSubscription).toHaveBeenCalledWith(mockTenantId, false);
       expect(result).toEqual(mockSubscription);
     });
   });
@@ -154,16 +135,12 @@ describe('BillingController', () => {
       const mockCustomer = { stripeCustomerId: 'cus_123' };
       const mockSession = { id: 'cs_123', url: 'http://checkout.url' };
 
-      subscriptionService.getOrCreateCustomer.mockResolvedValue(
-        mockCustomer as any,
-      );
+      subscriptionService.getOrCreateCustomer.mockResolvedValue(mockCustomer as any);
       stripeService.createCheckoutSession.mockResolvedValue(mockSession as any);
 
       const result = await controller.createCheckoutSession(dto);
 
-      expect(subscriptionService.getOrCreateCustomer).toHaveBeenCalledWith(
-        mockTenantId,
-      );
+      expect(subscriptionService.getOrCreateCustomer).toHaveBeenCalledWith(mockTenantId);
       expect(stripeService.createCheckoutSession).toHaveBeenCalledWith({
         customer: mockCustomer.stripeCustomerId,
         mode: 'subscription',
@@ -185,12 +162,8 @@ describe('BillingController', () => {
       const mockCustomer = { stripeCustomerId: 'cus_123' };
       const mockSession = { url: 'http://portal.url' };
 
-      subscriptionService.getOrCreateCustomer.mockResolvedValue(
-        mockCustomer as any,
-      );
-      stripeService.createBillingPortalSession.mockResolvedValue(
-        mockSession as any,
-      );
+      subscriptionService.getOrCreateCustomer.mockResolvedValue(mockCustomer as any);
+      stripeService.createBillingPortalSession.mockResolvedValue(mockSession as any);
 
       const result = await controller.createPortalSession(dto);
 
@@ -207,9 +180,7 @@ describe('BillingController', () => {
       const mockCustomer = { stripeCustomerId: 'cus_123' };
       const mockInvoices = [{ id: 'in_123' }];
 
-      subscriptionService.getOrCreateCustomer.mockResolvedValue(
-        mockCustomer as any,
-      );
+      subscriptionService.getOrCreateCustomer.mockResolvedValue(mockCustomer as any);
       stripeService.listInvoices.mockResolvedValue(mockInvoices as any);
 
       const result = await controller.listInvoices();

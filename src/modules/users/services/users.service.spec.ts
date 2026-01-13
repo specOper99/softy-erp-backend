@@ -12,8 +12,7 @@ import { UsersService } from './users.service';
 
 // Test password constants - not real credentials, used only for unit test mocking
 const TEST_PASSWORD = process.env.TEST_MOCK_PASSWORD || 'KeepTesting123!';
-const TEST_WRONG_PASSWORD =
-  process.env.TEST_MOCK_PASSWORD_WRONG || 'WrongPass123!';
+const TEST_WRONG_PASSWORD = process.env.TEST_MOCK_PASSWORD_WRONG || 'WrongPass123!';
 
 describe('UsersService - Comprehensive Tests', () => {
   let service: UsersService;
@@ -31,11 +30,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
   const mockRepository = {
     create: jest.fn().mockImplementation((dto) => dto),
-    save: jest
-      .fn()
-      .mockImplementation((user) =>
-        Promise.resolve({ id: 'test-uuid-123', ...user }),
-      ),
+    save: jest.fn().mockImplementation((user) => Promise.resolve({ id: 'test-uuid-123', ...user })),
     find: jest.fn().mockResolvedValue([mockUser]),
     findOne: jest.fn(),
     remove: jest.fn().mockResolvedValue(mockUser),
@@ -81,9 +76,7 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     // Mock TenantContextService for tenant filter tests
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
   });
 
   // ============ CREATE USER TESTS ============
@@ -137,11 +130,7 @@ describe('UsersService - Comprehensive Tests', () => {
     it('should create user with a manager (transactional)', async () => {
       const mockManager = {
         create: jest.fn().mockImplementation((_entity, data) => data),
-        save: jest
-          .fn()
-          .mockImplementation((data) =>
-            Promise.resolve({ id: 'managed-uuid', ...data }),
-          ),
+        save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'managed-uuid', ...data })),
       } as any;
 
       const dto = {
@@ -173,10 +162,7 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should return multiple users', async () => {
-      const users = [
-        mockUser,
-        { ...mockUser, id: 'uuid-2', email: 'user2@example.com' },
-      ];
+      const users = [mockUser, { ...mockUser, id: 'uuid-2', email: 'user2@example.com' }];
       mockRepository.find.mockResolvedValueOnce(users);
       const result = await service.findAll();
       expect(result.length).toBe(2);
@@ -207,10 +193,7 @@ describe('UsersService - Comprehensive Tests', () => {
         expect(qbMock.where).toHaveBeenCalledWith('user.id IN (:...ids)', {
           ids: ['test-uuid-123'],
         });
-        expect(qbMock.andWhere).toHaveBeenCalledWith(
-          'user.tenantId = :tenantId',
-          { tenantId: 'tenant-123' },
-        );
+        expect(qbMock.andWhere).toHaveBeenCalledWith('user.tenantId = :tenantId', { tenantId: 'tenant-123' });
       });
 
       it('should return empty array for empty ids', async () => {
@@ -228,9 +211,7 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for invalid UUID', async () => {
-      await expect(service.findOne('invalid-uuid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('invalid-uuid')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw NotFoundException for empty string', async () => {
@@ -299,9 +280,7 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException when updating non-existent user', async () => {
-      await expect(
-        service.update('invalid-id', { email: 'test@test.com' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('invalid-id', { email: 'test@test.com' })).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -320,9 +299,7 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException when deleting non-existent user', async () => {
-      await expect(service.remove('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('invalid-id')).rejects.toThrow(NotFoundException);
     });
   });
   // ============ PASSWORD VALIDATION TESTS ============

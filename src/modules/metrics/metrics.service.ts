@@ -1,12 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'node:crypto';
-import {
-  collectDefaultMetrics,
-  Counter,
-  Gauge,
-  Histogram,
-  register,
-} from 'prom-client';
+import { collectDefaultMetrics, Counter, Gauge, Histogram, register } from 'prom-client';
 import { MetricsFactory } from '../../common/services/metrics.factory';
 
 // Initialize default metrics (CPU, memory, event loop, etc.)

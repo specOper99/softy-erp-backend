@@ -32,10 +32,7 @@ export class ExportService {
   ): void {
     const sanitizedFilename = this.sanitizeFilename(filename);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${sanitizedFilename}"`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
 
     const json2csv = new Transform({ fields }, { objectMode: true });
 

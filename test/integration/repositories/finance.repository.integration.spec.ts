@@ -63,15 +63,9 @@ describe('FinanceRepository Integration Tests', () => {
         // There might be others.
         // Let's filter by checking definition if possible?
         // SELECT pg_get_constraintdef(oid) ...
-        const def = (
-          await dataSource.query(
-            `SELECT pg_get_constraintdef(${c.oid}, true) as def`,
-          )
-        )[0].def;
+        const def = (await dataSource.query(`SELECT pg_get_constraintdef(${c.oid}, true) as def`))[0].def;
         if (def.includes('booking_id') && def.includes('task_id')) {
-          await dataSource.query(
-            `ALTER TABLE "transactions" DROP CONSTRAINT "${c.conname}"`,
-          );
+          await dataSource.query(`ALTER TABLE "transactions" DROP CONSTRAINT "${c.conname}"`);
         }
       }
 
@@ -329,9 +323,7 @@ describe('FinanceRepository Integration Tests', () => {
         where: { id: transaction.id },
       });
 
-      expect(updated?.updatedAt.getTime()).toBeGreaterThan(
-        created!.createdAt.getTime(),
-      );
+      expect(updated?.updatedAt.getTime()).toBeGreaterThan(created!.createdAt.getTime());
     });
   });
 

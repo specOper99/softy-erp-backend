@@ -8,12 +8,7 @@ import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.eve
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
 import { DailyMetrics } from '../entities/daily-metrics.entity';
 
-@EventsHandler(
-  BookingConfirmedEvent,
-  TaskCompletedEvent,
-  BookingCancelledEvent,
-  PaymentRecordedEvent,
-)
+@EventsHandler(BookingConfirmedEvent, TaskCompletedEvent, BookingCancelledEvent, PaymentRecordedEvent)
 export class UpdateMetricsHandler
   implements
     IEventHandler<BookingConfirmedEvent>,
@@ -28,13 +23,7 @@ export class UpdateMetricsHandler
     private readonly metricsRepository: Repository<DailyMetrics>,
   ) {}
 
-  async handle(
-    event:
-      | BookingConfirmedEvent
-      | TaskCompletedEvent
-      | BookingCancelledEvent
-      | PaymentRecordedEvent,
-  ) {
+  async handle(event: BookingConfirmedEvent | TaskCompletedEvent | BookingCancelledEvent | PaymentRecordedEvent) {
     const tenantId = event.tenantId;
     // Use event date or current date for metrics?
     // Usually metrics are based on when the event happened (eventDate usually refers to the booking event date, not creation date).
@@ -135,35 +124,14 @@ export class UpdateMetricsHandler
 
       if (isDuplicate) {
         if (bookingsCount > 0)
-          await this.metricsRepository.increment(
-            { tenantId, date },
-            'bookingsCount',
-            bookingsCount,
-          );
+          await this.metricsRepository.increment({ tenantId, date }, 'bookingsCount', bookingsCount);
         if (tasksCompletedCount > 0)
-          await this.metricsRepository.increment(
-            { tenantId, date },
-            'tasksCompletedCount',
-            tasksCompletedCount,
-          );
+          await this.metricsRepository.increment({ tenantId, date }, 'tasksCompletedCount', tasksCompletedCount);
         if (activeClientsCount > 0)
-          await this.metricsRepository.increment(
-            { tenantId, date },
-            'activeClientsCount',
-            activeClientsCount,
-          );
+          await this.metricsRepository.increment({ tenantId, date }, 'activeClientsCount', activeClientsCount);
         if (cancellationsCount > 0)
-          await this.metricsRepository.increment(
-            { tenantId, date },
-            'cancellationsCount',
-            cancellationsCount,
-          );
-        if (totalRevenue > 0)
-          await this.metricsRepository.increment(
-            { tenantId, date },
-            'totalRevenue',
-            totalRevenue,
-          );
+          await this.metricsRepository.increment({ tenantId, date }, 'cancellationsCount', cancellationsCount);
+        if (totalRevenue > 0) await this.metricsRepository.increment({ tenantId, date }, 'totalRevenue', totalRevenue);
       } else {
         throw error;
       }

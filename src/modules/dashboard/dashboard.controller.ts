@@ -1,19 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Put,
-  Query,
-  Res,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Put, Query, Res, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { GlobalCacheInterceptor } from '../../common/cache/cache.interceptor';
 import { Cacheable } from '../../common/decorators/cacheable.decorator';
@@ -68,9 +54,7 @@ export class DashboardController {
   @Get('summary')
   @ApiOperation({ summary: 'Get monthly revenue vs payouts summary' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
-  async getSummary(
-    @Query() query: ReportQueryDto,
-  ): Promise<RevenueSummaryDto[]> {
+  async getSummary(@Query() query: ReportQueryDto): Promise<RevenueSummaryDto[]> {
     return this.dashboardService.getRevenueSummary(query);
   }
 
@@ -84,27 +68,21 @@ export class DashboardController {
   @Get('booking-trends')
   @ApiOperation({ summary: 'Get booking trends over time' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
-  async getBookingTrends(
-    @Query() query: ReportQueryDto,
-  ): Promise<BookingTrendDto[]> {
+  async getBookingTrends(@Query() query: ReportQueryDto): Promise<BookingTrendDto[]> {
     return this.dashboardService.getBookingTrends(query);
   }
 
   @Get('staff-performance')
   @ApiOperation({ summary: 'Get staff performance ranking' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
-  async getStaffPerformance(
-    @Query() query: ReportQueryDto,
-  ): Promise<StaffPerformanceDto[]> {
+  async getStaffPerformance(@Query() query: ReportQueryDto): Promise<StaffPerformanceDto[]> {
     return this.dashboardService.getStaffPerformance(query);
   }
 
   @Get('package-stats')
   @ApiOperation({ summary: 'Get service package popularity and revenue' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
-  async getPackageStats(
-    @Query() query: ReportQueryDto,
-  ): Promise<PackageStatsDto[]> {
+  async getPackageStats(@Query() query: ReportQueryDto): Promise<PackageStatsDto[]> {
     return this.dashboardService.getPackageStats(query);
   }
 
@@ -112,18 +90,14 @@ export class DashboardController {
   @ApiOperation({ summary: 'Export dashboard data as CSV or PDF' })
   @ApiQuery({ name: 'format', enum: ExportFormat, required: false })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
-  async exportData(
-    @Query() query: ExportQueryDto,
-    @Res() res: Response,
-  ): Promise<void> {
-    const [kpis, revenue, bookingTrends, staffPerformance, packageStats] =
-      await Promise.all([
-        this.dashboardService.getKpiSummary(query),
-        this.dashboardService.getRevenueStats(query),
-        this.dashboardService.getBookingTrends(query),
-        this.dashboardService.getStaffPerformance(query),
-        this.dashboardService.getPackageStats(query),
-      ]);
+  async exportData(@Query() query: ExportQueryDto, @Res() res: Response): Promise<void> {
+    const [kpis, revenue, bookingTrends, staffPerformance, packageStats] = await Promise.all([
+      this.dashboardService.getKpiSummary(query),
+      this.dashboardService.getRevenueStats(query),
+      this.dashboardService.getBookingTrends(query),
+      this.dashboardService.getStaffPerformance(query),
+      this.dashboardService.getPackageStats(query),
+    ]);
 
     if (query.format === ExportFormat.PDF) {
       const pdfBytes = await this.reportGeneratorService.generateDashboardPdf({
@@ -149,12 +123,8 @@ export class DashboardController {
       csvRows.push('Metric,Value');
       csvRows.push(`Total Revenue,${kpis.totalRevenue}`);
       csvRows.push(`Total Bookings,${kpis.totalBookings}`);
-      csvRows.push(
-        `Task Completion Rate,${kpis.taskCompletionRate.toFixed(2)}%`,
-      );
-      csvRows.push(
-        `Average Booking Value,${kpis.averageBookingValue.toFixed(2)}`,
-      );
+      csvRows.push(`Task Completion Rate,${kpis.taskCompletionRate.toFixed(2)}%`);
+      csvRows.push(`Average Booking Value,${kpis.averageBookingValue.toFixed(2)}`);
       csvRows.push(`Active Staff Count,${kpis.activeStaffCount}`);
       csvRows.push('');
 
@@ -195,19 +165,14 @@ export class DashboardController {
       const filename = `dashboard-report-${new Date().toISOString().split('T')[0]}.csv`;
 
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${filename}"`,
-      );
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(csvContent);
     }
   }
 
   @Get('preferences')
   @ApiOperation({ summary: 'Get user dashboard preferences' })
-  async getPreferences(
-    @CurrentUser() user: User,
-  ): Promise<UserDashboardConfig> {
+  async getPreferences(@CurrentUser() user: User): Promise<UserDashboardConfig> {
     return this.dashboardService.getUserPreferences(user.id);
   }
 

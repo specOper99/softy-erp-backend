@@ -181,9 +181,7 @@ describe('Financial Report Controller (e2e)', () => {
         .expect(200);
 
       expect(response.headers['content-type']).toBe('application/pdf');
-      expect(response.headers['content-disposition']).toContain(
-        'profit_and_loss.pdf',
-      );
+      expect(response.headers['content-disposition']).toContain('profit_and_loss.pdf');
       expect(response.body.length).toBeGreaterThan(0);
     });
   });
@@ -197,9 +195,7 @@ describe('Financial Report Controller (e2e)', () => {
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-      const pkgData = response.body.find(
-        (d) => d.packageName === 'Wedding Premium',
-      );
+      const pkgData = response.body.find((d) => d.packageName === 'Wedding Premium');
       // Note: If tests run in parallel or DB isn't reset, counts might be higher.
       // But typically E2E_DB_RESET=true ensures fresh DB or we just check > 0
       expect(pkgData).toBeDefined();
@@ -216,9 +212,7 @@ describe('Financial Report Controller (e2e)', () => {
         .expect(200);
 
       expect(response.headers['content-type']).toBe('application/pdf');
-      expect(response.headers['content-disposition']).toContain(
-        'revenue_by_package.pdf',
-      );
+      expect(response.headers['content-disposition']).toContain('revenue_by_package.pdf');
       expect(response.body.length).toBeGreaterThan(0);
     });
   });

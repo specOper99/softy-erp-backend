@@ -114,12 +114,8 @@ describe('TenantQuotaGuard', () => {
       });
       const context = createMockContext('tenant-123');
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Quota exceeded for max_users',
-      );
+      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(guard.canActivate(context)).rejects.toThrow('Quota exceeded for max_users');
     });
   });
 });

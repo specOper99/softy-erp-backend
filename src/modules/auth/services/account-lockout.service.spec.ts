@@ -105,9 +105,7 @@ describe('AccountLockoutService', () => {
   describe('clearAttempts', () => {
     it('should delete keys from cache', async () => {
       await service.clearAttempts('test@test.com');
-      expect(mockCacheService.del).toHaveBeenCalledWith(
-        'lockout:test@test.com',
-      );
+      expect(mockCacheService.del).toHaveBeenCalledWith('lockout:test@test.com');
     });
   });
 });

@@ -22,9 +22,7 @@ describe('Audit Log E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -57,12 +55,10 @@ describe('Audit Log E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
 
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
 
     accessToken = loginResponse.body.data?.accessToken;
 
@@ -111,9 +107,7 @@ describe('Audit Log E2E Tests', () => {
 
           // Should return different records
           if (secondResponse.body.data.data.length > 0) {
-            expect(secondResponse.body.data.data[0].id).not.toBe(
-              firstResponse.body.data.data[0].id,
-            );
+            expect(secondResponse.body.data.data[0].id).not.toBe(firstResponse.body.data.data[0].id);
           }
         }
       });

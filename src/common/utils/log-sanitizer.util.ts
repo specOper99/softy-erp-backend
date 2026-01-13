@@ -1,8 +1,5 @@
 import 'reflect-metadata';
-import {
-  PII_FIELD_PATTERNS,
-  PII_METADATA_KEY,
-} from '../decorators/pii.decorator';
+import { PII_FIELD_PATTERNS, PII_METADATA_KEY } from '../decorators/pii.decorator';
 
 export class LogSanitizer {
   private static readonly MASK = '***';
@@ -25,8 +22,7 @@ export class LogSanitizer {
 
     // Get PII fields from metadata if the object is an instance of a class
     const constructor = value.constructor;
-    const piiFields =
-      (Reflect.getMetadata(PII_METADATA_KEY, constructor) as string[]) || [];
+    const piiFields = (Reflect.getMetadata(PII_METADATA_KEY, constructor) as string[]) || [];
 
     for (const key of Object.keys(value as Record<string, unknown>)) {
       const val = (value as Record<string, unknown>)[key];

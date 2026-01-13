@@ -79,10 +79,7 @@ describe('AttendanceController', () => {
       };
       service.create.mockResolvedValue(mockAttendance as any);
 
-      const result = await controller.create(
-        dto as any,
-        mockFieldStaffUser as any,
-      );
+      const result = await controller.create(dto as any, mockFieldStaffUser as any);
 
       expect(service.create).toHaveBeenCalledWith(dto);
       expect(result).toEqual(mockAttendance);
@@ -95,9 +92,7 @@ describe('AttendanceController', () => {
         checkIn: '2024-01-15T09:00:00',
       };
 
-      expect(() =>
-        controller.create(dto as any, mockFieldStaffUser as any),
-      ).toThrow(
+      expect(() => controller.create(dto as any, mockFieldStaffUser as any)).toThrow(
         'Field staff can only create attendance records for themselves',
       );
     });
@@ -125,10 +120,7 @@ describe('AttendanceController', () => {
     it('should only return own records for field staff', async () => {
       service.findAll.mockResolvedValue([mockAttendance] as any);
 
-      const result = await controller.findAll(
-        undefined,
-        mockFieldStaffUser as any,
-      );
+      const result = await controller.findAll(undefined, mockFieldStaffUser as any);
 
       expect(service.findAll).toHaveBeenCalledWith('user-1');
       expect(result).toHaveLength(1);
@@ -148,10 +140,7 @@ describe('AttendanceController', () => {
     it('should allow field staff to view own attendance', async () => {
       service.findOne.mockResolvedValue(mockAttendance as any);
 
-      const result = await controller.findOne(
-        'att-1',
-        mockFieldStaffUser as any,
-      );
+      const result = await controller.findOne('att-1', mockFieldStaffUser as any);
 
       expect(service.findOne).toHaveBeenCalledWith('att-1');
       expect(result).toEqual(mockAttendance);
@@ -161,9 +150,7 @@ describe('AttendanceController', () => {
       const otherAttendance = { ...mockAttendance, userId: 'other-user' };
       service.findOne.mockResolvedValue(otherAttendance as any);
 
-      await expect(
-        controller.findOne('att-1', mockFieldStaffUser as any),
-      ).rejects.toThrow(
+      await expect(controller.findOne('att-1', mockFieldStaffUser as any)).rejects.toThrow(
         'Field staff can only view their own attendance records',
       );
     });

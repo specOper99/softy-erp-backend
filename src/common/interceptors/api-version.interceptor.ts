@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-  StreamableFile,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor, StreamableFile } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Observable, map } from 'rxjs';
 
@@ -27,16 +21,11 @@ export class ApiVersionInterceptor implements NestInterceptor {
     // Check for deprecated endpoints (can be enhanced per-route)
     const request = context.switchToHttp().getRequest<Request>();
     const deprecatedRoutes = this.getDeprecatedRoutes();
-    const matchedDeprecation = deprecatedRoutes.find((d) =>
-      request.url.startsWith(d.path),
-    );
+    const matchedDeprecation = deprecatedRoutes.find((d) => request.url.startsWith(d.path));
 
     if (matchedDeprecation) {
       response.setHeader('Deprecation', matchedDeprecation.sunsetDate);
-      response.setHeader(
-        'Sunset',
-        new Date(matchedDeprecation.sunsetDate).toUTCString(),
-      );
+      response.setHeader('Sunset', new Date(matchedDeprecation.sunsetDate).toUTCString());
       response.setHeader('Link', matchedDeprecation.replacement);
     }
 

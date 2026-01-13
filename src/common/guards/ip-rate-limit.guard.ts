@@ -1,11 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
@@ -48,25 +41,22 @@ export class IpRateLimitGuard implements CanActivate {
     // 100 requests per minute hard limit (blocks IP)
     this.hardLimit = this.configService.get<number>('RATE_LIMIT_HARD') || 100;
     // 1 minute window (default)
-    const windowSeconds =
-      this.configService.get<number>('RATE_LIMIT_WINDOW_SECONDS') || 60;
+    const windowSeconds = this.configService.get<number>('RATE_LIMIT_WINDOW_SECONDS') || 60;
     this.windowMs = windowSeconds * 1000;
 
     // 15 minute block duration (default)
-    const blockSeconds =
-      this.configService.get<number>('RATE_LIMIT_BLOCK_SECONDS') || 900;
+    const blockSeconds = this.configService.get<number>('RATE_LIMIT_BLOCK_SECONDS') || 900;
     this.blockDurationMs = blockSeconds * 1000;
 
     // Only trust proxy headers when explicitly enabled
-    this.trustProxyHeaders =
-      this.configService.get<string>('TRUST_PROXY') === 'true';
+    this.trustProxyHeaders = this.configService.get<string>('TRUST_PROXY') === 'true';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const skip = this.reflector.getAllAndOverride<boolean>(
-      SKIP_IP_RATE_LIMIT_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const skip = this.reflector.getAllAndOverride<boolean>(SKIP_IP_RATE_LIMIT_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (skip) {
       return true;
     }
@@ -102,12 +92,8 @@ export class IpRateLimitGuard implements CanActivate {
 
       // Authenticated users get full limits, anonymous get half
       const isAuthenticated = !!(request as Request & { user?: unknown }).user;
-      const effectiveSoftLimit = isAuthenticated
-        ? this.softLimit
-        : Math.floor(this.softLimit / 2);
-      const effectiveHardLimit = isAuthenticated
-        ? this.hardLimit
-        : Math.floor(this.hardLimit / 2);
+      const effectiveSoftLimit = isAuthenticated ? this.softLimit : Math.floor(this.softLimit / 2);
+      const effectiveHardLimit = isAuthenticated ? this.hardLimit : Math.floor(this.hardLimit / 2);
 
       // Check hard limit - block IP
       if (info.count > effectiveHardLimit) {
@@ -128,14 +114,8 @@ export class IpRateLimitGuard implements CanActivate {
 
       // Check soft limit - reject instead of server-side sleeping (avoids self-DoS)
       if (info.count > effectiveSoftLimit) {
-        const windowRemainingMs = Math.max(
-          0,
-          this.windowMs - (now - info.firstRequest),
-        );
-        const retryAfterSeconds = Math.max(
-          1,
-          Math.ceil(windowRemainingMs / 1000),
-        );
+        const windowRemainingMs = Math.max(0, this.windowMs - (now - info.firstRequest));
+        const retryAfterSeconds = Math.max(1, Math.ceil(windowRemainingMs / 1000));
         response?.setHeader?.('Retry-After', String(retryAfterSeconds));
         throw new HttpException(
           {

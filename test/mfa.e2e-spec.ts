@@ -132,13 +132,11 @@ describe('MFA E2E Tests', () => {
 
   it('6. Disable MFA', async () => {
     const code = authenticator.generate(mfaSecret);
-    const loginRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: testEmail,
-        password: testPassword,
-        code,
-      });
+    const loginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: testEmail,
+      password: testPassword,
+      code,
+    });
     const newToken = loginRes.body.data.accessToken;
 
     await request(app.getHttpServer())
@@ -255,9 +253,7 @@ describe('MFA E2E Tests', () => {
         .expect(200);
 
       expect(response.body.data.remaining).toBe(2);
-      expect(response.body.data.warning).toContain(
-        'Only 2 recovery codes remaining',
-      );
+      expect(response.body.data.warning).toContain('Only 2 recovery codes remaining');
     });
 
     it('13. Regenerate recovery codes should work', async () => {
@@ -271,9 +267,7 @@ describe('MFA E2E Tests', () => {
 
       // Verify new codes are different from old ones
       const newCodes = response.body.data.codes;
-      const hasNewCodes = newCodes.some(
-        (newCode: string) => !recoveryCodes.includes(newCode),
-      );
+      const hasNewCodes = newCodes.some((newCode: string) => !recoveryCodes.includes(newCode));
       expect(hasNewCodes).toBe(true);
     });
 
@@ -281,26 +275,22 @@ describe('MFA E2E Tests', () => {
       const oldCode = recoveryCodes[8]; // An unused code from the original set
 
       // Should fail because code is invalid or too short (validation error = 400)
-      const response = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({
-          email: testEmail,
-          password: testPassword,
-          code: oldCode,
-        });
+      const response = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        code: oldCode,
+      });
 
       // Accept either 400 (validation) or 401 (invalid code)
       expect([400, 401]).toContain(response.status);
     });
 
     it('14. Invalid recovery code should fail', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({
-          email: testEmail,
-          password: testPassword,
-          code: 'INVALID1',
-        });
+      const response = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        code: 'INVALID1',
+      });
 
       // Should be 401 because code is incorrect (but valid length)
       expect(response.status).toBe(401);
@@ -310,13 +300,11 @@ describe('MFA E2E Tests', () => {
   it('15. Final login without MFA code (cleanup check)', async () => {
     // Disable MFA for cleanup
     const code = authenticator.generate(mfaSecret);
-    const loginRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: testEmail,
-        password: testPassword,
-        code,
-      });
+    const loginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: testEmail,
+      password: testPassword,
+      code,
+    });
     const newToken = loginRes.body.data.accessToken;
 
     await request(app.getHttpServer())

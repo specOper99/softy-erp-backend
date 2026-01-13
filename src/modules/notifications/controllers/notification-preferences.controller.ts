@@ -11,9 +11,7 @@ import { NotificationPreferencesService } from '../services/notification-prefere
 @UseGuards(JwtAuthGuard)
 @Controller('notifications/preferences')
 export class NotificationPreferencesController {
-  constructor(
-    private readonly preferencesService: NotificationPreferencesService,
-  ) {}
+  constructor(private readonly preferencesService: NotificationPreferencesService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get current user notification preferences' })
@@ -23,10 +21,7 @@ export class NotificationPreferencesController {
 
   @Put()
   @ApiOperation({ summary: 'Update notification preferences' })
-  async updatePreferences(
-    @CurrentUser() user: User,
-    @Body() body: UpdateNotificationPreferenceDto[],
-  ) {
+  async updatePreferences(@CurrentUser() user: User, @Body() body: UpdateNotificationPreferenceDto[]) {
     return this.preferencesService.updatePreferences(user.id, body);
   }
 }

@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { Observable } from 'rxjs';
@@ -20,15 +15,13 @@ import { SKIP_TENANT_KEY } from '../decorators/skip-tenant.decorator';
 export class TenantGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
     const _request = context.switchToHttp().getRequest<Request>();
 
-    const skipTenant = this.reflector.getAllAndOverride<boolean>(
-      SKIP_TENANT_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const skipTenant = this.reflector.getAllAndOverride<boolean>(SKIP_TENANT_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (skipTenant) {
       return true;
     }

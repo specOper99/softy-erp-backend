@@ -65,17 +65,9 @@ describe('TimeEntriesController', () => {
       };
       service.stopTimer.mockResolvedValue(stoppedEntry as any);
 
-      const result = await controller.stopTimer(
-        mockUser as any,
-        'entry-123',
-        dto as any,
-      );
+      const result = await controller.stopTimer(mockUser as any, 'entry-123', dto as any);
 
-      expect(service.stopTimer).toHaveBeenCalledWith(
-        mockUser.id,
-        'entry-123',
-        dto,
-      );
+      expect(service.stopTimer).toHaveBeenCalledWith(mockUser.id, 'entry-123', dto);
       expect(result.status).toBe(TimeEntryStatus.STOPPED);
     });
   });
@@ -118,17 +110,9 @@ describe('TimeEntriesController', () => {
         notes: 'updated',
       } as any);
 
-      const result = await controller.update(
-        mockUser as any,
-        'entry-123',
-        dto as any,
-      );
+      const result = await controller.update(mockUser as any, 'entry-123', dto as any);
 
-      expect(service.update).toHaveBeenCalledWith(
-        mockUser.id,
-        'entry-123',
-        dto,
-      );
+      expect(service.update).toHaveBeenCalledWith(mockUser.id, 'entry-123', dto);
       expect(result.notes).toBe('updated');
     });
   });

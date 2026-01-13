@@ -44,9 +44,7 @@ describe('BookingsRepository Integration Tests', () => {
 
   beforeEach(async () => {
     // Clean up tables before each test
-    await dataSource.query(
-      'TRUNCATE TABLE "tasks", "bookings", "service_packages", "clients" CASCADE',
-    );
+    await dataSource.query('TRUNCATE TABLE "tasks", "bookings", "service_packages", "clients" CASCADE');
   });
 
   describe('Multi-tenant Data Isolation', () => {

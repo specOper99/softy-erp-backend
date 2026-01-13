@@ -45,9 +45,7 @@ export class CreateInvoicesTable1735940000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "invoices" DROP CONSTRAINT "FK_invoices_booking_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "invoices" DROP CONSTRAINT "FK_invoices_booking_id"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_invoices_tenant_id"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_invoices_tenant_number"`);
     await queryRunner.query(`DROP TABLE "invoices"`);

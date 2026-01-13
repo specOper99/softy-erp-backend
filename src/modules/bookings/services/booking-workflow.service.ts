@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
@@ -65,40 +60,25 @@ export class BookingWorkflowService {
       // Step 2: Fetch actual data with relations.
       const booking = await queryRunner.manager.findOne(Booking, {
         where: { id, tenantId },
-        relations: [
-          'client',
-          'servicePackage',
-          'servicePackage.packageItems',
-          'servicePackage.packageItems.taskType',
-        ],
+        relations: ['client', 'servicePackage', 'servicePackage.packageItems', 'servicePackage.packageItems.taskType'],
       });
 
       if (!booking) {
         throw new NotFoundException(`Booking with ID ${id} not found`);
       }
 
-      this.stateMachine.validateTransition(
-        booking.status,
-        BookingStatus.CONFIRMED,
-      );
+      this.stateMachine.validateTransition(booking.status, BookingStatus.CONFIRMED);
 
       booking.status = BookingStatus.CONFIRMED;
       await queryRunner.manager.save(booking);
 
       // Step 3: Generate Tasks from package items (bulk insert for performance)
-      const packageItems = await (booking.servicePackage?.packageItems ??
-        Promise.resolve([]));
+      const packageItems = await (booking.servicePackage?.packageItems ?? Promise.resolve([]));
       const tasksToCreate: Partial<Task>[] = [];
-      const maxTasks = this.configService.get<number>(
-        'booking.maxTasksPerBooking',
-        500,
-      );
+      const maxTasks = this.configService.get<number>('booking.maxTasksPerBooking', 500);
 
       // Calculate total tasks to be created
-      const totalTasksCount = packageItems.reduce(
-        (sum, item) => sum + (item.quantity || 0),
-        0,
-      );
+      const totalTasksCount = packageItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
       if (totalTasksCount > maxTasks) {
         throw new BadRequestException(
@@ -113,8 +93,7 @@ export class BookingWorkflowService {
             taskTypeId: item.taskTypeId,
             status: TaskStatus.PENDING,
             commissionSnapshot:
-              (item as { taskType?: { defaultCommissionAmount?: number } })
-                .taskType?.defaultCommissionAmount ?? 0,
+              (item as { taskType?: { defaultCommissionAmount?: number } }).taskType?.defaultCommissionAmount ?? 0,
             dueDate: booking.eventDate,
             tenantId: booking.tenantId,
           });
@@ -124,18 +103,14 @@ export class BookingWorkflowService {
       const createdTasks = await queryRunner.manager.save(Task, tasksToCreate);
 
       // Step 3: Create INCOME transaction
-      const transaction =
-        await this.financeService.createTransactionWithManager(
-          queryRunner.manager,
-          {
-            type: TransactionType.INCOME,
-            amount: Number(booking.totalPrice),
-            category: 'Booking Payment',
-            bookingId: booking.id,
-            description: `Booking confirmed: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name} `,
-            transactionDate: new Date(),
-          },
-        );
+      const transaction = await this.financeService.createTransactionWithManager(queryRunner.manager, {
+        type: TransactionType.INCOME,
+        amount: Number(booking.totalPrice),
+        category: 'Booking Payment',
+        bookingId: booking.id,
+        description: `Booking confirmed: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name} `,
+        transactionDate: new Date(),
+      });
 
       // Step 4: Audit Log
       await this.auditService.log({
@@ -204,10 +179,7 @@ export class BookingWorkflowService {
 
       const oldStatus = booking.status;
 
-      this.stateMachine.validateTransition(
-        booking.status,
-        BookingStatus.CANCELLED,
-      );
+      this.stateMachine.validateTransition(booking.status, BookingStatus.CANCELLED);
 
       booking.status = BookingStatus.CANCELLED;
       booking.cancelledAt = new Date();
@@ -227,9 +199,7 @@ export class BookingWorkflowService {
 
       await queryRunner.commitTransaction();
 
-      const daysBeforeEvent = Math.ceil(
-        (booking.eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-      );
+      const daysBeforeEvent = Math.ceil((booking.eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
       this.eventBus.publish(
         new BookingCancelledEvent(
@@ -283,10 +253,7 @@ export class BookingWorkflowService {
 
       const oldStatus = booking.status;
 
-      this.stateMachine.validateTransition(
-        booking.status,
-        BookingStatus.COMPLETED,
-      );
+      this.stateMachine.validateTransition(booking.status, BookingStatus.COMPLETED);
 
       const tasksArray = await booking.tasks;
       if (!tasksArray || tasksArray.length === 0) {
@@ -295,13 +262,9 @@ export class BookingWorkflowService {
         // Keeping it consistent with original BookingsService.
         throw new BadRequestException('No tasks found for this booking');
       }
-      const pendingTasks = tasksArray.filter(
-        (t) => t.status !== TaskStatus.COMPLETED,
-      );
+      const pendingTasks = tasksArray.filter((t) => t.status !== TaskStatus.COMPLETED);
       if (pendingTasks.length > 0) {
-        throw new BadRequestException(
-          `Cannot complete booking: ${pendingTasks.length} tasks are still pending`,
-        );
+        throw new BadRequestException(`Cannot complete booking: ${pendingTasks.length} tasks are still pending`);
       }
 
       booking.status = BookingStatus.COMPLETED;
@@ -350,10 +313,7 @@ export class BookingWorkflowService {
       tenantId,
     });
 
-    const savedBooking = await this.dataSource.manager.save(
-      Booking,
-      newBooking,
-    );
+    const savedBooking = await this.dataSource.manager.save(Booking, newBooking);
 
     await this.auditService.log({
       action: 'DUPLICATE',

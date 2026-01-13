@@ -1,9 +1,4 @@
-import {
-  MigrationInterface,
-  QueryRunner,
-  TableColumn,
-  TableForeignKey,
-} from 'typeorm';
+import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey } from 'typeorm';
 
 export class SyncTenantSchema1767700000004 implements MigrationInterface {
   name = 'SyncTenantSchema1767700000004';
@@ -20,8 +15,7 @@ export class SyncTenantSchema1767700000004 implements MigrationInterface {
       new TableColumn({
         name: 'cancellation_policy_days',
         type: 'jsonb',
-        default:
-          '\'[{"daysBeforeEvent": 7, "refundPercentage": 100}, {"daysBeforeEvent": 0, "refundPercentage": 0}]\'',
+        default: '\'[{"daysBeforeEvent": 7, "refundPercentage": 100}, {"daysBeforeEvent": 0, "refundPercentage": 0}]\'',
       }),
       new TableColumn({
         name: 'quotas',
@@ -50,9 +44,7 @@ export class SyncTenantSchema1767700000004 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     const table = await queryRunner.getTable('tenants');
     if (table) {
-      const foreignKey = table.foreignKeys.find(
-        (fk) => fk.columnNames.indexOf('parent_tenant_id') !== -1,
-      );
+      const foreignKey = table.foreignKeys.find((fk) => fk.columnNames.indexOf('parent_tenant_id') !== -1);
       if (foreignKey) {
         await queryRunner.dropForeignKey('tenants', foreignKey);
       }

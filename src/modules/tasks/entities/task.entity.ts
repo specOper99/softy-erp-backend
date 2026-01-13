@@ -1,12 +1,4 @@
-import {
-  Column,
-  DeleteDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-} from 'typeorm';
+import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TaskType } from '../../catalog/entities/task-type.entity';
 import { User } from '../../users/entities/user.entity';

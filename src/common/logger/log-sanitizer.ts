@@ -56,9 +56,7 @@ const REDACTED = '[REDACTED]';
  */
 function isSensitiveKey(key: string): boolean {
   const lowerKey = key.toLowerCase();
-  return SENSITIVE_KEYS.some((sensitive) =>
-    lowerKey.includes(sensitive.toLowerCase()),
-  );
+  return SENSITIVE_KEYS.some((sensitive) => lowerKey.includes(sensitive.toLowerCase()));
 }
 
 /**

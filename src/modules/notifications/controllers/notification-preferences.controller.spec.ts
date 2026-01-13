@@ -40,9 +40,7 @@ describe('NotificationPreferencesController', () => {
       ],
     }).compile();
 
-    controller = module.get<NotificationPreferencesController>(
-      NotificationPreferencesController,
-    );
+    controller = module.get<NotificationPreferencesController>(NotificationPreferencesController);
     preferencesService = module.get(NotificationPreferencesService);
   });
 
@@ -52,15 +50,11 @@ describe('NotificationPreferencesController', () => {
 
   describe('getUserPreferences', () => {
     it('should return user notification preferences', async () => {
-      preferencesService.getUserPreferences.mockResolvedValue([
-        mockPreference,
-      ] as any);
+      preferencesService.getUserPreferences.mockResolvedValue([mockPreference] as any);
 
       const result = await controller.getUserPreferences(mockUser as User);
 
-      expect(preferencesService.getUserPreferences).toHaveBeenCalledWith(
-        'user-1',
-      );
+      expect(preferencesService.getUserPreferences).toHaveBeenCalledWith('user-1');
       expect(result).toHaveLength(1);
       expect(result[0].notificationType).toBe(NotificationType.BOOKING_UPDATED);
     });
@@ -85,19 +79,11 @@ describe('NotificationPreferencesController', () => {
       ];
 
       const updatedPreference = { ...mockPreference, emailEnabled: false };
-      preferencesService.updatePreferences.mockResolvedValue([
-        updatedPreference,
-      ] as any);
+      preferencesService.updatePreferences.mockResolvedValue([updatedPreference] as any);
 
-      const result = await controller.updatePreferences(
-        mockUser as User,
-        updates as any,
-      );
+      const result = await controller.updatePreferences(mockUser as User, updates as any);
 
-      expect(preferencesService.updatePreferences).toHaveBeenCalledWith(
-        'user-1',
-        updates,
-      );
+      expect(preferencesService.updatePreferences).toHaveBeenCalledWith('user-1', updates);
       expect(result).toHaveLength(1);
       expect(result[0].emailEnabled).toBe(false);
     });
@@ -125,10 +111,7 @@ describe('NotificationPreferencesController', () => {
         },
       ] as any);
 
-      const result = await controller.updatePreferences(
-        mockUser as User,
-        updates as any,
-      );
+      const result = await controller.updatePreferences(mockUser as User, updates as any);
 
       expect(result).toHaveLength(2);
     });

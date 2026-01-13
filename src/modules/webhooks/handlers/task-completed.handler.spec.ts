@@ -20,9 +20,7 @@ describe('TaskCompletedWebhookHandler', () => {
       ],
     }).compile();
 
-    handler = module.get<TaskCompletedWebhookHandler>(
-      TaskCompletedWebhookHandler,
-    );
+    handler = module.get<TaskCompletedWebhookHandler>(TaskCompletedWebhookHandler);
     webhookService = module.get(WebhookService);
   });
 

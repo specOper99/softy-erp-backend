@@ -5,10 +5,7 @@ import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { BillingCustomer } from '../entities/billing-customer.entity';
 import { PaymentMethod } from '../entities/payment-method.entity';
-import {
-  Subscription,
-  SubscriptionStatus,
-} from '../entities/subscription.entity';
+import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 import { StripeService } from './stripe.service';
 import { SubscriptionService } from './subscription.service';
 
@@ -119,9 +116,7 @@ describe('SubscriptionService', () => {
       customerRepo.findOne.mockResolvedValue(null);
       tenantRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getOrCreateCustomer(mockTenantId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getOrCreateCustomer(mockTenantId)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -155,9 +150,7 @@ describe('SubscriptionService', () => {
       customerRepo.findOne.mockResolvedValue(mockCustomer as any);
       subscriptionRepo.findOne.mockResolvedValue(mockExistingSub as any);
 
-      await expect(
-        service.createSubscription(mockTenantId, 'price_123'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createSubscription(mockTenantId, 'price_123')).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -165,9 +158,7 @@ describe('SubscriptionService', () => {
     it('should throw NotFoundException when no subscription found', async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.cancelSubscription(mockTenantId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.cancelSubscription(mockTenantId)).rejects.toThrow(NotFoundException);
     });
 
     it('should cancel immediately when specified', async () => {

@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
@@ -47,9 +43,7 @@ describe('TasksService - Comprehensive Tests', () => {
 
   const mockTaskRepository = createMockRepository();
   mockTaskRepository.find = jest.fn().mockResolvedValue([mockTask]);
-  mockTaskRepository.save = jest
-    .fn()
-    .mockImplementation((task) => Promise.resolve(task));
+  mockTaskRepository.save = jest.fn().mockImplementation((task) => Promise.resolve(task));
   // Mock query builder methods that might be missing or specific
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -129,18 +123,14 @@ describe('TasksService - Comprehensive Tests', () => {
     });
 
     // Default behavior for queryRunner.manager.findOne (pessimistic locking)
-    mockQueryRunner.manager.findOne.mockImplementation(
-      (EntityClass, options) => {
-        if (options?.where?.id === 'task-uuid-123') {
-          return Promise.resolve({ ...mockTask, tenantId: 'tenant-123' });
-        }
-        return Promise.resolve(null);
-      },
-    );
+    mockQueryRunner.manager.findOne.mockImplementation((EntityClass, options) => {
+      if (options?.where?.id === 'task-uuid-123') {
+        return Promise.resolve({ ...mockTask, tenantId: 'tenant-123' });
+      }
+      return Promise.resolve(null);
+    });
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
   });
 
   // ============ FIND OPERATIONS TESTS ============
@@ -148,9 +138,7 @@ describe('TasksService - Comprehensive Tests', () => {
     it('should return all tasks with relations', async () => {
       const result = await service.findAll();
       expect(result).toEqual([mockTask]);
-      expect(mockTaskRepository.createQueryBuilder).toHaveBeenCalledWith(
-        'task',
-      );
+      expect(mockTaskRepository.createQueryBuilder).toHaveBeenCalledWith('task');
     });
 
     it('should return empty array when no tasks exist', async () => {
@@ -163,19 +151,14 @@ describe('TasksService - Comprehensive Tests', () => {
         take: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
       };
-      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(
-        mockQb,
-      );
+      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(mockQb);
 
       const result = await service.findAll();
       expect(result).toEqual([]);
     });
 
     it('should return multiple tasks', async () => {
-      const tasks = [
-        mockTask,
-        { ...mockTask, id: 'task-2', status: TaskStatus.IN_PROGRESS },
-      ];
+      const tasks = [mockTask, { ...mockTask, id: 'task-2', status: TaskStatus.IN_PROGRESS }];
 
       const mockQb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -185,9 +168,7 @@ describe('TasksService - Comprehensive Tests', () => {
         take: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue(tasks),
       };
-      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(
-        mockQb,
-      );
+      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(mockQb);
 
       const result = await service.findAll();
       expect(result).toHaveLength(2);
@@ -201,9 +182,7 @@ describe('TasksService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for invalid id', async () => {
-      await expect(service.findOne('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('invalid-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -252,9 +231,7 @@ describe('TasksService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for non-existent task', async () => {
-      await expect(
-        service.update('invalid-id', { notes: 'Test' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('invalid-id', { notes: 'Test' })).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -288,9 +265,7 @@ describe('TasksService - Comprehensive Tests', () => {
         userId: 'new-user-id',
       });
       expect(result.assignedUserId).toBe('new-user-id');
-      expect(mockEventBus.publish).toHaveBeenCalledWith(
-        expect.any(TaskAssignedEvent),
-      );
+      expect(mockEventBus.publish).toHaveBeenCalledWith(expect.any(TaskAssignedEvent));
     });
 
     it('should reassign task to different user', async () => {
@@ -327,9 +302,7 @@ describe('TasksService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException for non-existent task', async () => {
-      await expect(
-        service.assignTask('invalid-id', { userId: 'user-id' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.assignTask('invalid-id', { userId: 'user-id' })).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -345,9 +318,7 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         status: TaskStatus.IN_PROGRESS,
       });
-      await expect(
-        service.startTask('task-uuid-123', adminUser),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.startTask('task-uuid-123', adminUser)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject starting completed task', async () => {
@@ -355,15 +326,11 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         status: TaskStatus.COMPLETED,
       });
-      await expect(
-        service.startTask('task-uuid-123', adminUser),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.startTask('task-uuid-123', adminUser)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException for non-existent task', async () => {
-      await expect(service.startTask('invalid-id', adminUser)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.startTask('invalid-id', adminUser)).rejects.toThrow(NotFoundException);
     });
 
     it('should forbid field staff from starting unassigned task', async () => {
@@ -371,9 +338,7 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         assignedUserId: null,
       });
-      await expect(
-        service.startTask('task-uuid-123', staffUser),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.startTask('task-uuid-123', staffUser)).rejects.toThrow(ForbiddenException);
     });
 
     it("should forbid field staff from starting someone else's task", async () => {
@@ -381,9 +346,7 @@ describe('TasksService - Comprehensive Tests', () => {
         ...mockTask,
         assignedUserId: 'another-user',
       });
-      await expect(
-        service.startTask('task-uuid-123', staffUser),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.startTask('task-uuid-123', staffUser)).rejects.toThrow(ForbiddenException);
     });
 
     it('should allow field staff to start own assigned task', async () => {
@@ -418,9 +381,7 @@ describe('TasksService - Comprehensive Tests', () => {
       expect(result.commissionAccrued).toBe(100);
       expect(result.walletUpdated).toBe(true);
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
-      expect(mockEventBus.publish).toHaveBeenCalledWith(
-        expect.any(TaskCompletedEvent),
-      );
+      expect(mockEventBus.publish).toHaveBeenCalledWith(expect.any(TaskCompletedEvent));
     });
 
     it('should complete pending task and accrue commission', async () => {
@@ -451,9 +412,7 @@ describe('TasksService - Comprehensive Tests', () => {
       // Relations call
       mockQueryRunner.manager.findOne.mockResolvedValueOnce(completedTask);
 
-      await expect(
-        service.completeTask('task-uuid-123', adminUser),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.completeTask('task-uuid-123', adminUser)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject completing unassigned task', async () => {
@@ -493,9 +452,7 @@ describe('TasksService - Comprehensive Tests', () => {
         assignedUser: null,
       });
 
-      await expect(
-        service.completeTask('task-uuid-123', adminUser),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.completeTask('task-uuid-123', adminUser)).rejects.toThrow(BadRequestException);
     });
 
     it('should handle zero commission task', async () => {
@@ -545,20 +502,14 @@ describe('TasksService - Comprehensive Tests', () => {
         status: TaskStatus.IN_PROGRESS,
       });
 
-      mockWalletService.moveToPayable.mockRejectedValueOnce(
-        new Error('Wallet error'),
-      );
-      await expect(
-        service.completeTask('task-uuid-123', adminUser),
-      ).rejects.toThrow('Wallet error');
+      mockWalletService.moveToPayable.mockRejectedValueOnce(new Error('Wallet error'));
+      await expect(service.completeTask('task-uuid-123', adminUser)).rejects.toThrow('Wallet error');
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for non-existent task', async () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce(null);
-      await expect(
-        service.completeTask('invalid-id', adminUser),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.completeTask('invalid-id', adminUser)).rejects.toThrow(NotFoundException);
     });
 
     it('should handle high commission amount', async () => {
@@ -592,9 +543,7 @@ describe('TasksService - Comprehensive Tests', () => {
         assignedUserId: 'another-user',
       });
 
-      await expect(
-        service.completeTask('task-uuid-123', staffUser),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.completeTask('task-uuid-123', staffUser)).rejects.toThrow(ForbiddenException);
     });
   });
 });

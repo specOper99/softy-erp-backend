@@ -59,9 +59,7 @@ describe('ClientTokenGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      expect(() => guard.canActivate(mockContext)).toThrow(
-        UnauthorizedException,
-      );
+      expect(() => guard.canActivate(mockContext)).toThrow(UnauthorizedException);
     });
   });
 });

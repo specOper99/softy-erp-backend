@@ -57,9 +57,7 @@ export class TimeEntry extends BaseTenantEntity {
   stop(endTime?: Date): void {
     if (this.status === TimeEntryStatus.RUNNING) {
       this.endTime = endTime || new Date();
-      this.durationMinutes = Math.round(
-        (this.endTime.getTime() - this.startTime.getTime()) / 60000,
-      );
+      this.durationMinutes = Math.round((this.endTime.getTime() - this.startTime.getTime()) / 60000);
       this.status = TimeEntryStatus.STOPPED;
     }
   }

@@ -11,26 +11,14 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import {
-  BookingFilterDto,
-  CancelBookingDto,
-  CreateBookingDto,
-  RecordPaymentDto,
-  UpdateBookingDto,
-} from '../dto';
+import { BookingFilterDto, CancelBookingDto, CreateBookingDto, RecordPaymentDto, UpdateBookingDto } from '../dto';
 import { BookingExportService } from '../services/booking-export.service';
 import { BookingsService } from '../services/bookings.service';
 
@@ -93,10 +81,7 @@ export class BookingsController {
   @ApiBody({ type: UpdateBookingDto })
   @ApiResponse({ status: 200, description: 'Booking updated' })
   @ApiResponse({ status: 404, description: 'Booking not found' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateBookingDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBookingDto) {
     return this.bookingsService.update(id, dto);
   }
 
@@ -121,10 +106,7 @@ export class BookingsController {
   @ApiOperation({ summary: 'Cancel booking with automatic refund calculation' })
   @ApiBody({ type: CancelBookingDto })
   @ApiResponse({ status: 200, description: 'Booking cancelled' })
-  cancel(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CancelBookingDto,
-  ) {
+  cancel(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CancelBookingDto) {
     return this.bookingWorkflowService.cancelBooking(id, dto);
   }
 
@@ -140,10 +122,7 @@ export class BookingsController {
   @ApiOperation({ summary: 'Record a payment for this booking' })
   @ApiBody({ type: RecordPaymentDto })
   @ApiResponse({ status: 201, description: 'Payment recorded' })
-  recordPayment(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: RecordPaymentDto,
-  ) {
+  recordPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordPaymentDto) {
     return this.bookingsService.recordPayment(id, dto);
   }
 

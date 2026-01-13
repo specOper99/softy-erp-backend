@@ -32,16 +32,7 @@ export class BookingExportService {
       .stream();
 
     try {
-      const fields = [
-        'id',
-        'clientName',
-        'clientEmail',
-        'package',
-        'eventDate',
-        'totalPrice',
-        'status',
-        'createdAt',
-      ];
+      const fields = ['id', 'clientName', 'clientEmail', 'package', 'eventDate', 'totalPrice', 'status', 'createdAt'];
 
       const transformFn = (row: unknown): BookingExportRow => {
         const typedRow = row as {
@@ -60,14 +51,10 @@ export class BookingExportService {
           clientName: typedRow.client_name ?? '',
           clientEmail: typedRow.client_email ?? '',
           package: typedRow.servicePackage_name ?? '',
-          eventDate: typedRow.booking_event_date
-            ? new Date(typedRow.booking_event_date).toISOString()
-            : '',
+          eventDate: typedRow.booking_event_date ? new Date(typedRow.booking_event_date).toISOString() : '',
           totalPrice: Number(typedRow.booking_total_price ?? 0),
           status: typedRow.booking_status ?? 'UNKNOWN',
-          createdAt: typedRow.booking_created_at
-            ? new Date(typedRow.booking_created_at).toISOString()
-            : '',
+          createdAt: typedRow.booking_created_at ? new Date(typedRow.booking_created_at).toISOString() : '',
         };
       };
 
@@ -80,11 +67,7 @@ export class BookingExportService {
       );
     } finally {
       const streamWithDestroy = queryStream as unknown;
-      if (
-        streamWithDestroy &&
-        typeof streamWithDestroy === 'object' &&
-        'destroy' in streamWithDestroy
-      ) {
+      if (streamWithDestroy && typeof streamWithDestroy === 'object' && 'destroy' in streamWithDestroy) {
         await (streamWithDestroy as { destroy: () => Promise<void> }).destroy();
       }
     }
@@ -97,29 +80,14 @@ export class BookingExportService {
       .createQueryBuilder('client')
       .leftJoin('client.bookings', 'booking')
       .where('client.tenantId = :tenantId', { tenantId })
-      .select([
-        'client.id',
-        'client.name',
-        'client.email',
-        'client.phone',
-        'client.notes',
-        'client.createdAt',
-      ])
+      .select(['client.id', 'client.name', 'client.email', 'client.phone', 'client.notes', 'client.createdAt'])
       .addSelect('COUNT(booking.id)', 'bookingCount')
       .groupBy('client.id')
       .orderBy('client.createdAt', 'DESC')
       .stream();
 
     try {
-      const fields = [
-        'id',
-        'name',
-        'email',
-        'phone',
-        'notes',
-        'bookingCount',
-        'createdAt',
-      ];
+      const fields = ['id', 'name', 'email', 'phone', 'notes', 'bookingCount', 'createdAt'];
 
       const transformFn = (row: unknown): ClientCsvRow => {
         const typedRow = row as {
@@ -139,9 +107,7 @@ export class BookingExportService {
           phone: typedRow.client_phone ?? '',
           notes: typedRow.client_notes ?? '',
           bookingCount: Number(typedRow.bookingCount ?? 0),
-          createdAt: typedRow.client_createdAt
-            ? new Date(typedRow.client_createdAt)
-            : new Date(),
+          createdAt: typedRow.client_createdAt ? new Date(typedRow.client_createdAt) : new Date(),
         };
       };
 
@@ -154,11 +120,7 @@ export class BookingExportService {
       );
     } finally {
       const streamWithDestroy = queryStream as unknown;
-      if (
-        streamWithDestroy &&
-        typeof streamWithDestroy === 'object' &&
-        'destroy' in streamWithDestroy
-      ) {
+      if (streamWithDestroy && typeof streamWithDestroy === 'object' && 'destroy' in streamWithDestroy) {
         await (streamWithDestroy as { destroy: () => Promise<void> }).destroy();
       }
     }

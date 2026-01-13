@@ -1,23 +1,5 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Ip,
-  Param,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Ip, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser } from '../../common/decorators';
@@ -53,11 +35,7 @@ export class AuthController {
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Req() req: Request,
-    @Ip() ip: string,
-  ): Promise<AuthResponseDto> {
+  async register(@Body() registerDto: RegisterDto, @Req() req: Request, @Ip() ip: string): Promise<AuthResponseDto> {
     return this.authService.register(registerDto, {
       userAgent: req.headers['user-agent'],
       ipAddress: ip,
@@ -72,11 +50,7 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async login(
-    @Body() loginDto: LoginDto,
-    @Req() req: Request,
-    @Ip() ip: string,
-  ): Promise<AuthResponseDto> {
+  async login(@Body() loginDto: LoginDto, @Req() req: Request, @Ip() ip: string): Promise<AuthResponseDto> {
     return this.authService.login(loginDto, {
       userAgent: req.headers['user-agent'],
       ipAddress: ip,
@@ -91,11 +65,7 @@ export class AuthController {
   @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({ status: 200, description: 'Token refresh successful' })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
-  async refreshTokens(
-    @Body() dto: RefreshTokenDto,
-    @Req() req: Request,
-    @Ip() ip: string,
-  ): Promise<TokensDto> {
+  async refreshTokens(@Body() dto: RefreshTokenDto, @Req() req: Request, @Ip() ip: string): Promise<TokensDto> {
     return this.authService.refreshTokens(dto.refreshToken, {
       userAgent: req.headers['user-agent'],
       ipAddress: ip,
@@ -107,11 +77,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout (revoke refresh token)' })
-  async logout(
-    @CurrentUser() user: User,
-    @Body() dto: LogoutDto,
-    @Req() req: Request,
-  ): Promise<void> {
+  async logout(@CurrentUser() user: User, @Body() dto: LogoutDto, @Req() req: Request): Promise<void> {
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
     // If we are logging out all sessions, we still blacklist current access token
     if (accessToken) {
@@ -140,13 +106,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Enable MFA with verification code',
-    description:
-      'Returns recovery codes on success. Store these securely - they are shown only once!',
+    description: 'Returns recovery codes on success. Store these securely - they are shown only once!',
   })
-  async enableMfa(
-    @CurrentUser() user: User,
-    @Body() dto: EnableMfaDto,
-  ): Promise<RecoveryCodesResponseDto> {
+  async enableMfa(@CurrentUser() user: User, @Body() dto: EnableMfaDto): Promise<RecoveryCodesResponseDto> {
     const codes = await this.authService.enableMfa(user, dto.code);
     return {
       codes,
@@ -169,12 +131,9 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'View remaining recovery codes',
-    description:
-      'Returns the number of remaining recovery codes and a warning if running low.',
+    description: 'Returns the number of remaining recovery codes and a warning if running low.',
   })
-  async getRecoveryCodes(
-    @CurrentUser() user: User,
-  ): Promise<RecoveryCodesResponseDto> {
+  async getRecoveryCodes(@CurrentUser() user: User): Promise<RecoveryCodesResponseDto> {
     const remaining = await this.authService.getRemainingRecoveryCodes(user);
 
     let warning: string | undefined;
@@ -201,9 +160,7 @@ export class AuthController {
     description:
       'Generates new recovery codes and invalidates old ones. Store these securely - they are shown only once!',
   })
-  async regenerateRecoveryCodes(
-    @CurrentUser() user: User,
-  ): Promise<RecoveryCodesResponseDto> {
+  async regenerateRecoveryCodes(@CurrentUser() user: User): Promise<RecoveryCodesResponseDto> {
     const codes = await this.authService.generateRecoveryCodes(user);
     return {
       codes,
@@ -225,10 +182,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a specific session' })
-  async revokeSession(
-    @CurrentUser() user: User,
-    @Param('id') sessionId: string,
-  ): Promise<void> {
+  async revokeSession(@CurrentUser() user: User, @Param('id') sessionId: string): Promise<void> {
     await this.authService.revokeSession(user.id, sessionId);
   }
 
@@ -237,14 +191,8 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke all other sessions (keep current)' })
-  async revokeOtherSessions(
-    @CurrentUser() user: User,
-    @Body() dto: { currentRefreshToken: string },
-  ): Promise<void> {
-    await this.authService.revokeOtherSessions(
-      user.id,
-      dto.currentRefreshToken,
-    );
+  async revokeOtherSessions(@CurrentUser() user: User, @Body() dto: { currentRefreshToken: string }): Promise<void> {
+    await this.authService.revokeOtherSessions(user.id, dto.currentRefreshToken);
   }
 
   @Get('me')
@@ -267,13 +215,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Request password reset',
-    description:
-      'Sends password reset email if account exists (always returns success)',
+    description: 'Sends password reset email if account exists (always returns success)',
   })
   @ApiBody({ type: ForgotPasswordDto })
-  async forgotPassword(
-    @Body() dto: ForgotPasswordDto,
-  ): Promise<{ message: string }> {
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
     await this.authService.forgotPassword(dto.email);
     return {
       message: 'If an account exists, a password reset email has been sent',
@@ -289,9 +234,7 @@ export class AuthController {
     description: 'Resets password using token from email',
   })
   @ApiBody({ type: ResetPasswordDto })
-  async resetPassword(
-    @Body() dto: ResetPasswordDto,
-  ): Promise<{ message: string }> {
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { message: 'Password has been reset successfully' };
   }
@@ -311,13 +254,10 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: minutes(10) } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend verification email' })
-  async resendVerification(
-    @Body() dto: ResendVerificationDto,
-  ): Promise<{ message: string }> {
+  async resendVerification(@Body() dto: ResendVerificationDto): Promise<{ message: string }> {
     await this.authService.resendVerificationEmail(dto.email);
     return {
-      message:
-        'If the account exists and is unverified, a verification email has been sent',
+      message: 'If the account exists and is unverified, a verification email has been sent',
     };
   }
 }

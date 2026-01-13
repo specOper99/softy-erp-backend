@@ -39,9 +39,7 @@ describe('Bookings Search (E2E)', () => {
     const email = adminUser.email;
     const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
 
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ email, password });
+    const loginResponse = await request(app.getHttpServer()).post('/auth/login').send({ email, password });
 
     adminToken = loginResponse.body.accessToken;
   });

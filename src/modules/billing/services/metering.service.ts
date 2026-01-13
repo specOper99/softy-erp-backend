@@ -34,8 +34,7 @@ export class MeteringService {
       metadata,
     });
 
-    const subscription =
-      await this.subscriptionService.getSubscription(tenantId);
+    const subscription = await this.subscriptionService.getSubscription(tenantId);
     if (subscription) {
       record.subscriptionId = subscription.id;
     }
@@ -51,11 +50,7 @@ export class MeteringService {
     return savedRecord;
   }
 
-  async getUsageSummary(
-    tenantId: string,
-    periodStart: Date,
-    periodEnd: Date,
-  ): Promise<Record<UsageMetric, number>> {
+  async getUsageSummary(tenantId: string, periodStart: Date, periodEnd: Date): Promise<Record<UsageMetric, number>> {
     const records = await this.usageRecordRepo
       .createQueryBuilder('record')
       .select('record.metric', 'metric')
@@ -77,9 +72,7 @@ export class MeteringService {
   private syncToStripe(record: UsageRecord): Promise<void> {
     if (!this.stripeService.isConfigured()) return Promise.resolve();
 
-    this.logger.debug(
-      `Mock sync to Stripe for metric ${record.metric} quantity ${record.quantity}`,
-    );
+    this.logger.debug(`Mock sync to Stripe for metric ${record.metric} quantity ${record.quantity}`);
 
     return Promise.resolve();
   }

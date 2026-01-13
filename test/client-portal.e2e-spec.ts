@@ -115,15 +115,11 @@ describe('Client Portal (e2e)', () => {
 
   describe('Protected Endpoints', () => {
     it('GET /client-portal/bookings should require token', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/client-portal/bookings')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/client-portal/bookings').expect(401);
     });
 
     it('GET /client-portal/profile should require token', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/client-portal/profile')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/client-portal/profile').expect(401);
     });
   });
 

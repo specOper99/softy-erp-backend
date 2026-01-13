@@ -11,11 +11,9 @@ export class ProfileRepository extends TenantAwareRepository<Profile> {
     super(repository);
   }
   createQueryBuilder(alias: string) {
-    return this.repository
-      .createQueryBuilder(alias)
-      .where(`${alias}.tenantId = :tenantId`, {
-        tenantId: TenantContextService.getTenantIdOrThrow(),
-      });
+    return this.repository.createQueryBuilder(alias).where(`${alias}.tenantId = :tenantId`, {
+      tenantId: TenantContextService.getTenantIdOrThrow(),
+    });
   }
 
   async softRemove(entity: Profile): Promise<Profile> {

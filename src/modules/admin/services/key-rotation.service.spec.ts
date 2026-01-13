@@ -26,11 +26,7 @@ describe('KeyRotationService', () => {
   };
 
   const mockWebhookRepository = {
-    find: jest
-      .fn()
-      .mockImplementation(() =>
-        Promise.resolve([...mockWebhooks.map((w) => ({ ...w }))]),
-      ),
+    find: jest.fn().mockImplementation(() => Promise.resolve([...mockWebhooks.map((w) => ({ ...w }))])),
     save: jest.fn().mockResolvedValue({}),
   };
 
@@ -67,9 +63,7 @@ describe('KeyRotationService', () => {
         if (s === 'v1:iv:tag:encrypted2') return 'secret2';
         return s;
       });
-      mockEncryptionService.encrypt.mockImplementation(
-        (s) => `v2:new-iv:new-tag:new-${s}`,
-      );
+      mockEncryptionService.encrypt.mockImplementation((s) => `v2:new-iv:new-tag:new-${s}`);
 
       const result = await service.rotateKeys();
 
@@ -82,9 +76,7 @@ describe('KeyRotationService', () => {
       // Verify re-encryption calls
       expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('secret1');
       expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('secret2');
-      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith(
-        'unencrypted-legacy',
-      );
+      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('unencrypted-legacy');
     });
 
     it('should track errors if rotation fails for some entities', async () => {

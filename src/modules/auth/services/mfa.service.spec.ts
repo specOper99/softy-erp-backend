@@ -50,11 +50,7 @@ describe('MfaService', () => {
       const result = await service.generateMfaSecret(mockUser);
       expect(result).toHaveProperty('secret');
       expect(result).toHaveProperty('qrCodeUrl');
-      expect(usersService.updateMfaSecret).toHaveBeenCalledWith(
-        mockUser.id,
-        expect.any(String),
-        false,
-      );
+      expect(usersService.updateMfaSecret).toHaveBeenCalledWith(mockUser.id, expect.any(String), false);
     });
   });
 
@@ -74,15 +70,8 @@ describe('MfaService', () => {
 
       const result = await service.enableMfa(mockUser, token);
 
-      expect(usersService.findByEmailWithMfaSecret).toHaveBeenCalledWith(
-        mockUser.email,
-        mockUser.tenantId,
-      );
-      expect(usersService.updateMfaSecret).toHaveBeenCalledWith(
-        mockUser.id,
-        secret,
-        true,
-      );
+      expect(usersService.findByEmailWithMfaSecret).toHaveBeenCalledWith(mockUser.email, mockUser.tenantId);
+      expect(usersService.updateMfaSecret).toHaveBeenCalledWith(mockUser.id, secret, true);
       expect(result).toHaveLength(10); // 10 recovery codes
     });
 
@@ -93,9 +82,7 @@ describe('MfaService', () => {
         mfaSecret: secret,
       } as User);
 
-      await expect(service.enableMfa(mockUser, '000000')).rejects.toThrow(
-        'Invalid MFA code',
-      );
+      await expect(service.enableMfa(mockUser, '000000')).rejects.toThrow('Invalid MFA code');
     });
   });
 

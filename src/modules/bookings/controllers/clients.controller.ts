@@ -19,11 +19,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import {
-  CreateClientDto,
-  UpdateClientDto,
-  UpdateClientTagsDto,
-} from '../dto/client.dto';
+import { CreateClientDto, UpdateClientDto, UpdateClientTagsDto } from '../dto/client.dto';
 import { ClientsService } from '../services/clients.service';
 
 @ApiTags('Clients')
@@ -44,10 +40,7 @@ export class ClientsController {
   @ApiOperation({ summary: 'Get all clients with optional tag filtering' })
   findAll(
     @Query() query: PaginationDto,
-    @Query(
-      'tags',
-      new ParseArrayPipe({ items: String, separator: ',', optional: true }),
-    )
+    @Query('tags', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
     tags?: string[],
   ) {
     return this.clientsService.findAll(query, tags);
@@ -83,10 +76,7 @@ export class ClientsController {
   @Patch(':id/tags')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update client tags' })
-  updateTags(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateClientTagsDto,
-  ) {
+  updateTags(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateClientTagsDto) {
     return this.clientsService.updateTags(id, dto.tags);
   }
 }

@@ -38,10 +38,7 @@ describe('AllExceptionsFilter', () => {
 
   describe('catch', () => {
     it('should handle HttpException with object response', () => {
-      const exception = new HttpException(
-        { message: 'Bad Request', error: 'ValidationError' },
-        HttpStatus.BAD_REQUEST,
-      );
+      const exception = new HttpException({ message: 'Bad Request', error: 'ValidationError' }, HttpStatus.BAD_REQUEST);
 
       filter.catch(exception, mockHost);
 
@@ -91,9 +88,7 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -107,9 +102,7 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

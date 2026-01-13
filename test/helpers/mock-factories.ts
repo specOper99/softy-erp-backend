@@ -34,9 +34,7 @@ export type MockRepository<T extends ObjectLiteral> = {
  * mockRepo.findOne.mockResolvedValue({ id: '1', name: 'Test User' });
  * ```
  */
-export function createMockRepository<
-  T extends ObjectLiteral,
->(): MockRepository<T> {
+export function createMockRepository<T extends ObjectLiteral>(): MockRepository<T> {
   return {
     find: jest.fn(),
     findOne: jest.fn(),
@@ -81,9 +79,7 @@ export function createMockRepository<
  * mockTenantRepo.findOne.mockResolvedValue({ id: '1', tenantId: 'tenant-1' });
  * ```
  */
-export function createMockTenantAwareRepository<
-  T extends ObjectLiteral,
->(): MockRepository<T> {
+export function createMockTenantAwareRepository<T extends ObjectLiteral>(): MockRepository<T> {
   return createMockRepository<T>();
 }
 
@@ -131,9 +127,7 @@ export function createMockMetricsFactory() {
  * });
  * ```
  */
-export function createMockConfigService(
-  overrides: Record<string, unknown> = {},
-) {
+export function createMockConfigService(overrides: Record<string, unknown> = {}) {
   const defaults: Record<string, unknown> = {
     'auth.jwtSecret': 'test-jwt-secret-minimum-32-chars-here',
     'auth.clientSessionExpires': 3600,
@@ -210,14 +204,10 @@ export function createMockCacheManager() {
  */
 export function mockTenantContext(tenantId: string): void {
   jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
-  jest
-    .spyOn(TenantContextService, 'getTenantIdOrThrow')
-    .mockReturnValue(tenantId);
-  jest
-    .spyOn(TenantContextService, 'run')
-    .mockImplementation(async (_tid: string, fn: () => Promise<unknown>) => {
-      return fn();
-    });
+  jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
+  jest.spyOn(TenantContextService, 'run').mockImplementation(async (_tid: string, fn: () => Promise<unknown>) => {
+    return fn();
+  });
 }
 
 /**
@@ -240,30 +230,14 @@ export function createMockMailService() {
     queueNewDeviceLogin: jest.fn().mockResolvedValue(undefined),
     queueSuspiciousActivity: jest.fn().mockResolvedValue(undefined),
     // Direct send methods
-    sendBookingConfirmation: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
-    sendTaskAssignment: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
-    sendPayrollNotification: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
-    sendMagicLink: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
-    sendPasswordReset: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
-    sendEmailVerification: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
-    sendNewDeviceLogin: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
-    sendSuspiciousActivityAlert: jest
-      .fn()
-      .mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendBookingConfirmation: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendTaskAssignment: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendPayrollNotification: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendMagicLink: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendPasswordReset: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendEmailVerification: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendNewDeviceLogin: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendSuspiciousActivityAlert: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
     sendCancellationEmail: jest.fn().mockResolvedValue(undefined),
     sendPaymentReceipt: jest.fn().mockResolvedValue(undefined),
   };
@@ -372,9 +346,7 @@ export function createMockDataSource() {
   const mockQueryRunner = createMockQueryRunner();
   return {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
-    transaction: jest
-      .fn()
-      .mockImplementation((cb) => cb(mockQueryRunner.manager)),
+    transaction: jest.fn().mockImplementation((cb) => cb(mockQueryRunner.manager)),
     isInitialized: true,
     initialize: jest.fn().mockResolvedValue(true),
     destroy: jest.fn().mockResolvedValue(true),

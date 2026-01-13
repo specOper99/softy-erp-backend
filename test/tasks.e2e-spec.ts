@@ -21,9 +21,7 @@ describe('Tasks Module E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -56,12 +54,10 @@ describe('Tasks Module E2E Tests', () => {
     const seedData = await seedTestDatabase(dataSource);
 
     // Login as admin
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
 
     accessToken = loginResponse.body.data?.accessToken;
   });
@@ -149,9 +145,7 @@ describe('Tasks Module E2E Tests', () => {
       if (result1.nextCursor) {
         // Second page
         const response2 = await request(app.getHttpServer())
-          .get(
-            `/api/v1/tasks/cursor?limit=${limit}&cursor=${result1.nextCursor}`,
-          )
+          .get(`/api/v1/tasks/cursor?limit=${limit}&cursor=${result1.nextCursor}`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 

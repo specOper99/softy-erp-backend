@@ -32,16 +32,11 @@ describe('Email Templates (E2E)', () => {
     const email = adminUser.email;
     const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
 
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ email, password });
+    const loginResponse = await request(app.getHttpServer()).post('/auth/login').send({ email, password });
 
     if (loginResponse.status !== 201 && loginResponse.status !== 200) {
       console.error('Login failed. Status:', loginResponse.status);
-      console.error(
-        'Response Body:',
-        JSON.stringify(loginResponse.body, null, 2),
-      );
+      console.error('Response Body:', JSON.stringify(loginResponse.body, null, 2));
       throw new Error('Failed to login as admin for E2E tests');
     }
 

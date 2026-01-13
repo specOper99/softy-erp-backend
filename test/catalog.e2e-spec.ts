@@ -24,9 +24,7 @@ describe('Catalog Module E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -170,9 +168,7 @@ describe('Catalog Module E2E Tests', () => {
           .expect(200);
 
         expect(response.body.data.price).toBe(3000);
-        expect(response.body.data.description).toBe(
-          'Updated full day coverage',
-        );
+        expect(response.body.data.description).toBe('Updated full day coverage');
       });
     });
 
@@ -267,9 +263,7 @@ describe('Catalog Module E2E Tests', () => {
           })
           .expect(200);
 
-        expect(response.body.data.description).toBe(
-          'Advanced video editing task',
-        );
+        expect(response.body.data.description).toBe('Advanced video editing task');
         expect(Number(response.body.data.defaultCommissionAmount)).toBe(200);
       });
     });

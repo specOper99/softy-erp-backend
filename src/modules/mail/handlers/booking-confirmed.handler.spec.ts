@@ -20,9 +20,7 @@ describe('BookingConfirmedMailHandler', () => {
       ],
     }).compile();
 
-    handler = module.get<BookingConfirmedMailHandler>(
-      BookingConfirmedMailHandler,
-    );
+    handler = module.get<BookingConfirmedMailHandler>(BookingConfirmedMailHandler);
     mailService = module.get(MailService);
   });
 
@@ -54,9 +52,7 @@ describe('BookingConfirmedMailHandler', () => {
     });
 
     it('should handle mail service error gracefully', async () => {
-      mailService.sendBookingConfirmation.mockRejectedValue(
-        new Error('SMTP error'),
-      );
+      mailService.sendBookingConfirmation.mockRejectedValue(new Error('SMTP error'));
 
       const event: BookingConfirmedEvent = {
         bookingId: 'booking-456',

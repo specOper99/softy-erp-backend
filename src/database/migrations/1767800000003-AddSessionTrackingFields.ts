@@ -19,9 +19,7 @@ export class AddSessionTrackingFields1767800000003 implements MigrationInterface
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_refresh_tokens_last_used"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_refresh_tokens_last_used"`);
     await queryRunner.query(`
       ALTER TABLE "refresh_tokens"
       DROP COLUMN IF EXISTS "ip_changed",

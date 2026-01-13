@@ -1,11 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus,
-  Inject,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Inject } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { I18nService, Language } from '../i18n';
 
@@ -31,12 +24,7 @@ interface NestJsErrorResponse {
 type ExceptionResponseType = string | I18nErrorPayload | NestJsErrorResponse;
 
 function isI18nErrorPayload(obj: unknown): obj is I18nErrorPayload {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'key' in obj &&
-    typeof (obj as I18nErrorPayload).key === 'string'
-  );
+  return typeof obj === 'object' && obj !== null && 'key' in obj && typeof (obj as I18nErrorPayload).key === 'string';
 }
 
 function isNestJsErrorResponse(obj: unknown): obj is NestJsErrorResponse {
@@ -44,8 +32,7 @@ function isNestJsErrorResponse(obj: unknown): obj is NestJsErrorResponse {
     typeof obj === 'object' &&
     obj !== null &&
     'message' in obj &&
-    (typeof (obj as NestJsErrorResponse).message === 'string' ||
-      Array.isArray((obj as NestJsErrorResponse).message))
+    (typeof (obj as NestJsErrorResponse).message === 'string' || Array.isArray((obj as NestJsErrorResponse).message))
   );
 }
 
@@ -88,11 +75,7 @@ export class I18nExceptionFilter implements ExceptionFilter {
     }
 
     // Try to translate the message
-    const translatedMessage = this.translateMessage(
-      originalMessage,
-      lang,
-      args,
-    );
+    const translatedMessage = this.translateMessage(originalMessage, lang, args);
 
     const errorResponse: ErrorResponse = {
       statusCode: status,
@@ -105,11 +88,7 @@ export class I18nExceptionFilter implements ExceptionFilter {
     response.status(status).json(errorResponse);
   }
 
-  private translateMessage(
-    message: string,
-    lang: Language,
-    args?: Record<string, string | number>,
-  ): string {
+  private translateMessage(message: string, lang: Language, args?: Record<string, string | number>): string {
     // Map common error messages to translation keys
     const messageKeyMap: Record<string, string> = {
       Unauthorized: 'common.unauthorized',

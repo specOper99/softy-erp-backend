@@ -49,9 +49,7 @@ describe('FinancialReportController', () => {
       ],
     }).compile();
 
-    controller = module.get<FinancialReportController>(
-      FinancialReportController,
-    );
+    controller = module.get<FinancialReportController>(FinancialReportController);
     financialReportService = module.get(FinancialReportService);
     analyticsService = module.get(AnalyticsService);
     reportGeneratorService = module.get(ReportGeneratorService);
@@ -63,16 +61,12 @@ describe('FinancialReportController', () => {
 
   describe('getProfitAndLoss', () => {
     it('should return P&L data', async () => {
-      financialReportService.getProfitAndLoss.mockResolvedValue(
-        mockPnlData as any,
-      );
+      financialReportService.getProfitAndLoss.mockResolvedValue(mockPnlData as any);
 
       const filter = { startDate: '2024-01-01', endDate: '2024-12-31' };
       const result = await controller.getProfitAndLoss(filter as any);
 
-      expect(financialReportService.getProfitAndLoss).toHaveBeenCalledWith(
-        filter,
-      );
+      expect(financialReportService.getProfitAndLoss).toHaveBeenCalledWith(filter);
       expect(result).toEqual(mockPnlData);
     });
   });
@@ -80,9 +74,7 @@ describe('FinancialReportController', () => {
   describe('getProfitAndLossPdf', () => {
     it('should return PDF with correct headers', async () => {
       const mockPdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
-      financialReportService.getProfitAndLoss.mockResolvedValue(
-        mockPnlData as any,
-      );
+      financialReportService.getProfitAndLoss.mockResolvedValue(mockPnlData as any);
       reportGeneratorService.generatePnLPdf.mockResolvedValue(mockPdfBytes);
 
       const mockRes = {
@@ -103,9 +95,7 @@ describe('FinancialReportController', () => {
 
   describe('getRevenueByPackage', () => {
     it('should return revenue by package data', async () => {
-      analyticsService.getRevenueByPackage.mockResolvedValue(
-        mockRevenueByPackage as any,
-      );
+      analyticsService.getRevenueByPackage.mockResolvedValue(mockRevenueByPackage as any);
 
       const filter = { startDate: '2024-01-01' };
       const result = await controller.getRevenueByPackage(filter as any);
@@ -118,12 +108,8 @@ describe('FinancialReportController', () => {
   describe('getRevenueByPackagePdf', () => {
     it('should return PDF with correct headers', async () => {
       const mockPdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
-      analyticsService.getRevenueByPackage.mockResolvedValue(
-        mockRevenueByPackage as any,
-      );
-      reportGeneratorService.generateRevenueByPackagePdf.mockResolvedValue(
-        mockPdfBytes,
-      );
+      analyticsService.getRevenueByPackage.mockResolvedValue(mockRevenueByPackage as any);
+      reportGeneratorService.generateRevenueByPackagePdf.mockResolvedValue(mockPdfBytes);
 
       const mockRes = {
         set: jest.fn(),

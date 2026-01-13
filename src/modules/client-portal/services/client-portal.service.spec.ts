@@ -76,9 +76,7 @@ describe('ClientPortalService', () => {
     it('should throw NotFoundException when client not found', async () => {
       clientRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getClientProfile('client-1', 'tenant-1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getClientProfile('client-1', 'tenant-1')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw NotFoundException when tenantId mismatch', async () => {
@@ -87,9 +85,7 @@ describe('ClientPortalService', () => {
         tenantId: 'other-tenant',
       });
 
-      await expect(
-        service.getClientProfile('client-1', 'tenant-1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getClientProfile('client-1', 'tenant-1')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -112,11 +108,7 @@ describe('ClientPortalService', () => {
     it('should return booking when found', async () => {
       bookingRepository.findOne.mockResolvedValue(mockBooking);
 
-      const result = await service.getBooking(
-        'booking-1',
-        'client-1',
-        'tenant-1',
-      );
+      const result = await service.getBooking('booking-1', 'client-1', 'tenant-1');
 
       expect(bookingRepository.findOne).toHaveBeenCalledWith({
         where: { id: 'booking-1', clientId: 'client-1', tenantId: 'tenant-1' },
@@ -128,9 +120,7 @@ describe('ClientPortalService', () => {
     it('should throw NotFoundException when booking not found', async () => {
       bookingRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getBooking('booking-1', 'client-1', 'tenant-1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getBooking('booking-1', 'client-1', 'tenant-1')).rejects.toThrow(NotFoundException);
     });
   });
 });

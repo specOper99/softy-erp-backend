@@ -54,18 +54,14 @@ describe('BookingWorkflowService', () => {
 
     const mockQR = createMockQueryRunner();
     // Custom save implementation for existing test behavior
-    mockQR.manager.save.mockImplementation(
-      (targetOrEntity: any, maybeEntity: any) => {
-        // Handle save(Entity, entities[]) signature
-        if (maybeEntity && Array.isArray(maybeEntity))
-          return Promise.resolve(maybeEntity);
-        // Handle save(entities[]) signature (if passed directly)
-        if (Array.isArray(targetOrEntity))
-          return Promise.resolve(targetOrEntity);
-        // Handle save(entity) or save(Entity, entity)
-        return Promise.resolve(maybeEntity || targetOrEntity);
-      },
-    );
+    mockQR.manager.save.mockImplementation((targetOrEntity: any, maybeEntity: any) => {
+      // Handle save(Entity, entities[]) signature
+      if (maybeEntity && Array.isArray(maybeEntity)) return Promise.resolve(maybeEntity);
+      // Handle save(entities[]) signature (if passed directly)
+      if (Array.isArray(targetOrEntity)) return Promise.resolve(targetOrEntity);
+      // Handle save(entity) or save(Entity, entity)
+      return Promise.resolve(maybeEntity || targetOrEntity);
+    });
 
     dataSource = createMockDataSource() as any;
     (dataSource.createQueryRunner as jest.Mock).mockReturnValue(mockQR);
@@ -77,9 +73,7 @@ describe('BookingWorkflowService', () => {
         {
           provide: FinanceService,
           useValue: {
-            createTransactionWithManager: jest
-              .fn()
-              .mockResolvedValue({ id: 'tx-1' }),
+            createTransactionWithManager: jest.fn().mockResolvedValue({ id: 'tx-1' }),
           },
         },
         {
@@ -177,13 +171,9 @@ describe('BookingWorkflowService', () => {
         .mockResolvedValueOnce(mockBooking);
 
       // Simulate Finance failure
-      (
-        financeService.createTransactionWithManager as jest.Mock
-      ).mockRejectedValue(new Error('Finance Error'));
+      (financeService.createTransactionWithManager as jest.Mock).mockRejectedValue(new Error('Finance Error'));
 
-      await expect(service.confirmBooking('booking-1')).rejects.toThrow(
-        'Finance Error',
-      );
+      await expect(service.confirmBooking('booking-1')).rejects.toThrow('Finance Error');
 
       expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(queryRunner.release).toHaveBeenCalled();
@@ -192,29 +182,23 @@ describe('BookingWorkflowService', () => {
     it('should throw NotFoundException if booking not found', async () => {
       (queryRunner.manager.findOne as jest.Mock).mockResolvedValueOnce(null);
 
-      await expect(service.confirmBooking('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.confirmBooking('invalid-id')).rejects.toThrow(NotFoundException);
 
       expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if booking is not DRAFT', async () => {
-      (queryRunner.manager.findOne as jest.Mock)
-        .mockResolvedValueOnce({ id: 'booking-1' })
-        .mockResolvedValueOnce({
-          ...mockBooking,
-          status: BookingStatus.CONFIRMED,
-        });
+      (queryRunner.manager.findOne as jest.Mock).mockResolvedValueOnce({ id: 'booking-1' }).mockResolvedValueOnce({
+        ...mockBooking,
+        status: BookingStatus.CONFIRMED,
+      });
 
       // Make the state machine reject invalid transitions
       mockStateMachine.validateTransition.mockImplementation(() => {
         throw new BadRequestException();
       });
 
-      await expect(service.confirmBooking('booking-1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.confirmBooking('booking-1')).rejects.toThrow(BadRequestException);
 
       expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });

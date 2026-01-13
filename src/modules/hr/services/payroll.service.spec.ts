@@ -37,17 +37,13 @@ describe('PayrollService', () => {
   };
 
   const mockPayrollRunRepository = {
-    create: jest
-      .fn()
-      .mockImplementation((data) => ({ id: 'run-uuid-123', ...data })),
+    create: jest.fn().mockImplementation((data) => ({ id: 'run-uuid-123', ...data })),
     save: jest.fn().mockImplementation((data) => Promise.resolve(data)),
     find: jest.fn().mockResolvedValue([]),
   };
 
   const mockFinanceService = {
-    createTransactionWithManager: jest
-      .fn()
-      .mockResolvedValue({ id: 'txn-uuid-123' }),
+    createTransactionWithManager: jest.fn().mockResolvedValue({ id: 'txn-uuid-123' }),
   };
 
   const mockWalletService = {
@@ -63,14 +59,8 @@ describe('PayrollService', () => {
   };
 
   const mockPayoutRepository = {
-    create: jest
-      .fn()
-      .mockImplementation((data) => ({ id: 'payout-uuid-123', ...data })),
-    save: jest
-      .fn()
-      .mockImplementation((data) =>
-        Promise.resolve({ id: 'payout-uuid-123', ...data }),
-      ),
+    create: jest.fn().mockImplementation((data) => ({ id: 'payout-uuid-123', ...data })),
+    save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'payout-uuid-123', ...data })),
     findOne: jest.fn().mockResolvedValue(null),
   };
 
@@ -96,15 +86,11 @@ describe('PayrollService', () => {
   };
 
   const mockTenantsService = {
-    findAll: jest
-      .fn()
-      .mockResolvedValue([{ id: 'test-tenant-id', slug: 'test-tenant' }]),
+    findAll: jest.fn().mockResolvedValue([{ id: 'test-tenant-id', slug: 'test-tenant' }]),
   };
 
   const mockPaymentGatewayService = {
-    triggerPayout: jest
-      .fn()
-      .mockResolvedValue({ success: true, transactionReference: 'REF-123' }),
+    triggerPayout: jest.fn().mockResolvedValue({ success: true, transactionReference: 'REF-123' }),
   };
 
   beforeEach(async () => {
@@ -135,18 +121,14 @@ describe('PayrollService', () => {
     service = module.get<PayrollService>(PayrollService);
 
     jest.clearAllMocks();
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue('test-tenant-id');
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue('test-tenant-id');
   });
 
   describe('runPayroll', () => {
     it('should calculate payroll and create transactions', async () => {
       const result = await service.runPayroll();
       expect(mockQueryRunner.startTransaction).toHaveBeenCalled();
-      expect(
-        mockFinanceService.createTransactionWithManager,
-      ).toHaveBeenCalled();
+      expect(mockFinanceService.createTransactionWithManager).toHaveBeenCalled();
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(result.totalPayout).toBe(2150);
       expect(result.totalEmployees).toBe(1);
@@ -161,15 +143,11 @@ describe('PayrollService', () => {
         },
       ]);
       await service.runPayroll();
-      expect(
-        mockFinanceService.createTransactionWithManager,
-      ).not.toHaveBeenCalled();
+      expect(mockFinanceService.createTransactionWithManager).not.toHaveBeenCalled();
     });
 
     it('should rollback on failure', async () => {
-      mockFinanceService.createTransactionWithManager.mockRejectedValueOnce(
-        new Error('Fail'),
-      );
+      mockFinanceService.createTransactionWithManager.mockRejectedValueOnce(new Error('Fail'));
       await service.runPayroll();
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });
@@ -177,14 +155,12 @@ describe('PayrollService', () => {
 
   describe('runScheduledPayroll', () => {
     it('should call runPayroll', async () => {
-      const runPayrollSpy = jest
-        .spyOn(service, 'runPayroll')
-        .mockResolvedValue({
-          totalEmployees: 1,
-          totalPayout: 100,
-          transactionIds: [],
-          processedAt: new Date(),
-        });
+      const runPayrollSpy = jest.spyOn(service, 'runPayroll').mockResolvedValue({
+        totalEmployees: 1,
+        totalPayout: 100,
+        transactionIds: [],
+        processedAt: new Date(),
+      });
       // Mock TenantContextService.run
       jest.spyOn(TenantContextService, 'run').mockImplementation((_, cb) => {
         cb();

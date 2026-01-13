@@ -18,9 +18,7 @@ export class MockPaymentGatewayService {
     transactionReference?: string;
     error?: string;
   }> {
-    this.logger.log(
-      `Triggering payout of $${details.amount} to ${details.employeeName} (${details.bankAccount})`,
-    );
+    this.logger.log(`Triggering payout of $${details.amount} to ${details.employeeName} (${details.bankAccount})`);
 
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 500));

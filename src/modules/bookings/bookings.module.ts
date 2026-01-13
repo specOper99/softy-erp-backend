@@ -39,12 +39,6 @@ import { ClientsService } from './services/clients.service';
     ExportService,
     BookingRepository,
   ],
-  exports: [
-    BookingsService,
-    BookingStateMachineService,
-    ClientsService,
-    BookingExportService,
-    BookingRepository,
-  ],
+  exports: [BookingsService, BookingStateMachineService, ClientsService, BookingExportService, BookingRepository],
 })
 export class BookingsModule {}

@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -41,10 +36,7 @@ export class ClientsService {
     return this.clientRepository.save(client);
   }
 
-  async findAll(
-    query: PaginationDto = new PaginationDto(),
-    tags?: string[],
-  ): Promise<Client[]> {
+  async findAll(query: PaginationDto = new PaginationDto(), tags?: string[]): Promise<Client[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const queryBuilder = this.clientRepository
@@ -135,28 +127,13 @@ export class ClientsService {
       .createQueryBuilder('client')
       .leftJoin('client.bookings', 'booking')
       .where('client.tenantId = :tenantId', { tenantId })
-      .select([
-        'client.id',
-        'client.name',
-        'client.email',
-        'client.phone',
-        'client.notes',
-        'client.createdAt',
-      ])
+      .select(['client.id', 'client.name', 'client.email', 'client.phone', 'client.notes', 'client.createdAt'])
       .addSelect('COUNT(booking.id)', 'bookingCount')
       .groupBy('client.id')
       .orderBy('client.createdAt', 'DESC')
       .stream();
 
-    const fields = [
-      'id',
-      'name',
-      'email',
-      'phone',
-      'notes',
-      'bookingCount',
-      'createdAt',
-    ];
+    const fields = ['id', 'name', 'email', 'phone', 'notes', 'bookingCount', 'createdAt'];
 
     // Type for raw stream row from QueryBuilder
     interface ClientExportRow {

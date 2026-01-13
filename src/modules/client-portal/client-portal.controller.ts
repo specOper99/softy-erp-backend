@@ -1,24 +1,11 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Req,
-  UnauthorizedException,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
-import {
-  ClientTokenResponseDto,
-  RequestMagicLinkDto,
-  VerifyMagicLinkDto,
-} from './dto/client-auth.dto';
+import { ClientTokenResponseDto, RequestMagicLinkDto, VerifyMagicLinkDto } from './dto/client-auth.dto';
 import { ClientTokenGuard } from './guards/client-token.guard';
 import { ClientAuthService } from './services/client-auth.service';
 import { ClientPortalService } from './services/client-portal.service';
@@ -42,17 +29,13 @@ export class ClientPortalController {
   @Post('auth/request-magic-link')
   @ApiOperation({ summary: 'Request a magic link login email' })
   @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 requests per minute
-  async requestMagicLink(
-    @Body() dto: RequestMagicLinkDto,
-  ): Promise<{ message: string }> {
+  async requestMagicLink(@Body() dto: RequestMagicLinkDto): Promise<{ message: string }> {
     return this.clientAuthService.requestMagicLink(dto.email);
   }
 
   @Post('auth/verify')
   @ApiOperation({ summary: 'Verify magic link token and get access token' })
-  async verifyMagicLink(
-    @Body() dto: VerifyMagicLinkDto,
-  ): Promise<ClientTokenResponseDto> {
+  async verifyMagicLink(@Body() dto: VerifyMagicLinkDto): Promise<ClientTokenResponseDto> {
     const result = await this.clientAuthService.verifyMagicLink(dto.token);
     return {
       accessToken: result.accessToken,
@@ -93,10 +76,7 @@ export class ClientPortalController {
   @Get('bookings/:id')
   @ApiOperation({ summary: 'Get a specific booking' })
   @UseGuards(ClientTokenGuard)
-  async getBooking(
-    @Param('id') id: string,
-    @Req() req: Request,
-  ): Promise<Booking> {
+  async getBooking(@Param('id') id: string, @Req() req: Request): Promise<Booking> {
     const token = req.headers['x-client-token'] as string;
     const client = await this.clientAuthService.validateClientToken(token);
 
@@ -104,11 +84,7 @@ export class ClientPortalController {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    const booking = await this.clientPortalService.getBooking(
-      id,
-      client.id,
-      client.tenantId,
-    );
+    const booking = await this.clientPortalService.getBooking(id, client.id, client.tenantId);
 
     if (!booking) {
       throw new UnauthorizedException('Booking not found');
@@ -130,9 +106,6 @@ export class ClientPortalController {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    return this.clientPortalService.getClientProfile(
-      client.id,
-      client.tenantId,
-    );
+    return this.clientPortalService.getClientProfile(client.id, client.tenantId);
   }
 }

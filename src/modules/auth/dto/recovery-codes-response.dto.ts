@@ -2,8 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class RecoveryCodesResponseDto {
   @ApiProperty({
-    description:
-      'Array of 10 recovery codes. Store these securely - they are shown only once.',
+    description: 'Array of 10 recovery codes. Store these securely - they are shown only once.',
     example: [
       'A1B2C3D4',
       'E5F6G7H8',

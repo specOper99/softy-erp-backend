@@ -61,9 +61,7 @@ describe('AuditService', () => {
     const testTenantId = 'tenant-123';
 
     beforeEach(() => {
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(testTenantId);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(testTenantId);
       jest.clearAllMocks();
     });
 

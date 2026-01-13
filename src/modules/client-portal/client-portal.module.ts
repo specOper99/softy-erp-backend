@@ -24,10 +24,7 @@ import { ClientPortalService } from './services/client-portal.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('auth.jwtSecret'),
         signOptions: {
-          expiresIn: configService.get<number>(
-            'auth.clientSessionExpires',
-            3600,
-          ),
+          expiresIn: configService.get<number>('auth.clientSessionExpires', 3600),
         },
       }),
       inject: [ConfigService],

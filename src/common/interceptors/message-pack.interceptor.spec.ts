@@ -82,10 +82,7 @@ describe('MessagePackInterceptor', () => {
       };
 
       interceptor.intercept(context, mockCallHandler).subscribe(() => {
-        expect(mockResponse.setHeader).toHaveBeenCalledWith(
-          'Content-Type',
-          'application/x-msgpack',
-        );
+        expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'application/x-msgpack');
         done();
       });
     });

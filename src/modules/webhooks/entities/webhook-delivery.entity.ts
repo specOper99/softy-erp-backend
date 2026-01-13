@@ -62,11 +62,7 @@ export class WebhookDelivery extends BaseTenantEntity {
   @JoinColumn({ name: 'webhook_id' })
   webhook: Webhook;
 
-  recordSuccess(
-    responseStatus: number,
-    responseBody: string,
-    durationMs: number,
-  ): void {
+  recordSuccess(responseStatus: number, responseBody: string, durationMs: number): void {
     this.status = DeliveryStatus.SUCCESS;
     this.responseStatus = responseStatus;
     this.responseBody = responseBody?.substring(0, 10000);
@@ -76,11 +72,7 @@ export class WebhookDelivery extends BaseTenantEntity {
     this.errorMessage = null;
   }
 
-  recordFailure(
-    errorMessage: string,
-    responseStatus?: number,
-    responseBody?: string,
-  ): void {
+  recordFailure(errorMessage: string, responseStatus?: number, responseBody?: string): void {
     this.attemptNumber++;
     this.errorMessage = errorMessage;
     this.responseStatus = responseStatus ?? null;

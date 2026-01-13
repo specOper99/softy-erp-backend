@@ -46,21 +46,15 @@ export class TasksExportService {
       return {
         id: r.task_id,
         status: r.task_status,
-        dueDate: r.task_dueDate
-          ? new Date(r.task_dueDate as string).toISOString()
-          : '',
+        dueDate: r.task_dueDate ? new Date(r.task_dueDate as string).toISOString() : '',
         bookingId: r.task_bookingId || '',
         clientName: r.client_name || '',
         taskType: r.taskType_name || '',
         assignedUser: r.assignedUser_email || '',
         commissionSnapshot: r.task_commissionSnapshot || 0,
         notes: r.task_notes || '',
-        completedAt: r.task_completedAt
-          ? new Date(r.task_completedAt as string).toISOString()
-          : '',
-        createdAt: r.task_createdAt
-          ? new Date(r.task_createdAt as string).toISOString()
-          : '',
+        completedAt: r.task_completedAt ? new Date(r.task_completedAt as string).toISOString() : '',
+        createdAt: r.task_createdAt ? new Date(r.task_createdAt as string).toISOString() : '',
       };
     };
 

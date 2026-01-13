@@ -21,9 +21,7 @@ describe('Bookings API Consumer Pact', () => {
           method: 'GET',
           path: '/bookings',
           headers: {
-            Authorization: like(
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            ),
+            Authorization: like('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'),
           },
         })
         .willRespondWith({
@@ -34,10 +32,7 @@ describe('Bookings API Consumer Pact', () => {
               id: like('uuid-booking-1'),
               clientName: like('Client A'),
               eventDate: like('2026-01-15T10:00:00.000Z'),
-              status: regex(
-                'confirmed|cancelled|completed|pending',
-                'confirmed',
-              ),
+              status: regex('confirmed|cancelled|completed|pending', 'confirmed'),
               totalPrice: like(1500),
             }),
             total: like(1),
@@ -66,9 +61,7 @@ describe('Bookings API Consumer Pact', () => {
           method: 'POST',
           path: '/bookings',
           headers: {
-            Authorization: like(
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            ),
+            Authorization: like('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'),
             'Content-Type': 'application/json',
           },
           body: {
