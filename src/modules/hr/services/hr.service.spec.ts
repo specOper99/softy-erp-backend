@@ -2,7 +2,10 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import {
+  createMockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { AuditService } from '../../audit/audit.service';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
@@ -12,6 +15,9 @@ import { HrService } from './hr.service';
 
 describe('HrService - Comprehensive Tests', () => {
   let service: HrService;
+  let mockProfileRepository: any;
+  let mockWalletRepository: any;
+
   const mockProfile = {
     id: 'profile-uuid-123',
     userId: 'user-uuid-123',
@@ -53,25 +59,6 @@ describe('HrService - Comprehensive Tests', () => {
     userId: 'user-uuid-123',
     pendingBalance: 50.0,
     payableBalance: 150.0,
-  };
-
-  const mockProfileRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
-    save: jest
-      .fn()
-      .mockImplementation((profile) =>
-        Promise.resolve({ id: 'profile-uuid-123', ...profile }),
-      ),
-    find: jest.fn().mockResolvedValue([mockProfile]),
-    findOne: jest.fn(),
-    remove: jest.fn().mockResolvedValue(mockProfile),
-    softRemove: jest.fn().mockResolvedValue(mockProfile),
-    count: jest.fn().mockResolvedValue(1),
-    createQueryBuilder: jest.fn(),
-  };
-
-  const mockWalletRepository = {
-    findOne: jest.fn().mockResolvedValue(mockWallet),
   };
 
   const mockWalletService = {
@@ -124,6 +111,22 @@ describe('HrService - Comprehensive Tests', () => {
   };
 
   beforeEach(async () => {
+    mockProfileRepository = createMockRepository();
+    // Configure default behaviors from original manual mock
+    mockProfileRepository.save.mockImplementation((profile: any) =>
+      Promise.resolve({ id: 'profile-uuid-123', ...profile }),
+    );
+    mockProfileRepository.find.mockResolvedValue([mockProfile]);
+    mockProfileRepository.remove.mockResolvedValue(mockProfile);
+    mockProfileRepository.count.mockResolvedValue(1);
+    // softRemove is not in standard mock factory by default? Check factory content.
+    // Yes, createMockRepository has remove, delete. Not softRemove.
+    // So we add it.
+    mockProfileRepository.softRemove = jest.fn().mockResolvedValue(mockProfile);
+
+    mockWalletRepository = createMockRepository();
+    mockWalletRepository.findOne.mockResolvedValue(mockWallet);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HrService,
@@ -147,16 +150,15 @@ describe('HrService - Comprehensive Tests', () => {
     // Reset mocks first
     jest.clearAllMocks();
 
-    // Mock TenantContextService AFTER clearAllMocks
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('test-tenant-id');
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue('test-tenant-id');
+    // Mock TenantContextService using helper
+    mockTenantContext('test-tenant-id');
 
-    // Default behavior
-    mockProfileRepository.findOne.mockImplementation(({ where }) => {
+    // Default behavior for findOne (re-apply after clearAllMocks if needed, or define BEFORE clearAllMocks?
+    // Wait, clearAllMocks clears assertions and implementation if configured?
+    // jest.clearAllMocks() clears usage data. implementation persists.
+    // But better re-apply critical overrides.
+
+    mockProfileRepository.findOne.mockImplementation(({ where }: any) => {
       if (where.id === 'profile-uuid-123' || where.userId === 'user-uuid-123') {
         return Promise.resolve({ ...mockProfile });
       }

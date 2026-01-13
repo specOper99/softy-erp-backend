@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import {
+  createMockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
+import { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from './attendance.service';
 
 // Use string literal directly to avoid circular import from hr.module
@@ -12,14 +16,7 @@ const TENANT_REPO_ATTENDANCE = 'TENANT_REPO_ATTENDANCE';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
-  let attendanceRepo: {
-    create: jest.Mock;
-    save: jest.Mock;
-    find: jest.Mock;
-    findOne: jest.Mock;
-    remove: jest.Mock;
-    delete: jest.Mock;
-  };
+  let attendanceRepo: any;
 
   const mockTenantId = 'tenant-123';
   const mockAttendance = {
@@ -35,14 +32,7 @@ describe('AttendanceService', () => {
   };
 
   beforeEach(async () => {
-    const mockRepo = {
-      create: jest.fn(),
-      save: jest.fn(),
-      find: jest.fn(),
-      findOne: jest.fn(),
-      remove: jest.fn(),
-      delete: jest.fn(),
-    };
+    const mockRepo = createMockRepository<Attendance>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -58,12 +48,7 @@ describe('AttendanceService', () => {
     attendanceRepo = module.get(TENANT_REPO_ATTENDANCE);
 
     // Mock tenant context
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue(mockTenantId);
+    mockTenantContext(mockTenantId);
   });
 
   afterEach(() => {
