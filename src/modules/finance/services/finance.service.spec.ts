@@ -6,9 +6,9 @@ import { createMockRepository, mockTenantContext } from '../../../../test/helper
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { TransactionFilterDto } from '../dto';
+import { Transaction } from '../entities/transaction.entity';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
-import { TransactionRepository } from '../repositories/transaction.repository';
 import { CurrencyService } from './currency.service';
 import { FinanceService } from './finance.service';
 import { FinancialReportService } from './financial-report.service';
@@ -134,7 +134,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       providers: [
         FinanceService,
         {
-          provide: TransactionRepository,
+          provide: getRepositoryToken(Transaction),
           useValue: mockTransactionRepository,
         },
         // {

@@ -1,9 +1,9 @@
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../services/tenant-context.service';
-import { TenantAwareRepository, TenantEntity } from './tenant-aware.repository';
+import { TenantAwareRepository } from './tenant-aware.repository';
 
 // Concrete implementation for testing abstract class
-class TestEntity implements TenantEntity {
+class TestEntity {
   id: string;
   tenantId: string;
   name: string;
@@ -38,7 +38,7 @@ describe('TenantAwareRepository', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('find (tenant-scoped)', () => {
