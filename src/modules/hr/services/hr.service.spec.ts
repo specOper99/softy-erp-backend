@@ -10,7 +10,7 @@ import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
-import { Profile } from '../entities';
+import { ProfileRepository } from '../repositories/profile.repository';
 import { HrService } from './hr.service';
 
 describe('HrService - Comprehensive Tests', () => {
@@ -131,7 +131,7 @@ describe('HrService - Comprehensive Tests', () => {
       providers: [
         HrService,
         {
-          provide: getRepositoryToken(Profile),
+          provide: ProfileRepository,
           useValue: mockProfileRepository,
         },
         {
@@ -275,7 +275,6 @@ describe('HrService - Comprehensive Tests', () => {
       const result = await service.findAllProfiles();
       expect(result[0].user).toEqual(mockUser);
       expect(mockProfileRepository.find).toHaveBeenCalledWith({
-        where: { tenantId: 'test-tenant-id' },
         skip: 0,
         take: 20,
       });

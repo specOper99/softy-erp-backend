@@ -16,14 +16,14 @@ import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
 import { CreateProfileDto, UpdateProfileDto } from '../dto';
 import { Profile } from '../entities';
+import { ProfileRepository } from '../repositories/profile.repository';
 
 @Injectable()
 export class HrService {
   private readonly logger = new Logger(HrService.name);
 
   constructor(
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
+    private readonly profileRepository: ProfileRepository,
     @InjectRepository(EmployeeWallet)
     private readonly walletRepository: Repository<EmployeeWallet>,
     private readonly walletService: WalletService,
@@ -54,9 +54,8 @@ export class HrService {
       );
 
       // Step 2: Create profile
-      const profile = queryRunner.manager.create(Profile, {
+      const profile = this.profileRepository.create({
         ...dto,
-        tenantId,
         hireDate: dto.hireDate ? new Date(dto.hireDate) : null,
       });
       const savedProfile = await queryRunner.manager.save(profile);
@@ -94,9 +93,7 @@ export class HrService {
   async findAllProfiles(
     query: PaginationDto = new PaginationDto(),
   ): Promise<Profile[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const profiles = await this.profileRepository.find({
-      where: { tenantId },
       skip: query.getSkip(),
       take: query.getTake(),
     });
@@ -114,13 +111,11 @@ export class HrService {
   async findAllProfilesCursor(
     query: CursorPaginationDto,
   ): Promise<{ data: Profile[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const limit = query.limit || 20;
 
     const qb = this.profileRepository.createQueryBuilder('profile');
 
-    qb.where('profile.tenantId = :tenantId', { tenantId })
-      .orderBy('profile.createdAt', 'DESC')
+    qb.orderBy('profile.createdAt', 'DESC')
       .addOrderBy('profile.id', 'DESC')
       .take(limit + 1);
 
@@ -157,9 +152,8 @@ export class HrService {
   }
 
   async findProfileById(id: string): Promise<Profile> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const profile = await this.profileRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
     });
     if (!profile) {
       throw new NotFoundException('hr.profile_not_found');
@@ -170,9 +164,8 @@ export class HrService {
   }
 
   async findProfileByUserId(userId: string): Promise<Profile | null> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const profile = await this.profileRepository.findOne({
-      where: { userId, tenantId },
+      where: { userId },
     });
 
     if (profile) {
@@ -184,10 +177,9 @@ export class HrService {
   }
 
   async softDeleteProfileByUserId(userId: string): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
     // Use findOne without throwing if not found, as this might be called asynchronously
     const profile = await this.profileRepository.findOne({
-      where: { userId, ...(tenantId ? { tenantId } : {}) },
+      where: { userId },
     });
 
     if (profile) {
