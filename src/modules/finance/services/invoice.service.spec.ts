@@ -1,21 +1,19 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import {
+  createMockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { InvoiceService } from './invoice.service';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
-  let invoiceRepo: jest.Mocked<Repository<Invoice>>;
-  let bookingRepo: jest.Mocked<Repository<Booking>>;
+  let invoiceRepo: any;
+  let bookingRepo: any;
   const mockTenantId = 'tenant-123';
-
-  const mockBookingRepository = {
-    findOne: jest.fn(),
-  };
 
   const mockBooking = {
     id: 'booking-123',
@@ -52,20 +50,19 @@ describe('InvoiceService', () => {
   };
 
   beforeEach(async () => {
+    const mockInvoiceRepo = createMockRepository();
+    const mockBookingRepo = createMockRepository();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvoiceService,
         {
           provide: getRepositoryToken(Invoice),
-          useValue: {
-            findOne: jest.fn(),
-            create: jest.fn(),
-            save: jest.fn(),
-          },
+          useValue: mockInvoiceRepo,
         },
         {
           provide: getRepositoryToken(Booking),
-          useValue: mockBookingRepository,
+          useValue: mockBookingRepo,
         },
       ],
     }).compile();
@@ -74,9 +71,7 @@ describe('InvoiceService', () => {
     invoiceRepo = module.get(getRepositoryToken(Invoice));
     bookingRepo = module.get(getRepositoryToken(Booking));
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
+    mockTenantContext(mockTenantId);
   });
 
   afterEach(() => {

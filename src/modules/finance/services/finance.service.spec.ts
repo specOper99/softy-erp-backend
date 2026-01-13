@@ -2,7 +2,10 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import {
+  createMockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { TransactionFilterDto } from '../dto';
@@ -20,6 +23,9 @@ import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 
 describe('FinanceService - Comprehensive Tests', () => {
   let service: FinanceService;
+
+  let mockTransactionRepository: any;
+  let mockBookingRepository: any;
 
   const mockCacheUtils = {
     clearCache: jest.fn(),
@@ -55,38 +61,6 @@ describe('FinanceService - Comprehensive Tests', () => {
     createdAt: new Date(),
   };
 
-  const mockTransactionRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
-    save: jest
-      .fn()
-      .mockImplementation((txn) =>
-        Promise.resolve({ id: 'txn-uuid-123', ...txn }),
-      ),
-    findOne: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue({
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-
-      orderBy: jest.fn().mockReturnThis(),
-      skip: jest.fn().mockReturnThis(),
-      take: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([mockTransaction]),
-      select: jest.fn().mockReturnThis(),
-      addSelect: jest.fn().mockReturnThis(),
-      groupBy: jest.fn().mockReturnThis(),
-      getRawMany: jest.fn().mockResolvedValue([
-        { type: TransactionType.INCOME, total: '5000' },
-        { type: TransactionType.EXPENSE, total: '2000' },
-        { type: TransactionType.PAYROLL, total: '1000' },
-      ]),
-      getRawOne: jest.fn().mockResolvedValue({ total: '0' }),
-      stream: jest.fn().mockResolvedValue({
-        pipe: jest.fn(),
-        on: jest.fn(),
-      }),
-    }),
-  };
-
   const mockQueryRunner = {
     connect: jest.fn(),
     startTransaction: jest.fn(),
@@ -106,20 +80,6 @@ describe('FinanceService - Comprehensive Tests', () => {
         isTransactionActive: true,
       },
     },
-  };
-
-  const mockBookingRepository = {
-    createQueryBuilder: jest.fn().mockReturnValue({
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      addSelect: jest.fn().mockReturnThis(),
-      getRawOne: jest.fn().mockResolvedValue({
-        totalTax: '225',
-        totalSubTotal: '1500',
-        totalGross: '1725',
-      }),
-    }),
   };
 
   const mockDataSource = {
@@ -143,6 +103,48 @@ describe('FinanceService - Comprehensive Tests', () => {
   };
 
   beforeEach(async () => {
+    mockTransactionRepository = createMockRepository();
+
+    // Configure complex QueryBuilder mock for Transaction Repository
+    mockTransactionRepository.createQueryBuilder.mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([mockTransaction]),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([
+        { type: TransactionType.INCOME, total: '5000' },
+        { type: TransactionType.EXPENSE, total: '2000' },
+        { type: TransactionType.PAYROLL, total: '1000' },
+      ]),
+      getRawOne: jest.fn().mockResolvedValue({ total: '0' }),
+      stream: jest.fn().mockResolvedValue({
+        pipe: jest.fn(),
+        on: jest.fn(),
+      }),
+    });
+
+    // Configure other default behaviors
+    mockTransactionRepository.save.mockImplementation((txn: any) =>
+      Promise.resolve({ id: 'txn-uuid-123', ...txn }),
+    );
+
+    mockBookingRepository = createMockRepository();
+    mockBookingRepository.createQueryBuilder.mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({
+        totalTax: '225',
+        totalSubTotal: '1500',
+        totalGross: '1725',
+      }),
+    });
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FinanceService,
@@ -181,8 +183,8 @@ describe('FinanceService - Comprehensive Tests', () => {
     jest.clearAllMocks();
 
     // Default behavior
-    mockTransactionRepository.findOne.mockImplementation(({ where }) => {
-      if (where.id === 'txn-uuid-123') return Promise.resolve(mockTransaction);
+    mockTransactionRepository.findOne.mockImplementation(({ where }: any) => {
+      if (where?.id === 'txn-uuid-123') return Promise.resolve(mockTransaction);
       return Promise.resolve(null);
     });
 
@@ -193,12 +195,7 @@ describe('FinanceService - Comprehensive Tests', () => {
 
     mockQueryRunner.manager.findOne.mockImplementation(managerFindOneImpl);
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
-    jest
-      .spyOn(TenantContextService, 'getTenantIdOrThrow')
-      .mockReturnValue('tenant-123');
+    mockTenantContext('tenant-123');
   });
 
   // ============ TRANSACTION CRUD TESTS ============

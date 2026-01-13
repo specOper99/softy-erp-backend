@@ -1,8 +1,11 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { DataSource } from 'typeorm';
+import {
+  createMockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import {
   RecurringStatus,
   RecurringTransaction,
@@ -14,7 +17,7 @@ import { RecurringTransactionService } from './recurring-transaction.service';
 
 describe('RecurringTransactionService', () => {
   let service: RecurringTransactionService;
-  let recurringRepo: jest.Mocked<Repository<RecurringTransaction>>;
+  let recurringRepo: any;
   let financeService: jest.Mocked<FinanceService>;
 
   const mockTenantId = 'tenant-123';
@@ -39,13 +42,7 @@ describe('RecurringTransactionService', () => {
         RecurringTransactionService,
         {
           provide: getRepositoryToken(RecurringTransaction),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            remove: jest.fn(),
-          },
+          useValue: createMockRepository(),
         },
         {
           provide: FinanceService,
@@ -79,9 +76,7 @@ describe('RecurringTransactionService', () => {
     recurringRepo = module.get(getRepositoryToken(RecurringTransaction));
     financeService = module.get(FinanceService);
 
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue(mockTenantId);
+    mockTenantContext(mockTenantId);
   });
 
   afterEach(() => {
