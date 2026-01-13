@@ -11,6 +11,8 @@ import { TimeEntriesService } from './services/time-entries.service';
 
 import { ExportService } from '../../common/services/export.service';
 
+import { TaskRepository } from './repositories/task.repository';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Task, TaskTemplate, TimeEntry]),
@@ -23,7 +25,13 @@ import { ExportService } from '../../common/services/export.service';
     ExportService,
     TimeEntriesService,
     TasksExportService,
+    TaskRepository,
   ],
-  exports: [TasksService, TimeEntriesService, TasksExportService],
+  exports: [
+    TasksService,
+    TimeEntriesService,
+    TasksExportService,
+    TaskRepository,
+  ],
 })
 export class TasksModule {}

@@ -6,8 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -32,13 +31,14 @@ import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
 import { BookingStateMachineService } from './booking-state-machine.service';
 
+import { BookingRepository } from '../repositories/booking.repository';
+
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
 
   constructor(
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: BookingRepository,
     private readonly catalogService: CatalogService,
 
     private readonly financeService: FinanceService,
@@ -83,7 +83,6 @@ export class BookingsService {
       taxAmount,
       totalPrice,
       status: BookingStatus.DRAFT,
-      tenantId,
     });
 
     const savedBooking = await this.bookingRepository.save(booking);
@@ -188,9 +187,8 @@ export class BookingsService {
   }
 
   async findOne(id: string): Promise<Booking> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const booking = await this.bookingRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: [
         'client',
         'servicePackage',
@@ -207,6 +205,8 @@ export class BookingsService {
     return booking;
   }
 
+  // No changes needed for update method logic itself as it uses findOne which is now scoped.
+  // But wait, the previous `findOne` usage in `update` is fine.
   async update(id: string, dto: UpdateBookingDto): Promise<Booking> {
     const booking = await this.findOne(id);
 

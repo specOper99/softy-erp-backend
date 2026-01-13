@@ -5,18 +5,18 @@ import {
 } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { createMockRepository } from '../../../../test/helpers/mock-factories';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
+import { TaskRepository } from '../repositories/task.repository';
 import { TasksExportService } from './tasks-export.service';
 import { TasksService } from './tasks.service';
 
@@ -45,19 +45,21 @@ describe('TasksService - Comprehensive Tests', () => {
     assignedUser: { id: 'user-uuid-123', email: 'user@example.com' },
   };
 
-  const mockTaskRepository = {
-    find: jest.fn().mockResolvedValue([mockTask]),
-    findOne: jest.fn(),
-    save: jest.fn().mockImplementation((task) => Promise.resolve(task)),
-    createQueryBuilder: jest.fn(() => ({
-      leftJoinAndSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      skip: jest.fn().mockReturnThis(),
-      take: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([mockTask]),
-    })),
+  const mockTaskRepository = createMockRepository();
+  mockTaskRepository.find = jest.fn().mockResolvedValue([mockTask]);
+  mockTaskRepository.save = jest
+    .fn()
+    .mockImplementation((task) => Promise.resolve(task));
+  // Mock query builder methods that might be missing or specific
+  const mockQueryBuilder = {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([mockTask]),
   };
+  mockTaskRepository.createQueryBuilder = jest.fn(() => mockQueryBuilder);
 
   const mockFinanceService = {
     transferPendingCommission: jest.fn().mockResolvedValue(undefined),
@@ -102,7 +104,7 @@ describe('TasksService - Comprehensive Tests', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
-        { provide: getRepositoryToken(Task), useValue: mockTaskRepository },
+        { provide: TaskRepository, useValue: mockTaskRepository },
         { provide: FinanceService, useValue: mockFinanceService },
         { provide: WalletService, useValue: mockWalletService },
         { provide: EventBus, useValue: mockEventBus },

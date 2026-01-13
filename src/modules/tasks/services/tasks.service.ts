@@ -6,9 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { Response } from 'express';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -27,13 +26,14 @@ import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
 import { TasksExportService } from './tasks-export.service';
 
+import { TaskRepository } from '../repositories/task.repository';
+
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
 
   constructor(
-    @InjectRepository(Task)
-    private readonly taskRepository: Repository<Task>,
+    private readonly taskRepository: TaskRepository,
     private readonly financeService: FinanceService,
     private readonly walletService: WalletService,
     private readonly auditService: AuditService,
@@ -79,9 +79,8 @@ export class TasksService {
   }
 
   async findOne(id: string): Promise<Task> {
-    const tenantId = TenantContextService.getTenantId();
     const task = await this.taskRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
     });
     if (!task) {
@@ -91,18 +90,16 @@ export class TasksService {
   }
 
   async findByBooking(bookingId: string, limit = 100): Promise<Task[]> {
-    const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
-      where: { bookingId, tenantId },
+      where: { bookingId },
       relations: ['taskType', 'assignedUser', 'booking', 'booking.client'],
       take: limit,
     });
   }
 
   async findByUser(userId: string, limit = 100): Promise<Task[]> {
-    const tenantId = TenantContextService.getTenantId();
     return this.taskRepository.find({
-      where: { assignedUserId: userId, tenantId },
+      where: { assignedUserId: userId },
       relations: ['booking', 'booking.client', 'taskType'],
       order: { dueDate: 'ASC' },
       take: limit,
@@ -122,9 +119,8 @@ export class TasksService {
         throw new BadRequestException('A task cannot be its own parent');
       }
       if (dto.parentId) {
-        const tenantId = TenantContextService.getTenantId();
         const parent = await this.taskRepository.findOne({
-          where: { id: dto.parentId, tenantId },
+          where: { id: dto.parentId },
         });
         if (!parent) {
           throw new NotFoundException(
@@ -277,17 +273,14 @@ export class TasksService {
       ? `Task reassigned from user ${oldUserId} to ${newUserId}. Commission reversed and re-credited: ${commissionAmount}`
       : `Task assigned to user ${newUserId}. Pending commission: ${commissionAmount}`;
 
-    await this.auditService.log(
-      {
-        action: 'UPDATE',
-        entityName: 'Task',
-        entityId: task.id,
-        oldValues: { assignedUserId: oldUserId },
-        newValues: { assignedUserId: task.assignedUserId },
-        notes,
-      },
-      manager,
-    );
+    await this.auditService.log({
+      action: 'UPDATE',
+      entityName: 'Task',
+      entityId: task.id,
+      oldValues: { assignedUserId: oldUserId },
+      newValues: { assignedUserId: task.assignedUserId },
+      notes,
+    });
   }
 
   private async ensureClientLoaded(
@@ -405,17 +398,14 @@ export class TasksService {
       }
 
       // Step 4: Audit Log
-      await this.auditService.log(
-        {
-          action: 'STATUS_CHANGE',
-          entityName: 'Task',
-          entityId: task.id,
-          oldValues: { status: oldStatus },
-          newValues: { status: TaskStatus.COMPLETED },
-          notes: `Task completed. Commission of ${commissionAmount} accrued.`,
-        },
-        queryRunner.manager,
-      );
+      await this.auditService.log({
+        action: 'STATUS_CHANGE',
+        entityName: 'Task',
+        entityId: task.id,
+        oldValues: { status: oldStatus },
+        newValues: { status: TaskStatus.COMPLETED },
+        notes: `Task completed. Commission of ${commissionAmount} accrued.`,
+      });
 
       // Commit transaction
       await queryRunner.commitTransaction();

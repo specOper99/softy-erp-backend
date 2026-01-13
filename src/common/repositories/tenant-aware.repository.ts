@@ -129,4 +129,13 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     }
     return this.repository.remove(entity);
   }
+
+  async softRemove(entity: T): Promise<T> {
+    if (!entity.tenantId) {
+      entity.tenantId = this.getTenantId();
+    } else if (entity.tenantId !== this.getTenantId()) {
+      throw new ForbiddenException('common.cross_tenant_remove_attempt');
+    }
+    return this.repository.softRemove(entity);
+  }
 }
