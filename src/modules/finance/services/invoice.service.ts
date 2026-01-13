@@ -6,11 +6,12 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 
+import { InvoiceRepository } from '../repositories/invoice.repository';
+
 @Injectable()
 export class InvoiceService {
   constructor(
-    @InjectRepository(Invoice)
-    private readonly invoiceRepository: Repository<Invoice>,
+    private readonly invoiceRepository: InvoiceRepository,
 
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
@@ -29,7 +30,7 @@ export class InvoiceService {
     }
 
     const existingInvoice = await this.invoiceRepository.findOne({
-      where: { bookingId, tenantId },
+      where: { bookingId },
     });
 
     if (existingInvoice) {
@@ -50,7 +51,6 @@ export class InvoiceService {
     ];
 
     const invoice = this.invoiceRepository.create({
-      tenantId,
       booking,
       invoiceNumber,
       status: InvoiceStatus.DRAFT,
@@ -69,7 +69,7 @@ export class InvoiceService {
       // Handle unique constraint violation (concurrent duplicate creation)
       if ((error as { code?: string }).code === '23505') {
         const existing = await this.invoiceRepository.findOne({
-          where: { bookingId, tenantId },
+          where: { bookingId },
         });
         if (existing) return existing;
       }
@@ -78,9 +78,8 @@ export class InvoiceService {
   }
 
   async getInvoicePdf(invoiceId: string): Promise<Uint8Array> {
-    const tenantId = TenantContextService.getTenantId();
     const invoice = await this.invoiceRepository.findOne({
-      where: { id: invoiceId, tenantId },
+      where: { id: invoiceId },
       relations: ['booking', 'booking.client'],
     });
 

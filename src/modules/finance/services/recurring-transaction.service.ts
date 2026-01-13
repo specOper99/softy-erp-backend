@@ -1,7 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
+import { DataSource, LessThanOrEqual } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -15,6 +14,8 @@ import {
 } from '../entities/recurring-transaction.entity';
 import { FinanceService } from './finance.service';
 
+import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
+
 @Injectable()
 export class RecurringTransactionService {
   private readonly logger = new Logger(RecurringTransactionService.name);
@@ -22,8 +23,7 @@ export class RecurringTransactionService {
   private static readonly CRON_LOCK_ID = 928374651; // Hash of 'recurring_cron'
 
   constructor(
-    @InjectRepository(RecurringTransaction)
-    private readonly recurringRepo: Repository<RecurringTransaction>,
+    private readonly recurringRepo: RecurringTransactionRepository,
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
   ) {}
@@ -31,10 +31,8 @@ export class RecurringTransactionService {
   async create(
     dto: CreateRecurringTransactionDto,
   ): Promise<RecurringTransaction> {
-    const tenantId = TenantContextService.getTenantId();
     const rt = this.recurringRepo.create({
       ...dto,
-      tenantId,
       nextRunDate: new Date(dto.startDate),
       status: RecurringStatus.ACTIVE,
     });
@@ -42,9 +40,7 @@ export class RecurringTransactionService {
   }
 
   async findAll(query: PaginationDto): Promise<RecurringTransaction[]> {
-    const tenantId = TenantContextService.getTenantId();
     return this.recurringRepo.find({
-      where: { tenantId },
       skip: query.getSkip(),
       take: query.getTake(),
     });
@@ -88,8 +84,7 @@ export class RecurringTransactionService {
   }
 
   async findOne(id: string): Promise<RecurringTransaction> {
-    const tenantId = TenantContextService.getTenantId();
-    const rt = await this.recurringRepo.findOne({ where: { id, tenantId } });
+    const rt = await this.recurringRepo.findOne({ where: { id } });
     if (!rt) throw new NotFoundException('Recurring transaction not found');
     return rt;
   }

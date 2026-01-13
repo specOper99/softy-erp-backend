@@ -6,7 +6,8 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
-import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
+import { InvoiceStatus } from '../entities/invoice.entity';
+import { InvoiceRepository } from '../repositories/invoice.repository';
 import { InvoiceService } from './invoice.service';
 
 describe('InvoiceService', () => {
@@ -57,7 +58,7 @@ describe('InvoiceService', () => {
       providers: [
         InvoiceService,
         {
-          provide: getRepositoryToken(Invoice),
+          provide: InvoiceRepository,
           useValue: mockInvoiceRepo,
         },
         {
@@ -68,7 +69,7 @@ describe('InvoiceService', () => {
     }).compile();
 
     service = module.get<InvoiceService>(InvoiceService);
-    invoiceRepo = module.get(getRepositoryToken(Invoice));
+    invoiceRepo = module.get(InvoiceRepository);
     bookingRepo = module.get(getRepositoryToken(Booking));
 
     mockTenantContext(mockTenantId);
@@ -97,7 +98,6 @@ describe('InvoiceService', () => {
       });
       expect(invoiceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          tenantId: mockTenantId,
           status: InvoiceStatus.DRAFT,
           subTotal: mockBooking.subTotal,
           taxTotal: mockBooking.taxAmount,
@@ -133,7 +133,7 @@ describe('InvoiceService', () => {
       const result = await service.getInvoicePdf('invoice-123');
 
       expect(invoiceRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'invoice-123', tenantId: mockTenantId },
+        where: { id: 'invoice-123' },
         relations: ['booking', 'booking.client'],
       });
       expect(result).toBeInstanceOf(Uint8Array);

@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import {
@@ -9,17 +7,17 @@ import {
   FinancialReportFilterDto,
 } from '../dto';
 import { DepartmentBudget } from '../entities/department-budget.entity';
-import { Transaction } from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { PnLEntry } from '../types/report.types';
+
+import { DepartmentBudgetRepository } from '../repositories/department-budget.repository';
+import { TransactionRepository } from '../repositories/transaction.repository';
 
 @Injectable()
 export class FinancialReportService {
   constructor(
-    @InjectRepository(Transaction)
-    private readonly transactionRepository: Repository<Transaction>,
-    @InjectRepository(DepartmentBudget)
-    private readonly budgetRepository: Repository<DepartmentBudget>,
+    private readonly transactionRepository: TransactionRepository,
+    private readonly budgetRepository: DepartmentBudgetRepository,
     private readonly cacheUtils: CacheUtilsService,
   ) {}
 
@@ -53,11 +51,8 @@ export class FinancialReportService {
   }
 
   async upsertBudget(dto: CreateBudgetDto): Promise<DepartmentBudget> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     let budget = await this.budgetRepository.findOne({
       where: {
-        tenantId,
         department: dto.department,
         period: dto.period,
       },
@@ -76,7 +71,6 @@ export class FinancialReportService {
         startDate: new Date(dto.startDate),
         endDate: new Date(dto.endDate),
         notes: dto.notes,
-        tenantId,
       });
     }
 
@@ -162,7 +156,7 @@ export class FinancialReportService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const budgets = await this.budgetRepository.find({
-      where: { tenantId, period },
+      where: { period },
       order: { department: 'ASC' },
     });
 

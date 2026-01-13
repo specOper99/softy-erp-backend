@@ -116,4 +116,17 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
   async count(options?: FindManyOptions<T>): Promise<number> {
     return this.repository.count(this.applyTenantScope(options || {}));
   }
+
+  createQueryBuilder(alias: string) {
+    return this.repository.createQueryBuilder(alias);
+  }
+
+  async remove(entity: T): Promise<T> {
+    if (!entity.tenantId) {
+      entity.tenantId = this.getTenantId();
+    } else if (entity.tenantId !== this.getTenantId()) {
+      throw new ForbiddenException('common.cross_tenant_remove_attempt');
+    }
+    return this.repository.remove(entity);
+  }
 }

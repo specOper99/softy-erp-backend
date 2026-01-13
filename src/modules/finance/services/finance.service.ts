@@ -3,9 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { Response } from 'express';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -20,6 +19,8 @@ import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { CurrencyService } from './currency.service';
 import { FinancialReportService } from './financial-report.service';
+
+import { TransactionRepository } from '../repositories/transaction.repository';
 
 // Minimal interface describing the subset of WalletService used by FinanceService.
 export type WalletServiceLike = {
@@ -38,8 +39,7 @@ export type WalletServiceLike = {
 @Injectable()
 export class FinanceService {
   constructor(
-    @InjectRepository(Transaction)
-    private readonly transactionRepository: Repository<Transaction>,
+    private readonly transactionRepository: TransactionRepository,
     private readonly dataSource: DataSource,
     private readonly currencyService: CurrencyService,
     private readonly tenantsService: TenantsService,
@@ -88,7 +88,6 @@ export class FinanceService {
       currency,
       exchangeRate,
       transactionDate: new Date(dto.transactionDate),
-      tenantId,
     });
     const savedTransaction = await this.transactionRepository.save(transaction);
 

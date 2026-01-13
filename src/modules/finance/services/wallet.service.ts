@@ -3,19 +3,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 
+import { WalletRepository } from '../repositories/wallet.repository';
+
 @Injectable()
 export class WalletService {
-  constructor(
-    @InjectRepository(EmployeeWallet)
-    private readonly walletRepository: Repository<EmployeeWallet>,
-  ) {}
+  constructor(private readonly walletRepository: WalletRepository) {}
 
   async getOrCreateWallet(
     userId: string,
@@ -38,9 +36,9 @@ export class WalletService {
 
     // Since we don't have DataSource injected here (to avoid bloat), we might need to rely on the caller to start transaction if they want strict locking.
     // OR we inject DataSource. Let's start simple.
-    const tenantId = TenantContextService.getTenantIdOrThrow();
+    // OR we inject DataSource. Let's start simple.
     let wallet = await this.walletRepository.findOne({
-      where: { userId, tenantId },
+      where: { userId },
     });
 
     if (!wallet) {
@@ -49,7 +47,6 @@ export class WalletService {
           userId,
           pendingBalance: 0,
           payableBalance: 0,
-          tenantId,
         });
         wallet = await this.walletRepository.save(wallet);
       } catch (error) {
@@ -62,7 +59,7 @@ export class WalletService {
         ) {
           // Postgres unique_violation
           wallet = await this.walletRepository.findOne({
-            where: { userId, tenantId },
+            where: { userId },
           });
           if (!wallet) throw error; // Should not happen
         } else {
@@ -95,9 +92,8 @@ export class WalletService {
   }
 
   async getWalletByUserId(userId: string): Promise<EmployeeWallet | null> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.walletRepository.findOne({
-      where: { userId, tenantId },
+      where: { userId },
       relations: ['user'],
     });
   }
@@ -105,9 +101,7 @@ export class WalletService {
   async getAllWallets(
     query: PaginationDto = new PaginationDto(),
   ): Promise<EmployeeWallet[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.walletRepository.find({
-      where: { tenantId },
       relations: ['user'],
       skip: query.getSkip(),
       take: query.getTake(),

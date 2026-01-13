@@ -1,17 +1,14 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
   createMockRepository,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
-import {
-  RecurringStatus,
-  RecurringTransaction,
-} from '../entities/recurring-transaction.entity';
+import { RecurringStatus } from '../entities/recurring-transaction.entity';
 
 import { TransactionType } from '../enums/transaction-type.enum';
+import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
 import { FinanceService } from './finance.service';
 import { RecurringTransactionService } from './recurring-transaction.service';
 
@@ -41,7 +38,7 @@ describe('RecurringTransactionService', () => {
       providers: [
         RecurringTransactionService,
         {
-          provide: getRepositoryToken(RecurringTransaction),
+          provide: RecurringTransactionRepository,
           useValue: createMockRepository(),
         },
         {
@@ -73,7 +70,9 @@ describe('RecurringTransactionService', () => {
     service = module.get<RecurringTransactionService>(
       RecurringTransactionService,
     );
-    recurringRepo = module.get(getRepositoryToken(RecurringTransaction));
+    recurringRepo = module.get<RecurringTransactionRepository>(
+      RecurringTransactionRepository,
+    );
     financeService = module.get(FinanceService);
 
     mockTenantContext(mockTenantId);
@@ -103,7 +102,6 @@ describe('RecurringTransactionService', () => {
 
       expect(recurringRepo.create).toHaveBeenCalledWith({
         ...dto,
-        tenantId: mockTenantId,
         nextRunDate: expect.any(Date),
         status: RecurringStatus.ACTIVE,
       });
@@ -123,7 +121,6 @@ describe('RecurringTransactionService', () => {
       const result = await service.findAll(mockPaginationDto as any);
 
       expect(recurringRepo.find).toHaveBeenCalledWith({
-        where: { tenantId: mockTenantId },
         skip: 0,
         take: 20,
       });
@@ -138,7 +135,7 @@ describe('RecurringTransactionService', () => {
       const result = await service.findOne('rt-123');
 
       expect(recurringRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'rt-123', tenantId: mockTenantId },
+        where: { id: 'rt-123' },
       });
       expect(result).toEqual(mockRecurringTransaction);
     });
