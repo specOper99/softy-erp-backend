@@ -123,4 +123,68 @@ describe('BookingStateMachineService', () => {
       expect(service.canBeCompleted(BookingStatus.DRAFT)).toBe(false);
     });
   });
+
+  describe('requiresApproval', () => {
+    it('should return false by default (as configured)', () => {
+      // Currently approvalRequiredStatuses is empty
+      expect(service.requiresApproval(BookingStatus.COMPLETED)).toBe(false);
+      expect(service.requiresApproval(BookingStatus.CONFIRMED)).toBe(false);
+    });
+  });
+
+  describe('executeTransition', () => {
+    it('should execute hooks and save callback in correct order', async () => {
+      const mockBooking = { id: '123', status: BookingStatus.DRAFT } as Booking;
+      const targetStatus = BookingStatus.CONFIRMED;
+
+      const saveCallback = jest.fn().mockResolvedValue({ ...mockBooking, status: targetStatus });
+
+      const hooks: TransitionHook = {
+        beforeTransition: jest.fn().mockResolvedValue(undefined),
+        afterTransition: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const result = await service.executeTransition(mockBooking, targetStatus, saveCallback, hooks);
+
+      expect(result.status).toBe(BookingStatus.CONFIRMED);
+
+      // Verify Order: Validate -> Before -> Save -> After
+      expect(hooks.beforeTransition).toHaveBeenCalledWith(mockBooking, targetStatus);
+      expect(saveCallback).toHaveBeenCalled();
+      expect(hooks.afterTransition).toHaveBeenCalledWith(
+        expect.objectContaining({ status: BookingStatus.CONFIRMED }),
+        BookingStatus.DRAFT,
+      );
+
+      // Verify invocation order
+      const beforeCall = (hooks.beforeTransition as jest.Mock).mock.invocationCallOrder[0];
+      const saveCall = saveCallback.mock.invocationCallOrder[0];
+      const afterCall = (hooks.afterTransition as jest.Mock).mock.invocationCallOrder[0];
+
+      expect(beforeCall).toBeLessThan(saveCall);
+      expect(saveCall).toBeLessThan(afterCall);
+    });
+
+    it('should fail if transition is invalid', async () => {
+      const mockBooking = { id: '123', status: BookingStatus.DRAFT } as Booking;
+      const invalidStatus = BookingStatus.COMPLETED; // Invalid transition
+      const saveCallback = jest.fn();
+
+      await expect(service.executeTransition(mockBooking, invalidStatus, saveCallback)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(saveCallback).not.toHaveBeenCalled();
+    });
+
+    it('should work without hooks', async () => {
+      const mockBooking = { id: '123', status: BookingStatus.DRAFT } as Booking;
+      const targetStatus = BookingStatus.CONFIRMED;
+      const saveCallback = jest.fn().mockResolvedValue({ ...mockBooking, status: targetStatus });
+
+      await service.executeTransition(mockBooking, targetStatus, saveCallback);
+
+      expect(saveCallback).toHaveBeenCalled();
+    });
+  });
 });
