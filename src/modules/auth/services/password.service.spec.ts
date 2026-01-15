@@ -26,7 +26,7 @@ describe('PasswordService', () => {
   };
 
   const mockUsersService = {
-    findByEmail: jest.fn(),
+    findByEmailGlobal: jest.fn(),
   };
 
   const mockMailService = {
@@ -83,22 +83,22 @@ describe('PasswordService', () => {
 
   describe('forgotPassword', () => {
     it('should calculate crypto hash even if user not found (Timing Attack Mitigation)', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(null);
 
       await service.forgotPassword('nonexistent@example.com');
 
-      expect(usersService.findByEmail).toHaveBeenCalledWith('nonexistent@example.com');
+      expect(usersService.findByEmailGlobal).toHaveBeenCalledWith('nonexistent@example.com');
       // Ensure we didn't save anything
       expect(passwordResetRepository.save).not.toHaveBeenCalled();
       expect(mailService.queuePasswordReset).not.toHaveBeenCalled();
     });
 
     it('should generate token and send email if user exists', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
 
       await service.forgotPassword('test@example.com');
 
-      expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
+      expect(usersService.findByEmailGlobal).toHaveBeenCalledWith('test@example.com');
       expect(passwordResetRepository.update).toHaveBeenCalled();
       expect(passwordResetRepository.save).toHaveBeenCalled();
       expect(mailService.queuePasswordReset).toHaveBeenCalledWith(

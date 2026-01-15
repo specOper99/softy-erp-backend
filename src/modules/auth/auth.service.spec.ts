@@ -52,6 +52,7 @@ describe('AuthService - Comprehensive Tests', () => {
     create: jest.fn(),
     createWithManager: jest.fn(),
     findByEmail: jest.fn(),
+    findByEmailGlobal: jest.fn(),
     findByEmailWithMfaSecret: jest.fn(),
     findOne: jest.fn(),
     validatePassword: jest.fn(),
@@ -237,7 +238,7 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should register new user and return auth response', async () => {
       mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
       mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
-      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(null);
       mockUsersService.createWithManager.mockResolvedValue(mockUser);
 
       const dto = {
@@ -256,7 +257,7 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should create user with ADMIN role when specified', async () => {
       mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
       mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
-      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(null);
       mockUsersService.createWithManager.mockResolvedValue({
         ...mockUser,
         role: Role.ADMIN,
@@ -276,7 +277,7 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should throw ConflictException if user already exists', async () => {
       mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
       mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
 
       const dto = {
         email: 'new@example.com',
@@ -412,7 +413,7 @@ describe('AuthService - Comprehensive Tests', () => {
   describe('logoutAllSessions', () => {
     it('should revoke all active tokens', async () => {
       const result = await service.logoutAllSessions('u-1');
-      expect(result).toBe(0);
+      expect(result).toBe(3);
     });
   });
 
@@ -469,7 +470,7 @@ describe('AuthService - Comprehensive Tests', () => {
         isExpired: () => false,
       };
       mockEmailVerificationRepository.findOne.mockResolvedValue(mockToken);
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
       mockEmailVerificationRepository.save.mockResolvedValue({
         ...mockToken,
         used: true,

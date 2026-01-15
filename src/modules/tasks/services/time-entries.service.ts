@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
 import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
@@ -10,34 +10,39 @@ export class TimeEntriesService {
   constructor(
     @InjectRepository(TimeEntry)
     private readonly timeEntryRepository: Repository<TimeEntry>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async startTimer(userId: string, dto: StartTimeEntryDto): Promise<TimeEntry> {
     const tenantId = TenantContextService.getTenantId();
 
-    const activeTimer = await this.timeEntryRepository.findOne({
-      where: {
-        userId,
+    // [C-05] Race Condition Fix: Use pessimistic locking to prevent concurrent timer starts
+    return this.dataSource.transaction(async (manager) => {
+      // Acquire exclusive lock on existing running timer (if any)
+      const activeTimer = await manager
+        .createQueryBuilder(TimeEntry, 'entry')
+        .where('entry.userId = :userId', { userId })
+        .andWhere('entry.tenantId = :tenantId', { tenantId })
+        .andWhere('entry.status = :status', { status: TimeEntryStatus.RUNNING })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (activeTimer) {
+        throw new BadRequestException('You have an active timer. Please stop it first.');
+      }
+
+      const timeEntry = manager.create(TimeEntry, {
         tenantId,
+        userId,
+        taskId: dto.taskId,
+        startTime: new Date(),
         status: TimeEntryStatus.RUNNING,
-      },
+        billable: dto.billable ?? false,
+        notes: dto.notes,
+      });
+
+      return manager.save(timeEntry);
     });
-
-    if (activeTimer) {
-      throw new BadRequestException('You have an active timer. Please stop it first.');
-    }
-
-    const timeEntry = this.timeEntryRepository.create({
-      tenantId,
-      userId,
-      taskId: dto.taskId,
-      startTime: new Date(),
-      status: TimeEntryStatus.RUNNING,
-      billable: dto.billable ?? false,
-      notes: dto.notes,
-    });
-
-    return this.timeEntryRepository.save(timeEntry);
   }
 
   async stopTimer(userId: string, id: string, dto?: StopTimeEntryDto): Promise<TimeEntry> {

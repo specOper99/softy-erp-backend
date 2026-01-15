@@ -1,8 +1,13 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { createMockRepository, createMockTimeEntry, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { DataSource, Repository } from 'typeorm';
+import {
+  createMockDataSource,
+  createMockRepository,
+  createMockTimeEntry,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
 import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
 import { TimeEntriesService } from './time-entries.service';
@@ -10,6 +15,7 @@ import { TimeEntriesService } from './time-entries.service';
 describe('TimeEntriesService', () => {
   let service: TimeEntriesService;
   let timeEntryRepo: jest.Mocked<Repository<TimeEntry>>;
+  let mockDataSource: ReturnType<typeof createMockDataSource>;
 
   const mockTenantId = 'tenant-123';
   const mockUserId = 'user-123';
@@ -22,12 +28,34 @@ describe('TimeEntriesService', () => {
   }) as unknown as TimeEntry;
 
   beforeEach(async () => {
+    mockDataSource = createMockDataSource();
+
+    // Configure the mock manager's query builder for pessimistic locking tests
+    const mockQueryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      setLock: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+    };
+    mockDataSource.transaction = jest.fn().mockImplementation((cb) => {
+      const mockManager = {
+        createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+        create: jest.fn().mockImplementation((_Entity, dto) => ({ ...mockTimeEntry, ...dto })),
+        save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+      };
+      return cb(mockManager);
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TimeEntriesService,
         {
           provide: getRepositoryToken(TimeEntry),
           useValue: createMockRepository<TimeEntry>(),
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();
@@ -47,28 +75,36 @@ describe('TimeEntriesService', () => {
   });
 
   describe('startTimer', () => {
-    it('should start a new timer', async () => {
+    it('should start a new timer using pessimistic locking', async () => {
       const dto = { taskId: 'task-123', billable: true } as StartTimeEntryDto;
-      timeEntryRepo.findOne.mockResolvedValue(null); // No active timer
-      timeEntryRepo.create.mockReturnValue(mockTimeEntry);
-      timeEntryRepo.save.mockResolvedValue(mockTimeEntry);
 
       const result = await service.startTimer(mockUserId, dto);
 
-      expect(timeEntryRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: mockTenantId,
-          userId: mockUserId,
-          taskId: dto.taskId,
-          status: TimeEntryStatus.RUNNING,
-          billable: true,
-        }),
-      );
-      expect(result).toEqual(mockTimeEntry);
+      expect(mockDataSource.transaction).toHaveBeenCalled();
+      expect(result).toMatchObject({
+        tenantId: mockTenantId,
+        userId: mockUserId,
+        taskId: dto.taskId,
+        status: TimeEntryStatus.RUNNING,
+        billable: true,
+      });
     });
 
     it('should throw if user has active timer', async () => {
-      timeEntryRepo.findOne.mockResolvedValue(mockTimeEntry);
+      // Reconfigure transaction to return an active timer
+      mockDataSource.transaction = jest.fn().mockImplementation((cb) => {
+        const mockManager = {
+          createQueryBuilder: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnThis(),
+            andWhere: jest.fn().mockReturnThis(),
+            setLock: jest.fn().mockReturnThis(),
+            getOne: jest.fn().mockResolvedValue(mockTimeEntry), // Active timer exists
+          }),
+          create: jest.fn(),
+          save: jest.fn(),
+        };
+        return cb(mockManager);
+      });
 
       await expect(service.startTimer(mockUserId, { taskId: 'task-123' } as StartTimeEntryDto)).rejects.toThrow(
         BadRequestException,

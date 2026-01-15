@@ -1,4 +1,5 @@
-import { IsBoolean, IsEmail, IsEnum, IsObject, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { BillingInterval } from '../entities/subscription.entity';
 
 export class CreateSubscriptionDto {
@@ -37,6 +38,35 @@ export class CreatePaymentMethodDto {
   setAsDefault?: boolean;
 }
 
+/**
+ * Nested address DTO for billing customer
+ */
+export class BillingAddressDto {
+  @IsOptional()
+  @IsString()
+  line1?: string;
+
+  @IsOptional()
+  @IsString()
+  line2?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  postalCode?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+}
+
 export class CreateBillingCustomerDto {
   @IsOptional()
   @IsEmail()
@@ -47,15 +77,9 @@ export class CreateBillingCustomerDto {
   name?: string;
 
   @IsOptional()
-  @IsObject()
-  address?: {
-    line1?: string;
-    line2?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-  };
+  @ValidateNested()
+  @Type(() => BillingAddressDto)
+  address?: BillingAddressDto;
 }
 
 export class CreateCheckoutSessionDto {
