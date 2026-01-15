@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -9,6 +9,8 @@ import { WalletRepository } from '../repositories/wallet.repository';
 
 @Injectable()
 export class WalletService {
+  private readonly logger = new Logger(WalletService.name);
+
   constructor(private readonly walletRepository: WalletRepository) {}
 
   async getOrCreateWallet(userId: string, manager?: EntityManager): Promise<EmployeeWallet> {
@@ -143,6 +145,14 @@ export class WalletService {
       throw new NotFoundException(`Wallet not found for user ${userId}`);
     }
     const newBalance = MathUtils.subtract(Number(wallet.pendingBalance), Number(amount));
+
+    // L-08: Log warning if balance would go negative (potential accounting issue)
+    if (newBalance < 0) {
+      this.logger.warn(
+        `Wallet balance would be negative for user ${userId}: pendingBalance=${wallet.pendingBalance}, subtraction=${amount}, result=${newBalance}. Clamping to 0.`,
+      );
+    }
+
     wallet.pendingBalance = Math.max(0, newBalance);
     return manager.save(wallet);
   }

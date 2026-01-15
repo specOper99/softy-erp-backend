@@ -11,7 +11,7 @@ import {
   SetMetadata,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -34,6 +34,9 @@ export class UsersController {
   @Roles(Role.ADMIN)
   @MfaRequired()
   @ApiOperation({ summary: 'Create a new user (Admin only, MFA required)' })
+  @ApiResponse({ status: 201, description: 'User created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or duplicate email' })
+  @ApiResponse({ status: 403, description: 'MFA required or insufficient permissions' })
   @SetMetadata('quotaResource', 'max_users')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
@@ -55,6 +58,8 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
+  @ApiResponse({ status: 200, description: 'User retrieved' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
@@ -71,6 +76,8 @@ export class UsersController {
   @Roles(Role.ADMIN)
   @MfaRequired()
   @ApiOperation({ summary: 'Delete user (Admin only, MFA required)' })
+  @ApiResponse({ status: 200, description: 'User deleted' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.remove(id);
   }

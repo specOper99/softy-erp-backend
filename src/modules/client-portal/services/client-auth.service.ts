@@ -1,5 +1,5 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Cache } from 'cache-manager';
@@ -21,6 +21,7 @@ export interface ClientTokenPayload {
 
 @Injectable()
 export class ClientAuthService {
+  private readonly logger = new Logger(ClientAuthService.name);
   private readonly TOKEN_EXPIRY_HOURS = 24;
   private readonly SESSION_EXPIRY_SECONDS: number;
 
@@ -239,7 +240,14 @@ export class ClientAuthService {
       if (ttl > 0) {
         const tokenHash = this.hashToken(token);
         // TTL in milliseconds for cache-manager
-        await this.cacheManager.set(`blacklist:${tokenHash}`, 'revoked', ttl * 1000);
+        try {
+          await this.cacheManager.set(`blacklist:${tokenHash}`, 'revoked', ttl * 1000);
+        } catch (cacheError) {
+          // L-06: Log warning when Redis is unavailable during logout
+          this.logger.warn(
+            `Failed to blacklist token in cache during logout: ${cacheError instanceof Error ? cacheError.message : String(cacheError)}`,
+          );
+        }
       }
     } catch {
       // Ignore decode errors on logout

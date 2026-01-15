@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -52,6 +52,8 @@ export class TasksController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get task by ID' })
+  @ApiResponse({ status: 200, description: 'Task retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.tasksService.findOne(id);
   }
@@ -59,6 +61,9 @@ export class TasksController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update task' })
+  @ApiResponse({ status: 200, description: 'Task updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTaskDto) {
     return this.tasksService.update(id, dto);
   }
@@ -66,6 +71,9 @@ export class TasksController {
   @Patch(':id/assign')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Assign task to user' })
+  @ApiResponse({ status: 200, description: 'Task assigned successfully' })
+  @ApiResponse({ status: 400, description: 'User does not belong to tenant' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTaskDto) {
     return this.tasksService.assignTask(id, dto);
   }
@@ -78,6 +86,9 @@ export class TasksController {
 
   @Patch(':id/complete')
   @ApiOperation({ summary: 'Complete task (accrues commission to wallet)' })
+  @ApiResponse({ status: 200, description: 'Task completed, commission credited' })
+  @ApiResponse({ status: 400, description: 'Task already completed or not assigned' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
   complete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.tasksService.completeTask(id, user);
   }
