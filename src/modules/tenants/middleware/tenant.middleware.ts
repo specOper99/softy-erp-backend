@@ -1,4 +1,5 @@
 import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { NextFunction, Request, Response } from 'express';
 import { validate as isUuid } from 'uuid';
@@ -19,6 +20,7 @@ export class TenantMiddleware implements NestMiddleware {
   constructor(
     private readonly jwtService: JwtService,
     private readonly tenantsService: TenantsService,
+    private readonly configService: ConfigService,
   ) {}
 
   async use(req: Request, _res: Response, next: NextFunction) {
@@ -27,27 +29,7 @@ export class TenantMiddleware implements NestMiddleware {
 
     // 2. [C-03] Fallback: Tenant Subdomain Extraction (for public routes like client portal)
     if (!tenantId) {
-      const hostname = req.hostname;
-      const parts = hostname.split('.');
-      // Expecting: tenantId.domain.com (3+ parts)
-      if (parts.length >= 3) {
-        const potentialId = parts[0];
-        // Optional: Filter out 'www', 'api' if they are reserved subdomains
-        if (!['www', 'api', 'app'].includes(potentialId)) {
-          if (isUuid(potentialId)) {
-            tenantId = potentialId;
-          } else {
-            // Resolve slug to UUID
-            try {
-              const tenant = await this.tenantsService.findBySlug(potentialId);
-              tenantId = tenant.id;
-            } catch (error) {
-              // Tenant not found or DB error, ignore
-              this.logger.debug(`Failed to resolve tenant slug ${potentialId}`, error);
-            }
-          }
-        }
-      }
+      tenantId = await this.resolveTenantFromHost(req.hostname);
     }
 
     if (!tenantId) {
@@ -57,6 +39,52 @@ export class TenantMiddleware implements NestMiddleware {
     TenantContextService.run(tenantId, () => {
       next();
     });
+  }
+
+  private getAllowedDomains(): string[] {
+    return this.configService
+      .get<string>('TENANT_ALLOWED_DOMAINS', '')
+      .split(',')
+      .map((d) => d.trim())
+      .filter(Boolean);
+  }
+
+  private isAllowedHost(hostname: string, allowedDomains: string[]): boolean {
+    if (allowedDomains.length === 0) {
+      return true;
+    }
+    return allowedDomains.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
+  }
+
+  private async resolveTenantFromHost(hostname: string): Promise<string | undefined> {
+    const allowedDomains = this.getAllowedDomains();
+    if (!this.isAllowedHost(hostname, allowedDomains)) {
+      this.logger.warn(`Tenant resolution skipped for unapproved host: ${hostname}`);
+      return undefined;
+    }
+
+    const parts = hostname.split('.');
+    // Expecting: tenantId.domain.com (3+ parts)
+    if (parts.length < 3) {
+      return undefined;
+    }
+
+    const potentialId = parts[0];
+    if (['www', 'api', 'app'].includes(potentialId)) {
+      return undefined;
+    }
+
+    if (isUuid(potentialId)) {
+      return potentialId;
+    }
+
+    try {
+      const tenant = await this.tenantsService.findBySlug(potentialId);
+      return tenant.id;
+    } catch (error) {
+      this.logger.debug(`Failed to resolve tenant slug ${potentialId}`, error);
+      return undefined;
+    }
   }
 
   /**

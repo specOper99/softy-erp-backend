@@ -158,6 +158,10 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   VAULT_ENABLED?: string;
+
+  @IsString()
+  @IsOptional()
+  TENANT_ALLOWED_DOMAINS?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

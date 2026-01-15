@@ -1,7 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { EntityManager } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -15,6 +16,7 @@ import { UserRepository } from '../repositories/user.repository';
 export class UsersService {
   constructor(
     private readonly userRepository: UserRepository,
+    @InjectRepository(User) private readonly rawUserRepository: Repository<User>,
     private readonly auditService: AuditPublisher,
     private readonly eventBus: EventBus,
   ) {}
@@ -118,6 +120,10 @@ export class UsersService {
       return this.userRepository.findOne({ where: { email, tenantId } });
     }
     return this.userRepository.findOne({ where: { email } });
+  }
+
+  async findByEmailGlobal(email: string): Promise<User | null> {
+    return this.rawUserRepository.findOne({ where: { email } });
   }
 
   async findMany(ids: string[]): Promise<User[]> {

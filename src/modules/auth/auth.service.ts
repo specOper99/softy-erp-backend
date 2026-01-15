@@ -68,7 +68,7 @@ export class AuthService {
 
       const tenantId = tenant.id;
 
-      const existingUser = await this.usersService.findByEmail(registerDto.email);
+      const existingUser = await this.usersService.findByEmailGlobal(registerDto.email);
       if (existingUser) {
         throw new ConflictException('auth.email_already_registered');
       }
@@ -302,7 +302,7 @@ export class AuthService {
       throw new UnauthorizedException('Verification token has expired');
     }
 
-    const user = await this.usersService.findByEmail(verificationToken.email);
+    const user = await this.usersService.findByEmailGlobal(verificationToken.email);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -316,7 +316,7 @@ export class AuthService {
   }
 
   async resendVerificationEmail(email: string): Promise<void> {
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmailGlobal(email);
     if (!user) {
       return;
     }

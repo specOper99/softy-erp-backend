@@ -27,7 +27,7 @@ export class PasswordService {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmailGlobal(email);
 
     if (!user) {
       this.logger.warn({

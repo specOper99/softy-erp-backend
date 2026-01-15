@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Ip, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Ip,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
@@ -84,16 +97,20 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(@CurrentUser() user: User, @Body() dto: LogoutDto, @Req() req: Request): Promise<void> {
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
-    // If we are logging out all sessions, we still blacklist current access token
-    if (accessToken) {
-      await this.authService.logout(user.id, undefined, accessToken);
+    if (dto.allSessions) {
+      // If we are logging out all sessions, we still blacklist current access token
+      if (accessToken) {
+        await this.authService.logout(user.id, undefined, accessToken);
+      }
+      await this.authService.logoutAllSessions(user.id);
+      return;
     }
 
-    if (dto.allSessions) {
-      await this.authService.logoutAllSessions(user.id);
-    } else {
-      await this.authService.logout(user.id, dto.refreshToken, accessToken);
+    if (!dto.refreshToken) {
+      throw new BadRequestException('refreshToken is required unless allSessions=true');
     }
+
+    await this.authService.logout(user.id, dto.refreshToken, accessToken);
   }
 
   @Post('mfa/generate')
