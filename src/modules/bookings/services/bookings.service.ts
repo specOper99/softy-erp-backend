@@ -49,14 +49,14 @@ export class BookingsService {
 
     // Validate event date is at least 1 hour in the future
     const eventDate = new Date(dto.eventDate);
-    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
+    const oneHourFromNow = new Date(Date.now() + BUSINESS_CONSTANTS.BOOKING.MIN_LEAD_TIME_MS);
     if (eventDate < oneHourFromNow) {
       throw new BadRequestException('booking.event_date_must_be_future');
     }
 
     // Validate tax rate bounds (max 50% per business rule)
     const taxRate = dto.taxRate ?? 0;
-    if (taxRate < 0 || taxRate > 50) {
+    if (taxRate < 0 || taxRate > BUSINESS_CONSTANTS.BOOKING.MAX_TAX_RATE_PERCENT) {
       throw new BadRequestException('booking.invalid_tax_rate');
     }
 
@@ -106,13 +106,13 @@ export class BookingsService {
     if (query.search) {
       // Validate and sanitize search parameter
       const trimmed = query.search.trim();
-      if (trimmed.length < BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
-        // Skip search if too short
-      } else {
-        const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH);
-        qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
-          search: `%${sanitized}%`,
-        });
+      if (trimmed.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
+        const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH).replace(/[%_]/g, '');
+        if (sanitized.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
+          qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
+            search: `%${sanitized}%`,
+          });
+        }
       }
     }
 
