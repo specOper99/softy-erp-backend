@@ -71,7 +71,7 @@ describe('Workflow Integration Tests (E2E)', () => {
     const seedData = await seedTestDatabase(_dataSource);
     const { tenantId, client } = seedData;
     globalThis.testTenantId = tenantId;
-    (global as unknown as { testClientId: string }).testClientId = client.id;
+    (globalThis as unknown as { testClientId: string }).testClientId = client.id;
 
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
@@ -120,7 +120,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
 
         .send({
-          clientId: (global as unknown as { testClientId: string }).testClientId,
+          clientId: (globalThis as unknown as { testClientId: string }).testClientId,
           eventDate: eventDate.toISOString(),
           packageId: packageId,
           notes: 'E2E workflow test booking',
@@ -246,7 +246,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .get(`/api/v1/wallets/user/${staffUserId}`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
-      expect(parseFloat(res.body.data.payableBalance)).toBeGreaterThan(0);
+      expect(Number.parseFloat(res.body.data.payableBalance)).toBeGreaterThan(0);
     });
   });
 
@@ -267,7 +267,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .get(`/api/v1/wallets/user/${staffUserId}`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
-      expect(parseFloat(res.body.data.payableBalance)).toBe(0);
+      expect(Number.parseFloat(res.body.data.payableBalance)).toBe(0);
     });
 
     it('should have created payroll transactions', async () => {

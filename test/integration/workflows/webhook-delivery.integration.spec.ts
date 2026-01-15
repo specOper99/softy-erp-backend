@@ -5,7 +5,8 @@ import { DataSource } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { EncryptionService } from '../../../src/common/services/encryption.service';
 import { Webhook } from '../../../src/modules/webhooks/entities/webhook.entity';
-import { WebhookEvent, WebhookService } from '../../../src/modules/webhooks/webhooks.service';
+import { WebhookService } from '../../../src/modules/webhooks/webhooks.service';
+import { WebhookEvent } from '../../../src/modules/webhooks/webhooks.types';
 
 // Mock ConfigService
 const mockConfigService = {
@@ -17,7 +18,7 @@ const mockConfigService = {
 
 // Mock fetch
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 describe('Webhook Delivery Integration', () => {
   let module: TestingModule;

@@ -40,16 +40,16 @@ export class UpdateMetricsHandler
       // If we want "Sales made today", we should use current date.
       // If we want "Revenue for Event Date", we use event.eventDate.
       // Let's assume "Performance Dashboard" = "What did we sell today?"
-      dateStr = new Date().toISOString().split('T')[0];
+      dateStr = new Date().toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
     } else if (event instanceof TaskCompletedEvent) {
-      dateStr = new Date(event.completedAt).toISOString().split('T')[0];
+      dateStr = new Date(event.completedAt).toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
     } else if (event instanceof BookingCancelledEvent) {
-      dateStr = new Date(event.cancelledAt).toISOString().split('T')[0];
+      dateStr = new Date(event.cancelledAt).toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
     } else if (event instanceof PaymentRecordedEvent) {
       // Revenue metrics based on collection date (today)
-      dateStr = new Date().toISOString().split('T')[0];
+      dateStr = new Date().toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
     } else {
-      dateStr = new Date().toISOString().split('T')[0];
+      dateStr = new Date().toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
     }
 
     try {

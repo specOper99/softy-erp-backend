@@ -68,7 +68,7 @@ export class I18nExceptionFilter implements ExceptionFilter {
     } else if (isNestJsErrorResponse(exceptionResponse)) {
       // Handle standard NestJS error object { message: '...', ... }
       if (Array.isArray(exceptionResponse.message)) {
-        originalMessage = exceptionResponse.message[0]; // Validation errors often return array
+        originalMessage = exceptionResponse.message[0] ?? 'Error'; // Validation errors often return array
       } else {
         originalMessage = exceptionResponse.message;
       }

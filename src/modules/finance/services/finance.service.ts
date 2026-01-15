@@ -16,12 +16,7 @@ import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { CurrencyService } from './currency.service';
 import { FinancialReportService } from './financial-report.service';
-
-// Minimal interface describing the subset of WalletService used by FinanceService.
-export type WalletServiceLike = {
-  subtractPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<unknown>;
-  addPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<unknown>;
-};
+import { WalletService } from './wallet.service';
 
 @Injectable()
 export class FinanceService {
@@ -33,6 +28,7 @@ export class FinanceService {
     private readonly tenantsService: TenantsService,
     private readonly exportService: ExportService,
     private readonly dashboardGateway: DashboardGateway,
+    private readonly walletService: WalletService,
     private readonly financialReportService: FinancialReportService,
   ) {}
 
@@ -146,7 +142,6 @@ export class FinanceService {
     oldUserId: string | null,
     newUserId: string | undefined,
     commissionAmount: number,
-    walletService: WalletServiceLike, // Avoiding circular dependency by passing service or using moduleRef. Ideally WalletService should be injected but let's see current deps.
   ): Promise<void> {
     if (commissionAmount <= 0) return;
 
@@ -175,9 +170,9 @@ export class FinanceService {
     // Execute updates in order
     for (const update of updates) {
       if (update.action === 'subtract') {
-        await walletService.subtractPendingCommission(manager, update.userId, commissionAmount);
+        await this.walletService.subtractPendingCommission(manager, update.userId, commissionAmount);
       } else {
-        await walletService.addPendingCommission(manager, update.userId, commissionAmount);
+        await this.walletService.addPendingCommission(manager, update.userId, commissionAmount);
       }
     }
   }

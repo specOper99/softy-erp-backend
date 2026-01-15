@@ -137,9 +137,9 @@ export class IpRateLimitGuard implements CanActivate {
     if (this.trustProxyHeaders) {
       const forwarded = request.headers['x-forwarded-for'];
       if (typeof forwarded === 'string') {
-        const ip = forwarded.split(',')[0].trim();
-        if (isIP(ip)) return ip;
-        this.logger.warn(`Invalid IP in X-Forwarded-For header: ${ip}`);
+        const ip = forwarded.split(',')[0]?.trim();
+        if (ip && isIP(ip)) return ip;
+        if (ip) this.logger.warn(`Invalid IP in X-Forwarded-For header: ${ip}`);
       }
       const realIp = request.headers['x-real-ip'];
       if (typeof realIp === 'string') {

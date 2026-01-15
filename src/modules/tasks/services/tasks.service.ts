@@ -179,13 +179,7 @@ export class TasksService {
 
       // Step 5: Handle commission transfers
       const commissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
-      await this.financeService.transferPendingCommission(
-        queryRunner.manager,
-        oldUserId,
-        dto.userId,
-        commissionAmount,
-        this.walletService,
-      );
+      await this.financeService.transferPendingCommission(queryRunner.manager, oldUserId, dto.userId, commissionAmount);
 
       // Step 6: Audit Log
       await this.logTaskAssignment(queryRunner.manager, task, oldUserId, dto.userId, commissionAmount);
@@ -201,7 +195,7 @@ export class TasksService {
           new TaskAssignedEvent(
             task.id,
             tenantId,
-            assignedUser.email.split('@')[0], // name approximation or real name if available? Helper used email split.
+            assignedUser.email.split('@')[0] ?? assignedUser.email, // name approximation or real name if available? Helper used email split.
             assignedUser.email,
             task.taskType.name,
             task.booking.client?.name || 'Client',

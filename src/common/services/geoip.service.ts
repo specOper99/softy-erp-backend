@@ -9,10 +9,13 @@ export class GeoIpService {
 
     const parts = ip.split('.');
     if (parts.length === 4) {
-      const lastOctet = parseInt(parts[3], 10);
-      if (lastOctet % 3 === 0) return { country: 'US', city: 'New York' };
-      if (lastOctet % 3 === 1) return { country: 'UK', city: 'London' };
-      if (lastOctet % 3 === 2) return { country: 'JP', city: 'Tokyo' };
+      const lastOctetStr = parts[3];
+      if (lastOctetStr) {
+        const lastOctet = parseInt(lastOctetStr, 10);
+        if (lastOctet % 3 === 0) return { country: 'US', city: 'New York' };
+        if (lastOctet % 3 === 1) return { country: 'UK', city: 'London' };
+        if (lastOctet % 3 === 2) return { country: 'JP', city: 'Tokyo' };
+      }
     }
 
     return { country: 'Unknown', city: 'Unknown' };

@@ -174,7 +174,8 @@ export class AuditInterceptor implements NestInterceptor {
     if (this.trustProxyHeaders) {
       const forwarded = request.headers['x-forwarded-for'];
       if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
+        const ip = forwarded.split(',')[0]?.trim();
+        if (ip) return ip;
       }
       const realIp = request.headers['x-real-ip'];
       if (typeof realIp === 'string') {

@@ -54,6 +54,9 @@ export class RecurringTransactionService {
     if (query.cursor) {
       const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
       const [dateStr, id] = decoded.split('|');
+      if (!dateStr || !id) {
+        return { data: [], nextCursor: null };
+      }
       const date = new Date(dateStr);
 
       qb.andWhere('(rt.createdAt < :date OR (rt.createdAt = :date AND rt.id < :id))', { date, id });
@@ -65,8 +68,10 @@ export class RecurringTransactionService {
     if (transactions.length > limit) {
       transactions.pop();
       const lastItem = transactions[transactions.length - 1];
-      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-      nextCursor = Buffer.from(cursorData).toString('base64');
+      if (lastItem) {
+        const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+        nextCursor = Buffer.from(cursorData).toString('base64');
+      }
     }
 
     return { data: transactions, nextCursor };

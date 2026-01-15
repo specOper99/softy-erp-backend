@@ -17,6 +17,29 @@
 import type { ObjectLiteral, Repository } from 'typeorm';
 import { TenantContextService } from '../../src/common/services/tenant-context.service';
 
+// Import entity types for type safety in mock factories
+import type { Booking } from '../../src/modules/bookings/entities/booking.entity';
+import type { TaskType } from '../../src/modules/catalog/entities/task-type.entity';
+import type { Task } from '../../src/modules/tasks/entities/task.entity';
+import type { User } from '../../src/modules/users/entities/user.entity';
+
+// Type-safe partial entity types for mock factories
+// Using intersection with Record for flexibility while maintaining type hints
+type MockUser = { id: string; email: string; tenantId: string } & Record<string, unknown>;
+type MockBooking = { id: string; tenantId: string } & Record<string, unknown>;
+type MockTask = { id: string } & Record<string, unknown>;
+type MockInvoice = { id: string; tenantId: string } & Record<string, unknown>;
+type MockTransaction = { id: string; tenantId: string } & Record<string, unknown>;
+type MockRecurringTransaction = { id: string; tenantId: string } & Record<string, unknown>;
+type MockEmployeeWallet = { id: string; userId: string } & Record<string, unknown>;
+type MockServicePackage = { id: string; tenantId: string } & Record<string, unknown>;
+type MockTaskType = { id: string; tenantId: string } & Record<string, unknown>;
+type MockPackageItem = { id: string; packageId: string } & Record<string, unknown>;
+type MockProfile = { id: string; userId: string } & Record<string, unknown>;
+type MockTimeEntry = { id: string; taskId: string } & Record<string, unknown>;
+type MockAuditLog = { id: string; tenantId: string } & Record<string, unknown>;
+type MockDepartmentBudget = { id: string; tenantId: string } & Record<string, unknown>;
+
 /**
  * Mock Repository type with all common TypeORM repository methods mocked.
  * Common methods are required; others remain optional.
@@ -220,9 +243,9 @@ export function createMockCacheManager() {
 export function mockTenantContext(tenantId: string): void {
   jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
   jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
-  jest.spyOn(TenantContextService, 'run').mockImplementation(async (_tid: string, fn: () => Promise<unknown>) => {
+  jest.spyOn(TenantContextService, 'run').mockImplementation(((_tid: string, fn: () => unknown) => {
     return fn();
-  });
+  }) as typeof TenantContextService.run);
 }
 
 /**
@@ -498,7 +521,7 @@ export function createMockQueue() {
  * const mockUser = createMockUser({ role: Role.ADMIN });
  * ```
  */
-export function createMockUser(overrides: Partial<any> = {}) {
+export function createMockUser(overrides: Partial<MockUser> = {}): MockUser {
   return {
     id: 'user-uuid-123',
     email: 'test@example.com',
@@ -507,8 +530,8 @@ export function createMockUser(overrides: Partial<any> = {}) {
     mfaSecret: null,
     isMfaEnabled: false,
     mfaRecoveryCodes: [],
-    role: 'FIELD_STAFF', // Using string to avoid importing Enum if strictly not needed, but better to import if possible.
-    isActive: true, // However, for this helper file, we might want to avoid deep dependency chains.
+    role: 'FIELD_STAFF' as unknown as User['role'],
+    isActive: true,
     emailVerified: false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -522,18 +545,18 @@ export function createMockUser(overrides: Partial<any> = {}) {
 /**
  * Creates a mock Booking entity with default values.
  */
-export function createMockBooking(overrides: Partial<any> = {}) {
+export function createMockBooking(overrides: Partial<MockBooking> = {}): MockBooking {
   return {
     id: 'booking-id-123',
     tenantId: 'tenant-123',
     clientId: 'client-1',
     packageId: 'pkg-1',
-    status: 'DRAFT',
+    status: 'DRAFT' as unknown as Booking['status'],
     eventDate: new Date(),
     totalPrice: 1000,
     amountPaid: 0,
     depositAmount: 200,
-    paymentStatus: 'UNPAID',
+    paymentStatus: 'UNPAID' as unknown as Booking['paymentStatus'],
     createdAt: new Date(),
     updatedAt: new Date(),
     tasks: Promise.resolve([]),
@@ -545,19 +568,19 @@ export function createMockBooking(overrides: Partial<any> = {}) {
     isFullyPaid: jest.fn().mockReturnValue(false),
     isDepositPaid: jest.fn().mockReturnValue(false),
     ...overrides,
-  };
+  } as MockBooking;
 }
 
 /**
  * Creates a mock Task entity with default values.
  */
-export function createMockTask(overrides: Partial<any> = {}) {
+export function createMockTask(overrides: Partial<MockTask> = {}): MockTask {
   return {
     id: 'task-uuid-123',
     bookingId: 'booking-uuid-123',
     taskTypeId: 'task-type-uuid-123',
     assignedUserId: 'user-uuid-123',
-    status: 'PENDING',
+    status: 'PENDING' as unknown as Task['status'],
     commissionSnapshot: 100,
     dueDate: new Date(),
     completedAt: null,
@@ -566,9 +589,9 @@ export function createMockTask(overrides: Partial<any> = {}) {
       id: 'booking-uuid-123',
       clientId: 'client-123',
       client: { name: 'John Doe' },
-    },
-    taskType: { id: 'task-type-uuid-123', name: 'Photography' },
-    assignedUser: { id: 'user-uuid-123', email: 'user@example.com' },
+    } as unknown as Booking,
+    taskType: { id: 'task-type-uuid-123', name: 'Photography' } as unknown as TaskType,
+    assignedUser: { id: 'user-uuid-123', email: 'user@example.com' } as unknown as User,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -578,7 +601,7 @@ export function createMockTask(overrides: Partial<any> = {}) {
 /**
  * Creates a mock Invoice entity with default values.
  */
-export function createMockInvoice(overrides: Partial<any> = {}) {
+export function createMockInvoice(overrides: Partial<MockInvoice> = {}): MockInvoice {
   return {
     id: 'invoice-123',
     tenantId: 'tenant-123',
@@ -609,7 +632,9 @@ export function createMockInvoice(overrides: Partial<any> = {}) {
 /**
  * Creates a mock RecurringTransaction entity with default values.
  */
-export function createMockRecurringTransaction(overrides: Partial<any> = {}) {
+export function createMockRecurringTransaction(
+  overrides: Partial<MockRecurringTransaction> = {},
+): MockRecurringTransaction {
   return {
     id: 'rt-123',
     tenantId: 'tenant-123',
@@ -632,7 +657,7 @@ export function createMockRecurringTransaction(overrides: Partial<any> = {}) {
 /**
  * Creates a mock Transaction entity with default values.
  */
-export function createMockTransaction(overrides: Partial<any> = {}) {
+export function createMockTransaction(overrides: Partial<MockTransaction> = {}): MockTransaction {
   return {
     id: 'txn-uuid-123',
     tenantId: 'tenant-123',
@@ -652,7 +677,7 @@ export function createMockTransaction(overrides: Partial<any> = {}) {
 /**
  * Creates a mock DepartmentBudget entity with default values.
  */
-export function createMockDepartmentBudget(overrides: Partial<any> = {}) {
+export function createMockDepartmentBudget(overrides: Partial<MockDepartmentBudget> = {}): MockDepartmentBudget {
   return {
     id: 'budget-1',
     tenantId: 'tenant-123',
@@ -670,7 +695,7 @@ export function createMockDepartmentBudget(overrides: Partial<any> = {}) {
 /**
  * Creates a mock EmployeeWallet entity with default values.
  */
-export function createMockEmployeeWallet(overrides: Partial<any> = {}) {
+export function createMockEmployeeWallet(overrides: Partial<MockEmployeeWallet> = {}): MockEmployeeWallet {
   return {
     id: 'wallet-1',
     userId: 'user-1',
@@ -686,7 +711,7 @@ export function createMockEmployeeWallet(overrides: Partial<any> = {}) {
 /**
  * Creates a mock ServicePackage entity with default values.
  */
-export function createMockServicePackage(overrides: Partial<any> = {}) {
+export function createMockServicePackage(overrides: Partial<MockServicePackage> = {}): MockServicePackage {
   return {
     id: 'pkg-123',
     tenantId: 'tenant-123',
@@ -703,7 +728,7 @@ export function createMockServicePackage(overrides: Partial<any> = {}) {
 /**
  * Creates a mock TaskType entity with default values.
  */
-export function createMockTaskType(overrides: Partial<any> = {}) {
+export function createMockTaskType(overrides: Partial<MockTaskType> = {}): MockTaskType {
   return {
     id: 'tt-123',
     tenantId: 'tenant-123',
@@ -718,7 +743,7 @@ export function createMockTaskType(overrides: Partial<any> = {}) {
 /**
  * Creates a mock PackageItem entity with default values.
  */
-export function createMockPackageItem(overrides: Partial<any> = {}) {
+export function createMockPackageItem(overrides: Partial<MockPackageItem> = {}): MockPackageItem {
   return {
     id: 'item-123',
     packageId: 'pkg-123',
@@ -734,7 +759,7 @@ export function createMockPackageItem(overrides: Partial<any> = {}) {
 /**
  * Creates a mock Profile entity with default values.
  */
-export function createMockProfile(overrides: Partial<any> = {}) {
+export function createMockProfile(overrides: Partial<MockProfile> = {}): MockProfile {
   return {
     id: 'profile-uuid-123',
     userId: 'user-uuid-123',
@@ -763,7 +788,7 @@ export function createMockProfile(overrides: Partial<any> = {}) {
 /**
  * Creates a mock TimeEntry entity with default values.
  */
-export function createMockTimeEntry(overrides: Partial<any> = {}) {
+export function createMockTimeEntry(overrides: Partial<MockTimeEntry> = {}): MockTimeEntry {
   return {
     id: 'entry-uuid-123',
     taskId: 'task-uuid-123',
@@ -785,7 +810,7 @@ export function createMockTimeEntry(overrides: Partial<any> = {}) {
 /**
  * Creates a mock AuditLog entity with default values.
  */
-export function createMockAuditLog(overrides: Partial<any> = {}) {
+export function createMockAuditLog(overrides: Partial<MockAuditLog> = {}): MockAuditLog {
   return {
     id: 'log-uuid-123',
     tenantId: 'tenant-123',

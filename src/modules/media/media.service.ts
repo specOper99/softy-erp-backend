@@ -224,6 +224,9 @@ export class MediaService {
     if (query.cursor) {
       const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
       const [dateStr, id] = decoded.split('|');
+      if (!dateStr || !id) {
+        return { data: [], nextCursor: null };
+      }
       const date = new Date(dateStr);
 
       qb.andWhere('(attachment.createdAt < :date OR (attachment.createdAt = :date AND attachment.id < :id))', {
@@ -238,8 +241,10 @@ export class MediaService {
     if (attachments.length > limit) {
       attachments.pop();
       const lastItem = attachments[attachments.length - 1];
-      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-      nextCursor = Buffer.from(cursorData).toString('base64');
+      if (lastItem) {
+        const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+        nextCursor = Buffer.from(cursorData).toString('base64');
+      }
     }
 
     return { data: attachments, nextCursor };

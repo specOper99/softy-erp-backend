@@ -46,7 +46,9 @@ export class CursorPaginationHelper {
     if (items.length > limit) {
       items.pop();
       const lastItem = items[items.length - 1];
-      nextCursor = encodeCursor(lastItem.createdAt, lastItem.id);
+      if (lastItem) {
+        nextCursor = encodeCursor(lastItem.createdAt, lastItem.id);
+      }
     }
 
     return {
@@ -89,11 +91,13 @@ export class CursorPaginationHelper {
     if (items.length > limit) {
       items.pop();
       const lastItem = items[items.length - 1];
-      const dateValue = lastItem[dateField];
-      // Ensure dateValue is treated as Date.
-      // If K points to a non-Date field, this runtime cast is risky but required for the helper's contract.
-      // Ideally T[K] should extend Date, but enforcing that in TypeORM entities is hard.
-      nextCursor = encodeCursor(dateValue as unknown as Date, lastItem.id);
+      if (lastItem) {
+        const dateValue = lastItem[dateField];
+        // Ensure dateValue is treated as Date.
+        // If K points to a non-Date field, this runtime cast is risky but required for the helper's contract.
+        // Ideally T[K] should extend Date, but enforcing that in TypeORM entities is hard.
+        nextCursor = encodeCursor(dateValue as unknown as Date, lastItem.id);
+      }
     }
 
     return {

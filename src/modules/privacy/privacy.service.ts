@@ -348,7 +348,7 @@ export class PrivacyService {
     const anonymizedEmail = `deleted-${userId.slice(0, 8)}@anonymized.local`;
 
     await this.userRepository.update(
-      { id: userId },
+      { id: userId, tenantId },
       {
         email: anonymizedEmail,
         passwordHash: 'DELETED',
@@ -360,7 +360,7 @@ export class PrivacyService {
     );
 
     await this.profileRepository.update(
-      { userId },
+      { userId, tenantId },
       {
         firstName: 'Deleted',
         lastName: 'User',

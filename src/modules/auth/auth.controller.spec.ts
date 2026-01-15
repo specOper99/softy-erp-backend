@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { AuthController } from './auth.controller';
@@ -129,6 +130,10 @@ describe('AuthController', () => {
     it('should call authService.logout', async () => {
       await controller.logout(mockUser, { refreshToken: 'token' }, mockRequest);
       expect(authService.logout).toHaveBeenCalledWith(mockUser.id, 'token', undefined);
+    });
+
+    it('should throw BadRequestException when refreshToken missing and allSessions not true', async () => {
+      await expect(controller.logout(mockUser, {} as any, mockRequest)).rejects.toThrow(BadRequestException);
     });
 
     it('should call authService.logoutAllSessions if allSessions is true', async () => {

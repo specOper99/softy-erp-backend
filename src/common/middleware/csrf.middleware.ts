@@ -106,7 +106,9 @@ export class CsrfMiddleware implements NestMiddleware {
       if (error instanceof ForbiddenException) {
         throw error;
       }
-      this.logger.warn(`CSRF validation error for ${req.path}: ${error}`);
+      this.logger.warn(
+        `CSRF validation error for ${req.path}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw new ForbiddenException('Invalid CSRF token');
     }
   }

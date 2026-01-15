@@ -146,7 +146,10 @@ export const vaultLoader = async () => {
     const filteredSecrets: Record<string, string> = {};
     for (const key of Object.keys(secrets)) {
       if (ALLOWED_VAULT_KEYS.has(key)) {
-        filteredSecrets[key] = secrets[key];
+        const value = secrets[key];
+        if (value !== undefined) {
+          filteredSecrets[key] = value;
+        }
       } else {
         VaultLogger.warn(`Ignoring non-whitelisted Vault key: ${key}`);
       }

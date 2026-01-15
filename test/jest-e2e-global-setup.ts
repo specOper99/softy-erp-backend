@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'node:path';
 import { DataSource } from 'typeorm';
 
-export default async () => {
+const jestE2eGlobalSetup = async () => {
   // 1. Load base .env file
   dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -105,3 +105,4 @@ export default async () => {
 
   console.log('E2E Global Setup Complete: Database migrated.');
 };
+export default jestE2eGlobalSetup;

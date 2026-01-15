@@ -29,10 +29,10 @@ export interface UploadedFile {
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
-  private s3Client: S3Client;
-  private bucket: string;
-  private endpoint: string;
-  private publicUrl: string;
+  private s3Client!: S3Client;
+  private bucket!: string;
+  private endpoint!: string;
+  private publicUrl!: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -213,6 +213,6 @@ export class StorageService implements OnModuleInit {
     }
 
     const match = new RegExp(`${this.bucket}/(.+)$`).exec(url);
-    return match ? match[1] : null;
+    return match?.[1] ?? null;
   }
 }

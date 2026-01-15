@@ -5,7 +5,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { join } from 'path';
+import { join } from 'node:path';
 import { EmailTemplatesController } from './controllers/email-templates.controller';
 import { EmailTemplate } from './entities/email-template.entity';
 import { BookingCancelledHandler } from './handlers/booking-cancelled.handler';

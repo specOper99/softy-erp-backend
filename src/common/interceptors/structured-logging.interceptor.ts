@@ -111,7 +111,8 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
     if (this.trustProxyHeaders) {
       const forwarded = request.headers['x-forwarded-for'];
       if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
+        const firstIp = forwarded.split(',')[0]?.trim();
+        if (firstIp) return firstIp;
       }
       const realIp = request.headers['x-real-ip'];
       if (typeof realIp === 'string') {

@@ -116,6 +116,9 @@ export class CatalogService {
     if (query.cursor) {
       const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
       const [dateStr, id] = decoded.split('|');
+      if (!dateStr || !id) {
+        return { data: [], nextCursor: null };
+      }
       const date = new Date(dateStr);
 
       qb.andWhere('(pkg.createdAt < :date OR (pkg.createdAt = :date AND pkg.id < :id))', { date, id });
@@ -127,8 +130,10 @@ export class CatalogService {
     if (packages.length > limit) {
       packages.pop();
       const lastItem = packages[packages.length - 1];
-      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-      nextCursor = Buffer.from(cursorData).toString('base64');
+      if (lastItem) {
+        const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+        nextCursor = Buffer.from(cursorData).toString('base64');
+      }
     }
 
     return { data: packages, nextCursor };
@@ -296,6 +301,9 @@ export class CatalogService {
     if (query.cursor) {
       const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
       const [dateStr, id] = decoded.split('|');
+      if (!dateStr || !id) {
+        return { data: [], nextCursor: null };
+      }
       const date = new Date(dateStr);
 
       qb.andWhere('(tt.createdAt < :date OR (tt.createdAt = :date AND tt.id < :id))', { date, id });
@@ -307,8 +315,10 @@ export class CatalogService {
     if (taskTypes.length > limit) {
       taskTypes.pop();
       const lastItem = taskTypes[taskTypes.length - 1];
-      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-      nextCursor = Buffer.from(cursorData).toString('base64');
+      if (lastItem) {
+        const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+        nextCursor = Buffer.from(cursorData).toString('base64');
+      }
     }
 
     return { data: taskTypes, nextCursor };

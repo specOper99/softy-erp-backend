@@ -17,6 +17,7 @@ import { TransactionType } from '../enums/transaction-type.enum';
 import { CurrencyService } from './currency.service';
 import { FinanceService } from './finance.service';
 import { FinancialReportService } from './financial-report.service';
+import { WalletService } from './wallet.service';
 
 import { ExportService } from '../../../common/services/export.service';
 
@@ -75,6 +76,11 @@ describe('FinanceService - Comprehensive Tests', () => {
         isTransactionActive: true,
       },
     },
+  };
+
+  const mockWalletService = {
+    addPendingCommission: jest.fn().mockResolvedValue(undefined),
+    subtractPendingCommission: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockDataSource = {
@@ -163,6 +169,7 @@ describe('FinanceService - Comprehensive Tests', () => {
           provide: FinancialReportService,
           useValue: mockFinancialReportService,
         },
+        { provide: WalletService, useValue: mockWalletService },
       ],
     }).compile();
 
@@ -325,6 +332,19 @@ describe('FinanceService - Comprehensive Tests', () => {
         expect.any(Array),
         expect.any(Function),
       );
+    });
+  });
+
+  describe('transferPendingCommission', () => {
+    it('calls WalletService methods in deterministic order', async () => {
+      // oldUserId = 'b', newUserId = 'a' -> sorted order: 'a' (add), 'b' (subtract)
+      await service.transferPendingCommission(mockQueryRunner.manager as any, 'b', 'a', 100);
+      expect(mockWalletService.addPendingCommission).toHaveBeenCalledWith(mockQueryRunner.manager, 'a', 100);
+      expect(mockWalletService.subtractPendingCommission).toHaveBeenCalledWith(mockQueryRunner.manager, 'b', 100);
+      // And ensure ordering: add called before subtract
+      const addIndex = mockWalletService.addPendingCommission.mock.invocationCallOrder[0];
+      const subIndex = mockWalletService.subtractPendingCommission.mock.invocationCallOrder[0];
+      expect(addIndex).toBeLessThan(subIndex);
     });
   });
 });

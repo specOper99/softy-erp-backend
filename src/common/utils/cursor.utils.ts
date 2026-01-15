@@ -8,16 +8,15 @@ export interface CursorData {
 export function decodeCursor(cursor: string): CursorData {
   try {
     const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
-    const parts = decoded.split('|');
-    if (parts.length !== 2) {
+    const [dateStr, id] = decoded.split('|');
+    if (!dateStr || !id) {
       throw new BadRequestException('Invalid cursor format');
     }
-    const [dateStr, id] = parts;
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
       throw new BadRequestException('Invalid cursor date');
     }
-    if (!id || id.trim().length === 0) {
+    if (id.trim().length === 0) {
       throw new BadRequestException('Invalid cursor id');
     }
     return { date, id };

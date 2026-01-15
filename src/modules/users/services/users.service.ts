@@ -86,6 +86,9 @@ export class UsersService {
     if (query.cursor) {
       const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
       const [dateStr, id] = decoded.split('|');
+      if (!dateStr || !id) {
+        return { data: [], nextCursor: null };
+      }
       const date = new Date(dateStr);
 
       qb.andWhere('(user.createdAt < :date OR (user.createdAt = :date AND user.id < :id))', { date, id });

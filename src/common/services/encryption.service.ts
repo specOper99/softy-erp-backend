@@ -74,7 +74,14 @@ export class EncryptionService {
 
     if (parts.length === 4) {
       // Versioned: v2:IV:Tag:Cipher
-      [version, ivBase64, authTagBase64, encryptedBase64] = parts;
+      const [v, iv, tag, enc] = parts;
+      if (!v || !iv || !tag || !enc) {
+        throw new Error('Invalid ciphertext format');
+      }
+      version = v;
+      ivBase64 = iv;
+      authTagBase64 = tag;
+      encryptedBase64 = enc;
     } else if (parts.length === 3) {
       // Legacy: IV:Tag:Cipher (Assumed to be v1 or whatever current matches if unversioned)
       // If we are rotating, legacy data usually belongs to PREVIOUS key if we just rotated.
@@ -94,7 +101,13 @@ export class EncryptionService {
   }
 
   private decryptLegacy(parts: string[]): string {
-    const [ivBase64, authTagBase64, encryptedBase64] = parts;
+    const ivBase64 = parts[0];
+    const authTagBase64 = parts[1];
+    const encryptedBase64 = parts[2];
+
+    if (!ivBase64 || !authTagBase64 || !encryptedBase64) {
+      throw new Error('Invalid legacy ciphertext format');
+    }
 
     // Attempt with current key
     try {

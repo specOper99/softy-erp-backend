@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export type TranslationKey = string;
 export type Language = 'en' | 'ar' | 'ku' | 'fr';
@@ -48,9 +48,11 @@ export class I18nService implements OnModuleInit {
     const languages = header
       .split(',')
       .map((part) => {
-        const [lang, quality] = part.trim().split(';q=');
+        const parts = part.trim().split(';q=');
+        const lang = parts[0];
+        const quality = parts[1];
         return {
-          lang: lang.split('-')[0].toLowerCase(),
+          lang: lang?.split('-')[0]?.toLowerCase() ?? '',
           quality: quality ? parseFloat(quality) : 1.0,
         };
       })

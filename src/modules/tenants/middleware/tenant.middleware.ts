@@ -70,7 +70,7 @@ export class TenantMiddleware implements NestMiddleware {
     }
 
     const potentialId = parts[0];
-    if (['www', 'api', 'app'].includes(potentialId)) {
+    if (!potentialId || ['www', 'api', 'app'].includes(potentialId)) {
       return undefined;
     }
 

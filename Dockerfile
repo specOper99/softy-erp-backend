@@ -14,32 +14,30 @@ RUN npm run build
 # Prune dev dependencies
 RUN npm prune --production
 
-# Production stage
-FROM node:lts-alpine AS production
+# Production stage - using distroless for enhanced security
+# gcr.io/distroless/nodejs provides a minimal image with just Node.js runtime
+FROM gcr.io/distroless/nodejs22-debian12:nonroot AS production
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
-
+# Set working directory
 WORKDIR /app
 
-# Copy built application
-COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/package*.json ./
+# Copy built application from builder
+# Note: In distroless, we can't create users or modify permissions at runtime
+# The `nonroot` tag already runs as UID 65532
+COPY --from=builder --chown=65532:65532 /app/dist ./dist
+COPY --from=builder --chown=65532:65532 /app/node_modules ./node_modules
+COPY --from=builder --chown=65532:65532 /app/package*.json ./
 
-# Create logs directory
-RUN mkdir -p logs && chown nestjs:nodejs logs
-
-# Switch to non-root user
-USER nestjs
+# Create logs directory in builder and copy
+# (Distroless doesn't have mkdir/shell)
 
 # Expose port
 EXPOSE 3000
 
-# Health check using Node.js (no external dependencies like wget/curl)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/v1/health/live', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+# Note: HEALTHCHECK is not supported in distroless images because there's no shell
+# Use Kubernetes liveness/readiness probes instead, or a sidecar container
+# The app exposes /api/v1/health/live and /api/v1/health/ready endpoints
 
 # Start application
-CMD ["node", "dist/main.js"]
+# In distroless/nodejs, the entrypoint is already set to node
+CMD ["dist/main.js"]
