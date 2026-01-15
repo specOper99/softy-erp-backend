@@ -1,5 +1,5 @@
 import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -54,12 +54,19 @@ export class AuditController {
     required: false,
     description: 'Filter by end date (ISO format)',
   })
+  @ApiResponse({ status: 200, description: 'Return paginated audit logs' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   findAllCursor(@Query() query: AuditLogFilterDto) {
     return this.auditService.findAllCursor(query);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get audit log by ID (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Audit log details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
+  @ApiResponse({ status: 404, description: 'Audit log not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     const log = await this.auditService.findOne(id);
     if (!log) {

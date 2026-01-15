@@ -19,7 +19,14 @@ export class TasksController {
 
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Get all tasks' })
+  @ApiOperation({
+    summary: 'Get all tasks (Offset Pagination)',
+    deprecated: true,
+    description: 'Use /tasks/cursor for better performance with large datasets.',
+  })
+  @ApiResponse({ status: 200, description: 'Return all tasks' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAll() {
     return this.tasksService.findAll();
   }
@@ -27,6 +34,9 @@ export class TasksController {
   @Get('cursor')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all tasks using keyset pagination' })
+  @ApiResponse({ status: 200, description: 'Return paginated tasks' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAllCursor(@Query() query: CursorPaginationDto) {
     return this.tasksService.findAllCursor(query);
   }
@@ -34,18 +44,27 @@ export class TasksController {
   @Get('export')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Export all tasks to CSV' })
+  @ApiResponse({ status: 200, description: 'CSV file download' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   async exportTasks(@Res() res: Response) {
     return this.tasksService.exportToCSV(res);
   }
 
   @Get('my-tasks')
   @ApiOperation({ summary: 'Get current user tasks' })
+  @ApiResponse({ status: 200, description: 'Return user tasks' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findMyTasks(@CurrentUser() user: User) {
     return this.tasksService.findByUser(user.id);
   }
 
   @Get('booking/:bookingId')
   @ApiOperation({ summary: 'Get tasks by booking ID' })
+  @ApiResponse({ status: 200, description: 'Return booking tasks' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Booking not found' })
   findByBooking(@Param('bookingId', ParseUUIDPipe) bookingId: string) {
     return this.tasksService.findByBooking(bookingId);
   }
@@ -53,6 +72,8 @@ export class TasksController {
   @Get(':id')
   @ApiOperation({ summary: 'Get task by ID' })
   @ApiResponse({ status: 200, description: 'Task retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.tasksService.findOne(id);
@@ -63,6 +84,8 @@ export class TasksController {
   @ApiOperation({ summary: 'Update task' })
   @ApiResponse({ status: 200, description: 'Task updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTaskDto) {
     return this.tasksService.update(id, dto);
@@ -73,6 +96,8 @@ export class TasksController {
   @ApiOperation({ summary: 'Assign task to user' })
   @ApiResponse({ status: 200, description: 'Task assigned successfully' })
   @ApiResponse({ status: 400, description: 'User does not belong to tenant' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTaskDto) {
     return this.tasksService.assignTask(id, dto);
@@ -80,6 +105,10 @@ export class TasksController {
 
   @Patch(':id/start')
   @ApiOperation({ summary: 'Start task (changes status to IN_PROGRESS)' })
+  @ApiResponse({ status: 200, description: 'Task started' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
   start(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.tasksService.startTask(id, user);
   }
@@ -88,6 +117,8 @@ export class TasksController {
   @ApiOperation({ summary: 'Complete task (accrues commission to wallet)' })
   @ApiResponse({ status: 200, description: 'Task completed, commission credited' })
   @ApiResponse({ status: 400, description: 'Task already completed or not assigned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   complete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.tasksService.completeTask(id, user);
