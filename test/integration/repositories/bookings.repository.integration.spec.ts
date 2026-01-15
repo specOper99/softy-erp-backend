@@ -17,7 +17,7 @@ describe('BookingsRepository Integration Tests', () => {
   const tenant2 = uuidv4();
 
   beforeAll(async () => {
-    const dbConfig = (global as any).__DB_CONFIG__;
+    const dbConfig = globalThis.__DB_CONFIG__!;
     dataSource = new DataSource({
       type: 'postgres',
       host: dbConfig.host,

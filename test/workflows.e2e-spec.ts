@@ -70,7 +70,7 @@ describe('Workflow Integration Tests (E2E)', () => {
     // Seed Test DB and Get Tenant ID and Client
     const seedData = await seedTestDatabase(_dataSource);
     const { tenantId, client } = seedData;
-    (global as unknown as { testTenantId: string }).testTenantId = tenantId;
+    globalThis.testTenantId = tenantId;
     (global as unknown as { testClientId: string }).testClientId = client.id;
 
     // Login as admin (seeded user)

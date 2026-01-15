@@ -68,7 +68,7 @@ describe('Bookings Workflow E2E Tests', () => {
     packageId = packagesRes.body.data[0]?.id;
 
     // Store tenantId for tests
-    (global as any).testTenantId = tenantId;
+    globalThis.testTenantId = tenantId;
   });
 
   afterAll(async () => {

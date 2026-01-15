@@ -21,8 +21,8 @@ export default async function globalSetup() {
   console.log(`✅ PostgreSQL container started on ${host}:${port}`);
 
   // Store connection details in global for tests to use
-  (global as any).__POSTGRES_CONTAINER__ = postgresContainer;
-  (global as any).__DB_CONFIG__ = {
+  globalThis.__POSTGRES_CONTAINER__ = postgresContainer;
+  globalThis.__DB_CONFIG__ = {
     host,
     port,
     username: 'test_user',
@@ -51,5 +51,5 @@ export default async function globalSetup() {
   console.log('Loaded entities:', dataSource.entityMetadatas.map((m) => m.name).join(', '));
   console.log('\n');
 
-  (global as any).__DATA_SOURCE__ = dataSource;
+  globalThis.__DATA_SOURCE__ = dataSource;
 }

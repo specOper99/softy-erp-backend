@@ -47,7 +47,7 @@ describe('HR Payroll Workflow Integration', () => {
     jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
 
-    const dbConfig = (global as any).__DB_CONFIG__;
+    const dbConfig = globalThis.__DB_CONFIG__!;
     dataSource = new DataSource({
       type: 'postgres',
       host: dbConfig.host,

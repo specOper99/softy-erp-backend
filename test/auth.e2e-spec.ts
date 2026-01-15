@@ -71,7 +71,7 @@ describe('Auth & Users E2E Tests', () => {
     // Seed and get Tenant ID
     const dataSource = app.get(DataSource);
     const { tenantId } = await seedTestDatabase(dataSource);
-    (global as any).testTenantId = tenantId;
+    globalThis.testTenantId = tenantId;
 
     testEmail = `test-${Date.now()}@example.com`;
   });
