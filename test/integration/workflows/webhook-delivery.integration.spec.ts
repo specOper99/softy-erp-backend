@@ -128,8 +128,12 @@ describe('Webhook Delivery Integration', () => {
     mockFetch.mockRejectedValue(new Error('Network Error'));
 
     // Override constants for testing
-    (webhookService as any).INITIAL_RETRY_DELAY = 10; // 10ms
-    (webhookService as any).MAX_RETRIES = 3;
+    const webhookConfigurable = webhookService as {
+      INITIAL_RETRY_DELAY: number;
+      MAX_RETRIES: number;
+    };
+    webhookConfigurable.INITIAL_RETRY_DELAY = 10; // 10ms
+    webhookConfigurable.MAX_RETRIES = 3;
 
     const event: WebhookEvent = {
       type: 'task.completed',

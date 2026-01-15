@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { Booking } from '../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../src/modules/bookings/entities/client.entity';
@@ -117,7 +117,7 @@ describe('Financial Report Controller (e2e)', () => {
     // Seed Transactions
     const txRepo = dataSource.getRepository(Transaction);
     // Income
-    await txRepo.save({
+    const incomeTx: DeepPartial<Transaction> = {
       tenantId,
       type: TransactionType.INCOME,
       amount: 5000,
@@ -127,9 +127,10 @@ describe('Financial Report Controller (e2e)', () => {
       exchangeRate: 1,
       currency: Currency.USD,
       bookingId: booking.id,
-    } as any);
+    };
+    await txRepo.save(incomeTx);
     // Expense
-    await txRepo.save({
+    const expenseTx: DeepPartial<Transaction> = {
       tenantId,
       type: TransactionType.EXPENSE,
       amount: 1000,
@@ -139,9 +140,10 @@ describe('Financial Report Controller (e2e)', () => {
       exchangeRate: 1,
       currency: Currency.USD,
       bookingId: booking.id, // Linked to booking for validity
-    } as any);
+    };
+    await txRepo.save(expenseTx);
     // Payroll
-    await txRepo.save({
+    const payrollTx: DeepPartial<Transaction> = {
       tenantId,
       type: TransactionType.PAYROLL,
       amount: 2000,
@@ -151,7 +153,8 @@ describe('Financial Report Controller (e2e)', () => {
       exchangeRate: 1,
       currency: Currency.USD,
       bookingId: booking.id, // Linked to booking for validity
-    } as any);
+    };
+    await txRepo.save(payrollTx);
   }
 
   describe('GET /finance/reports/pnl', () => {

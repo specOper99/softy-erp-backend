@@ -117,6 +117,10 @@ Before deploying to production:
    - [ ] Logs are being collected (structured JSON)
    - [ ] (Optional) Sentry and OpenTelemetry configured
 
+6. **Dependency Security**
+   - [ ] Run `npm audit` (or `npm audit --production`) and address high/critical issues
+   - [ ] If fixes are applied, re-run tests and update lockfile checks
+
 ---
 
 ## Graceful Shutdown

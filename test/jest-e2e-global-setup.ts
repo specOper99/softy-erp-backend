@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import * as path from 'path';
+import * as path from 'node:path';
 import { DataSource } from 'typeorm';
 
 export default async () => {
@@ -29,7 +29,7 @@ export default async () => {
   const adminDataSource = new DataSource({
     type: 'postgres',
     host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '5432', 10),
+    port: Number.parseInt(process.env.DB_PORT || '5432', 10),
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: adminDatabase,
@@ -46,8 +46,9 @@ export default async () => {
     }
 
     // Connect to test database for extension and reset
+    const adminOptions = adminDataSource.options;
     const testDbDataSource = new DataSource({
-      ...(adminDataSource.options as any),
+      ...adminOptions,
       database: databaseName,
     });
     try {
@@ -73,8 +74,8 @@ export default async () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const migrationDataSource = require('../src/database/data-source').default;
 
-  const registeredEntities = migrationDataSource.options.entities.map((e: any) =>
-    typeof e === 'function' ? e.name : e,
+  const registeredEntities = migrationDataSource.options.entities.map((entity) =>
+    typeof entity === 'function' ? entity.name : entity,
   );
   console.log('E2E Migration DataSource Entities:', registeredEntities);
 

@@ -237,14 +237,14 @@ describe('TasksRepository Integration Tests', () => {
       expect(updated?.assignedUserId).toBe(user.id);
 
       // ASSIGNED -> IN_PROGRESS
-      (task as any).status = TaskStatus.IN_PROGRESS;
+      task.status = TaskStatus.IN_PROGRESS;
       await taskRepository.save(task);
 
       updated = await taskRepository.findOne({ where: { id: task.id } });
       expect(updated?.status).toBe(TaskStatus.IN_PROGRESS);
 
       // IN_PROGRESS -> COMPLETED
-      (task as any).status = TaskStatus.COMPLETED;
+      task.status = TaskStatus.COMPLETED;
       task.completedAt = new Date();
       await taskRepository.save(task);
 

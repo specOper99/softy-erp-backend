@@ -10,6 +10,20 @@ describe('Redis Cache Integration Tests', () => {
   let redisContainer: StartedTestContainer;
   let redisUrl: string;
 
+  type CacheWithStore = Cache & {
+    reset?: () => Promise<void>;
+    store?: {
+      reset?: () => Promise<void>;
+      keys?: (pattern: string) => Promise<string[]>;
+      del?: (keys: string[] | string) => Promise<void>;
+      client?: {
+        flushDb?: () => Promise<void>;
+        flushdb?: () => Promise<void>;
+        flushAll?: () => Promise<void>;
+      };
+    };
+  };
+
   beforeAll(async () => {
     // Start Redis container
     console.log('🐳 Starting Redis container...');
@@ -48,7 +62,7 @@ describe('Redis Cache Integration Tests', () => {
 
   beforeEach(async () => {
     // Clear cache before each test
-    const cm = cacheManager as any;
+    const cm = cacheManager as CacheWithStore;
     if (typeof cm.reset === 'function') {
       await cm.reset();
     } else if (cm.store && typeof cm.store.reset === 'function') {
@@ -122,7 +136,7 @@ describe('Redis Cache Integration Tests', () => {
 
       // Reset all
       // Reset all
-      const cm = cacheManager as any;
+      const cm = cacheManager as CacheWithStore;
       try {
         if (cm.store && cm.store.client) {
           if (typeof cm.store.client.flushDb === 'function') {
@@ -238,7 +252,12 @@ describe('Redis Cache Integration Tests', () => {
       }
 
       const results = await Promise.all(reads);
-      const allSucceeded = results.every((result, index) => result && (result as any).index === index);
+      const allSucceeded = results.every((result, index) => {
+        if (!result || typeof result !== 'object') return false;
+        return 'index' in result && typeof (result as { index: number }).index === 'number'
+          ? (result as { index: number }).index === index
+          : false;
+      });
 
       expect(allSucceeded).toBe(true);
     });
