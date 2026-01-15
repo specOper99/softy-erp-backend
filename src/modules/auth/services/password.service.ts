@@ -74,11 +74,11 @@ export class PasswordService {
       where: { tokenHash },
     });
 
-    if (!resetToken || !resetToken.isValid()) {
+    if (!resetToken?.isValid()) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    const user = await this.usersService.findByEmail(resetToken.email);
+    const user = await this.usersService.findByEmailGlobal(resetToken.email);
     if (!user) {
       throw new BadRequestException('User not found');
     }

@@ -194,6 +194,10 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     ]),
   ],
   providers: [
+    // Middleware providers for DI
+    CorrelationIdMiddleware,
+    TenantMiddleware,
+    CsrfMiddleware,
     // Apply rate limiting globally
     // Use explicit DISABLE_RATE_LIMITING env var for test environments
     // to prevent accidental disabling if NODE_ENV=test leaks to production

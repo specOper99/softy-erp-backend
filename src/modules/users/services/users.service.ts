@@ -96,7 +96,10 @@ export class UsersService {
 
     if (users.length > limit) {
       users.pop();
-      const lastItem = users[users.length - 1];
+      const lastItem = users.at(-1);
+      if (!lastItem) {
+        return { data: users, nextCursor: null };
+      }
       const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
       nextCursor = Buffer.from(cursorData).toString('base64');
     }

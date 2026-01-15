@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { authenticator } from 'otplib';
 import { DataSource, Repository } from 'typeorm';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
@@ -104,13 +105,18 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto, context?: RequestContext): Promise<AuthResponseDto> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new UnauthorizedException('tenants.tenant_id_required');
+    }
+
     const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
     if (lockoutStatus.locked) {
       const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
       throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
     }
 
-    const user = await this.usersService.findByEmailWithMfaSecret(loginDto.email);
+    const user = await this.usersService.findByEmailWithMfaSecret(loginDto.email, tenantId);
     if (!user) {
       await this.lockoutService.recordFailedAttempt(loginDto.email);
       // Timing Attack Mitigation:
@@ -130,28 +136,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.isMfaEnabled) {
-      if (!loginDto.code) {
-        return { requiresMfa: true };
-      }
-
-      let isValid = false;
-      try {
-        isValid = authenticator.verify({
-          token: loginDto.code,
-          secret: user.mfaSecret,
-        });
-      } catch {
-        // TOTP verification failed, will try recovery code next
-      }
-
-      if (!isValid) {
-        const isRecoveryCodeValid = await this.mfaService.verifyRecoveryCode(user, loginDto.code);
-        if (!isRecoveryCodeValid) {
-          await this.lockoutService.recordFailedAttempt(loginDto.email);
-          throw new UnauthorizedException('Invalid MFA code or recovery code');
-        }
-      }
+    const mfaResult = await this.verifyMfaIfEnabled(user, loginDto.code, loginDto.email);
+    if (mfaResult) {
+      return mfaResult;
     }
 
     await this.lockoutService.clearAttempts(loginDto.email);
@@ -161,6 +148,40 @@ export class AuthService {
     }
 
     return this.generateAuthResponse(user, context, loginDto.rememberMe);
+  }
+
+  private async verifyMfaIfEnabled(
+    user: User,
+    code: string | undefined,
+    email: string,
+  ): Promise<AuthResponseDto | null> {
+    if (!user.isMfaEnabled) {
+      return null;
+    }
+
+    if (!code) {
+      return { requiresMfa: true };
+    }
+
+    let isValid = false;
+    try {
+      isValid = authenticator.verify({
+        token: code,
+        secret: user.mfaSecret,
+      });
+    } catch {
+      // TOTP verification failed, will try recovery code next
+    }
+
+    if (!isValid) {
+      const isRecoveryCodeValid = await this.mfaService.verifyRecoveryCode(user, code);
+      if (!isRecoveryCodeValid) {
+        await this.lockoutService.recordFailedAttempt(email);
+        throw new UnauthorizedException('Invalid MFA code or recovery code');
+      }
+    }
+
+    return null;
   }
 
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
@@ -245,8 +266,7 @@ export class AuthService {
   }
 
   async logoutAllSessions(userId: string): Promise<number> {
-    await this.tokenService.revokeAllUserTokens(userId);
-    return 0;
+    return this.tokenService.revokeAllUserTokens(userId);
   }
 
   async validateUser(payload: TokenPayload): Promise<User> {
