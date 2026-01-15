@@ -145,7 +145,8 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
   }
 
   createQueryBuilder(alias: string) {
-    return this.repository.createQueryBuilder(alias);
+    const tenantId = this.getTenantId();
+    return this.repository.createQueryBuilder(alias).andWhere(`${alias}.tenantId = :tenantId`, { tenantId });
   }
 
   async remove<E extends T | T[]>(entityOrEntities: E): Promise<E> {
