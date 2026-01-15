@@ -3,8 +3,10 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import pLimit from 'p-limit';
 import { DataSource, Repository } from 'typeorm';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { Payout } from '../../finance/entities/payout.entity';
@@ -193,6 +195,25 @@ export class PayrollService {
       skip: query.getSkip(),
       take: query.getTake(),
     });
+  }
+
+  async getPayrollHistoryCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: PayrollRun[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const qb = this.payrollRunRepository.createQueryBuilder('payrollRun');
+    qb.where('payrollRun.tenantId = :tenantId', { tenantId });
+
+    return CursorPaginationHelper.paginateWithCustomDateField(
+      qb,
+      {
+        cursor: query.cursor,
+        limit: query.limit,
+        alias: 'payrollRun',
+      },
+      'processedAt',
+    );
   }
 
   /**

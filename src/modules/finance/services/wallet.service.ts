@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 
@@ -95,6 +97,21 @@ export class WalletService {
       relations: ['user'],
       skip: query.getSkip(),
       take: query.getTake(),
+    });
+  }
+
+  async getAllWalletsCursor(
+    query: CursorPaginationDto,
+  ): Promise<{ data: EmployeeWallet[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const qb = this.walletRepository.createQueryBuilder('wallet');
+
+    qb.leftJoinAndSelect('wallet.user', 'user').where('wallet.tenantId = :tenantId', { tenantId });
+
+    return CursorPaginationHelper.paginate(qb, {
+      cursor: query.cursor,
+      limit: query.limit,
+      alias: 'wallet',
     });
   }
 
