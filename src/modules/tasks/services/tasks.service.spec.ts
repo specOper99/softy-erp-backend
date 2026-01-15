@@ -9,6 +9,7 @@ import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
+import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
@@ -33,7 +34,7 @@ describe('TasksService - Comprehensive Tests', () => {
     },
     taskType: { id: 'task-type-uuid-123', name: 'Photography' },
     assignedUser: { id: 'user-uuid-123', email: 'user@example.com' },
-  }) as any; // Cast as any because createMockTask returns plain object and tests expect Entity-like structure for relations
+  }) as unknown as Task;
 
   const mockTaskRepository = createMockRepository();
   mockTaskRepository.find = jest.fn().mockResolvedValue([mockTask]);
@@ -110,7 +111,8 @@ describe('TasksService - Comprehensive Tests', () => {
 
     // Default behavior for repository findOne
     mockTaskRepository.findOne.mockImplementation(({ where }) => {
-      if (where.id === 'task-uuid-123') {
+      const whereId = where.id;
+      if (whereId === 'task-uuid-123') {
         return Promise.resolve({ ...mockTask });
       }
       return Promise.resolve(null);

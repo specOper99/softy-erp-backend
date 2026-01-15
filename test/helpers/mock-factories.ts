@@ -56,8 +56,8 @@ export function createMockRepository<T extends ObjectLiteral = ObjectLiteral>():
     findBy: jest.fn(),
     save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
     create: jest.fn().mockImplementation((dto) => dto),
-    update: jest.fn().mockResolvedValue({ affected: 1 }),
-    delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    update: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+    delete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
     remove: jest.fn(),
     softRemove: jest.fn(),
     count: jest.fn().mockResolvedValue(0),
@@ -79,7 +79,7 @@ export function createMockRepository<T extends ObjectLiteral = ObjectLiteral>():
       getOne: jest.fn().mockResolvedValue(null),
       getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
       getCount: jest.fn().mockResolvedValue(0),
-      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      execute: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
     })),
   };
 }
@@ -756,6 +756,58 @@ export function createMockProfile(overrides: Partial<any> = {}) {
     tenantId: 'tenant-123',
     createdAt: new Date(),
     updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock TimeEntry entity with default values.
+ */
+export function createMockTimeEntry(overrides: Partial<any> = {}) {
+  return {
+    id: 'entry-uuid-123',
+    taskId: 'task-uuid-123',
+    userId: 'user-uuid-123',
+    startTime: new Date(),
+    endTime: null,
+    durationMinutes: 0,
+    notes: 'Test time entry',
+    status: 'RUNNING',
+    billable: true,
+    tenantId: 'tenant-123',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    stop: jest.fn(),
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock AuditLog entity with default values.
+ */
+export function createMockAuditLog(overrides: Partial<any> = {}) {
+  return {
+    id: 'log-uuid-123',
+    tenantId: 'tenant-123',
+    action: 'CREATE',
+    entityName: 'User',
+    entityId: 'user-uuid-123',
+    userId: 'admin-uuid-123',
+    oldValues: null,
+    newValues: { name: 'New Entity' },
+    notes: 'Audit log notes',
+    ipAddress: '127.0.0.1',
+    userAgent: 'Mozilla/5.0',
+    method: 'POST',
+    path: '/api/v1/users',
+    statusCode: 201,
+    durationMs: 50,
+    sequenceNumber: 1,
+    previousHash: 'prev-hash-123',
+    hash: 'current-hash-123',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    calculateHash: jest.fn().mockReturnValue('mock-calculated-hash'),
     ...overrides,
   };
 }

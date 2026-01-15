@@ -2,7 +2,8 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { createMockRepository, createMockTimeEntry, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
 import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
 import { TimeEntriesService } from './time-entries.service';
 
@@ -12,19 +13,13 @@ describe('TimeEntriesService', () => {
 
   const mockTenantId = 'tenant-123';
   const mockUserId = 'user-123';
-  const mockTimeEntry = {
+  const mockTimeEntry = createMockTimeEntry({
     id: 'entry-123',
     tenantId: mockTenantId,
     userId: mockUserId,
     taskId: 'task-123',
-    startTime: new Date(),
-    endTime: null,
     status: TimeEntryStatus.RUNNING,
-    durationMinutes: 0,
-    billable: true,
-    notes: 'Working on feature',
-    stop: jest.fn(),
-  };
+  }) as unknown as TimeEntry;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,13 +27,7 @@ describe('TimeEntriesService', () => {
         TimeEntriesService,
         {
           provide: getRepositoryToken(TimeEntry),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            delete: jest.fn(),
-          },
+          useValue: createMockRepository<TimeEntry>(),
         },
       ],
     }).compile();
@@ -46,7 +35,7 @@ describe('TimeEntriesService', () => {
     service = module.get<TimeEntriesService>(TimeEntriesService);
     timeEntryRepo = module.get(getRepositoryToken(TimeEntry));
 
-    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);
+    mockTenantContext(mockTenantId);
   });
 
   afterEach(() => {
@@ -59,12 +48,12 @@ describe('TimeEntriesService', () => {
 
   describe('startTimer', () => {
     it('should start a new timer', async () => {
-      const dto = { taskId: 'task-123', billable: true };
+      const dto = { taskId: 'task-123', billable: true } as StartTimeEntryDto;
       timeEntryRepo.findOne.mockResolvedValue(null); // No active timer
-      timeEntryRepo.create.mockReturnValue(mockTimeEntry as any);
-      timeEntryRepo.save.mockResolvedValue(mockTimeEntry as any);
+      timeEntryRepo.create.mockReturnValue(mockTimeEntry);
+      timeEntryRepo.save.mockResolvedValue(mockTimeEntry);
 
-      const result = await service.startTimer(mockUserId, dto as any);
+      const result = await service.startTimer(mockUserId, dto);
 
       expect(timeEntryRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -79,23 +68,27 @@ describe('TimeEntriesService', () => {
     });
 
     it('should throw if user has active timer', async () => {
-      timeEntryRepo.findOne.mockResolvedValue(mockTimeEntry as any);
+      timeEntryRepo.findOne.mockResolvedValue(mockTimeEntry);
 
-      await expect(service.startTimer(mockUserId, { taskId: 'task-123' } as any)).rejects.toThrow(BadRequestException);
+      await expect(service.startTimer(mockUserId, { taskId: 'task-123' } as StartTimeEntryDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('stopTimer', () => {
     it('should stop running timer', async () => {
-      const runningEntry = {
+      const runningEntry = createMockTimeEntry({
         ...mockTimeEntry,
         status: TimeEntryStatus.RUNNING,
-      };
-      timeEntryRepo.findOne.mockResolvedValue(runningEntry as any);
-      timeEntryRepo.save.mockResolvedValue({
-        ...runningEntry,
-        status: TimeEntryStatus.STOPPED,
-      } as any);
+      }) as unknown as TimeEntry;
+      timeEntryRepo.findOne.mockResolvedValue(runningEntry);
+      timeEntryRepo.save.mockResolvedValue(
+        createMockTimeEntry({
+          ...runningEntry,
+          status: TimeEntryStatus.STOPPED,
+        }) as unknown as TimeEntry,
+      );
 
       const result = await service.stopTimer(mockUserId, 'entry-123');
 
@@ -110,26 +103,26 @@ describe('TimeEntriesService', () => {
     });
 
     it('should throw BadRequestException if not running', async () => {
-      const stoppedEntry = {
+      const stoppedEntry = createMockTimeEntry({
         ...mockTimeEntry,
         status: TimeEntryStatus.STOPPED,
-      };
-      timeEntryRepo.findOne.mockResolvedValue(stoppedEntry as any);
+      }) as unknown as TimeEntry;
+      timeEntryRepo.findOne.mockResolvedValue(stoppedEntry);
 
       await expect(service.stopTimer(mockUserId, 'entry-123')).rejects.toThrow(BadRequestException);
     });
 
     it('should use provided end time', async () => {
-      const runningEntry = {
+      const runningEntry = createMockTimeEntry({
         ...mockTimeEntry,
         status: TimeEntryStatus.RUNNING,
-      };
-      timeEntryRepo.findOne.mockResolvedValue(runningEntry as any);
-      timeEntryRepo.save.mockResolvedValue(runningEntry as any);
+      }) as unknown as TimeEntry;
+      timeEntryRepo.findOne.mockResolvedValue(runningEntry);
+      timeEntryRepo.save.mockResolvedValue(runningEntry);
 
       await service.stopTimer(mockUserId, 'entry-123', {
         endTime: '2024-01-15T18:00:00Z',
-      });
+      } as StopTimeEntryDto);
 
       expect(runningEntry.stop).toHaveBeenCalledWith(new Date('2024-01-15T18:00:00Z'));
     });
@@ -137,7 +130,7 @@ describe('TimeEntriesService', () => {
 
   describe('getActiveTimer', () => {
     it('should return active timer', async () => {
-      timeEntryRepo.findOne.mockResolvedValue(mockTimeEntry as any);
+      timeEntryRepo.findOne.mockResolvedValue(mockTimeEntry);
 
       const result = await service.getActiveTimer(mockUserId);
 
@@ -163,7 +156,7 @@ describe('TimeEntriesService', () => {
 
   describe('getTaskTimeEntries', () => {
     it('should return time entries for task', async () => {
-      timeEntryRepo.find.mockResolvedValue([mockTimeEntry] as any);
+      timeEntryRepo.find.mockResolvedValue([mockTimeEntry]);
 
       const result = await service.getTaskTimeEntries('task-123');
 
@@ -178,15 +171,17 @@ describe('TimeEntriesService', () => {
 
   describe('update', () => {
     it('should update time entry', async () => {
-      timeEntryRepo.findOne.mockResolvedValue({ ...mockTimeEntry } as any);
-      timeEntryRepo.save.mockResolvedValue({
-        ...mockTimeEntry,
-        notes: 'Updated notes',
-      } as any);
+      timeEntryRepo.findOne.mockResolvedValue(createMockTimeEntry(mockTimeEntry) as unknown as TimeEntry);
+      timeEntryRepo.save.mockResolvedValue(
+        createMockTimeEntry({
+          ...mockTimeEntry,
+          notes: 'Updated notes',
+        }) as unknown as TimeEntry,
+      );
 
       const result = await service.update(mockUserId, 'entry-123', {
         notes: 'Updated notes',
-      } as any);
+      } as UpdateTimeEntryDto);
 
       expect(result.notes).toBe('Updated notes');
     });
@@ -194,13 +189,15 @@ describe('TimeEntriesService', () => {
     it('should throw NotFoundException if not found', async () => {
       timeEntryRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.update(mockUserId, 'non-existent', {} as any)).rejects.toThrow(NotFoundException);
+      await expect(service.update(mockUserId, 'non-existent', {} as UpdateTimeEntryDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('delete', () => {
     it('should delete time entry', async () => {
-      timeEntryRepo.delete.mockResolvedValue({ affected: 1 } as any);
+      timeEntryRepo.delete.mockResolvedValue({ affected: 1, raw: [] });
 
       await service.delete('entry-123');
 
@@ -211,7 +208,7 @@ describe('TimeEntriesService', () => {
     });
 
     it('should throw NotFoundException if not found', async () => {
-      timeEntryRepo.delete.mockResolvedValue({ affected: 0 } as any);
+      timeEntryRepo.delete.mockResolvedValue({ affected: 0, raw: [] });
 
       await expect(service.delete('non-existent')).rejects.toThrow(NotFoundException);
     });

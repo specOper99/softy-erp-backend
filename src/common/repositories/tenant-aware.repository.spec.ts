@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { FindManyOptions, FindOneOptions, Repository } from 'typeorm';
 import { TenantContextService } from '../services/tenant-context.service';
 import { TenantAwareRepository } from './tenant-aware.repository';
 
@@ -39,9 +39,9 @@ describe('TenantAwareRepository', () => {
 
   describe('find (tenant-scoped)', () => {
     it('should find entities with tenantId filter and existing options', async () => {
-      const options = { where: { name: 'test' }, relations: ['child'] };
+      const options: FindManyOptions<TestEntity> = { where: { name: 'test' }, relations: ['child'] };
       await TenantContextService.run('default-tenant', async () => {
-        await repository.find(options as any);
+        await repository.find(options);
       });
 
       expect(mockTypeOrmRepository.find).toHaveBeenCalledWith({
@@ -75,9 +75,9 @@ describe('TenantAwareRepository', () => {
 
   describe('findOne (tenant-scoped)', () => {
     it('should find one entity with tenantId filter', async () => {
-      const options = { where: { id: '1' } };
+      const options: FindOneOptions<TestEntity> = { where: { id: '1' } };
       await TenantContextService.run('default-tenant', async () => {
-        await repository.findOne(options as any);
+        await repository.findOne(options);
       });
 
       expect(mockTypeOrmRepository.findOne).toHaveBeenCalledWith({
@@ -93,15 +93,15 @@ describe('TenantAwareRepository', () => {
       jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockImplementation(() => {
         throw new Error('Tenant context not available');
       });
-      await expect(repository.findOne({ where: { id: '1' } } as any)).rejects.toThrow('Tenant context not available');
+      await expect(repository.findOne({ where: { id: '1' } })).rejects.toThrow('Tenant context not available');
     });
   });
 
   describe('count (tenant-scoped)', () => {
     it('should count entities with tenantId filter', async () => {
-      const options = { where: { name: 'test' } };
+      const options: FindManyOptions<TestEntity> = { where: { name: 'test' } };
       await TenantContextService.run('default-tenant', async () => {
-        await repository.count(options as any);
+        await repository.count(options);
       });
 
       expect(mockTypeOrmRepository.count).toHaveBeenCalledWith({

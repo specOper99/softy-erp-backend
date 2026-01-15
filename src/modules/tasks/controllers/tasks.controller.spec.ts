@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
 import { User } from '../../users/entities/user.entity';
+import { AssignTaskDto, UpdateTaskDto } from '../dto';
+import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TasksService } from '../services/tasks.service';
 import { TasksController } from './tasks.controller';
@@ -8,8 +11,8 @@ describe('TasksController', () => {
   let controller: TasksController;
   let service: TasksService;
 
-  const mockTask = { id: 'uuid', status: TaskStatus.PENDING };
-  const mockUser = { id: 'u-uuid' } as User;
+  const mockTask = createMockTask({ id: 'uuid', status: TaskStatus.PENDING }) as unknown as Task;
+  const mockUser = createMockUser({ id: 'u-uuid' }) as unknown as User;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -19,13 +22,14 @@ describe('TasksController', () => {
           provide: TasksService,
           useValue: {
             findAll: jest.fn().mockResolvedValue([mockTask]),
+            findAllCursor: jest.fn().mockResolvedValue({ data: [mockTask], meta: {} }),
             findOne: jest.fn().mockResolvedValue(mockTask),
             findByUser: jest.fn().mockResolvedValue([mockTask]),
             findByBooking: jest.fn().mockResolvedValue([mockTask]),
             update: jest.fn().mockResolvedValue(mockTask),
             assignTask: jest.fn().mockResolvedValue(mockTask),
             startTask: jest.fn().mockResolvedValue(mockTask),
-            completeTask: jest.fn().mockResolvedValue(mockTask),
+            completeTask: jest.fn().mockResolvedValue({ task: mockTask, commissionAccrued: 100, walletUpdated: true }),
           },
         },
       ],
@@ -69,7 +73,7 @@ describe('TasksController', () => {
 
   describe('update', () => {
     it('should call service.update', async () => {
-      const dto = { title: 'updated' } as any;
+      const dto = { notes: 'updated' } as UpdateTaskDto;
       await controller.update('uuid', dto);
       expect(service.update).toHaveBeenCalledWith('uuid', dto);
     });
@@ -77,7 +81,7 @@ describe('TasksController', () => {
 
   describe('assign', () => {
     it('should call service.assignTask', async () => {
-      const dto = { staffId: 's-id' } as any;
+      const dto = { userId: 's-id' } as AssignTaskDto;
       await controller.assign('uuid', dto);
       expect(service.assignTask).toHaveBeenCalledWith('uuid', dto);
     });
