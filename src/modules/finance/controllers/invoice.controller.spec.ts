@@ -1,5 +1,7 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Response } from 'express';
+import { createMockInvoice } from '../../../../test/helpers/mock-factories';
 import { InvoiceService } from '../services/invoice.service';
 import { InvoiceController } from './invoice.controller';
 
@@ -7,12 +9,12 @@ describe('InvoiceController', () => {
   let controller: InvoiceController;
   let invoiceService: jest.Mocked<InvoiceService>;
 
-  const mockInvoice = {
+  const mockInvoice = createMockInvoice({
     id: 'invoice-123',
     invoiceNumber: 'INV-20240101-1234',
     status: 'DRAFT',
     totalAmount: 1100,
-  };
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -56,9 +58,9 @@ describe('InvoiceController', () => {
       const mockResponse = {
         setHeader: jest.fn(),
         send: jest.fn(),
-      };
+      } as unknown as Response;
 
-      await controller.downloadPdf('invoice-123', mockResponse as any);
+      await controller.downloadPdf('invoice-123', mockResponse);
 
       expect(invoiceService.getInvoicePdf).toHaveBeenCalledWith('invoice-123');
       expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');

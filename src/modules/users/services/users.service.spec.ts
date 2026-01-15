@@ -2,7 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { EntityManager } from 'typeorm';
+import { createMockRepository, createMockUser, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { User } from '../entities/user.entity';
 import { Role } from '../enums/role.enum';
@@ -17,23 +18,24 @@ describe('UsersService - Comprehensive Tests', () => {
   let service: UsersService;
   let userRepository: jest.Mocked<UserRepository>;
 
+  let mockUser: User;
+
   const mockTenantId = 'tenant-123';
-  const mockUser: Partial<User> = {
-    id: 'test-uuid-123',
-    tenantId: mockTenantId,
-    email: 'test@example.com',
-    passwordHash: 'hashedPassword',
-    role: Role.FIELD_STAFF,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
 
   const mockAuditService = {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
+    mockUser = createMockUser({
+      id: 'test-uuid-123',
+      tenantId: mockTenantId,
+      email: 'test@example.com',
+      passwordHash: 'hashedPassword',
+      role: Role.FIELD_STAFF,
+      isActive: true,
+    }) as unknown as User;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
@@ -58,21 +60,21 @@ describe('UsersService - Comprehensive Tests', () => {
     jest.clearAllMocks();
 
     // Default implementations
-    userRepository.find.mockResolvedValue([mockUser] as User[]);
-    userRepository.save.mockImplementation((user) => Promise.resolve({ id: 'test-uuid-123', ...user } as User));
+    userRepository.find.mockResolvedValue([mockUser]);
+    userRepository.save.mockImplementation((user) => Promise.resolve({ ...user, id: 'test-uuid-123' } as User));
     userRepository.softRemove.mockImplementation((user) => Promise.resolve({ ...user } as User));
 
     // Default findOne behavior - handle BOTH id and email lookups
     userRepository.findOne.mockImplementation((options: any) => {
       const { where } = options;
       if (where.id === 'test-uuid-123') {
-        return Promise.resolve({ ...mockUser } as User);
+        return Promise.resolve(mockUser);
       }
       if (where.email === 'test@example.com') {
         if (where.tenantId && where.tenantId !== mockTenantId) {
           return Promise.resolve(null);
         }
-        return Promise.resolve({ ...mockUser } as User);
+        return Promise.resolve(mockUser);
       }
       return Promise.resolve(null);
     });
@@ -133,7 +135,7 @@ describe('UsersService - Comprehensive Tests', () => {
       const mockManager = {
         create: jest.fn().mockImplementation((_entity, data) => data),
         save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'managed-uuid', ...data })),
-      } as any;
+      } as unknown as EntityManager;
 
       const dto = {
         email: 'managed@example.com',
@@ -165,7 +167,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
     it('should return multiple users', async () => {
       const users = [mockUser, { ...mockUser, id: 'uuid-2', email: 'user2@example.com' }];
-      userRepository.find.mockResolvedValueOnce(users as any);
+      userRepository.find.mockResolvedValueOnce(users);
       const result = await service.findAll();
       expect(result.length).toBe(2);
     });
@@ -288,7 +290,7 @@ describe('UsersService - Comprehensive Tests', () => {
     it('should delete existing user and publish event', async () => {
       await service.remove('test-uuid-123');
       expect(userRepository.softRemove).toHaveBeenCalled();
-      const eventBus = service['eventBus'] as any;
+      const eventBus = (service as any).eventBus;
       expect(eventBus.publish).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'test-uuid-123',

@@ -2,7 +2,14 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import {
+  createMockEmployeeWallet,
+  createMockProfile,
+  createMockRepository,
+  createMockUser,
+  MockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
@@ -16,48 +23,32 @@ describe('HrService - Comprehensive Tests', () => {
   let mockProfileRepository: MockRepository<Profile>;
   let mockWalletRepository: MockRepository<EmployeeWallet>;
 
-  const mockProfile = {
+  const mockProfile = createMockProfile({
     id: 'profile-uuid-123',
     userId: 'user-uuid-123',
-    firstName: 'John',
-    lastName: 'Doe',
-    jobTitle: 'Photographer',
-    baseSalary: 2000.0,
-    hireDate: new Date('2024-01-01'),
-    bankAccount: '1234567890',
-    phone: '+1234567890',
-    emergencyContactName: 'Jane Doe',
-    emergencyContactPhone: '+0987654321',
-    address: '123 Main St',
-    city: 'Dubai',
-    country: 'UAE',
-    department: 'Creative',
-    team: 'Photography',
-    contractType: 'FULL_TIME',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    // user property is now populated manually
-    user: undefined,
-  };
+    tenantId: 'test-tenant-id',
+  }) as unknown as Profile;
 
-  const mockUser = {
+  const mockUser = createMockUser({
     id: 'user-uuid-123',
     email: 'john@example.com',
     tenantId: 'test-tenant-id',
-    wallet: {
-      id: 'wallet-uuid-123',
-      userId: 'user-uuid-123',
-      pendingBalance: 50.0,
-      payableBalance: 150.0,
-    },
-  };
-
-  const mockWallet = {
+  });
+  // Note: createMockUser doesn't have wallet by default in the factory, we can add it if needed
+  // But for this test, we can just use the created object and augment it if strictly necessary.
+  (mockUser as any).wallet = {
     id: 'wallet-uuid-123',
     userId: 'user-uuid-123',
     pendingBalance: 50.0,
     payableBalance: 150.0,
   };
+
+  const mockWallet = createMockEmployeeWallet({
+    id: 'wallet-uuid-123',
+    userId: 'user-uuid-123',
+    pendingBalance: 50.0,
+    payableBalance: 150.0,
+  });
 
   const mockWalletService = {
     getOrCreateWallet: jest.fn().mockResolvedValue(mockWallet),
@@ -154,7 +145,7 @@ describe('HrService - Comprehensive Tests', () => {
 
     mockProfileRepository.findOne.mockImplementation(({ where }: any) => {
       if (where.id === 'profile-uuid-123' || where.userId === 'user-uuid-123') {
-        return Promise.resolve({ ...mockProfile });
+        return Promise.resolve(mockProfile);
       }
       return Promise.resolve(null);
     });

@@ -1,6 +1,12 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import {
+  createMockPackageItem,
+  createMockRepository,
+  createMockServicePackage,
+  createMockTaskType,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { PackageItemRepository } from '../repositories/package-item.repository';
@@ -17,27 +23,27 @@ describe('CatalogService', () => {
   let cacheUtils: jest.Mocked<CacheUtilsService>;
 
   const mockTenantId = 'tenant-123';
-  const mockPackage = {
+  const mockPackage = createMockServicePackage({
     id: 'pkg-123',
     tenantId: mockTenantId,
     name: 'Wedding Package',
     price: 5000,
     isActive: true,
     packageItems: [],
-  };
-  const mockTaskType = {
+  });
+  const mockTaskType = createMockTaskType({
     id: 'tt-123',
     tenantId: mockTenantId,
     name: 'Photography',
     defaultCommissionAmount: 100,
-  };
-  const mockPackageItem = {
+  });
+  const mockPackageItem = createMockPackageItem({
     id: 'item-123',
     packageId: 'pkg-123',
     taskTypeId: 'tt-123',
     quantity: 2,
     tenantId: mockTenantId,
-  };
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -247,7 +253,7 @@ describe('CatalogService', () => {
 
   describe('findAllTaskTypes', () => {
     it('should return all task types', async () => {
-      taskTypeRepo.find.mockResolvedValue([mockTaskType as any]);
+      taskTypeRepo.find.mockResolvedValue([mockTaskType] as any);
       const result = await service.findAllTaskTypes();
       expect(result).toEqual([mockTaskType]);
     });

@@ -2,7 +2,12 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import {
+  createMockRepository,
+  createMockTransaction,
+  MockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { TransactionFilterDto } from '../dto';
@@ -47,16 +52,13 @@ describe('FinanceService - Comprehensive Tests', () => {
     invalidateReportCaches: jest.fn(),
   };
 
-  const mockTransaction = {
-    id: 'txn-uuid-123',
+  const mockTransaction = createMockTransaction({
     type: TransactionType.INCOME,
     amount: 1500.0,
     category: 'Booking Payment',
     bookingId: 'booking-uuid-123',
     description: 'Test transaction',
-    transactionDate: new Date(),
-    createdAt: new Date(),
-  };
+  }) as unknown as Transaction;
 
   const mockQueryRunner = {
     connect: jest.fn(),
@@ -116,7 +118,9 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     // Configure other default behaviors
-    mockTransactionRepository.save.mockImplementation((txn: any) => Promise.resolve({ id: 'txn-uuid-123', ...txn }));
+    mockTransactionRepository.save.mockImplementation((txn: any) =>
+      Promise.resolve({ id: 'txn-uuid-123', ...txn } as unknown as Transaction),
+    );
 
     mockBookingRepository = createMockRepository();
     mockBookingRepository.createQueryBuilder.mockReturnValue({

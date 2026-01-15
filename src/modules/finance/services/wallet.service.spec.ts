@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
+  createMockEmployeeWallet,
   createMockTenantAwareRepository,
   MockRepository,
   mockTenantContext,
@@ -14,13 +15,11 @@ describe('WalletService', () => {
 
   const mockTenantId = 'tenant-1';
   const mockUserId = 'user-1';
-  const mockWallet = {
+  const mockWallet = createMockEmployeeWallet({
     id: 'wallet-1',
     userId: mockUserId,
-    pendingBalance: 0,
-    payableBalance: 0,
     tenantId: mockTenantId,
-  } as EmployeeWallet;
+  }) as unknown as EmployeeWallet;
 
   beforeEach(async () => {
     mockTenantContext(mockTenantId);

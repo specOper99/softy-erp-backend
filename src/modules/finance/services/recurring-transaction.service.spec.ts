@@ -1,9 +1,15 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
-
+import {
+  createMockRecurringTransaction,
+  createMockRepository,
+  MockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
+import { RecurringFrequency, RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
 import { FinanceService } from './finance.service';
@@ -15,20 +21,20 @@ describe('RecurringTransactionService', () => {
   let financeService: jest.Mocked<FinanceService>;
 
   const mockTenantId = 'tenant-123';
-  const mockRecurringTransaction = {
+  const mockRecurringTransaction = createMockRecurringTransaction({
     id: 'rt-123',
     tenantId: mockTenantId,
     name: 'Monthly Rent',
     type: TransactionType.EXPENSE,
     amount: 5000,
     currency: 'USD',
-    pattern: 'MONTHLY',
+    frequency: RecurringFrequency.MONTHLY,
     status: RecurringStatus.ACTIVE,
     nextRunDate: new Date(),
     runCount: 0,
     calculateNextRunDate: jest.fn().mockReturnValue(new Date()),
     isComplete: jest.fn().mockReturnValue(false),
-  };
+  }) as unknown as RecurringTransaction;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -86,12 +92,12 @@ describe('RecurringTransactionService', () => {
         type: TransactionType.EXPENSE,
         amount: 5000,
         startDate: '2024-01-01',
-        pattern: 'MONTHLY',
-      };
-      recurringRepo.create.mockReturnValue(mockRecurringTransaction as any);
-      recurringRepo.save.mockResolvedValue(mockRecurringTransaction as any);
+        frequency: RecurringFrequency.MONTHLY,
+      } as CreateRecurringTransactionDto;
+      recurringRepo.create.mockReturnValue(mockRecurringTransaction);
+      recurringRepo.save.mockResolvedValue(mockRecurringTransaction);
 
-      const result = await service.create(dto as any);
+      const result = await service.create(dto);
 
       expect(recurringRepo.create).toHaveBeenCalledWith({
         ...dto,
@@ -104,14 +110,14 @@ describe('RecurringTransactionService', () => {
 
   describe('findAll', () => {
     it('should return all recurring transactions for tenant', async () => {
-      recurringRepo.find.mockResolvedValue([mockRecurringTransaction] as any);
+      recurringRepo.find.mockResolvedValue([mockRecurringTransaction]);
 
       const mockPaginationDto = {
         getSkip: () => 0,
         getTake: () => 20,
-      };
+      } as unknown as PaginationDto;
 
-      const result = await service.findAll(mockPaginationDto as any);
+      const result = await service.findAll(mockPaginationDto);
 
       expect(recurringRepo.find).toHaveBeenCalledWith({
         skip: 0,
@@ -123,7 +129,7 @@ describe('RecurringTransactionService', () => {
 
   describe('findOne', () => {
     it('should return recurring transaction by id', async () => {
-      recurringRepo.findOne.mockResolvedValue(mockRecurringTransaction as any);
+      recurringRepo.findOne.mockResolvedValue(mockRecurringTransaction);
 
       const result = await service.findOne('rt-123');
 
@@ -142,16 +148,16 @@ describe('RecurringTransactionService', () => {
 
   describe('update', () => {
     it('should update recurring transaction', async () => {
-      const dto = { amount: 6000 };
+      const dto = { amount: 6000 } as UpdateRecurringTransactionDto;
       recurringRepo.findOne.mockResolvedValue({
         ...mockRecurringTransaction,
-      } as any);
+      } as unknown as RecurringTransaction);
       recurringRepo.save.mockResolvedValue({
         ...mockRecurringTransaction,
         amount: 6000,
-      } as any);
+      } as unknown as RecurringTransaction);
 
-      const result = await service.update('rt-123', dto as any);
+      const result = await service.update('rt-123', dto);
 
       expect(result.amount).toBe(6000);
     });
@@ -159,8 +165,8 @@ describe('RecurringTransactionService', () => {
 
   describe('remove', () => {
     it('should remove recurring transaction', async () => {
-      recurringRepo.findOne.mockResolvedValue(mockRecurringTransaction as any);
-      recurringRepo.remove.mockResolvedValue(mockRecurringTransaction as any);
+      recurringRepo.findOne.mockResolvedValue(mockRecurringTransaction);
+      recurringRepo.remove.mockResolvedValue(mockRecurringTransaction);
 
       await service.remove('rt-123');
 
@@ -177,14 +183,14 @@ describe('RecurringTransactionService', () => {
   describe('processDueTransactions', () => {
     it('should process due transactions', async () => {
       const dueTransactions = [{ ...mockRecurringTransaction }];
-      recurringRepo.find.mockResolvedValue(dueTransactions as any);
+      recurringRepo.find.mockResolvedValue(dueTransactions);
       financeService.createSystemTransaction.mockResolvedValue({
         id: 'tx-1',
       } as any);
       recurringRepo.save.mockResolvedValue({
         ...mockRecurringTransaction,
         runCount: 1,
-      } as any);
+      } as unknown as RecurringTransaction);
 
       await service.processDueTransactions();
 
@@ -194,7 +200,7 @@ describe('RecurringTransactionService', () => {
 
     it('should handle errors gracefully', async () => {
       const dueTransactions = [{ ...mockRecurringTransaction }];
-      recurringRepo.find.mockResolvedValue(dueTransactions as any);
+      recurringRepo.find.mockResolvedValue(dueTransactions);
       financeService.createSystemTransaction.mockRejectedValue(new Error('Failed'));
 
       // Should not throw

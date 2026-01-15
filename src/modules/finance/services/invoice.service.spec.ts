@@ -1,7 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import {
+  createMockBooking,
+  createMockInvoice,
+  createMockRepository,
+  MockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { InvoiceRepository } from '../repositories/invoice.repository';
@@ -13,7 +19,7 @@ describe('InvoiceService', () => {
   let bookingRepo: MockRepository<Booking>;
   const mockTenantId = 'tenant-123';
 
-  const mockBooking = {
+  const mockBooking = createMockBooking({
     id: 'booking-123',
     tenantId: mockTenantId,
     subTotal: 1000,
@@ -22,9 +28,9 @@ describe('InvoiceService', () => {
     eventDate: new Date('2024-06-15'),
     servicePackage: { name: 'Wedding Package' },
     client: { name: 'John Doe', email: 'john@example.com' },
-  };
+  }) as unknown as Booking;
 
-  const mockInvoice = {
+  const mockInvoice = createMockInvoice({
     id: 'invoice-123',
     tenantId: mockTenantId,
     bookingId: 'booking-123',
@@ -45,7 +51,7 @@ describe('InvoiceService', () => {
     totalAmount: 1100,
     currency: 'USD',
     booking: mockBooking,
-  };
+  }) as unknown as Invoice;
 
   beforeEach(async () => {
     const mockInvoiceRepo = createMockRepository();
@@ -82,10 +88,10 @@ describe('InvoiceService', () => {
 
   describe('createInvoice', () => {
     it('should create invoice for booking', async () => {
-      bookingRepo.findOne.mockResolvedValue(mockBooking as any);
+      bookingRepo.findOne.mockResolvedValue(mockBooking);
       invoiceRepo.findOne.mockResolvedValue(null); // No existing invoice
-      invoiceRepo.create.mockReturnValue(mockInvoice as any);
-      invoiceRepo.save.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.create.mockReturnValue(mockInvoice);
+      invoiceRepo.save.mockResolvedValue(mockInvoice);
 
       const result = await service.createInvoice('booking-123');
 
@@ -105,8 +111,8 @@ describe('InvoiceService', () => {
     });
 
     it('should return existing invoice if already exists', async () => {
-      bookingRepo.findOne.mockResolvedValue(mockBooking as any);
-      invoiceRepo.findOne.mockResolvedValue(mockInvoice as any);
+      bookingRepo.findOne.mockResolvedValue(mockBooking);
+      invoiceRepo.findOne.mockResolvedValue(mockInvoice);
 
       const result = await service.createInvoice('booking-123');
 
@@ -115,7 +121,7 @@ describe('InvoiceService', () => {
     });
 
     it('should throw NotFoundException when booking not found', async () => {
-      bookingRepo.findOne.mockResolvedValue(null as any);
+      bookingRepo.findOne.mockResolvedValue(null);
 
       await expect(service.createInvoice('non-existent')).rejects.toThrow(NotFoundException);
     });
@@ -123,7 +129,7 @@ describe('InvoiceService', () => {
 
   describe('getInvoicePdf', () => {
     it('should generate PDF for invoice', async () => {
-      invoiceRepo.findOne.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findOne.mockResolvedValue(mockInvoice);
 
       const result = await service.getInvoicePdf('invoice-123');
 

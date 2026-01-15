@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { createMockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -19,19 +19,13 @@ import { TasksService } from './tasks.service';
 describe('TasksService - Comprehensive Tests', () => {
   let service: TasksService;
 
-  const adminUser = { id: 'admin-uuid', role: Role.ADMIN } as User;
-  const staffUser = { id: 'staff-uuid', role: Role.FIELD_STAFF } as User;
+  const adminUser = createMockUser({ id: 'admin-uuid', role: Role.ADMIN }) as unknown as User;
+  const staffUser = createMockUser({ id: 'staff-uuid', role: Role.FIELD_STAFF }) as unknown as User;
 
-  const mockTask = {
-    id: 'task-uuid-123',
-    bookingId: 'booking-uuid-123',
-    taskTypeId: 'task-type-uuid-123',
-    assignedUserId: 'user-uuid-123',
+  const mockTask = createMockTask({
     status: TaskStatus.PENDING,
-    commissionSnapshot: 100,
     dueDate: new Date('2024-12-31'),
-    completedAt: null,
-    notes: 'Test task',
+    // Explicitly defining nested objects to match original manual mock behavior for tests relying on them
     booking: {
       id: 'booking-uuid-123',
       clientId: 'client-123',
@@ -39,7 +33,7 @@ describe('TasksService - Comprehensive Tests', () => {
     },
     taskType: { id: 'task-type-uuid-123', name: 'Photography' },
     assignedUser: { id: 'user-uuid-123', email: 'user@example.com' },
-  };
+  }) as any; // Cast as any because createMockTask returns plain object and tests expect Entity-like structure for relations
 
   const mockTaskRepository = createMockRepository();
   mockTaskRepository.find = jest.fn().mockResolvedValue([mockTask]);

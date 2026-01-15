@@ -1,6 +1,9 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RecurringStatus } from '../entities/recurring-transaction.entity';
+import { createMockRecurringTransaction } from '../../../../test/helpers/mock-factories';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
+import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionService } from '../services/recurring-transaction.service';
 import { RecurringTransactionController } from './recurring-transaction.controller';
@@ -9,13 +12,13 @@ describe('RecurringTransactionController', () => {
   let controller: RecurringTransactionController;
   let service: jest.Mocked<RecurringTransactionService>;
 
-  const mockRecurringTransaction = {
+  const mockRecurringTransaction = createMockRecurringTransaction({
     id: 'rt-123',
     name: 'Monthly Rent',
     type: TransactionType.EXPENSE,
     amount: 5000,
     status: RecurringStatus.ACTIVE,
-  };
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -50,11 +53,11 @@ describe('RecurringTransactionController', () => {
         type: TransactionType.EXPENSE,
         amount: 5000,
         startDate: '2024-01-01',
-        pattern: 'MONTHLY',
-      };
+        frequency: RecurringFrequency.MONTHLY,
+      } as CreateRecurringTransactionDto;
       service.create.mockResolvedValue(mockRecurringTransaction as any);
 
-      const result = await controller.create(dto as any);
+      const result = await controller.create(dto);
 
       expect(service.create).toHaveBeenCalledWith(dto);
       expect(result).toEqual(mockRecurringTransaction);
@@ -65,7 +68,10 @@ describe('RecurringTransactionController', () => {
     it('should return all recurring transactions', async () => {
       service.findAll.mockResolvedValue([mockRecurringTransaction] as any);
 
-      const result = await controller.findAll({ page: 1, limit: 20 } as any);
+      const query = new PaginationDto();
+      query.page = 1;
+      query.limit = 20;
+      const result = await controller.findAll(query);
 
       expect(service.findAll).toHaveBeenCalled();
       expect(result).toHaveLength(1);
@@ -85,13 +91,13 @@ describe('RecurringTransactionController', () => {
 
   describe('update', () => {
     it('should update recurring transaction', async () => {
-      const dto = { amount: 6000 };
+      const dto = { amount: 6000 } as UpdateRecurringTransactionDto;
       service.update.mockResolvedValue({
         ...mockRecurringTransaction,
         amount: 6000,
       } as any);
 
-      const result = await controller.update('rt-123', dto as any);
+      const result = await controller.update('rt-123', dto);
 
       expect(service.update).toHaveBeenCalledWith('rt-123', dto);
       expect(result.amount).toBe(6000);

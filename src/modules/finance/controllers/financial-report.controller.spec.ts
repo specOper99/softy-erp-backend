@@ -1,7 +1,9 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Response } from 'express';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
+import { FinancialReportFilterDto } from '../dto/financial-report.dto';
 import { FinancialReportService } from '../services/financial-report.service';
 import { FinancialReportController } from './financial-report.controller';
 
@@ -63,8 +65,10 @@ describe('FinancialReportController', () => {
     it('should return P&L data', async () => {
       financialReportService.getProfitAndLoss.mockResolvedValue(mockPnlData as any);
 
-      const filter = { startDate: '2024-01-01', endDate: '2024-12-31' };
-      const result = await controller.getProfitAndLoss(filter as any);
+      const filter = new FinancialReportFilterDto();
+      filter.startDate = '2024-01-01';
+      filter.endDate = '2024-12-31';
+      const result = await controller.getProfitAndLoss(filter);
 
       expect(financialReportService.getProfitAndLoss).toHaveBeenCalledWith(filter);
       expect(result).toEqual(mockPnlData);
@@ -80,9 +84,9 @@ describe('FinancialReportController', () => {
       const mockRes = {
         set: jest.fn(),
         end: jest.fn(),
-      };
+      } as unknown as Response;
 
-      await controller.getProfitAndLossPdf({} as any, mockRes as any);
+      await controller.getProfitAndLossPdf(new FinancialReportFilterDto(), mockRes);
 
       expect(mockRes.set).toHaveBeenCalledWith({
         'Content-Type': 'application/pdf',
@@ -97,8 +101,9 @@ describe('FinancialReportController', () => {
     it('should return revenue by package data', async () => {
       analyticsService.getRevenueByPackage.mockResolvedValue(mockRevenueByPackage as any);
 
-      const filter = { startDate: '2024-01-01' };
-      const result = await controller.getRevenueByPackage(filter as any);
+      const filter = new FinancialReportFilterDto();
+      filter.startDate = '2024-01-01';
+      const result = await controller.getRevenueByPackage(filter);
 
       expect(analyticsService.getRevenueByPackage).toHaveBeenCalledWith(filter);
       expect(result).toEqual(mockRevenueByPackage);
@@ -114,9 +119,9 @@ describe('FinancialReportController', () => {
       const mockRes = {
         set: jest.fn(),
         end: jest.fn(),
-      };
+      } as unknown as Response;
 
-      await controller.getRevenueByPackagePdf({} as any, mockRes as any);
+      await controller.getRevenueByPackagePdf(new FinancialReportFilterDto(), mockRes);
 
       expect(mockRes.set).toHaveBeenCalledWith({
         'Content-Type': 'application/pdf',

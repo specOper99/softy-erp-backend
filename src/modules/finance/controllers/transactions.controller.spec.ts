@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockTransaction } from '../../../../test/helpers/mock-factories';
+import { CreateTransactionDto, TransactionFilterDto } from '../dto';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from '../services/finance.service';
 import { FinancialReportService } from '../services/financial-report.service';
@@ -8,11 +10,11 @@ describe('TransactionsController', () => {
   let controller: TransactionsController;
   let service: FinanceService;
 
-  const mockTransaction = {
+  const mockTransaction = createMockTransaction({
     id: 'uuid',
     amount: 100,
     type: TransactionType.INCOME,
-  };
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -48,7 +50,7 @@ describe('TransactionsController', () => {
 
   describe('findAll', () => {
     it('should call service.findAllTransactions', async () => {
-      const filter = {} as any;
+      const filter = new TransactionFilterDto();
       await controller.findAll(filter);
       expect(service.findAllTransactions).toHaveBeenCalledWith(filter);
     });
@@ -70,7 +72,7 @@ describe('TransactionsController', () => {
 
   describe('create', () => {
     it('should call service.createTransaction', async () => {
-      const dto = { amount: 50, type: TransactionType.EXPENSE } as any;
+      const dto = { amount: 50, type: TransactionType.EXPENSE } as CreateTransactionDto;
       await controller.create(dto);
       expect(service.createTransaction).toHaveBeenCalledWith(dto);
     });

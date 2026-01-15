@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockEmployeeWallet } from '../../../../test/helpers/mock-factories';
 import { WalletService } from '../services/wallet.service';
 import { WalletsController } from './wallets.controller';
 
@@ -6,7 +7,7 @@ describe('WalletsController', () => {
   let controller: WalletsController;
   let service: WalletService;
 
-  const mockWallet = { id: 'uuid', balance: 500 };
+  const mockWallet = createMockEmployeeWallet({ id: 'uuid', payableBalance: 500 });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

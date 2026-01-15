@@ -1,7 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import {
+  createMockDepartmentBudget,
+  createMockRepository,
+  MockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CreateBudgetDto } from '../dto/budget.dto';
 import { DepartmentBudget } from '../entities/department-budget.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { DepartmentBudgetRepository } from '../repositories/department-budget.repository';
@@ -69,10 +75,12 @@ describe('FinancialReportService', () => {
       };
 
       budgetRepo.findOne.mockResolvedValue(null);
-      budgetRepo.create.mockReturnValue({ ...dto } as any);
-      budgetRepo.save.mockResolvedValue({ ...dto, id: 'budget-1' } as any);
+      budgetRepo.create.mockReturnValue(createMockDepartmentBudget(dto) as unknown as DepartmentBudget);
+      budgetRepo.save.mockResolvedValue(
+        createMockDepartmentBudget({ ...dto, id: 'budget-1' }) as unknown as DepartmentBudget,
+      );
 
-      await service.upsertBudget(dto as any);
+      await service.upsertBudget(dto as CreateBudgetDto);
 
       expect(budgetRepo.findOne).toHaveBeenCalledWith({
         where: { department: dto.department, period: dto.period },
@@ -104,17 +112,19 @@ describe('FinancialReportService', () => {
         endDate: '2024-01-31',
       };
 
-      const existingBudget = {
+      const existingBudget = createMockDepartmentBudget({
         id: 'budget-1',
         department: 'Engineering',
         period: '2024-01',
         budgetAmount: 10000,
-      };
+      }) as unknown as DepartmentBudget;
 
-      budgetRepo.findOne.mockResolvedValue(existingBudget as any);
-      budgetRepo.save.mockResolvedValue({ ...existingBudget, ...dto } as any);
+      budgetRepo.findOne.mockResolvedValue(existingBudget);
+      budgetRepo.save.mockResolvedValue(
+        createMockDepartmentBudget({ ...existingBudget, ...dto }) as unknown as DepartmentBudget,
+      );
 
-      await service.upsertBudget(dto as any);
+      await service.upsertBudget(dto as CreateBudgetDto);
 
       expect(budgetRepo.findOne).toHaveBeenCalledWith({
         where: { department: dto.department, period: dto.period },
@@ -130,13 +140,13 @@ describe('FinancialReportService', () => {
   describe('getBudgetReport', () => {
     it('should return budgets', async () => {
       budgetRepo.find.mockResolvedValue([
-        {
+        createMockDepartmentBudget({
           id: 'b1',
           department: 'Eng',
           budgetAmount: 1000,
           period: '2024-01',
-        },
-      ] as any);
+        }),
+      ] as unknown as DepartmentBudget[]);
 
       // Mock query builder for date range
       const qbMock = {
