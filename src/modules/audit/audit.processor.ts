@@ -74,7 +74,46 @@ export class AuditProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
+  async onFailed(job: Job<AuditLogJobData>, error: Error) {
     this.logger.error(`Audit log job ${job.id} failed: ${error.message}`, error.stack);
+
+    // Check if job has exhausted all retries (DLQ scenario)
+    if (job.attemptsMade >= (job.opts.attempts ?? 3)) {
+      this.logger.warn(`Audit job ${job.id} exhausted all retries, saving to DLQ storage`);
+
+      try {
+        // Store failed job data for manual recovery
+        // In production, this could write to a separate failed_audit_logs table
+        // or send to an external DLQ like SQS/RabbitMQ
+        await this.storeToDLQ(job.data, error);
+      } catch (dlqError) {
+        this.logger.error(
+          `Failed to store audit job to DLQ: ${dlqError instanceof Error ? dlqError.message : String(dlqError)}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Store failed audit log to dead letter queue for later processing.
+   * This ensures audit logs are never silently lost.
+   */
+  private async storeToDLQ(data: AuditLogJobData, error: Error): Promise<void> {
+    // Create a special audit entry marking this as a failed DLQ item
+    const dlqEntry = this.auditRepository.create({
+      tenantId: data.tenantId,
+      action: `DLQ_FAILED:${data.action}`,
+      entityName: data.entityName,
+      entityId: data.entityId,
+      userId: data.userId,
+      notes: `FAILED_JOB: ${error.message}. Original data: ${JSON.stringify(data).slice(0, 1000)}`,
+      sequenceNumber: -1, // Negative sequence indicates DLQ entry
+    });
+
+    dlqEntry.createdAt = new Date();
+    dlqEntry.hash = dlqEntry.calculateHash();
+
+    await this.auditRepository.save(dlqEntry);
+    this.logger.warn(`Stored failed audit log to DLQ: ${data.action}`);
   }
 }
