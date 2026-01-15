@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import {
   createMockAuditService,
+  createMockBooking,
   createMockBookingStateMachine,
   createMockCatalogService,
   createMockDashboardGateway,
@@ -19,7 +20,6 @@ import { CatalogService } from '../../catalog/services/catalog.service';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { FinanceService } from '../../finance/services/finance.service';
 import { CreateBookingDto } from '../dto';
-import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingStateMachineService } from './booking-state-machine.service';
@@ -36,14 +36,14 @@ describe('BookingsService', () => {
   let dashboardGateway: ReturnType<typeof createMockDashboardGateway>;
   let stateMachine: ReturnType<typeof createMockBookingStateMachine>;
 
-  const mockBooking = {
+  const mockBooking = createMockBooking({
     id: 'booking-123',
     tenantId: 'tenant-1',
     status: BookingStatus.DRAFT,
     eventDate: new Date(Date.now() + 86400000), // tomorrow
     clientId: 'client-1',
     packageId: 'pkg-1',
-  } as Booking;
+  });
 
   beforeEach(async () => {
     mockTenantContext('tenant-123');

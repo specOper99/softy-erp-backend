@@ -34,7 +34,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Validation failed' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async register(@Body() registerDto: RegisterDto, @Req() req: Request, @Ip() ip: string): Promise<AuthResponseDto> {
     return this.authService.register(registerDto, {
       userAgent: req.headers['user-agent'],
@@ -50,6 +51,7 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async login(@Body() loginDto: LoginDto, @Req() req: Request, @Ip() ip: string): Promise<AuthResponseDto> {
     return this.authService.login(loginDto, {
       userAgent: req.headers['user-agent'],
@@ -65,6 +67,7 @@ export class AuthController {
   @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({ status: 200, description: 'Token refresh successful' })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async refreshTokens(@Body() dto: RefreshTokenDto, @Req() req: Request, @Ip() ip: string): Promise<TokensDto> {
     return this.authService.refreshTokens(dto.refreshToken, {
       userAgent: req.headers['user-agent'],
@@ -77,6 +80,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout (revoke refresh token)' })
+  @ApiResponse({ status: 204, description: 'Logout successful' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(@CurrentUser() user: User, @Body() dto: LogoutDto, @Req() req: Request): Promise<void> {
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
     // If we are logging out all sessions, we still blacklist current access token
@@ -108,6 +113,10 @@ export class AuthController {
     summary: 'Enable MFA with verification code',
     description: 'Returns recovery codes on success. Store these securely - they are shown only once!',
   })
+  @ApiResponse({ status: 200, description: 'MFA enabled, recovery codes returned' })
+  @ApiResponse({ status: 400, description: 'Invalid verification code' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async enableMfa(@CurrentUser() user: User, @Body() dto: EnableMfaDto): Promise<RecoveryCodesResponseDto> {
     const codes = await this.authService.enableMfa(user, dto.code);
     return {
@@ -133,6 +142,8 @@ export class AuthController {
     summary: 'View remaining recovery codes',
     description: 'Returns the number of remaining recovery codes and a warning if running low.',
   })
+  @ApiResponse({ status: 200, description: 'Recovery codes status' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getRecoveryCodes(@CurrentUser() user: User): Promise<RecoveryCodesResponseDto> {
     const remaining = await this.authService.getRemainingRecoveryCodes(user);
 
@@ -172,6 +183,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get active sessions for current user' })
+  @ApiResponse({ status: 200, description: 'List of active sessions' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getSessions(@CurrentUser() user: User) {
     const sessions = await this.authService.getActiveSessions(user.id);
     return sessions.map((s) => s.toSessionInfo());
@@ -182,6 +195,9 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a specific session' })
+  @ApiResponse({ status: 204, description: 'Session revoked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
   async revokeSession(@CurrentUser() user: User, @Param('id') sessionId: string): Promise<void> {
     await this.authService.revokeSession(user.id, sessionId);
   }
@@ -199,6 +215,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
+  @ApiResponse({ status: 200, description: 'User info' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getCurrentUser(@CurrentUser() user: User) {
     return {
       id: user.id,
@@ -218,6 +236,8 @@ export class AuthController {
     description: 'Sends password reset email if account exists (always returns success)',
   })
   @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset email sent (masked)' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
     await this.authService.forgotPassword(dto.email);
     return {
@@ -234,6 +254,9 @@ export class AuthController {
     description: 'Resets password using token from email',
   })
   @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset successful' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { message: 'Password has been reset successfully' };

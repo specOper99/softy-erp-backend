@@ -489,3 +489,61 @@ export function createMockQueue() {
     close: jest.fn().mockResolvedValue(undefined),
   };
 }
+
+/**
+ * Creates a mock User entity with default values.
+ *
+ * @example
+ * ```typescript
+ * const mockUser = createMockUser({ role: Role.ADMIN });
+ * ```
+ */
+export function createMockUser(overrides: Partial<any> = {}) {
+  return {
+    id: 'user-uuid-123',
+    email: 'test@example.com',
+    tenantId: 'tenant-123',
+    passwordHash: 'hashed-password',
+    mfaSecret: null,
+    isMfaEnabled: false,
+    mfaRecoveryCodes: [],
+    role: 'FIELD_STAFF', // Using string to avoid importing Enum if strictly not needed, but better to import if possible.
+    isActive: true, // However, for this helper file, we might want to avoid deep dependency chains.
+    emailVerified: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    wallet: null,
+    tasks: Promise.resolve([]),
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock Booking entity with default values.
+ */
+export function createMockBooking(overrides: Partial<any> = {}) {
+  return {
+    id: 'booking-id-123',
+    tenantId: 'tenant-123',
+    clientId: 'client-1',
+    packageId: 'pkg-1',
+    status: 'DRAFT',
+    eventDate: new Date(),
+    totalPrice: 1000,
+    amountPaid: 0,
+    depositAmount: 200,
+    paymentStatus: 'UNPAID',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    tasks: Promise.resolve([]),
+    invoice: Promise.resolve(null),
+    canBeCancelled: jest.fn().mockReturnValue(true),
+    canBeCompleted: jest.fn().mockReturnValue(false),
+    isTerminal: jest.fn().mockReturnValue(false),
+    getRemainingBalance: jest.fn().mockReturnValue(1000),
+    isFullyPaid: jest.fn().mockReturnValue(false),
+    isDepositPaid: jest.fn().mockReturnValue(false),
+    ...overrides,
+  };
+}

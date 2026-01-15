@@ -2,11 +2,13 @@ import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { createMockUser } from '../../../test/helpers/mock-factories';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { GeoIpService } from '../../common/services/geoip.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
+import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { UsersService } from '../users/services/users.service';
 import { AuthService } from './auth.service';
@@ -31,20 +33,12 @@ describe('AuthService - Comprehensive Tests', () => {
   let _usersService: UsersService;
   let _tenantsService: TenantsService;
 
-  const mockUser = {
+  const mockUser = createMockUser({
     id: 'test-uuid-123',
-    email: 'test@example.com',
-    passwordHash: 'hashedPassword',
-    role: Role.FIELD_STAFF,
-    isActive: true,
     tenantId: 'tenant-123',
-    isMfaEnabled: false,
-    mfaSecret: null,
-    recoveryCodes: [],
+    role: Role.FIELD_STAFF, // Override specifically
     emailVerified: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  });
 
   const mockTenant = {
     id: 'tenant-123',
@@ -274,7 +268,7 @@ describe('AuthService - Comprehensive Tests', () => {
         companyName: 'Test Tenant',
       };
 
-      const result = await service.register(dto as any);
+      const result = await service.register(dto);
 
       expect(result.user!.role).toBe(Role.ADMIN);
     });
@@ -442,24 +436,24 @@ describe('AuthService - Comprehensive Tests', () => {
 
   describe('MFA', () => {
     it('should generate MFA secret', async () => {
-      const result = await service.generateMfaSecret(mockUser as any);
+      const result = await service.generateMfaSecret(mockUser as unknown as User);
       expect(result.secret).toBe('SECRET');
       expect(result.qrCodeUrl).toBeDefined();
     });
 
     it('should enable MFA with valid token', async () => {
-      const result = await service.enableMfa(mockUser as any, '123456');
+      const result = await service.enableMfa(mockUser as unknown as User, '123456');
       expect(result).toHaveLength(10);
     });
 
     it('should throw if MFA token invalid', async () => {
       mockMfaService.enableMfa.mockRejectedValue(new UnauthorizedException('Invalid MFA code'));
 
-      await expect(service.enableMfa(mockUser as any, '000000')).rejects.toThrow(UnauthorizedException);
+      await expect(service.enableMfa(mockUser as unknown as User, '000000')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should disable MFA', async () => {
-      await service.disableMfa(mockUser as any);
+      await service.disableMfa(mockUser as unknown as User);
       expect(mockMfaService.disableMfa).toHaveBeenCalledWith(mockUser);
     });
   });
