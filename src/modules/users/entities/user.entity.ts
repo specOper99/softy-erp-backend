@@ -15,7 +15,8 @@ import { Task } from '../../tasks/entities/task.entity';
 import { Role } from '../enums/role.enum';
 
 @Entity('users')
-@Index(['email'], { unique: true })
+@Index(['email'])
+@Index(['tenantId', 'email'], { unique: true })
 @Index(['id', 'tenantId'], { unique: true }) // Composite index for foreign key referencing
 export class User {
   @PrimaryGeneratedColumn('uuid')
