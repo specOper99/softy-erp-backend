@@ -365,10 +365,32 @@ export function createMockQueryRunner() {
       save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
       findOne: jest.fn(),
       find: jest.fn(),
-      create: jest.fn().mockImplementation((entity) => entity),
+      create: jest.fn().mockImplementation((entityOrData, data) => data || entityOrData),
     },
     isTransactionActive: true,
   };
+}
+
+/**
+ * Creates a mock Express Response object.
+ *
+ * @example
+ * ```typescript
+ * const mockRes = createMockResponse();
+ * ```
+ */
+export function createMockResponse() {
+  const res = {} as any;
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  res.send = jest.fn().mockReturnValue(res);
+  res.end = jest.fn().mockReturnValue(res);
+  res.write = jest.fn().mockReturnValue(true);
+  res.setHeader = jest.fn().mockReturnValue(res);
+  res.cookie = jest.fn().mockReturnValue(res);
+  res.clearCookie = jest.fn().mockReturnValue(res);
+  res.redirect = jest.fn().mockReturnValue(res);
+  return res;
 }
 
 /**

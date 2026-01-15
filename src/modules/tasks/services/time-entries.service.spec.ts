@@ -200,6 +200,7 @@ describe('TimeEntriesService', () => {
         where: { taskId: 'task-123', tenantId: mockTenantId },
         order: { startTime: 'DESC' },
         relations: ['user'],
+        take: 1000,
       });
       expect(result).toHaveLength(1);
     });
@@ -207,7 +208,7 @@ describe('TimeEntriesService', () => {
 
   describe('update', () => {
     it('should update time entry', async () => {
-      timeEntryRepo.findOne.mockResolvedValue(createMockTimeEntry(mockTimeEntry) as unknown as TimeEntry);
+      timeEntryRepo.findOne.mockResolvedValue(mockTimeEntry);
       timeEntryRepo.save.mockResolvedValue(
         createMockTimeEntry({
           ...mockTimeEntry,

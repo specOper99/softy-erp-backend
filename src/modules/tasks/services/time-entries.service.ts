@@ -85,6 +85,7 @@ export class TimeEntriesService {
       where: { taskId, tenantId },
       order: { startTime: 'DESC' },
       relations: ['user'],
+      take: 1000, // [Safety] Prevent unbounded result set
     });
   }
 

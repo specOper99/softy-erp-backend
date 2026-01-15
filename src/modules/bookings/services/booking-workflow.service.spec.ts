@@ -56,7 +56,7 @@ describe('BookingWorkflowService', () => {
 
     const mockQR = createMockQueryRunner();
     // Custom save implementation for existing test behavior
-    mockQR.manager.save.mockImplementation((targetOrEntity: any, maybeEntity: any) => {
+    mockQR.manager.save.mockImplementation((targetOrEntity: unknown, maybeEntity: unknown) => {
       // Handle save(Entity, entities[]) signature
       if (maybeEntity && Array.isArray(maybeEntity)) return Promise.resolve(maybeEntity);
       // Handle save(entities[]) signature (if passed directly)
@@ -65,7 +65,7 @@ describe('BookingWorkflowService', () => {
       return Promise.resolve(maybeEntity || targetOrEntity);
     });
 
-    dataSource = createMockDataSource() as any;
+    dataSource = createMockDataSource() as unknown as DataSource;
     (dataSource.createQueryRunner as jest.Mock).mockReturnValue(mockQR);
     queryRunner = dataSource.createQueryRunner();
 

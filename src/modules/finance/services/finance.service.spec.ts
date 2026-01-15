@@ -1,9 +1,11 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import {
+  createMockQueryRunner,
   createMockRepository,
+  createMockResponse,
   createMockTransaction,
   MockRepository,
   mockTenantContext,
@@ -61,22 +63,9 @@ describe('FinanceService - Comprehensive Tests', () => {
     description: 'Test transaction',
   }) as unknown as Transaction;
 
-  const mockQueryRunner = {
-    connect: jest.fn(),
-    startTransaction: jest.fn(),
-    commitTransaction: jest.fn(),
-    rollbackTransaction: jest.fn(),
-    release: jest.fn(),
-    isTransactionActive: true,
-    manager: {
-      findOne: jest.fn(),
-      create: jest.fn().mockImplementation((entity, data) => data),
-      save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'wallet-uuid-123', ...data })),
-      queryRunner: {
-        isTransactionActive: true,
-      },
-    },
-  };
+  const mockQueryRunner = createMockQueryRunner();
+  // Override save to match specific test behavior for wallet
+  mockQueryRunner.manager.save.mockImplementation((data) => Promise.resolve({ id: 'wallet-uuid-123', ...data }));
 
   const mockWalletService = {
     addPendingCommission: jest.fn().mockResolvedValue(undefined),
@@ -322,7 +311,7 @@ describe('FinanceService - Comprehensive Tests', () => {
 
   describe('exportTransactionsToCSV', () => {
     it('should stream transactions to response', async () => {
-      const mockRes = {} as any;
+      const mockRes = createMockResponse();
       await service.exportTransactionsToCSV(mockRes);
       expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalledWith('t');
       expect(mockExportService.streamFromStream).toHaveBeenCalledWith(
@@ -338,13 +327,13 @@ describe('FinanceService - Comprehensive Tests', () => {
   describe('transferPendingCommission', () => {
     it('calls WalletService methods in deterministic order', async () => {
       // oldUserId = 'b', newUserId = 'a' -> sorted order: 'a' (add), 'b' (subtract)
-      await service.transferPendingCommission(mockQueryRunner.manager as any, 'b', 'a', 100);
+      await service.transferPendingCommission(mockQueryRunner.manager as unknown as EntityManager, 'b', 'a', 100);
       expect(mockWalletService.addPendingCommission).toHaveBeenCalledWith(mockQueryRunner.manager, 'a', 100);
       expect(mockWalletService.subtractPendingCommission).toHaveBeenCalledWith(mockQueryRunner.manager, 'b', 100);
       // And ensure ordering: add called before subtract
       const addIndex = mockWalletService.addPendingCommission.mock.invocationCallOrder[0];
       const subIndex = mockWalletService.subtractPendingCommission.mock.invocationCallOrder[0];
-      expect(addIndex).toBeLessThan(subIndex);
+      expect(addIndex!).toBeLessThan(subIndex!);
     });
   });
 });

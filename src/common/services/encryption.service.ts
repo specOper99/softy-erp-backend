@@ -75,7 +75,7 @@ export class EncryptionService {
     if (parts.length === 4) {
       // Versioned: v2:IV:Tag:Cipher
       const [v, iv, tag, enc] = parts;
-      if (!v || !iv || !tag || !enc) {
+      if (!v || !iv || !tag || enc === undefined) {
         throw new Error('Invalid ciphertext format');
       }
       version = v;

@@ -32,6 +32,8 @@ describe('AuthService - Comprehensive Tests', () => {
   let service: AuthService;
   let _usersService: UsersService;
   let _tenantsService: TenantsService;
+  let passwordService: PasswordService;
+  let lockoutService: AccountLockoutService;
 
   const mockUser = createMockUser({
     id: 'test-uuid-123',
@@ -222,8 +224,11 @@ describe('AuthService - Comprehensive Tests', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
+    service = module.get<AuthService>(AuthService);
     _usersService = module.get<UsersService>(UsersService);
     _tenantsService = module.get<TenantsService>(TenantsService);
+    passwordService = module.get<PasswordService>(PasswordService);
+    lockoutService = module.get<AccountLockoutService>(AccountLockoutService);
 
     jest.clearAllMocks();
 
@@ -288,8 +293,8 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw ConflictException if tenant/slug already exists', async () => {
-      const error = new Error('Constraint violation');
-      (error as any).code = '23505';
+      const error: Error & { code: string } = new Error('Constraint violation') as any;
+      error.code = '23505';
       mockTenantsService.createWithManager.mockRejectedValue(error);
 
       const dto = {
@@ -503,8 +508,6 @@ describe('AuthService - Comprehensive Tests', () => {
 
   describe('Forgot Password', () => {
     it('should delegate to PasswordService', async () => {
-      const passwordService = (service as any).passwordService;
-
       await service.forgotPassword('test@example.com');
 
       expect(passwordService.forgotPassword).toHaveBeenCalledWith('test@example.com');
@@ -513,8 +516,6 @@ describe('AuthService - Comprehensive Tests', () => {
 
   describe('Reset Password', () => {
     it('should delegate to PasswordService with logout callback', async () => {
-      const passwordService = (service as any).passwordService;
-
       await service.resetPassword('valid-token', 'NewPassword123!');
 
       expect(passwordService.resetPassword).toHaveBeenCalledWith(
@@ -529,11 +530,13 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should throw UnauthorizedException if user is inactive in validateUser', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
       mockUsersService.findOne.mockResolvedValue(inactiveUser);
-      await expect(service.validateUser({ sub: 'u-1' } as any)).rejects.toThrow(UnauthorizedException);
+      // Type assertion to JwtPayload (partial mock for test)
+      const payload: any = { sub: 'u-1' };
+      await expect(service.validateUser(payload)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException if account is locked out', async () => {
-      (service as any).lockoutService.isLockedOut = jest.fn().mockResolvedValue({
+      (lockoutService.isLockedOut as jest.Mock).mockResolvedValue({
         locked: true,
         remainingMs: 5000,
       });

@@ -1,9 +1,15 @@
 import { NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { EntityManager } from 'typeorm';
-import { createMockRepository, createMockUser, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import {
+  createMockQueryRunner,
+  createMockRepository,
+  createMockUser,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { User } from '../entities/user.entity';
 import { Role } from '../enums/role.enum';
@@ -17,6 +23,7 @@ const TEST_WRONG_PASSWORD = process.env.TEST_MOCK_PASSWORD_WRONG || 'WrongPass12
 describe('UsersService - Comprehensive Tests', () => {
   let service: UsersService;
   let userRepository: jest.Mocked<UserRepository>;
+  let eventBus: EventBus;
 
   let mockUser: User;
 
@@ -43,6 +50,10 @@ describe('UsersService - Comprehensive Tests', () => {
           provide: UserRepository,
           useValue: createMockRepository(),
         },
+        {
+          provide: getRepositoryToken(User),
+          useValue: createMockRepository(),
+        },
         { provide: AuditPublisher, useValue: mockAuditService },
         {
           provide: EventBus,
@@ -55,6 +66,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
     service = module.get<UsersService>(UsersService);
     userRepository = module.get(UserRepository);
+    eventBus = module.get(EventBus);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -96,7 +108,7 @@ describe('UsersService - Comprehensive Tests', () => {
       const dto = { email: 'new@example.com', password: TEST_PASSWORD };
       await service.create(dto);
 
-      const savedUser = userRepository.create.mock.calls[0][0];
+      const savedUser = userRepository.create.mock.calls[0]![0];
       expect(savedUser.passwordHash).not.toBe(TEST_PASSWORD);
     });
 
@@ -108,7 +120,7 @@ describe('UsersService - Comprehensive Tests', () => {
       };
       await service.create(dto);
 
-      const savedUser = userRepository.create.mock.calls[0][0];
+      const savedUser = userRepository.create.mock.calls[0]![0];
       expect(savedUser.role).toBe(Role.ADMIN);
     });
 
@@ -120,7 +132,7 @@ describe('UsersService - Comprehensive Tests', () => {
       };
       await service.create(dto);
 
-      const savedUser = userRepository.create.mock.calls[0][0];
+      const savedUser = userRepository.create.mock.calls[0]![0];
       expect(savedUser.role).toBe(Role.OPS_MANAGER);
     });
 
@@ -132,10 +144,11 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should create user with a manager (transactional)', async () => {
-      const mockManager = {
-        create: jest.fn().mockImplementation((_entity, data) => data),
-        save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'managed-uuid', ...data })),
-      } as unknown as EntityManager;
+      const mockQueryRunner = createMockQueryRunner();
+      // Customize create to return data (factory does this by default now)
+      mockQueryRunner.manager.save.mockImplementation((data) => Promise.resolve({ id: 'managed-uuid', ...data }));
+
+      const mockManager = mockQueryRunner.manager;
 
       const dto = {
         email: 'managed@example.com',
@@ -144,7 +157,7 @@ describe('UsersService - Comprehensive Tests', () => {
         tenantId: 'tenant-123',
       };
 
-      const result = await service.createWithManager(mockManager, dto);
+      const result = await service.createWithManager(mockManager as unknown as EntityManager, dto);
 
       expect(result).toHaveProperty('id', 'managed-uuid');
       expect(mockManager.create).toHaveBeenCalled();
@@ -188,7 +201,7 @@ describe('UsersService - Comprehensive Tests', () => {
           andWhere: jest.fn().mockReturnThis(),
           getMany: jest.fn().mockResolvedValue([mockUser]),
         };
-        userRepository.createQueryBuilder.mockReturnValue(qbMock as any);
+        userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as any);
 
         const result = await service.findMany(['test-uuid-123']);
         expect(result).toEqual([mockUser]);
@@ -290,7 +303,7 @@ describe('UsersService - Comprehensive Tests', () => {
     it('should delete existing user and publish event', async () => {
       await service.remove('test-uuid-123');
       expect(userRepository.softRemove).toHaveBeenCalled();
-      const eventBus = (service as any).eventBus;
+
       expect(eventBus.publish).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'test-uuid-123',
