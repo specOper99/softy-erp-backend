@@ -1,6 +1,15 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
+/**
+ * Offset-based pagination DTO.
+ *
+ * @deprecated Prefer {@link CursorPaginationDto} for new endpoints.
+ * Offset pagination degrades in performance on large datasets and can
+ * produce inconsistent results when data changes between pages.
+ *
+ * Existing endpoints using this DTO are maintained for backward compatibility.
+ */
 export class PaginationDto {
   @IsOptional()
   @Type(() => Number)

@@ -1,3 +1,30 @@
+/**
+ * TenantAwareRepository
+ *
+ * A base repository that automatically scopes all database queries to the current tenant,
+ * preventing cross-tenant data access in a multi-tenant SaaS application.
+ *
+ * ## Type Safety Note (L-02)
+ *
+ * This file intentionally uses `as any` and `as unknown as T` casts in several places:
+ *
+ * 1. **TypeORM Generic Constraints**: TypeORM's generic types for `save`, `softRemove`,
+ *    and `remove` have complex conditional type constraints that don't compose well
+ *    with our tenant enforcement wrapper logic.
+ *
+ * 2. **Interception Pattern**: The casts allow us to intercept all repository operations,
+ *    validate tenant ownership, and delegate to the underlying TypeORM repository.
+ *
+ * 3. **Runtime Safety**: Despite the compile-time casts, runtime safety is ensured by
+ *    explicit `tenantId` validation before every mutating operation. Cross-tenant
+ *    operations throw `ForbiddenException`.
+ *
+ * 4. **Controlled Trust Boundary**: These casts exist at the boundary between our
+ *    application code and TypeORM internals - not in business logic.
+ *
+ * Alternative approaches (separate methods per entity type) would significantly
+ * increase code duplication without improving runtime safety.
+ */
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import { ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import {
