@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -24,9 +25,20 @@ export class RecurringTransactionController {
 
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Get all recurring transactions' })
+  @ApiOperation({
+    summary: 'Get all recurring transactions (Offset Pagination)',
+    deprecated: true,
+    description: 'Use /finance/recurring-transactions/cursor for better performance with large datasets.',
+  })
   findAll(@Query() query: PaginationDto) {
     return this.recurringTransactionService.findAll(query);
+  }
+
+  @Get('cursor')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all recurring transactions with cursor pagination' })
+  findAllCursor(@Query() query: CursorPaginationDto) {
+    return this.recurringTransactionService.findAllCursor(query);
   }
 
   @Get(':id')

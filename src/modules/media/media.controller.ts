@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto';
@@ -106,12 +107,25 @@ export class MediaController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all attachments' })
+  @ApiOperation({
+    summary: 'Get all attachments (Offset Pagination)',
+    deprecated: true,
+    description: 'Use /media/cursor for better performance with large datasets.',
+  })
   @ApiResponse({ status: 200, description: 'Attachments retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   async findAll(@Query() query: PaginationDto = new PaginationDto()): Promise<Attachment[]> {
     return this.mediaService.findAll(query);
+  }
+
+  @Get('cursor')
+  @ApiOperation({ summary: 'Get all attachments with cursor pagination' })
+  @ApiResponse({ status: 200, description: 'Attachments retrieved' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async findAllCursor(@Query() query: CursorPaginationDto): Promise<{ data: Attachment[]; nextCursor: string | null }> {
+    return this.mediaService.findAllCursor(query);
   }
 
   @Get(':id')

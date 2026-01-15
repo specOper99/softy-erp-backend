@@ -34,7 +34,11 @@ export class HrController {
 
   @Get('profiles')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Get all employee profiles' })
+  @ApiOperation({
+    summary: 'Get all employee profiles (Offset Pagination)',
+    deprecated: true,
+    description: 'Use /hr/profiles/cursor for better performance with large datasets.',
+  })
   findAllProfiles(@Query() query: PaginationDto = new PaginationDto()) {
     return this.hrService.findAllProfiles(query);
   }
@@ -86,8 +90,19 @@ export class HrController {
 
   @Get('payroll/history')
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Get payroll run history (Admin only)' })
+  @ApiOperation({
+    summary: 'Get payroll run history (Admin only, Offset Pagination)',
+    deprecated: true,
+    description: 'Use /hr/payroll/history/cursor for better performance with large datasets.',
+  })
   getPayrollHistory(@Query() query: PaginationDto = new PaginationDto()) {
     return this.payrollService.getPayrollHistory(query);
+  }
+
+  @Get('payroll/history/cursor')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get payroll run history with cursor pagination (Admin only)' })
+  getPayrollHistoryCursor(@Query() query: CursorPaginationDto) {
+    return this.payrollService.getPayrollHistoryCursor(query);
   }
 }
