@@ -12,6 +12,8 @@ import { AuditPublisher } from '../../audit/audit.publisher';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { Task } from '../../tasks/entities/task.entity';
+import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingWorkflowService } from './booking-workflow.service';
 
@@ -24,7 +26,7 @@ describe('BookingWorkflowService', () => {
   let financeService: FinanceService;
   let auditService: AuditPublisher;
   let eventBus: EventBus;
-  let mockBooking: any;
+  let mockBooking: Partial<Booking>;
 
   const mockStateMachine = {
     validateTransition: jest.fn(),
@@ -37,7 +39,7 @@ describe('BookingWorkflowService', () => {
       status: BookingStatus.DRAFT,
       totalPrice: 100,
       eventDate: new Date(),
-      client: { name: 'Test Client', email: 'test@example.com' },
+      client: { name: 'Test Client', email: 'test@example.com' } as Booking['client'],
       servicePackage: {
         name: 'Test Package',
         packageItems: Promise.resolve([
@@ -47,9 +49,9 @@ describe('BookingWorkflowService', () => {
             taskType: { defaultCommissionAmount: 10 },
           },
         ]),
-      },
+      } as unknown as Booking['servicePackage'],
       // Tasks relation mock
-      tasks: Promise.resolve([]),
+      tasks: Promise.resolve([]) as Promise<Task[]>,
     };
 
     const mockQR = createMockQueryRunner();

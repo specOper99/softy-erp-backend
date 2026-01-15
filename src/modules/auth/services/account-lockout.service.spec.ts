@@ -1,24 +1,18 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockCacheManager, createMockConfigService } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { AccountLockoutService } from './account-lockout.service';
 
 describe('AccountLockoutService', () => {
   let service: AccountLockoutService;
 
-  let mockCacheService: any;
-  let mockConfigService: any;
+  let mockCacheService: ReturnType<typeof createMockCacheManager>;
+  let mockConfigService: ReturnType<typeof createMockConfigService>;
 
   beforeEach(async () => {
-    mockCacheService = {
-      get: jest.fn(),
-      set: jest.fn(),
-      del: jest.fn(),
-    };
-
-    mockConfigService = {
-      get: jest.fn((key, defaultValue) => defaultValue),
-    };
+    mockCacheService = createMockCacheManager();
+    mockConfigService = createMockConfigService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

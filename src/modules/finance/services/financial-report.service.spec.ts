@@ -1,15 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { DepartmentBudget } from '../entities/department-budget.entity';
+import { Transaction } from '../entities/transaction.entity';
 import { DepartmentBudgetRepository } from '../repositories/department-budget.repository';
 import { TransactionRepository } from '../repositories/transaction.repository';
 import { FinancialReportService } from './financial-report.service';
 
 describe('FinancialReportService', () => {
   let service: FinancialReportService;
-  let transactionRepo: any;
-  let budgetRepo: any;
+  let transactionRepo: MockRepository<Transaction>;
+  let budgetRepo: MockRepository<DepartmentBudget>;
 
   const mockTenantId = 'tenant-123';
 

@@ -23,10 +23,6 @@ describe('TenantAwareRepository', () => {
   let mockTypeOrmRepository: Repository<TestEntity>;
 
   beforeEach(() => {
-    // Log current test (helps diagnose ordering-dependent failures in full suite)
-
-    console.log('Running TenantAwareRepository test:', expect.getState().currentTestName);
-
     // Mock the inner TypeORM repository
     mockTypeOrmRepository = {
       find: jest.fn(),

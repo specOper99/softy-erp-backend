@@ -1,8 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { RecurringStatus } from '../entities/recurring-transaction.entity';
+import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
 
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
@@ -11,7 +11,7 @@ import { RecurringTransactionService } from './recurring-transaction.service';
 
 describe('RecurringTransactionService', () => {
   let service: RecurringTransactionService;
-  let recurringRepo: any;
+  let recurringRepo: MockRepository<RecurringTransaction>;
   let financeService: jest.Mocked<FinanceService>;
 
   const mockTenantId = 'tenant-123';
@@ -65,7 +65,7 @@ describe('RecurringTransactionService', () => {
     }).compile();
 
     service = module.get<RecurringTransactionService>(RecurringTransactionService);
-    recurringRepo = module.get<RecurringTransactionRepository>(RecurringTransactionRepository);
+    recurringRepo = module.get(RecurringTransactionRepository);
     financeService = module.get(FinanceService);
 
     mockTenantContext(mockTenantId);

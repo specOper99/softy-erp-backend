@@ -1,16 +1,16 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
-import { InvoiceStatus } from '../entities/invoice.entity';
+import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { InvoiceRepository } from '../repositories/invoice.repository';
 import { InvoiceService } from './invoice.service';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
-  let invoiceRepo: any;
-  let bookingRepo: any;
+  let invoiceRepo: MockRepository<Invoice>;
+  let bookingRepo: MockRepository<Booking>;
   const mockTenantId = 'tenant-123';
 
   const mockBooking = {

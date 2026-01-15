@@ -19,8 +19,22 @@ import { TenantContextService } from '../../src/common/services/tenant-context.s
 
 /**
  * Mock Repository type with all common TypeORM repository methods mocked.
+ * Common methods are required; others remain optional.
  */
-export type MockRepository<T extends ObjectLiteral> = {
+export type MockRepository<T extends ObjectLiteral = ObjectLiteral> = {
+  find: jest.Mock;
+  findOne: jest.Mock;
+  findOneBy: jest.Mock;
+  findBy: jest.Mock;
+  save: jest.Mock;
+  create: jest.Mock;
+  update: jest.Mock;
+  delete: jest.Mock;
+  remove: jest.Mock;
+  softRemove: jest.Mock;
+  count: jest.Mock;
+  createQueryBuilder: jest.Mock;
+} & {
   [K in keyof Repository<T>]?: jest.Mock;
 };
 
@@ -34,7 +48,7 @@ export type MockRepository<T extends ObjectLiteral> = {
  * mockRepo.findOne.mockResolvedValue({ id: '1', name: 'Test User' });
  * ```
  */
-export function createMockRepository<T extends ObjectLiteral>(): MockRepository<T> {
+export function createMockRepository<T extends ObjectLiteral = ObjectLiteral>(): MockRepository<T> {
   return {
     find: jest.fn(),
     findOne: jest.fn(),
@@ -351,5 +365,127 @@ export function createMockDataSource() {
     isInitialized: true,
     initialize: jest.fn().mockResolvedValue(true),
     destroy: jest.fn().mockResolvedValue(true),
+  };
+}
+
+/**
+ * Creates a mock CatalogService with common methods.
+ *
+ * @example
+ * ```typescript
+ * const mockCatalogService = createMockCatalogService();
+ * mockCatalogService.findPackageById.mockResolvedValue({ id: 'pkg-1', price: 100 });
+ * ```
+ */
+export function createMockCatalogService() {
+  return {
+    findPackageById: jest.fn().mockResolvedValue({ id: 'pkg-1', price: 100, name: 'Test Package' }),
+    findTaskTypeById: jest.fn().mockResolvedValue({ id: 'task-type-1', name: 'Test Task Type' }),
+    findAllPackages: jest.fn().mockResolvedValue([]),
+    findAllTaskTypes: jest.fn().mockResolvedValue([]),
+    createPackage: jest.fn(),
+    updatePackage: jest.fn(),
+    deletePackage: jest.fn(),
+  };
+}
+
+/**
+ * Creates a mock FinanceService with common methods.
+ *
+ * @example
+ * ```typescript
+ * const mockFinanceService = createMockFinanceService();
+ * ```
+ */
+export function createMockFinanceService() {
+  return {
+    createTransaction: jest.fn().mockResolvedValue({ id: 'txn-1' }),
+    createTransactionWithManager: jest.fn().mockResolvedValue({ id: 'txn-1' }),
+    findAllTransactions: jest.fn().mockResolvedValue([]),
+    findTransactionById: jest.fn(),
+    getTransactionSummary: jest.fn().mockResolvedValue({ totalIncome: 0, totalExpenses: 0, netBalance: 0 }),
+    transferPendingCommission: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
+/**
+ * Creates a mock AuditService with common methods.
+ *
+ * @example
+ * ```typescript
+ * const mockAuditService = createMockAuditService();
+ * ```
+ */
+export function createMockAuditService() {
+  return {
+    log: jest.fn().mockResolvedValue(undefined),
+    getAuditLogs: jest.fn().mockResolvedValue([]),
+    verifyIntegrity: jest.fn().mockResolvedValue(true),
+  };
+}
+
+/**
+ * Creates a mock EventBus (CQRS) with common methods.
+ *
+ * @example
+ * ```typescript
+ * const mockEventBus = createMockEventBus();
+ * expect(mockEventBus.publish).toHaveBeenCalled();
+ * ```
+ */
+export function createMockEventBus() {
+  return {
+    publish: jest.fn(),
+    publishAll: jest.fn(),
+  };
+}
+
+/**
+ * Creates a mock DashboardGateway for WebSocket testing.
+ *
+ * @example
+ * ```typescript
+ * const mockDashboardGateway = createMockDashboardGateway();
+ * ```
+ */
+export function createMockDashboardGateway() {
+  return {
+    broadcastMetricsUpdate: jest.fn(),
+    handleConnection: jest.fn(),
+    handleDisconnect: jest.fn(),
+  };
+}
+
+/**
+ * Creates a mock BookingStateMachineService.
+ *
+ * @example
+ * ```typescript
+ * const mockStateMachine = createMockBookingStateMachine();
+ * ```
+ */
+export function createMockBookingStateMachine() {
+  return {
+    validateTransition: jest.fn(),
+    canTransition: jest.fn().mockReturnValue(true),
+    getNextStates: jest.fn().mockReturnValue([]),
+  };
+}
+
+/**
+ * Creates a mock BullMQ Queue.
+ *
+ * @example
+ * ```typescript
+ * const mockQueue = createMockQueue();
+ * ```
+ */
+export function createMockQueue() {
+  return {
+    add: jest.fn().mockResolvedValue({ id: 'job-1' }),
+    addBulk: jest.fn().mockResolvedValue([]),
+    getJob: jest.fn(),
+    getJobs: jest.fn().mockResolvedValue([]),
+    close: jest.fn().mockResolvedValue(undefined),
   };
 }

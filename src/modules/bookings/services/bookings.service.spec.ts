@@ -3,7 +3,17 @@ import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import {
+  createMockAuditService,
+  createMockBookingStateMachine,
+  createMockCatalogService,
+  createMockDashboardGateway,
+  createMockDataSource,
+  createMockEventBus,
+  createMockFinanceService,
+  createMockRepository,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
@@ -18,13 +28,13 @@ import { BookingsService } from './bookings.service';
 describe('BookingsService', () => {
   let service: BookingsService;
   let bookingRepository: ReturnType<typeof createMockRepository>;
-  let catalogService: any;
-  let financeService: any;
-  let auditService: any;
-  let dataSource: any;
-  let eventBus: any;
-  let dashboardGateway: any;
-  let stateMachine: any;
+  let catalogService: ReturnType<typeof createMockCatalogService>;
+  let financeService: ReturnType<typeof createMockFinanceService>;
+  let auditService: ReturnType<typeof createMockAuditService>;
+  let dataSource: ReturnType<typeof createMockDataSource>;
+  let eventBus: ReturnType<typeof createMockEventBus>;
+  let dashboardGateway: ReturnType<typeof createMockDashboardGateway>;
+  let stateMachine: ReturnType<typeof createMockBookingStateMachine>;
 
   const mockBooking = {
     id: 'booking-123',
@@ -39,43 +49,21 @@ describe('BookingsService', () => {
     mockTenantContext('tenant-123');
 
     bookingRepository = createMockRepository();
+    catalogService = createMockCatalogService();
+    financeService = createMockFinanceService();
+    auditService = createMockAuditService();
+    dataSource = createMockDataSource();
+    eventBus = createMockEventBus();
+    dashboardGateway = createMockDashboardGateway();
+    stateMachine = createMockBookingStateMachine();
 
-    catalogService = {
-      findPackageById: jest.fn().mockResolvedValue({
-        id: 'pkg-1',
-        price: 100,
-        name: 'Test Package',
+    // Override dataSource transaction to return mock booking
+    dataSource.transaction.mockImplementation((cb) =>
+      cb({
+        save: jest.fn().mockResolvedValue(mockBooking),
+        update: jest.fn(),
       }),
-    };
-
-    financeService = {
-      createTransactionWithManager: jest.fn(),
-    };
-
-    auditService = {
-      log: jest.fn(),
-    };
-
-    dataSource = {
-      transaction: jest.fn().mockImplementation((cb) =>
-        cb({
-          save: jest.fn().mockResolvedValue(mockBooking),
-          update: jest.fn(),
-        }),
-      ),
-    };
-
-    eventBus = {
-      publish: jest.fn(),
-    };
-
-    dashboardGateway = {
-      broadcastMetricsUpdate: jest.fn(),
-    };
-
-    stateMachine = {
-      validateTransition: jest.fn(),
-    };
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

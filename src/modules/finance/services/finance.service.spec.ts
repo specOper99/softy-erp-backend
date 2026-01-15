@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { TransactionFilterDto } from '../dto';
@@ -21,8 +21,8 @@ import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 describe('FinanceService - Comprehensive Tests', () => {
   let service: FinanceService;
 
-  let mockTransactionRepository: any;
-  let mockBookingRepository: any;
+  let mockTransactionRepository: MockRepository<Transaction>;
+  let mockBookingRepository: MockRepository<Booking>;
 
   const mockCacheUtils = {
     clearCache: jest.fn(),

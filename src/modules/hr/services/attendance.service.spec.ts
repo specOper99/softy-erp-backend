@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from './attendance.service';
 
@@ -9,7 +9,7 @@ const TENANT_REPO_ATTENDANCE = 'TENANT_REPO_ATTENDANCE';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
-  let attendanceRepo: any;
+  let attendanceRepo: MockRepository<Attendance>;
 
   const mockTenantId = 'tenant-123';
   const mockAttendance = {

@@ -151,7 +151,7 @@ describe('TasksService - Comprehensive Tests', () => {
         take: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
       };
-      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(mockQb);
+      mockTaskRepository.createQueryBuilder.mockReturnValue(mockQb);
 
       const result = await service.findAll();
       expect(result).toEqual([]);
@@ -168,7 +168,7 @@ describe('TasksService - Comprehensive Tests', () => {
         take: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue(tasks),
       };
-      (mockTaskRepository.createQueryBuilder as jest.Mock).mockReturnValue(mockQb);
+      mockTaskRepository.createQueryBuilder.mockReturnValue(mockQb);
 
       const result = await service.findAll();
       expect(result).toHaveLength(2);

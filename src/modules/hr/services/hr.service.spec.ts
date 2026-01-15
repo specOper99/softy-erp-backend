@@ -2,18 +2,19 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
+import { Profile } from '../entities/profile.entity';
 import { ProfileRepository } from '../repositories/profile.repository';
 import { HrService } from './hr.service';
 
 describe('HrService - Comprehensive Tests', () => {
   let service: HrService;
-  let mockProfileRepository: any;
-  let mockWalletRepository: any;
+  let mockProfileRepository: MockRepository<Profile>;
+  let mockWalletRepository: MockRepository<EmployeeWallet>;
 
   const mockProfile = {
     id: 'profile-uuid-123',

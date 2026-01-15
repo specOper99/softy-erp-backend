@@ -45,7 +45,7 @@ describe('WalletService', () => {
 
   describe('getOrCreateWallet', () => {
     it('should return existing wallet if found', async () => {
-      mockWalletRepository.findOne!.mockResolvedValue(mockWallet);
+      mockWalletRepository.findOne.mockResolvedValue(mockWallet);
 
       const result = await service.getOrCreateWallet(mockUserId);
 
@@ -56,9 +56,9 @@ describe('WalletService', () => {
     });
 
     it('should create new wallet if not found', async () => {
-      mockWalletRepository.findOne!.mockResolvedValueOnce(null);
-      mockWalletRepository.create!.mockReturnValue(mockWallet);
-      mockWalletRepository.save!.mockResolvedValue(mockWallet);
+      mockWalletRepository.findOne.mockResolvedValueOnce(null);
+      mockWalletRepository.create.mockReturnValue(mockWallet);
+      mockWalletRepository.save.mockResolvedValue(mockWallet);
 
       const result = await service.getOrCreateWallet(mockUserId);
 
@@ -74,7 +74,7 @@ describe('WalletService', () => {
 
   describe('getWalletByUserId', () => {
     it('should return wallet by user id', async () => {
-      mockWalletRepository.findOne!.mockResolvedValue(mockWallet);
+      mockWalletRepository.findOne.mockResolvedValue(mockWallet);
 
       const result = await service.getWalletByUserId(mockUserId);
 
@@ -86,7 +86,7 @@ describe('WalletService', () => {
     });
 
     it('should return null if not found', async () => {
-      mockWalletRepository.findOne!.mockResolvedValue(null);
+      mockWalletRepository.findOne.mockResolvedValue(null);
 
       const result = await service.getWalletByUserId(mockUserId);
 
@@ -96,7 +96,7 @@ describe('WalletService', () => {
 
   describe('getAllWallets', () => {
     it('should return all wallets', async () => {
-      mockWalletRepository.find!.mockResolvedValue([mockWallet]);
+      mockWalletRepository.find.mockResolvedValue([mockWallet]);
 
       const result = await service.getAllWallets();
 

@@ -1,32 +1,18 @@
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { createMockQueue, createMockRepository } from '../../../test/helpers/mock-factories';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
 
 describe('AuditService', () => {
   let service: AuditService;
-  let auditQueue: any; // Mock Queue
+  let auditQueue: ReturnType<typeof createMockQueue>;
 
-  const mockRepository = {
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    find: jest.fn(),
-    createQueryBuilder: jest.fn(() => ({
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      take: jest.fn().mockReturnThis(),
-      skip: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([]), // For completeness
-    })),
-  };
+  const mockRepository = createMockRepository<AuditLog>();
 
-  const mockQueue = {
-    add: jest.fn(),
-  };
+  const mockQueue = createMockQueue();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

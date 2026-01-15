@@ -1,5 +1,39 @@
 import vault from 'node-vault';
 
+/**
+ * SECURITY: Whitelist of allowed environment variable names from Vault.
+ * Only these keys will be loaded into process.env to prevent process pollution attacks.
+ * Add new keys here as needed for your application.
+ */
+const ALLOWED_VAULT_KEYS = new Set([
+  // Database
+  'DB_HOST',
+  'DB_PORT',
+  'DB_USERNAME',
+  'DB_PASSWORD',
+  'DB_DATABASE',
+  // Authentication
+  'JWT_SECRET',
+  'JWT_REFRESH_SECRET',
+  'ENCRYPTION_KEY',
+  // Mail
+  'MAIL_HOST',
+  'MAIL_PORT',
+  'MAIL_USER',
+  'MAIL_PASSWORD',
+  // Storage
+  'MINIO_ACCESS_KEY',
+  'MINIO_SECRET_KEY',
+  'MINIO_ENDPOINT',
+  'MINIO_BUCKET',
+  // Redis
+  'REDIS_HOST',
+  'REDIS_PORT',
+  'REDIS_PASSWORD',
+  // External services
+  'SENTRY_DSN',
+]);
+
 class VaultLogger {
   private static formatMessage(message: string): string {
     return `[VaultLoader] ${message}`;
@@ -108,11 +142,18 @@ export const vaultLoader = async () => {
       throw new Error('Invalid secrets format');
     }
 
-    // We can either map specific secrets to env vars or return the whole object
-    // Merging into process.env ensures other config loaders verify them later
-    Object.assign(process.env, secrets);
+    // SECURITY: Only assign whitelisted environment variables to prevent process pollution
+    const filteredSecrets: Record<string, string> = {};
+    for (const key of Object.keys(secrets)) {
+      if (ALLOWED_VAULT_KEYS.has(key)) {
+        filteredSecrets[key] = secrets[key];
+      } else {
+        VaultLogger.warn(`Ignoring non-whitelisted Vault key: ${key}`);
+      }
+    }
+    Object.assign(process.env, filteredSecrets);
 
-    return secrets;
+    return filteredSecrets;
   } catch (error) {
     VaultLogger.error(`Failed to load secrets from Vault: ${error instanceof Error ? error.message : String(error)}`);
     // In production, we might want to crash here if vault is critical

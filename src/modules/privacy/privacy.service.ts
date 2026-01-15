@@ -231,11 +231,24 @@ export class PrivacyService {
   }
 
   private async createExportZip(userId: string, data: UserDataExport): Promise<{ filePath: string; key: string }> {
+    // SECURITY: Sanitize userId to prevent path traversal attacks
+    const safeUserId = userId.replace(/[^a-zA-Z0-9-]/g, '');
+    if (safeUserId !== userId || safeUserId.length === 0) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+
     await fs.mkdir(this.tempDir, { recursive: true });
 
     const timestamp = Date.now();
-    const filename = `privacy-export-${userId}-${timestamp}.zip`;
+    const filename = `privacy-export-${safeUserId}-${timestamp}.zip`;
     const localPath = path.join(this.tempDir, filename);
+
+    // SECURITY: Validate path is within temp directory (prevents path traversal)
+    const resolvedPath = path.resolve(localPath);
+    const resolvedBase = path.resolve(this.tempDir);
+    if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
+      throw new BadRequestException('Invalid file path');
+    }
 
     const output = createWriteStream(localPath);
     const archive = archiver('zip', { zlib: { level: 9 } });

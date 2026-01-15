@@ -251,23 +251,33 @@ export class BookingsService {
       // but better to expose a 'withManager' method in FinanceService if possible.
       // For now, let's look at FinanceService. It has createTransactionWithManager.
 
+      // 2. Double check the booking inside transaction with lock to prevent race conditions
+      const lockedBooking = await manager.findOne(Booking, {
+        where: { id: booking.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!lockedBooking) {
+        throw new NotFoundException('bookings.not_found');
+      }
+
+      // 3. Record the financial transaction
       await this.financeService.createTransactionWithManager(manager, {
         type: TransactionType.INCOME,
         amount: dto.amount,
-        description: `Payment for booking ${booking.client?.name || 'Client'} - ${dto.paymentMethod || 'Manual'}`,
-        bookingId: booking.id,
+        description: `Payment for booking ${lockedBooking.client?.name || 'Client'} - ${dto.paymentMethod || 'Manual'}`,
+        bookingId: lockedBooking.id,
         category: 'Booking Payment',
         transactionDate: new Date(),
       });
 
-      // 2. Update the booking's amountPaid field atomically
-      // This was missing in the original implementation!
-      const currentPaid = Number(booking.amountPaid || 0);
+      // 4. Update the booking's amountPaid field atomically using the locked data
+      const currentPaid = Number(lockedBooking.amountPaid || 0);
       const newPaid = MathUtils.add(currentPaid, dto.amount);
 
       await manager.update(
         Booking,
-        { id: booking.id },
+        { id: lockedBooking.id },
         {
           amountPaid: newPaid,
           updatedAt: new Date(),
