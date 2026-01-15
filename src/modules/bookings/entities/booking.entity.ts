@@ -130,4 +130,48 @@ export class Booking extends BaseTenantEntity {
 
   @OneToOne(() => Invoice, (invoice) => invoice.booking)
   invoice: Promise<Invoice>;
+
+  // ==================== Domain Methods ====================
+
+  /**
+   * Checks if the booking can be cancelled based on current status.
+   */
+  canBeCancelled(): boolean {
+    return [BookingStatus.DRAFT, BookingStatus.CONFIRMED].includes(this.status);
+  }
+
+  /**
+   * Checks if the booking can be completed (must be confirmed first).
+   */
+  canBeCompleted(): boolean {
+    return this.status === BookingStatus.CONFIRMED;
+  }
+
+  /**
+   * Checks if the booking is in a terminal state.
+   */
+  isTerminal(): boolean {
+    return [BookingStatus.COMPLETED, BookingStatus.CANCELLED].includes(this.status);
+  }
+
+  /**
+   * Calculates the remaining balance to be paid.
+   */
+  getRemainingBalance(): number {
+    return Math.max(0, Number(this.totalPrice) - Number(this.amountPaid));
+  }
+
+  /**
+   * Checks if the booking is fully paid.
+   */
+  isFullyPaid(): boolean {
+    return Number(this.amountPaid) >= Number(this.totalPrice);
+  }
+
+  /**
+   * Checks if deposit has been paid.
+   */
+  isDepositPaid(): boolean {
+    return Number(this.amountPaid) >= Number(this.depositAmount);
+  }
 }
