@@ -33,24 +33,35 @@ export class AuditService implements AuditPublisher {
     data: CreateAuditLogDto,
     // Removed EntityManager as it is not used in async processing
   ): Promise<void> {
+    const tenantId = TenantContextService.getTenantId();
+    const sanitizedData = {
+      ...data,
+      oldValues: this.sanitize(data.oldValues),
+      newValues: this.sanitize(data.newValues),
+      tenantId, // Pass tenantId explicitly as context won't exist in worker
+    };
+
     try {
-      const tenantId = TenantContextService.getTenantId();
+      // Primary path: Async queue processing for performance
+      await this.auditQueue.add('log', sanitizedData);
+    } catch (queueError) {
+      // Fallback: Synchronous write if queue is unavailable
+      this.logger.warn(
+        `Audit queue unavailable, falling back to synchronous write: ${queueError instanceof Error ? queueError.message : String(queueError)}`,
+      );
 
-      // We ignore the manager here as we are moving to async processing
-      // If immediate consistency within transaction was required, this changes semantics,
-      // but Requirement #5 explicitly requested off-loading to remove bottleneck.
-
-      await this.auditQueue.add('log', {
-        ...data,
-        oldValues: this.sanitize(data.oldValues),
-        newValues: this.sanitize(data.newValues),
-        tenantId, // Pass tenantId explicitly as context won't exist in worker
-      });
-    } catch (error) {
-      this.logger.error(`Failed to enqueue audit log: ${error instanceof Error ? error.message : String(error)}`, {
-        auditData: data,
-      });
-      // We do not rethrow to avoid breaking the main flow if audit queue fails
+      try {
+        // Direct synchronous insert as fallback
+        const auditLog = this.auditRepository.create(sanitizedData);
+        await this.auditRepository.save(auditLog);
+        this.logger.debug('Audit log saved synchronously as fallback');
+      } catch (dbError) {
+        // Log error but don't throw to avoid breaking main flow
+        this.logger.error(
+          `Failed to save audit log (both queue and sync): ${dbError instanceof Error ? dbError.message : String(dbError)}`,
+          { auditData: data },
+        );
+      }
     }
   }
 

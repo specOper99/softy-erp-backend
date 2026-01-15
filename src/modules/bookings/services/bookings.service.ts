@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
+import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -103,9 +104,16 @@ export class BookingsService {
     qb.skip(query.getSkip()).take(query.getTake());
 
     if (query.search) {
-      qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
-        search: `%${query.search}%`,
-      });
+      // Validate and sanitize search parameter
+      const trimmed = query.search.trim();
+      if (trimmed.length < BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
+        // Skip search if too short
+      } else {
+        const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH);
+        qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
+          search: `%${sanitized}%`,
+        });
+      }
     }
 
     if (query.status && query.status.length > 0) {
@@ -191,10 +199,11 @@ export class BookingsService {
   // No changes needed for update method logic itself as it uses findOne which is now scoped.
   // But wait, the previous `findOne` usage in `update` is fine.
   async update(id: string, dto: UpdateBookingDto): Promise<Booking> {
-    const booking = await this.findOne(id);
+    // Initial fetch for validation (outside transaction)
+    const existingBooking = await this.findOne(id);
 
     // SECURITY: Only allow limited updates on non-draft bookings
-    if (booking.status !== BookingStatus.DRAFT) {
+    if (existingBooking.status !== BookingStatus.DRAFT) {
       const allowedUpdates = ['status', 'notes'];
       const attemptedUpdates = Object.keys(dto).filter((k) => dto[k as keyof UpdateBookingDto] !== undefined);
       const disallowed = attemptedUpdates.filter((k) => !allowedUpdates.includes(k));
@@ -203,20 +212,30 @@ export class BookingsService {
       }
     }
 
-    if (dto.status && dto.status !== booking.status) {
-      this.stateMachine.validateTransition(booking.status, dto.status);
+    if (dto.status && dto.status !== existingBooking.status) {
+      this.stateMachine.validateTransition(existingBooking.status, dto.status);
     }
-
-    if (dto.eventDate) {
-      booking.eventDate = new Date(dto.eventDate);
-    }
-
-    Object.assign(booking, {
-      ...dto,
-      eventDate: dto.eventDate ? new Date(dto.eventDate) : booking.eventDate,
-    });
 
     const savedBooking = await this.dataSource.transaction(async (manager) => {
+      // Re-fetch with pessimistic lock inside transaction to prevent lost updates
+      const booking = await manager.findOne(Booking, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!booking) {
+        throw new NotFoundException('Booking not found');
+      }
+
+      if (dto.eventDate) {
+        booking.eventDate = new Date(dto.eventDate);
+      }
+
+      Object.assign(booking, {
+        ...dto,
+        eventDate: dto.eventDate ? new Date(dto.eventDate) : booking.eventDate,
+      });
+
       return manager.save(booking);
     });
 

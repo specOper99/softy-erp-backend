@@ -4,6 +4,7 @@ import archiver from 'archiver';
 import { createWriteStream, promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { Repository } from 'typeorm';
+import { BUSINESS_CONSTANTS } from '../../common/constants/business.constants';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Transaction } from '../finance/entities/transaction.entity';
@@ -34,7 +35,7 @@ interface UserDataExport {
 @Injectable()
 export class PrivacyService {
   private readonly logger = new Logger(PrivacyService.name);
-  private readonly tempDir = '/tmp/privacy-exports';
+  private readonly tempDir = BUSINESS_CONSTANTS.PRIVACY.TEMP_EXPORT_DIR;
 
   constructor(
     @InjectRepository(PrivacyRequest)
@@ -277,6 +278,16 @@ export class PrivacyService {
       output.once('close', onClose);
       output.once('error', onError);
     });
+
+    // SECURITY: Validate file size to prevent disk exhaustion attacks
+    const stats = await fs.stat(localPath);
+    const maxSizeBytes = BUSINESS_CONSTANTS.PRIVACY.MAX_EXPORT_SIZE_MB * 1024 * 1024;
+    if (stats.size > maxSizeBytes) {
+      await fs.unlink(localPath);
+      throw new BadRequestException(
+        `Export exceeds maximum size limit of ${BUSINESS_CONSTANTS.PRIVACY.MAX_EXPORT_SIZE_MB}MB`,
+      );
+    }
 
     const buffer = await fs.readFile(localPath);
     const key = `privacy-exports/${filename}`;

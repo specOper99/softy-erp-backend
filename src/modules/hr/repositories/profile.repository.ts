@@ -1,8 +1,10 @@
+import { ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Profile } from '../entities/profile.entity';
+
 export class ProfileRepository extends TenantAwareRepository<Profile> {
   constructor(
     @InjectRepository(Profile)
@@ -10,25 +12,48 @@ export class ProfileRepository extends TenantAwareRepository<Profile> {
   ) {
     super(repository);
   }
+
   createQueryBuilder(alias: string) {
     return this.repository.createQueryBuilder(alias).where(`${alias}.tenantId = :tenantId`, {
       tenantId: TenantContextService.getTenantIdOrThrow(),
     });
   }
 
-  async softRemove(entity: Profile): Promise<Profile> {
+  async softRemove<E extends Profile | Profile[]>(entityOrEntities: E): Promise<E> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    if (entity.tenantId !== tenantId) {
-      throw new Error('common.cross_tenant_operation_denied');
+
+    if (Array.isArray(entityOrEntities)) {
+      for (const entity of entityOrEntities) {
+        if (!(entity instanceof Profile)) throw new ForbiddenException('common.invalid_entity_type');
+        if (entity.tenantId !== tenantId) {
+          throw new ForbiddenException('common.cross_tenant_operation_denied');
+        }
+      }
+      return this.repository.softRemove(entityOrEntities) as unknown as Promise<E>;
     }
-    return this.repository.softRemove(entity);
+
+    if (entityOrEntities.tenantId !== tenantId) {
+      throw new ForbiddenException('common.cross_tenant_operation_denied');
+    }
+    return this.repository.softRemove(entityOrEntities) as unknown as Promise<E>;
   }
 
-  async remove(entity: Profile): Promise<Profile> {
+  async remove<E extends Profile | Profile[]>(entityOrEntities: E): Promise<E> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    if (entity.tenantId !== tenantId) {
-      throw new Error('common.cross_tenant_operation_denied');
+
+    if (Array.isArray(entityOrEntities)) {
+      for (const entity of entityOrEntities) {
+        if (!(entity instanceof Profile)) throw new ForbiddenException('common.invalid_entity_type');
+        if (entity.tenantId !== tenantId) {
+          throw new ForbiddenException('common.cross_tenant_operation_denied');
+        }
+      }
+      return this.repository.remove(entityOrEntities) as unknown as Promise<E>;
     }
-    return this.repository.remove(entity);
+
+    if (entityOrEntities.tenantId !== tenantId) {
+      throw new ForbiddenException('common.cross_tenant_operation_denied');
+    }
+    return this.repository.remove(entityOrEntities) as unknown as Promise<E>;
   }
 }
