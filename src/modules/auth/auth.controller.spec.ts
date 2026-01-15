@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { AuthController } from './auth.controller';
