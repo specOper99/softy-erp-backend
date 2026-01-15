@@ -1,7 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Booking } from '../entities';
 import { BookingStatus } from '../enums/booking-status.enum';
-import { BookingStateMachineService } from './booking-state-machine.service';
+import { BookingStateMachineService, TransitionHook } from './booking-state-machine.service';
 
 describe('BookingStateMachineService', () => {
   let service: BookingStateMachineService;
