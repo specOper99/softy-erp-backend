@@ -32,6 +32,11 @@ export function initTracing(): void {
 
   const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces';
 
+  // Configurable trace sampling rate (default: 10% in prod, 100% in dev)
+  const defaultSampleRate = process.env.NODE_ENV === 'production' ? 0.1 : 1.0;
+  const sampleRate = parseFloat(process.env.OTEL_TRACES_SAMPLER_ARG || String(defaultSampleRate));
+  TracingLogger.log(`Trace sampling rate: ${sampleRate * 100}%`);
+
   const traceExporter = new OTLPTraceExporter({
     url: otlpEndpoint,
   });

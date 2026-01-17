@@ -1,0 +1,171 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: chapters-studio-erp
+  labels:
+    app: chapters-studio-erp
+spec:
+  replicas: 3
+  # Use canary strategy for progressive delivery
+  strategy:
+    canary:
+      # Initial canary traffic weight
+      steps:
+        - setWeight: 10
+        - pause: { duration: 2m }
+        - setWeight: 30
+        - pause: { duration: 2m }
+        - setWeight: 50
+        - pause: { duration: 2m }
+        - setWeight: 80
+        - pause: { duration: 2m }
+        - setWeight: 100
+
+      # Automatic rollback conditions
+      analysis:
+        templates:
+          - templateName: success-rate
+        startingStep: 1
+
+      # Traffic management (requires Istio or nginx-ingress)
+      trafficRouting:
+        nginx:
+          stableIngress: chapters-studio-erp-ingress
+
+  selector:
+    matchLabels:
+      app: chapters-studio-erp
+  template:
+    metadata:
+      labels:
+        app: chapters-studio-erp
+    spec:
+      containers:
+        - name: app
+          image: chapters-studio-erp:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: erp-secrets
+            - configMapRef:
+                name: erp-config
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+---
+# Analysis Template for automatic rollback
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  metrics:
+    - name: success-rate
+      interval: 30s
+      # Rollback if error rate exceeds 5%
+      successCondition: result[0] >= 0.95
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            sum(rate(http_request_duration_seconds_count{status_code!~"5..",app="chapters-studio-erp-canary"}[1m])) /
+            sum(rate(http_request_duration_seconds_count{app="chapters-studio-erp-canary"}[1m]))
+
+    - name: latency-p99
+      interval: 30s
+      # Rollback if P99 latency exceeds 1 second
+      successCondition: result[0] < 1
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{app="chapters-studio-erp-canary"}[1m])) by (le))
+---
+# Alternative: Native Kubernetes Blue-Green using multiple Deployments
+# For environments without Argo Rollouts
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chapters-studio-erp-blue
+  labels:
+    app: chapters-studio-erp
+    color: blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chapters-studio-erp
+      color: blue
+  template:
+    metadata:
+      labels:
+        app: chapters-studio-erp
+        color: blue
+    spec:
+      containers:
+        - name: app
+          image: chapters-studio-erp:v1.0.0
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: erp-secrets
+            - configMapRef:
+                name: erp-config
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+---
+# Blue-Green Service (switch between blue/green via selector)
+apiVersion: v1
+kind: Service
+metadata:
+  name: chapters-studio-erp
+  annotations:
+    # Current active deployment
+    deployment.color: blue
+spec:
+  selector:
+    app: chapters-studio-erp
+    # Toggle between blue/green during deployment
+    color: blue
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP

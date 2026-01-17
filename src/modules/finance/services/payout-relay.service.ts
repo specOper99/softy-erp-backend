@@ -52,7 +52,7 @@ export class PayoutRelayService {
   async processBatch(): Promise<void> {
     const payouts = await this.payoutRepository.find({
       where: {
-        status: PayoutStatus.PENDING as unknown as string, // Cast due to typeorm enum handling or mismatch
+        status: PayoutStatus.PENDING,
         payoutDate: LessThanOrEqual(new Date()),
       },
       take: this.BATCH_SIZE,
@@ -149,7 +149,7 @@ export class PayoutRelayService {
     await queryRunner.startTransaction();
 
     try {
-      payout.status = PayoutStatus.COMPLETED as unknown as string;
+      payout.status = PayoutStatus.COMPLETED;
       payout.notes = `${payout.notes || ''} | TxnRef: ${transactionReference}`;
       await queryRunner.manager.save(payout);
 
@@ -186,7 +186,7 @@ export class PayoutRelayService {
     await queryRunner.startTransaction();
 
     try {
-      payout.status = PayoutStatus.FAILED as unknown as string;
+      payout.status = PayoutStatus.FAILED;
       payout.notes = `${payout.notes || ''} | Failed: ${reason}`;
       await queryRunner.manager.save(payout);
 

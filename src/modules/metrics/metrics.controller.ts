@@ -1,9 +1,10 @@
-import { Controller, Get, Req, Res } from '@nestjs/common';
+import { Controller, Get, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { SkipIpRateLimit } from '../../common/decorators/skip-ip-rate-limit.decorator';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
+import { MetricsGuard } from './guards/metrics.guard';
 import { MetricsService } from './metrics.service';
 
 @ApiTags('Metrics')
@@ -15,21 +16,9 @@ export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Prometheus metrics endpoint' })
-  async getMetrics(@Res() res: Response, @Req() req?: Request): Promise<void> {
-    const authHeader = req?.headers?.authorization;
-
-    if (!this.metricsService.isMetricsRequestAuthorized(authHeader)) {
-      // In production, if METRICS_TOKEN is not configured we return 404 to avoid public discovery.
-      if (this.metricsService.shouldHideMetricsInProduction()) {
-        res.status(404).send('Not Found');
-        return;
-      }
-
-      res.status(401).send('Unauthorized');
-      return;
-    }
-
+  @UseGuards(MetricsGuard)
+  @ApiOperation({ summary: 'Prometheus metrics endpoint (requires METRICS_TOKEN in production)' })
+  async getMetrics(@Res() res: Response): Promise<void> {
     res.set('Content-Type', this.metricsService.getContentType());
     res.send(await this.metricsService.getMetrics());
   }

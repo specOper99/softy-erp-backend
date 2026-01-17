@@ -10,10 +10,12 @@ scrape_configs:
       - targets: ['host.docker.internal:3000']
     metrics_path: '/api/v1/metrics'
     scrape_interval: 10s
-    # If METRICS_TOKEN is set (recommended in production), configure Prometheus to send:
-    #   Authorization: Bearer <METRICS_TOKEN>
-    # Example:
-    # bearer_token: 'REPLACE_WITH_METRICS_TOKEN'
+    # Production configuration: use bearer_token_file for secure auth
+    # The token file should be mounted from a Kubernetes Secret
+    # bearer_token_file: '/etc/prometheus/secrets/metrics-token'
+    #
+    # For local dev/testing with explicit token:
+    # bearer_token: 'your-metrics-token-here'
 
   - job_name: 'prometheus'
     static_configs:
@@ -24,7 +26,11 @@ scrape_configs:
       - targets: ['chapters_studio_redis:6379']
 
 alerting:
-  alertmanagers: []
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+      # Alertmanager configuration for production
+      # timeout: 10s
 
 rule_files:
-  - 'prometheus-alerts.yaml'
+  - '/etc/prometheus/rules/*.yaml'

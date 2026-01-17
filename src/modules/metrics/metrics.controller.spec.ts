@@ -1,17 +1,27 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { MetricsController } from './metrics.controller';
 import { MetricsService } from './metrics.service';
 
+/**
+ * Note: Auth logic is now handled by MetricsGuard.
+ * See guards/metrics.guard.spec.ts for auth-specific tests.
+ */
 describe('MetricsController', () => {
   let controller: MetricsController;
-  let _metricsService: MetricsService;
 
   const mockMetricsService = {
     getMetrics: jest.fn().mockResolvedValue('test_metrics'),
     getContentType: jest.fn().mockReturnValue('text/plain'),
-    isMetricsRequestAuthorized: jest.fn().mockReturnValue(true),
-    shouldHideMetricsInProduction: jest.fn().mockReturnValue(false),
+  };
+
+  const mockConfigService = {
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === 'METRICS_TOKEN') return 'test-token';
+      if (key === 'NODE_ENV') return 'test';
+      return undefined;
+    }),
   };
 
   beforeEach(async () => {
@@ -19,11 +29,13 @@ describe('MetricsController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MetricsController],
-      providers: [{ provide: MetricsService, useValue: mockMetricsService }],
+      providers: [
+        { provide: MetricsService, useValue: mockMetricsService },
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
     }).compile();
 
     controller = module.get<MetricsController>(MetricsController);
-    _metricsService = module.get<MetricsService>(MetricsService);
   });
 
   it('should be defined', () => {
@@ -40,65 +52,6 @@ describe('MetricsController', () => {
       await controller.getMetrics(mockRes);
 
       expect(mockRes.set).toHaveBeenCalledWith('Content-Type', 'text/plain');
-      expect(mockRes.send).toHaveBeenCalledWith('test_metrics');
-    });
-
-    it('should return 401 when not authorized', async () => {
-      mockMetricsService.isMetricsRequestAuthorized.mockReturnValue(false);
-      mockMetricsService.shouldHideMetricsInProduction.mockReturnValue(false);
-
-      const mockRes = {
-        set: jest.fn(),
-        send: jest.fn(),
-        status: jest.fn().mockReturnThis(),
-      } as unknown as Response;
-
-      const mockReq = {
-        headers: {},
-      } as unknown as Request;
-
-      await controller.getMetrics(mockRes, mockReq);
-
-      expect(mockRes.status).toHaveBeenCalledWith(401);
-      expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
-    });
-
-    it('should return 404 when in production without METRICS_TOKEN', async () => {
-      mockMetricsService.isMetricsRequestAuthorized.mockReturnValue(false);
-      mockMetricsService.shouldHideMetricsInProduction.mockReturnValue(true);
-
-      const mockRes = {
-        set: jest.fn(),
-        send: jest.fn(),
-        status: jest.fn().mockReturnThis(),
-      } as unknown as Response;
-
-      const mockReq = {
-        headers: {},
-      } as unknown as Request;
-
-      await controller.getMetrics(mockRes, mockReq);
-
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.send).toHaveBeenCalledWith('Not Found');
-    });
-
-    it('should return metrics when authorized', async () => {
-      mockMetricsService.isMetricsRequestAuthorized.mockReturnValue(true);
-
-      const mockRes = {
-        set: jest.fn(),
-        send: jest.fn(),
-        status: jest.fn().mockReturnThis(),
-      } as unknown as Response;
-
-      const mockReq = {
-        headers: { authorization: 'Bearer abc' },
-      } as unknown as Request;
-
-      await controller.getMetrics(mockRes, mockReq);
-
-      expect(mockRes.status).not.toHaveBeenCalled();
       expect(mockRes.send).toHaveBeenCalledWith('test_metrics');
     });
 

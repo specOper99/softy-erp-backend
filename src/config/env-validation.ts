@@ -57,6 +57,7 @@ class EnvironmentVariables {
   // Metrics (Prometheus)
   @IsString()
   @IsOptional()
+  @MinLength(16, { message: 'METRICS_TOKEN must be at least 16 characters for security' })
   METRICS_TOKEN?: string;
 
   // Reverse proxy / ingress (Express trust proxy)

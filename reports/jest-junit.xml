@@ -1,17 +1,89 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="6" failures="0" errors="0" time="0.62">
-  <testsuite name="AnalyticsService" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:11:32" time="0.493" tests="6">
-    <testcase classname="AnalyticsService should be defined" name="AnalyticsService should be defined" time="0.004">
+<testsuites name="jest tests" tests="38" failures="0" errors="0" time="0.902">
+  <testsuite name="MetricsController" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:54" time="0.296" tests="4">
+    <testcase classname="MetricsController should be defined" name="MetricsController should be defined" time="0.003">
     </testcase>
-    <testcase classname="AnalyticsService getRevenueByPackage should return cached data if available" name="AnalyticsService getRevenueByPackage should return cached data if available" time="0.001">
+    <testcase classname="MetricsController getMetrics should return metrics from service" name="MetricsController getMetrics should return metrics from service" time="0.001">
     </testcase>
-    <testcase classname="AnalyticsService getRevenueByPackage should query database and cache result when no cache" name="AnalyticsService getRevenueByPackage should query database and cache result when no cache" time="0.001">
+    <testcase classname="MetricsController getMetrics should handle errors from service.getMetrics" name="MetricsController getMetrics should handle errors from service.getMetrics" time="0.002">
     </testcase>
-    <testcase classname="AnalyticsService getRevenueByPackage should bypass cache when nocache is true" name="AnalyticsService getRevenueByPackage should bypass cache when nocache is true" time="0">
+    <testcase classname="MetricsController health should return healthy status" name="MetricsController health should return healthy status" time="0">
     </testcase>
-    <testcase classname="AnalyticsService getTaxReport should return tax report data" name="AnalyticsService getTaxReport should return tax report data" time="0.003">
+  </testsuite>
+  <testsuite name="PayrollReconciliationService" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:54" time="0.303" tests="8">
+    <testcase classname="PayrollReconciliationService should be defined" name="PayrollReconciliationService should be defined" time="0.001">
     </testcase>
-    <testcase classname="AnalyticsService getTaxReport should return zeros when no data" name="AnalyticsService getTaxReport should return zeros when no data" time="0">
+    <testcase classname="PayrollReconciliationService reconcileTenant should return empty array when no stale payouts found" name="PayrollReconciliationService reconcileTenant should return empty array when no stale payouts found" time="0.001">
+    </testcase>
+    <testcase classname="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_COMPLETED mismatch" name="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_COMPLETED mismatch" time="0.001">
+    </testcase>
+    <testcase classname="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_FAILED mismatch" name="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_FAILED mismatch" time="0">
+    </testcase>
+    <testcase classname="PayrollReconciliationService reconcileTenant should return no mismatch when gateway also shows PENDING" name="PayrollReconciliationService reconcileTenant should return no mismatch when gateway also shows PENDING" time="0.001">
+    </testcase>
+    <testcase classname="PayrollReconciliationService runNightlyReconciliation should skip execution when advisory lock is not acquired" name="PayrollReconciliationService runNightlyReconciliation should skip execution when advisory lock is not acquired" time="0.001">
+    </testcase>
+    <testcase classname="PayrollReconciliationService runNightlyReconciliation should process all tenants when lock is acquired" name="PayrollReconciliationService runNightlyReconciliation should process all tenants when lock is acquired" time="0">
+    </testcase>
+    <testcase classname="PayrollReconciliationService runNightlyReconciliation should create tickets for mismatches" name="PayrollReconciliationService runNightlyReconciliation should create tickets for mismatches" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="UpdateMetricsHandler Integration" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:55" time="0.094" tests="5">
+    <testcase classname="UpdateMetricsHandler Integration should increment booking count ONLY (no revenue) on BookingConfirmedEvent" name="UpdateMetricsHandler Integration should increment booking count ONLY (no revenue) on BookingConfirmedEvent" time="0.004">
+    </testcase>
+    <testcase classname="UpdateMetricsHandler Integration should increment revenue on PaymentRecordedEvent" name="UpdateMetricsHandler Integration should increment revenue on PaymentRecordedEvent" time="0.001">
+    </testcase>
+    <testcase classname="UpdateMetricsHandler Integration should increment task count on TaskCompletedEvent" name="UpdateMetricsHandler Integration should increment task count on TaskCompletedEvent" time="0.001">
+    </testcase>
+    <testcase classname="UpdateMetricsHandler Integration should increment cancellations count on BookingCancelledEvent" name="UpdateMetricsHandler Integration should increment cancellations count on BookingCancelledEvent" time="0">
+    </testcase>
+    <testcase classname="UpdateMetricsHandler Integration should aggregate multiple events correctly" name="UpdateMetricsHandler Integration should aggregate multiple events correctly" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="MetricsService" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:55" time="0.048" tests="12">
+    <testcase classname="MetricsService should be defined" name="MetricsService should be defined" time="0.001">
+    </testcase>
+    <testcase classname="MetricsService getMetrics should return metrics as string" name="MetricsService getMetrics should return metrics as string" time="0.002">
+    </testcase>
+    <testcase classname="MetricsService getContentType should return prometheus content type" name="MetricsService getContentType should return prometheus content type" time="0.005">
+    </testcase>
+    <testcase classname="MetricsService isMetricsRequestAuthorized should return true when no token required in non-prod" name="MetricsService isMetricsRequestAuthorized should return true when no token required in non-prod" time="0">
+    </testcase>
+    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when no token required in production" name="MetricsService isMetricsRequestAuthorized should return false when no token required in production" time="0.001">
+    </testcase>
+    <testcase classname="MetricsService isMetricsRequestAuthorized should return true when valid token provided" name="MetricsService isMetricsRequestAuthorized should return true when valid token provided" time="0">
+    </testcase>
+    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when invalid token provided" name="MetricsService isMetricsRequestAuthorized should return false when invalid token provided" time="0">
+    </testcase>
+    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when no auth header and token required" name="MetricsService isMetricsRequestAuthorized should return false when no auth header and token required" time="0.001">
+    </testcase>
+    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when auth header is not a string" name="MetricsService isMetricsRequestAuthorized should return false when auth header is not a string" time="0">
+    </testcase>
+    <testcase classname="MetricsService shouldHideMetricsInProduction should return true in production without token" name="MetricsService shouldHideMetricsInProduction should return true in production without token" time="0.001">
+    </testcase>
+    <testcase classname="MetricsService shouldHideMetricsInProduction should return false in production with token" name="MetricsService shouldHideMetricsInProduction should return false in production with token" time="0">
+    </testcase>
+    <testcase classname="MetricsService shouldHideMetricsInProduction should return false in non-production" name="MetricsService shouldHideMetricsInProduction should return false in non-production" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="MetricsGuard" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:55" time="0.032" tests="9">
+    <testcase classname="MetricsGuard when METRICS_TOKEN is not configured should allow access in development without token" name="MetricsGuard when METRICS_TOKEN is not configured should allow access in development without token" time="0">
+    </testcase>
+    <testcase classname="MetricsGuard when METRICS_TOKEN is not configured should throw UnauthorizedException in production" name="MetricsGuard when METRICS_TOKEN is not configured should throw UnauthorizedException in production" time="0.004">
+    </testcase>
+    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should allow access with valid bearer token" name="MetricsGuard when METRICS_TOKEN is configured should allow access with valid bearer token" time="0">
+    </testcase>
+    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException without Authorization header" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException without Authorization header" time="0">
+    </testcase>
+    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with invalid token" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with invalid token" time="0">
+    </testcase>
+    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with wrong format" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with wrong format" time="0.001">
+    </testcase>
+    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with empty bearer token" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with empty bearer token" time="0">
+    </testcase>
+    <testcase classname="MetricsGuard timing-safe comparison should reject tokens of different lengths" name="MetricsGuard timing-safe comparison should reject tokens of different lengths" time="0">
+    </testcase>
+    <testcase classname="MetricsGuard timing-safe comparison should reject tokens of same length but different content" name="MetricsGuard timing-safe comparison should reject tokens of same length but different content" time="0">
     </testcase>
   </testsuite>
 </testsuites>

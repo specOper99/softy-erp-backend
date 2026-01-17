@@ -36,3 +36,104 @@ groups:
         annotations:
           summary: "Payroll Processing Stuck"
           description: "There are {{ $value }} payouts stuck in PENDING state for > 10 minutes. Money may have left without ledger record."
+
+  - name: chapters-erp-slo-alerts
+    rules:
+      # SLO Burn Rate Alerts (Multi-window, multi-burn-rate)
+      - alert: SLOBurnRateCritical
+        expr: |
+          (
+            sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[5m])) /
+            sum(rate(http_request_duration_seconds_count[5m]))
+          ) / 0.001 > 14
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "SLO Error Budget Burning Fast (14x)"
+          description: "Error rate is consuming the monthly error budget at 14x the sustainable rate. Immediate action required."
+          runbook_url: "https://docs.chapters.studio/runbooks/slo-violation"
+
+      - alert: SLOBurnRateWarning
+        expr: |
+          (
+            sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[30m])) /
+            sum(rate(http_request_duration_seconds_count[30m]))
+          ) / 0.001 > 3
+        for: 10m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "SLO Error Budget Burning (3x)"
+          description: "Error rate is consuming the monthly error budget at 3x the sustainable rate."
+
+      - alert: SLOLatencyViolation
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "P99 Latency SLO Violation"
+          description: "P99 latency is above 500ms target for 5 minutes."
+
+  - name: chapters-erp-resource-alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{container="chapters-studio-erp"} / container_spec_memory_limit_bytes{container="chapters-studio-erp"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Memory Usage"
+          description: "Container memory usage is above 80% of limit."
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{container="chapters-studio-erp"}[5m]) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU Usage"
+          description: "Container CPU usage is above 90%."
+
+      - alert: DBConnectionPoolExhausted
+        expr: pg_stat_activity_count{datname="chapters_erp"} / pg_settings_max_connections > 0.8
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database Connection Pool Near Exhaustion"
+          description: "PostgreSQL connections are at {{ $value | humanizePercentage }} of max_connections."
+
+      - alert: NodeJSEventLoopLag
+        expr: nodejs_eventloop_lag_seconds > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Node.js Event Loop Lag"
+          description: "Event loop lag is {{ $value }}s, indicating potential blocking operations."
+
+  - name: chapters-erp-synthetic-alerts
+    rules:
+      - alert: HealthCheckFailed
+        expr: probe_success{job="blackbox", instance=~".*chapters.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Synthetic Health Check Failed"
+          description: "Health endpoint is not responding for {{ $labels.instance }}."
+
+      - alert: HealthCheckSlow
+        expr: probe_duration_seconds{job="blackbox", instance=~".*chapters.*"} > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Synthetic Health Check Slow"
+          description: "Health endpoint response time is {{ $value }}s for {{ $labels.instance }}."
+
