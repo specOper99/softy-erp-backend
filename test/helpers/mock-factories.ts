@@ -14,6 +14,7 @@
  * ```
  */
 
+import { Response } from 'express';
 import type { ObjectLiteral, Repository } from 'typeorm';
 import { TenantContextService } from '../../src/common/services/tenant-context.service';
 
@@ -380,7 +381,7 @@ export function createMockQueryRunner() {
  * ```
  */
 export function createMockResponse() {
-  const res = {} as any;
+  const res = {} as unknown as Response;
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
   res.send = jest.fn().mockReturnValue(res);

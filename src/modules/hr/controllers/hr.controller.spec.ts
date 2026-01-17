@@ -1,6 +1,7 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantsService } from '../../tenants/tenants.service';
+import { CreateProfileDto, UpdateProfileDto } from '../dto/hr.dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
 import { HrController } from './hr.controller';
@@ -55,7 +56,7 @@ describe('HrController', () => {
 
   describe('createProfile', () => {
     it('should call service.createProfile', async () => {
-      const dto = { firstName: 'Jane' } as any;
+      const dto = { firstName: 'Jane' } as CreateProfileDto;
       await controller.createProfile(dto);
       expect(service.createProfile).toHaveBeenCalledWith(dto);
     });
@@ -84,7 +85,7 @@ describe('HrController', () => {
 
   describe('update', () => {
     it('should call service.updateProfile', async () => {
-      const dto = { firstName: 'Updated' } as any;
+      const dto = { firstName: 'Updated' } as UpdateProfileDto;
       await controller.update('uuid', dto);
       expect(service.updateProfile).toHaveBeenCalledWith('uuid', dto);
     });

@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
+import { PnLEntry, RevenueByPackageEntry } from '../../finance/types/report.types';
 import { FinancialReportFilterDto } from '../dto/financial-report.dto';
 import { FinancialReportService } from '../services/financial-report.service';
 import { FinancialReportController } from './financial-report.controller';
@@ -13,13 +14,17 @@ describe('FinancialReportController', () => {
   let analyticsService: jest.Mocked<AnalyticsService>;
   let reportGeneratorService: jest.Mocked<ReportGeneratorService>;
 
-  const mockPnlData = {
-    totalRevenue: 50000,
-    totalExpenses: 20000,
-    netProfit: 30000,
-  };
+  const mockPnlData: PnLEntry[] = [
+    {
+      period: '2024-01',
+      income: 50000,
+      expenses: 20000,
+      payroll: 0,
+      net: 30000,
+    },
+  ];
 
-  const mockRevenueByPackage = [
+  const mockRevenueByPackage: RevenueByPackageEntry[] = [
     { packageName: 'Premium', bookingCount: 10, totalRevenue: 30000 },
     { packageName: 'Basic', bookingCount: 20, totalRevenue: 20000 },
   ];
@@ -63,7 +68,7 @@ describe('FinancialReportController', () => {
 
   describe('getProfitAndLoss', () => {
     it('should return P&L data', async () => {
-      financialReportService.getProfitAndLoss.mockResolvedValue(mockPnlData as any);
+      financialReportService.getProfitAndLoss.mockResolvedValue(mockPnlData);
 
       const filter = new FinancialReportFilterDto();
       filter.startDate = '2024-01-01';
@@ -78,7 +83,7 @@ describe('FinancialReportController', () => {
   describe('getProfitAndLossPdf', () => {
     it('should return PDF with correct headers', async () => {
       const mockPdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
-      financialReportService.getProfitAndLoss.mockResolvedValue(mockPnlData as any);
+      financialReportService.getProfitAndLoss.mockResolvedValue(mockPnlData);
       reportGeneratorService.generatePnLPdf.mockResolvedValue(mockPdfBytes);
 
       const mockRes = {
@@ -99,7 +104,9 @@ describe('FinancialReportController', () => {
 
   describe('getRevenueByPackage', () => {
     it('should return revenue by package data', async () => {
-      analyticsService.getRevenueByPackage.mockResolvedValue(mockRevenueByPackage as any);
+      analyticsService.getRevenueByPackage.mockResolvedValue(
+        mockRevenueByPackage as unknown as RevenueByPackageEntry[],
+      );
 
       const filter = new FinancialReportFilterDto();
       filter.startDate = '2024-01-01';
@@ -113,7 +120,9 @@ describe('FinancialReportController', () => {
   describe('getRevenueByPackagePdf', () => {
     it('should return PDF with correct headers', async () => {
       const mockPdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
-      analyticsService.getRevenueByPackage.mockResolvedValue(mockRevenueByPackage as any);
+      analyticsService.getRevenueByPackage.mockResolvedValue(
+        mockRevenueByPackage as unknown as RevenueByPackageEntry[],
+      );
       reportGeneratorService.generateRevenueByPackagePdf.mockResolvedValue(mockPdfBytes);
 
       const mockRes = {

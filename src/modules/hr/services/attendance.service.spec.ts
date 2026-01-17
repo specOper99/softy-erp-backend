@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { DeleteResult } from 'typeorm';
 import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
 import { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from './attendance.service';
 
@@ -54,15 +56,15 @@ describe('AttendanceService', () => {
 
   describe('create', () => {
     it('should create attendance record', async () => {
-      const dto = {
+      const dto: CreateAttendanceDto = {
         userId: 'user-1',
         date: '2024-01-15',
         checkIn: '2024-01-15T09:00:00',
       };
-      attendanceRepo.create.mockReturnValue(mockAttendance as any);
-      attendanceRepo.save.mockResolvedValue(mockAttendance as any);
+      attendanceRepo.create.mockReturnValue(mockAttendance as unknown as Attendance);
+      attendanceRepo.save.mockResolvedValue(mockAttendance as unknown as Attendance);
 
-      const result = await service.create(dto as any);
+      const result = await service.create(dto);
 
       expect(attendanceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -82,43 +84,41 @@ describe('AttendanceService', () => {
         throw new BadRequestException('Tenant context missing');
       });
 
-      await expect(service.create({ userId: 'user-1', date: '2024-01-15' } as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      const dto: CreateAttendanceDto = { userId: 'user-1', date: '2024-01-15' };
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for invalid date format', async () => {
-      await expect(service.create({ userId: 'user-1', date: 'invalid-date' } as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      const dto: CreateAttendanceDto = { userId: 'user-1', date: 'invalid-date' };
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when checkOut is before checkIn', async () => {
-      const dto = {
+      const dto: CreateAttendanceDto = {
         userId: 'user-1',
         date: '2024-01-15',
         checkIn: '2024-01-15T17:00:00',
         checkOut: '2024-01-15T09:00:00', // Before checkIn
       };
 
-      await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw ConflictException on duplicate attendance', async () => {
-      const dto = {
+      const dto: CreateAttendanceDto = {
         userId: 'user-1',
         date: '2024-01-15',
       };
-      attendanceRepo.create.mockReturnValue(mockAttendance as any);
+      attendanceRepo.create.mockReturnValue(mockAttendance as unknown as Attendance);
       attendanceRepo.save.mockRejectedValue({ code: '23505' });
 
-      await expect(service.create(dto as any)).rejects.toThrow(ConflictException);
+      await expect(service.create(dto)).rejects.toThrow(ConflictException);
     });
   });
 
   describe('findAll', () => {
     it('should return all attendance records', async () => {
-      attendanceRepo.find.mockResolvedValue([mockAttendance] as any);
+      attendanceRepo.find.mockResolvedValue([mockAttendance] as unknown as Attendance[]);
 
       const result = await service.findAll();
 
@@ -130,7 +130,7 @@ describe('AttendanceService', () => {
     });
 
     it('should filter by userId', async () => {
-      attendanceRepo.find.mockResolvedValue([mockAttendance] as any);
+      attendanceRepo.find.mockResolvedValue([mockAttendance] as unknown as Attendance[]);
 
       const result = await service.findAll('user-1');
 
@@ -152,7 +152,7 @@ describe('AttendanceService', () => {
 
   describe('findOne', () => {
     it('should return attendance by id', async () => {
-      attendanceRepo.findOne.mockResolvedValue(mockAttendance as any);
+      attendanceRepo.findOne.mockResolvedValue(mockAttendance as unknown as Attendance);
 
       const result = await service.findOne('att-1');
 
@@ -171,22 +171,22 @@ describe('AttendanceService', () => {
 
   describe('update', () => {
     it('should update attendance record', async () => {
-      const dto = { checkOut: '2024-01-15T18:00:00' };
-      attendanceRepo.findOne.mockResolvedValue({ ...mockAttendance } as any);
+      const dto: UpdateAttendanceDto = { checkOut: '2024-01-15T18:00:00' };
+      attendanceRepo.findOne.mockResolvedValue({ ...mockAttendance } as unknown as Attendance);
       attendanceRepo.save.mockResolvedValue({
         ...mockAttendance,
-        checkOut: new Date(dto.checkOut),
-      } as any);
+        checkOut: new Date(dto.checkOut!),
+      } as unknown as Attendance);
 
-      const result = await service.update('att-1', dto as any);
+      const result = await service.update('att-1', dto);
 
-      expect(result.checkOut).toEqual(new Date(dto.checkOut));
+      expect(result.checkOut).toEqual(new Date(dto.checkOut!));
     });
   });
 
   describe('remove', () => {
     it('should delete attendance record', async () => {
-      attendanceRepo.delete.mockResolvedValue({ affected: 1, raw: [] } as any);
+      attendanceRepo.delete.mockResolvedValue({ affected: 1, raw: [] } as DeleteResult);
 
       await service.remove('att-1');
 
@@ -194,7 +194,7 @@ describe('AttendanceService', () => {
     });
 
     it('should throw NotFoundException when record not found', async () => {
-      attendanceRepo.delete.mockResolvedValue({ affected: 0, raw: [] } as any);
+      attendanceRepo.delete.mockResolvedValue({ affected: 0, raw: [] } as DeleteResult);
 
       await expect(service.remove('not-found')).rejects.toThrow(NotFoundException);
     });

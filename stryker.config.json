@@ -1,0 +1,30 @@
+{
+    "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+    "_comment": "This config uses Jest to run tests. It mutates code in src/modules/auth to ensure tests are effective.",
+    "packageManager": "npm",
+    "reporters": [
+        "html",
+        "clear-text",
+        "progress"
+    ],
+    "testRunner": "jest",
+    "testRunner_comment": "We use the jest test runner to run tests.",
+    "coverageAnalysis": "perTest",
+    "jest": {
+        "projectType": "custom",
+        "configFile": "./test/jest-all.json",
+        "enableFindRelatedTests": true
+    },
+    "mutate": [
+        "src/modules/auth/**/*.ts",
+        "!src/modules/auth/**/*.spec.ts",
+        "!src/modules/auth/**/*.dto.ts",
+        "!src/modules/auth/**/*.module.ts"
+    ],
+    "checkers": [
+        "typescript"
+    ],
+    "tsconfigFile": "tsconfig.json",
+    "concurrency": 4,
+    "cleanTempDir": "true"
+}

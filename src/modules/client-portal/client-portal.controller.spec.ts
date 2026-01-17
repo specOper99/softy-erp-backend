@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Request } from 'express';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { ClientPortalController } from './client-portal.controller';
@@ -76,7 +77,7 @@ describe('ClientPortalController', () => {
     it('should verify magic link and return access token', async () => {
       const mockResult = {
         accessToken: 'access-token-123',
-        expiresAt: new Date(),
+        expiresIn: 3600,
         client: mockClient as Client,
       };
 
@@ -98,7 +99,7 @@ describe('ClientPortalController', () => {
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
-      } as any;
+      } as unknown as Request;
 
       const result = await controller.logout(req);
 
@@ -114,7 +115,7 @@ describe('ClientPortalController', () => {
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
-      } as any;
+      } as unknown as Request;
 
       const result = await controller.getMyBookings(req);
 
@@ -128,7 +129,7 @@ describe('ClientPortalController', () => {
 
       const req = {
         headers: { 'x-client-token': 'invalid-token' },
-      } as any;
+      } as unknown as Request;
 
       await expect(controller.getMyBookings(req)).rejects.toThrow(UnauthorizedException);
     });
@@ -141,7 +142,7 @@ describe('ClientPortalController', () => {
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
-      } as any;
+      } as unknown as Request;
 
       const result = await controller.getBooking('booking-1', req);
 
@@ -154,7 +155,7 @@ describe('ClientPortalController', () => {
 
       const req = {
         headers: { 'x-client-token': 'invalid-token' },
-      } as any;
+      } as unknown as Request;
 
       await expect(controller.getBooking('booking-1', req)).rejects.toThrow(UnauthorizedException);
     });
@@ -172,7 +173,7 @@ describe('ClientPortalController', () => {
 
       const req = {
         headers: { 'x-client-token': 'access-token-123' },
-      } as any;
+      } as unknown as Request;
 
       const result = await controller.getProfile(req);
 
@@ -190,7 +191,7 @@ describe('ClientPortalController', () => {
 
       const req = {
         headers: { 'x-client-token': 'invalid-token' },
-      } as any;
+      } as unknown as Request;
 
       await expect(controller.getProfile(req)).rejects.toThrow(UnauthorizedException);
     });

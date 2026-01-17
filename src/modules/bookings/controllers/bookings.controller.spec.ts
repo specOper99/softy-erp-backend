@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Response } from 'express';
+import { BookingFilterDto, CancelBookingDto, CreateBookingDto, UpdateBookingDto } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
 import { BookingWorkflowService } from '../services/booking-workflow.service';
@@ -59,7 +61,7 @@ describe('BookingsController', () => {
 
   describe('create', () => {
     it('should call service.create', async () => {
-      const dto = { clientId: 'c-id' } as any;
+      const dto = { clientId: 'c-id' } as unknown as CreateBookingDto;
       await controller.create(dto);
       expect(service.create).toHaveBeenCalledWith(dto);
     });
@@ -67,7 +69,7 @@ describe('BookingsController', () => {
 
   describe('findAll', () => {
     it('should call service.findAll', async () => {
-      await controller.findAll({} as any);
+      await controller.findAll({} as BookingFilterDto);
       expect(service.findAll).toHaveBeenCalled();
     });
   });
@@ -81,7 +83,7 @@ describe('BookingsController', () => {
 
   describe('update', () => {
     it('should call service.update', async () => {
-      const dto = { status: BookingStatus.CONFIRMED } as any;
+      const dto = { status: BookingStatus.CONFIRMED } as UpdateBookingDto;
       await controller.update('uuid', dto);
       expect(service.update).toHaveBeenCalledWith('uuid', dto);
     });
@@ -103,7 +105,7 @@ describe('BookingsController', () => {
 
   describe('cancel', () => {
     it('should call workflowService.cancelBooking', async () => {
-      await controller.cancel('uuid', {} as any);
+      await controller.cancel('uuid', {} as CancelBookingDto);
       expect(workflowService.cancelBooking).toHaveBeenCalledWith('uuid', {});
     });
   });
@@ -124,7 +126,7 @@ describe('BookingsController', () => {
 
   describe('exportBookings', () => {
     it('should call exportService.exportBookingsToCSV', async () => {
-      const res = {} as any;
+      const res = {} as unknown as Response;
       await controller.exportBookings(res);
       expect(exportService.exportBookingsToCSV).toHaveBeenCalledWith(res);
     });

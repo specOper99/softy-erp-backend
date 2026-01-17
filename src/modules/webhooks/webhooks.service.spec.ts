@@ -1,9 +1,10 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMockRepository, mockTenantContext } from '../../../test/helpers/mock-factories';
 import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
+import { Webhook } from './entities/webhook.entity';
 import { WebhookRepository } from './repositories/webhook.repository';
 import { WebhookService } from './webhooks.service';
 import { WebhookConfig, WebhookEvent } from './webhooks.types';
@@ -51,12 +52,12 @@ describe('WebhookService', () => {
     mockTenantContext(mockTenantId);
 
     // Mock global fetch correctly for Node
-    (global as any).fetch = jest.fn().mockResolvedValue({
+    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
       statusText: 'OK',
       json: () => Promise.resolve({}),
-    } as any);
+    } as unknown as Response);
   });
 
   afterEach(() => {
@@ -76,7 +77,7 @@ describe('WebhookService', () => {
     };
 
     it('deliverWebhook should throw NotFoundException when webhook missing', async () => {
-      const partial = { id: 'missing', tenantId: mockTenantId } as any;
+      const partial = { id: 'missing', tenantId: mockTenantId } as unknown as Webhook;
       webhookRepository.findOne.mockResolvedValue(null);
       await expect(
         service.deliverWebhook(partial, {
@@ -96,7 +97,7 @@ describe('WebhookService', () => {
     };
 
     it('should send webhook if event type matches', async () => {
-      webhookRepository.find.mockResolvedValue([config] as any);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -115,7 +116,7 @@ describe('WebhookService', () => {
 
     it('should send webhook if wildcard event is registered', async () => {
       const wildcardConfig = { ...config, events: ['*'] };
-      webhookRepository.find.mockResolvedValue([wildcardConfig] as any);
+      webhookRepository.find.mockResolvedValue([wildcardConfig] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalled();
@@ -123,21 +124,21 @@ describe('WebhookService', () => {
 
     it('should not send webhook if event type does not match', async () => {
       const unmatchedEvent: WebhookEvent = { ...event, type: 'task.created' };
-      webhookRepository.find.mockResolvedValue([config] as any);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(unmatchedEvent);
 
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it('should log error if fetch fails', async () => {
-      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
       global.fetch = jest.fn().mockResolvedValue({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
       } as Response);
 
-      webhookRepository.find.mockResolvedValue([config] as any);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(loggerErrorSpy).toHaveBeenCalled();
@@ -155,8 +156,8 @@ describe('WebhookService', () => {
       webhookRepository.create.mockReturnValue({
         ...config,
         secret: 'encrypted:' + config.secret,
-      } as any);
-      webhookRepository.save.mockResolvedValue({ id: 'webhook-1' } as any);
+      } as unknown as Webhook);
+      webhookRepository.save.mockResolvedValue({ id: 'webhook-1' } as Webhook);
 
       await service.registerWebhook(config);
 
@@ -291,9 +292,9 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      webhookRepository.find.mockResolvedValue([config] as any);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
 
-      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       await service.emit(event);
 
@@ -309,9 +310,9 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      webhookRepository.find.mockResolvedValue([config] as any);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
 
-      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       await service.emit(event);
 
@@ -324,7 +325,7 @@ describe('WebhookService', () => {
         status: 301,
         statusText: 'Moved Permanently',
         headers: { get: () => 'http://internal.local' },
-      } as any);
+      } as unknown as Response);
 
       const config = {
         url: 'https://redirect-server.com/webhook',
@@ -332,9 +333,9 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      webhookRepository.find.mockResolvedValue([config] as any);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
 
-      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       await service.emit(event);
 
@@ -357,7 +358,7 @@ describe('WebhookService', () => {
         timestamp: new Date().toISOString(),
       };
 
-      webhookRepository.find.mockResolvedValue([config] as any);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(

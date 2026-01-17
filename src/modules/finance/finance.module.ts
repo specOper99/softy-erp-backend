@@ -25,6 +25,10 @@ import { WalletService } from './services/wallet.service';
 
 import { ExportService } from '../../common/services/export.service';
 
+import { MockPaymentGatewayService } from '../hr/services/payment-gateway.service';
+import { PayoutConsistencyCron } from './cron/payout-consistency.cron';
+import { PayoutRelayService } from './services/payout-relay.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -61,6 +65,9 @@ import { ExportService } from '../../common/services/export.service';
     WalletService,
     WalletRepository,
     FinancialReportService,
+    PayoutRelayService,
+    MockPaymentGatewayService,
+    PayoutConsistencyCron,
   ],
   exports: [
     FinanceService,
@@ -75,6 +82,7 @@ import { ExportService } from '../../common/services/export.service';
     WalletService,
     WalletRepository,
     FinancialReportService,
+    PayoutRelayService,
   ],
 })
 export class FinanceModule {}

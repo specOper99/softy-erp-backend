@@ -14,6 +14,7 @@ import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
+import { CreateProfileDto } from '../dto/hr.dto';
 import { Profile } from '../entities/profile.entity';
 import { ProfileRepository } from '../repositories/profile.repository';
 import { HrService } from './hr.service';
@@ -34,20 +35,11 @@ describe('HrService - Comprehensive Tests', () => {
     email: 'john@example.com',
     tenantId: 'test-tenant-id',
   });
-  // Note: createMockUser doesn't have wallet by default in the factory, we can add it if needed
-  // But for this test, we can just use the created object and augment it if strictly necessary.
-  (mockUser as any).wallet = {
-    id: 'wallet-uuid-123',
-    userId: 'user-uuid-123',
-    pendingBalance: 50.0,
-    payableBalance: 150.0,
-  };
-
   const mockWallet = createMockEmployeeWallet({
     id: 'wallet-uuid-123',
     userId: 'user-uuid-123',
-    pendingBalance: 50.0,
-    payableBalance: 150.0,
+    pendingBalance: 50,
+    payableBalance: 150,
   });
 
   const mockWalletService = {
@@ -182,7 +174,7 @@ describe('HrService - Comprehensive Tests', () => {
         userId: 'user-uuid-123',
         firstName: 'John',
         lastName: 'Doe',
-        baseSalary: 2000.0,
+        baseSalary: 2000,
       };
 
       const result = await service.createProfile(dto);
@@ -195,21 +187,19 @@ describe('HrService - Comprehensive Tests', () => {
       const dto = {
         userId: 'user-uuid-123',
         firstName: 'John',
-        baseSalary: 2000.0,
+        baseSalary: 2000,
         hireDate: '2024-01-01T00:00:00Z',
       };
       const result = await service.createProfile(dto);
       expect(result).toBeDefined();
     });
 
-    // ... (keep usage of other tests, assuming existing structure remains valid for logic)
-
     it('should create profile with all fields', async () => {
       const dto = {
         userId: 'user-uuid-123',
         firstName: 'John',
         lastName: 'Doe',
-        baseSalary: 2000.0,
+        baseSalary: 2000,
         emergencyContactName: 'Jane Doe',
         emergencyContactPhone: '+0987654321',
         address: '123 Main St',
@@ -220,7 +210,7 @@ describe('HrService - Comprehensive Tests', () => {
         contractType: 'FULL_TIME',
       };
 
-      const result = await service.createProfile(dto as any);
+      const result = await service.createProfile(dto as CreateProfileDto);
       expect(result).toMatchObject(dto);
       expect(mockAuditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -235,7 +225,7 @@ describe('HrService - Comprehensive Tests', () => {
     const dto = {
       userId: 'user-uuid-123',
       firstName: 'John',
-      baseSalary: 2000.0,
+      baseSalary: 2000,
     };
     mockQueryRunner.manager.save.mockRejectedValueOnce({ code: '23505' });
     await expect(service.createProfile(dto)).rejects.toThrow('Profile already exists');
@@ -245,7 +235,7 @@ describe('HrService - Comprehensive Tests', () => {
     const dto = {
       userId: 'user-uuid-123',
       firstName: 'John',
-      baseSalary: 2000.0,
+      baseSalary: 2000,
     };
     mockQueryRunner.manager.save.mockRejectedValueOnce(new Error('Database error'));
     await expect(service.createProfile(dto)).rejects.toThrow('Database error');
@@ -254,7 +244,8 @@ describe('HrService - Comprehensive Tests', () => {
   describe('findAllProfiles', () => {
     it('should return all profiles with user relations populated manually', async () => {
       const result = await service.findAllProfiles();
-      expect(result[0].user).toEqual(mockUser);
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0]?.user).toEqual(mockUser);
       expect(mockProfileRepository.find).toHaveBeenCalledWith({
         skip: 0,
         take: 20,

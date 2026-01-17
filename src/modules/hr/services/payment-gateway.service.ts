@@ -35,4 +35,28 @@ export class MockPaymentGatewayService {
       transactionReference: `BANK_TXN_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     };
   }
+
+  /**
+   * Simulates checking the status of a payout.
+   */
+  async checkPayoutStatus(referenceId: string): Promise<{
+    status: 'COMPLETED' | 'FAILED' | 'PENDING' | 'NOT_FOUND';
+    transactionReference?: string;
+  }> {
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // For simulation, we'll assume if it exists it's completed, unless referenceId implies otherwise
+    if (referenceId.includes('FAIL')) {
+      return { status: 'FAILED' };
+    }
+    if (referenceId.includes('PENDING')) {
+      return { status: 'PENDING' };
+    }
+
+    return {
+      status: 'COMPLETED',
+      transactionReference: `BANK_TXN_CHECK_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+    };
+  }
 }

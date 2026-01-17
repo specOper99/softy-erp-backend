@@ -26,4 +26,5 @@ scrape_configs:
 alerting:
   alertmanagers: []
 
-rule_files: []
+rule_files:
+  - 'prometheus-alerts.yaml'

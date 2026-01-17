@@ -3,13 +3,11 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { Payout } from '../../finance/entities/payout.entity';
 import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { PayrollRun, Profile } from '../entities';
-import { MockPaymentGatewayService } from './payment-gateway.service';
 import { PayrollService } from './payroll.service';
 
 describe('PayrollService', () => {
@@ -20,13 +18,13 @@ describe('PayrollService', () => {
     userId: 'user-uuid-123',
     firstName: 'John',
     lastName: 'Doe',
-    baseSalary: 2000.0,
+    baseSalary: 2000,
     bankAccount: '1234567890',
     user: {
       id: 'user-uuid-123',
       email: 'john@example.com',
       wallet: {
-        payableBalance: 150.0,
+        payableBalance: 150,
       },
     },
   };
@@ -58,12 +56,6 @@ describe('PayrollService', () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
-  const mockPayoutRepository = {
-    create: jest.fn().mockImplementation((data) => ({ id: 'payout-uuid-123', ...data })),
-    save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'payout-uuid-123', ...data })),
-    findOne: jest.fn().mockResolvedValue(null),
-  };
-
   const mockQueryRunner = {
     connect: jest.fn(),
     startTransaction: jest.fn(),
@@ -72,25 +64,24 @@ describe('PayrollService', () => {
     release: jest.fn(),
     manager: {
       find: jest.fn().mockResolvedValue([mockProfile]),
-      save: jest.fn().mockImplementation((data) => Promise.resolve(data)),
+      save: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'payout-123', ...data })),
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((_, data) => ({ id: 'payout-123', ...data })),
+      decrement: jest.fn(),
+      increment: jest.fn(),
     },
   };
 
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
     query: jest.fn().mockResolvedValue([{ locked: true }]),
-    getRepository: jest.fn().mockImplementation((entity) => {
-      if (entity === Payout) return mockPayoutRepository;
+    getRepository: jest.fn().mockImplementation((_entity) => {
       return { create: jest.fn(), save: jest.fn(), findOne: jest.fn() };
     }),
   };
 
   const mockTenantsService = {
     findAll: jest.fn().mockResolvedValue([{ id: 'test-tenant-id', slug: 'test-tenant' }]),
-  };
-
-  const mockPaymentGatewayService = {
-    triggerPayout: jest.fn().mockResolvedValue({ success: true, transactionReference: 'REF-123' }),
   };
 
   beforeEach(async () => {
@@ -111,10 +102,6 @@ describe('PayrollService', () => {
         { provide: AuditPublisher, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: TenantsService, useValue: mockTenantsService },
-        {
-          provide: MockPaymentGatewayService,
-          useValue: mockPaymentGatewayService,
-        },
       ],
     }).compile();
 
@@ -125,10 +112,18 @@ describe('PayrollService', () => {
   });
 
   describe('runPayroll', () => {
-    it('should calculate payroll and create transactions', async () => {
+    it('should calculate payroll and create pending payout', async () => {
       const result = await service.runPayroll();
       expect(mockQueryRunner.startTransaction).toHaveBeenCalled();
-      expect(mockFinanceService.createTransactionWithManager).toHaveBeenCalled();
+      // Should save Payout
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'PENDING',
+          amount: 2150,
+        }),
+      );
+      // Should NOT create transaction (deferred to relay)
+      expect(mockFinanceService.createTransactionWithManager).not.toHaveBeenCalled();
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(result.totalPayout).toBe(2150);
       expect(result.totalEmployees).toBe(1);
@@ -143,11 +138,12 @@ describe('PayrollService', () => {
         },
       ]);
       await service.runPayroll();
-      expect(mockFinanceService.createTransactionWithManager).not.toHaveBeenCalled();
+      expect(mockQueryRunner.manager.save).not.toHaveBeenCalled();
     });
 
     it('should rollback on failure', async () => {
-      mockFinanceService.createTransactionWithManager.mockRejectedValueOnce(new Error('Fail'));
+      // We simulate failure during save or wallet processing
+      mockQueryRunner.manager.save.mockRejectedValueOnce(new Error('Fail DB'));
       await service.runPayroll();
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });

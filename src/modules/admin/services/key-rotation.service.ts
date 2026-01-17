@@ -48,19 +48,14 @@ export class KeyRotationService {
 
       for (const webhook of webhooks) {
         try {
-          let decrypted: string;
-
-          if (this.encryptionService.isEncrypted(webhook.secret)) {
-            decrypted = this.encryptionService.decrypt(webhook.secret);
+          if (this.encryptionService.needsReencryption(webhook.secret)) {
+            const reEncrypted = this.encryptionService.reencrypt(webhook.secret);
+            webhook.secret = reEncrypted;
+            await this.webhookRepository.save(webhook);
+            processed++;
           } else {
-            decrypted = webhook.secret;
+            // Record is already up to date, just continue
           }
-
-          const reEncrypted = this.encryptionService.encrypt(decrypted);
-
-          webhook.secret = reEncrypted;
-          await this.webhookRepository.save(webhook);
-          processed++;
         } catch (e) {
           this.logger.error(`Failed to rotate key for webhook ${webhook.id}`, e);
           errors++;

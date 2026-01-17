@@ -10,6 +10,7 @@ import {
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringFrequency, RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
+import { Transaction } from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
 import { FinanceService } from './finance.service';
@@ -186,7 +187,7 @@ describe('RecurringTransactionService', () => {
       recurringRepo.find.mockResolvedValue(dueTransactions);
       financeService.createSystemTransaction.mockResolvedValue({
         id: 'tx-1',
-      } as any);
+      } as Transaction);
       recurringRepo.save.mockResolvedValue({
         ...mockRecurringTransaction,
         runCount: 1,

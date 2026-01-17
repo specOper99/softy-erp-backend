@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '../../users/entities/user.entity';
+import { UpdateNotificationPreferenceDto } from '../dto/notification-preference.dto';
+import { NotificationPreference } from '../entities/notification-preference.entity';
 import { NotificationType } from '../enums/notification.enum';
 import { NotificationPreferencesService } from '../services/notification-preferences.service';
 import { NotificationPreferencesController } from './notification-preferences.controller';
@@ -50,13 +52,13 @@ describe('NotificationPreferencesController', () => {
 
   describe('getUserPreferences', () => {
     it('should return user notification preferences', async () => {
-      preferencesService.getUserPreferences.mockResolvedValue([mockPreference] as any);
+      preferencesService.getUserPreferences.mockResolvedValue([mockPreference] as unknown as NotificationPreference[]);
 
       const result = await controller.getUserPreferences(mockUser as User);
 
       expect(preferencesService.getUserPreferences).toHaveBeenCalledWith('user-1');
       expect(result).toHaveLength(1);
-      expect(result[0].notificationType).toBe(NotificationType.BOOKING_UPDATED);
+      expect(result[0]!.notificationType).toBe(NotificationType.BOOKING_UPDATED);
     });
 
     it('should return empty array when no preferences exist', async () => {
@@ -79,13 +81,15 @@ describe('NotificationPreferencesController', () => {
       ];
 
       const updatedPreference = { ...mockPreference, emailEnabled: false };
-      preferencesService.updatePreferences.mockResolvedValue([updatedPreference] as any);
+      preferencesService.updatePreferences.mockResolvedValue([
+        updatedPreference,
+      ] as unknown as NotificationPreference[]);
 
-      const result = await controller.updatePreferences(mockUser as User, updates as any);
+      const result = await controller.updatePreferences(mockUser as User, updates as UpdateNotificationPreferenceDto[]);
 
       expect(preferencesService.updatePreferences).toHaveBeenCalledWith('user-1', updates);
       expect(result).toHaveLength(1);
-      expect(result[0].emailEnabled).toBe(false);
+      expect(result[0]!.emailEnabled).toBe(false);
     });
 
     it('should handle multiple updates', async () => {
@@ -109,9 +113,9 @@ describe('NotificationPreferencesController', () => {
           ...mockPreference,
           notificationType: NotificationType.TASK_ASSIGNED,
         },
-      ] as any);
+      ] as unknown as NotificationPreference[]);
 
-      const result = await controller.updatePreferences(mockUser as User, updates as any);
+      const result = await controller.updatePreferences(mockUser as User, updates as UpdateNotificationPreferenceDto[]);
 
       expect(result).toHaveLength(2);
     });

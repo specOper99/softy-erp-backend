@@ -6,7 +6,7 @@
  *
  * ## Type Safety Note (L-02)
  *
- * This file intentionally uses `as any` and `as unknown as T` casts in several places:
+ * This file intentionally uses type assertions and `as unknown as T` casts in several places:
  *
  * 1. **TypeORM Generic Constraints**: TypeORM's generic types for `save`, `softRemove`,
  *    and `remove` have complex conditional type constraints that don't compose well
@@ -25,7 +25,7 @@
  * Alternative approaches (separate methods per entity type) would significantly
  * increase code duplication without improving runtime safety.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import {
   DeepPartial,
@@ -33,6 +33,7 @@ import {
   FindManyOptions,
   FindOneOptions,
   FindOptionsWhere,
+  QueryDeepPartialEntity,
   Repository,
   SaveOptions,
   UpdateResult,
@@ -81,7 +82,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     return this.repository.create({
       ...entityLike,
       tenantId,
-    } as any) as unknown as T;
+    } as DeepPartial<T>);
   }
 
   async save<E extends T | T[]>(entityOrEntities: E, options?: SaveOptions): Promise<E> {
@@ -96,7 +97,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
           throw new ForbiddenException('common.cross_tenant_save_attempt');
         }
       }
-      return this.repository.save(entityOrEntities as any, options) as unknown as Promise<E>;
+      return this.repository.save(entityOrEntities as unknown as DeepPartial<T>[], options) as Promise<E>;
     }
 
     const entity = entityOrEntities as T & { tenantId: string };
@@ -105,7 +106,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     } else if (entity.tenantId !== tenantId) {
       throw new ForbiddenException('common.cross_tenant_save_attempt');
     }
-    return this.repository.save(entity, options) as unknown as Promise<E>;
+    return this.repository.save(entity, options) as Promise<E>;
   }
 
   async find(options?: FindManyOptions<T>): Promise<T[]> {
@@ -131,7 +132,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     const tenantId = this.getTenantId();
     // Ensure we only update records belonging to tenant
     const scopedCriteria = { ...criteria, tenantId };
-    return this.repository.update(scopedCriteria as any, partialEntity as any);
+    return this.repository.update(scopedCriteria as FindOptionsWhere<T>, partialEntity as QueryDeepPartialEntity<T>);
   }
 
   async delete(criteria: FindOptionsWhere<T>): Promise<DeleteResult> {
@@ -160,7 +161,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
           throw new ForbiddenException('common.cross_tenant_remove_attempt');
         }
       }
-      return this.repository.remove(entityOrEntities as any) as unknown as Promise<E>;
+      return this.repository.remove(entityOrEntities as unknown as T[]) as unknown as Promise<E>;
     }
 
     const entity = entityOrEntities as T & { tenantId: string };
@@ -183,7 +184,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
           throw new ForbiddenException('common.cross_tenant_remove_attempt');
         }
       }
-      return this.repository.softRemove(entityOrEntities as any) as unknown as Promise<E>;
+      return this.repository.softRemove(entityOrEntities as unknown as T[]) as unknown as Promise<E>;
     }
 
     const entity = entityOrEntities as T;

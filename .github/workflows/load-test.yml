@@ -1,0 +1,28 @@
+name: Performance Load Test
+on: 
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *' # Nightly at 2 AM
+  pull_request:
+    labels:
+      - 'performance'
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+      
+      - name: Run Auth Load Test
+        run: k6 run scripts/load-testing/scenarios/auth-flow.js
+        env:
+          BASE_URL: http://localhost:3000 # In real CI, this would target Staging URL
+          
+      - name: Run Booking Load Test
+        if: success() || failure() # Run even if auth fails, to gather more data
+        run: k6 run scripts/load-testing/scenarios/booking-flow.js
+        env:
+          BASE_URL: http://localhost:3000

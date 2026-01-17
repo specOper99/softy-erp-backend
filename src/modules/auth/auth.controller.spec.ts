@@ -1,9 +1,11 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Request } from 'express';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { LogoutDto } from './dto';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -21,7 +23,7 @@ describe('AuthController', () => {
     role: Role.ADMIN,
     isActive: true,
   } as User;
-  const mockRequest = { headers: { 'user-agent': 'test-agent' } } as any;
+  const mockRequest = { headers: { 'user-agent': 'test-agent' } } as unknown as Request;
   const mockIp = '127.0.0.1';
 
   beforeEach(async () => {
@@ -72,7 +74,7 @@ describe('AuthController', () => {
         password: 'password',
         companyName: 'Test Co',
       };
-      const req = { headers: {} } as any;
+      const req = { headers: {} } as unknown as Request;
       await controller.register(dto, req, mockIp);
       expect(authService.register).toHaveBeenCalledWith(dto, {
         userAgent: undefined,
@@ -133,7 +135,7 @@ describe('AuthController', () => {
     });
 
     it('should throw BadRequestException when refreshToken missing and allSessions not true', async () => {
-      await expect(controller.logout(mockUser, {} as any, mockRequest)).rejects.toThrow(BadRequestException);
+      await expect(controller.logout(mockUser, {} as LogoutDto, mockRequest)).rejects.toThrow(BadRequestException);
     });
 
     it('should call authService.logoutAllSessions if allSessions is true', async () => {
@@ -172,9 +174,9 @@ describe('AuthController', () => {
         toSessionInfo: jest.fn().mockReturnValue({ id: 's1' }),
       };
       (authService.getActiveSessions as jest.Mock).mockResolvedValue([mockSession]);
-      const result = await controller.getSessions({ id: 'u-1' } as any);
+      const result = await controller.getSessions({ id: 'u-1' } as User);
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('s1');
+      expect(result[0]!.id).toBe('s1');
     });
   });
 });

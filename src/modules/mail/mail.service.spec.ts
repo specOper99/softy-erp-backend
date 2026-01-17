@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MailService } from './mail.service';
+import { BookingEmailData, PayrollEmailData, TaskAssignmentEmailData } from './mail.types';
 import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 
@@ -52,7 +53,7 @@ describe('MailService', () => {
 
   describe('queueBookingConfirmation', () => {
     it('should delegate to queueService', async () => {
-      const data = { clientEmail: 'test@example.com' } as any;
+      const data = { clientEmail: 'test@example.com' } as unknown as BookingEmailData;
       await service.queueBookingConfirmation(data);
       expect(queueService.queueBookingConfirmation).toHaveBeenCalledWith(data);
     });
@@ -60,7 +61,7 @@ describe('MailService', () => {
 
   describe('queueTaskAssignment', () => {
     it('should delegate to queueService', async () => {
-      const data = { employeeEmail: 'test@example.com' } as any;
+      const data = { employeeEmail: 'test@example.com' } as unknown as TaskAssignmentEmailData;
       await service.queueTaskAssignment(data);
       expect(queueService.queueTaskAssignment).toHaveBeenCalledWith(data);
     });
@@ -68,7 +69,7 @@ describe('MailService', () => {
 
   describe('queuePayrollNotification', () => {
     it('should delegate to queueService', async () => {
-      const data = { employeeEmail: 'test@example.com' } as any;
+      const data = { employeeEmail: 'test@example.com' } as unknown as PayrollEmailData;
       await service.queuePayrollNotification(data);
       expect(queueService.queuePayrollNotification).toHaveBeenCalledWith(data);
     });
@@ -76,7 +77,7 @@ describe('MailService', () => {
 
   describe('sendBookingConfirmation', () => {
     it('should delegate to senderService', async () => {
-      const data = { clientEmail: 'test@example.com' } as any;
+      const data = { clientEmail: 'test@example.com' } as unknown as BookingEmailData;
       await service.sendBookingConfirmation(data);
       expect(senderService.sendBookingConfirmation).toHaveBeenCalledWith(data);
     });

@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Request } from 'express';
 import { User } from '../users/entities/user.entity';
 import { ConsentService } from './consent.service';
+import { GrantConsentDto } from './dto/consent.dto';
+import { Consent, ConsentType } from './entities/consent.entity';
 import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
 import { PrivacyController } from './privacy.controller';
 import { PrivacyService } from './privacy.service';
@@ -146,8 +149,8 @@ describe('PrivacyController', () => {
 
   describe('getConsents', () => {
     it('should return user consents', async () => {
-      const mockConsents = [{ type: 'marketing', granted: true, grantedAt: new Date() }];
-      consentService.getConsents.mockResolvedValue(mockConsents as any);
+      const mockConsents = [{ type: ConsentType.MARKETING_EMAILS, granted: true, grantedAt: new Date() }];
+      consentService.getConsents.mockResolvedValue(mockConsents as unknown as Consent[]);
 
       const result = await controller.getConsents(mockUser as User);
 
@@ -159,24 +162,24 @@ describe('PrivacyController', () => {
   describe('grantConsent', () => {
     it('should grant consent', async () => {
       const mockConsent = {
-        type: 'marketing',
+        type: ConsentType.MARKETING_EMAILS,
         granted: true,
         grantedAt: new Date(),
       };
-      consentService.grantConsent.mockResolvedValue(mockConsent as any);
+      consentService.grantConsent.mockResolvedValue(mockConsent as unknown as Consent);
 
-      const mockReq = { headers: { 'user-agent': 'test-agent' } } as any;
+      const mockReq = { headers: { 'user-agent': 'test-agent' } } as unknown as Request;
 
       const result = await controller.grantConsent(
         mockUser as User,
-        { type: 'marketing' as any },
+        { type: ConsentType.MARKETING_EMAILS } as GrantConsentDto,
         mockReq,
         '127.0.0.1',
       );
 
       expect(consentService.grantConsent).toHaveBeenCalledWith(
         'user-1',
-        { type: 'marketing' },
+        { type: ConsentType.MARKETING_EMAILS },
         { ipAddress: '127.0.0.1', userAgent: 'test-agent' },
       );
       expect(result).toEqual(mockConsent);
@@ -186,15 +189,15 @@ describe('PrivacyController', () => {
   describe('revokeConsent', () => {
     it('should revoke consent', async () => {
       const mockConsent = {
-        type: 'marketing',
+        type: ConsentType.MARKETING_EMAILS,
         granted: false,
         revokedAt: new Date(),
       };
-      consentService.revokeConsent.mockResolvedValue(mockConsent as any);
+      consentService.revokeConsent.mockResolvedValue(mockConsent as unknown as Consent);
 
-      const result = await controller.revokeConsent(mockUser as User, 'marketing');
+      const result = await controller.revokeConsent(mockUser as User, ConsentType.MARKETING_EMAILS);
 
-      expect(consentService.revokeConsent).toHaveBeenCalledWith('user-1', 'marketing');
+      expect(consentService.revokeConsent).toHaveBeenCalledWith('user-1', ConsentType.MARKETING_EMAILS);
       expect(result).toEqual(mockConsent);
     });
   });

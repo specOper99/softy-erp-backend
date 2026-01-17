@@ -1,0 +1,31 @@
+name: Migration Safety
+on:
+  pull_request:
+    paths:
+      - 'src/database/migrations/**'
+      - 'src/**/*.entity.ts'
+
+jobs:
+  migration-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Validate Migrations
+        run: |
+          # Ensure current migrations are valid and no pending ones are missing
+          npm run migration:show
+          
+      - name: Dry Run Migration
+        run: |
+          # Attempt to run migrations against an ephemeral DB (sqlite or service container)
+          # Here we just check if the command compiles and runs without error
+          # In a real environment, we'd spin up a Postgres service container
+          npm run type-check

@@ -46,7 +46,8 @@
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint:circular": "madge --circular src/",
     "validate": "npm run lint && npm run type-check && npm run test",
-    "pre-push": "npm run validate"
+    "pre-push": "npm run validate",
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",
@@ -71,7 +72,11 @@
     "@opentelemetry/auto-instrumentations-node": "^0.67.3",
     "@opentelemetry/exporter-trace-otlp-http": "^0.208.0",
     "@opentelemetry/exporter-zipkin": "^2.2.0",
+    "@opentelemetry/instrumentation-nestjs-core": "^0.56.0",
+    "@opentelemetry/resources": "^2.4.0",
     "@opentelemetry/sdk-node": "^0.208.0",
+    "@opentelemetry/sdk-trace-base": "^2.4.0",
+    "@opentelemetry/semantic-conventions": "^1.38.0",
     "@sentry/nestjs": "^10.32.1",
     "@types/json2csv": "^5.0.7",
     "archiver": "^7.0.1",
@@ -108,6 +113,7 @@
     "socket.io": "^4.8.3",
     "stripe": "^20.1.0",
     "typeorm": "^0.3.28",
+    "unleash-client": "^6.9.0",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
     "winston-loki": "^6.1.3"
@@ -121,6 +127,9 @@
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.1.11",
     "@pact-foundation/pact": "^16.0.4",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/jest-runner": "^9.4.0",
+    "@stryker-mutator/typescript-checker": "^9.4.0",
     "@testcontainers/postgresql": "^10.28.0",
     "@types/archiver": "^7.0.0",
     "@types/bcrypt": "^6.0.0",
@@ -143,6 +152,7 @@
     "globals": "^16.0.0",
     "husky": "^9.1.7",
     "jest": "^30.0.0",
+    "jest-junit": "^16.0.0",
     "lint-staged": "^16.2.7",
     "madge": "^8.0.0",
     "prettier": "^3.4.2",
@@ -198,6 +208,16 @@
     "testEnvironment": "node",
     "setupFilesAfterEnv": [
       "<rootDir>/../test/jest-setup.ts"
+    ],
+    "reporters": [
+      "default",
+      [
+        "jest-junit",
+        {
+          "outputDirectory": "reports",
+          "outputName": "jest-junit.xml"
+        }
+      ]
     ]
   }
 }

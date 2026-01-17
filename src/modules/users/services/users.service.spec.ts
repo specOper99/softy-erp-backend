@@ -3,7 +3,7 @@ import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { EntityManager } from 'typeorm';
+import { EntityManager, FindOneOptions, SelectQueryBuilder } from 'typeorm';
 import {
   createMockQueryRunner,
   createMockRepository,
@@ -77,13 +77,16 @@ describe('UsersService - Comprehensive Tests', () => {
     userRepository.softRemove.mockImplementation((user) => Promise.resolve({ ...user } as User));
 
     // Default findOne behavior - handle BOTH id and email lookups
-    userRepository.findOne.mockImplementation((options: any) => {
-      const { where } = options;
-      if (where.id === 'test-uuid-123') {
+
+    userRepository.findOne.mockImplementation((options: FindOneOptions<User>) => {
+      // Safe cast for test mock logic
+      const where = options.where as { id?: string; email?: string; tenantId?: string };
+
+      if (where?.id === 'test-uuid-123') {
         return Promise.resolve(mockUser);
       }
-      if (where.email === 'test@example.com') {
-        if (where.tenantId && where.tenantId !== mockTenantId) {
+      if (where?.email === 'test@example.com') {
+        if (where?.tenantId && where?.tenantId !== mockTenantId) {
           return Promise.resolve(null);
         }
         return Promise.resolve(mockUser);
@@ -201,7 +204,7 @@ describe('UsersService - Comprehensive Tests', () => {
           andWhere: jest.fn().mockReturnThis(),
           getMany: jest.fn().mockResolvedValue([mockUser]),
         };
-        userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as any);
+        userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
 
         const result = await service.findMany(['test-uuid-123']);
         expect(result).toEqual([mockUser]);

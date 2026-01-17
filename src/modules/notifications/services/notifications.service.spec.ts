@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotificationPreference } from '../entities/notification-preference.entity';
 import { NotificationType } from '../enums/notification.enum';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationsService } from './notifications.service';
@@ -39,7 +40,7 @@ describe('NotificationsService', () => {
       preferencesService.getPreference.mockResolvedValue({
         emailEnabled: true,
         inAppEnabled: true,
-      } as any);
+      } as unknown as NotificationPreference);
 
       const result = await service.shouldSendEmail(mockUserId, NotificationType.BOOKING_UPDATED);
 
@@ -50,7 +51,7 @@ describe('NotificationsService', () => {
       preferencesService.getPreference.mockResolvedValue({
         emailEnabled: false,
         inAppEnabled: true,
-      } as any);
+      } as unknown as NotificationPreference);
 
       const result = await service.shouldSendEmail(mockUserId, NotificationType.BOOKING_UPDATED);
 
@@ -71,7 +72,7 @@ describe('NotificationsService', () => {
       preferencesService.getPreference.mockResolvedValue({
         emailEnabled: true,
         inAppEnabled: true,
-      } as any);
+      } as unknown as NotificationPreference);
 
       const result = await service.shouldSendInApp(mockUserId, NotificationType.BOOKING_UPDATED);
 
@@ -82,7 +83,7 @@ describe('NotificationsService', () => {
       preferencesService.getPreference.mockResolvedValue({
         emailEnabled: true,
         inAppEnabled: false,
-      } as any);
+      } as unknown as NotificationPreference);
 
       const result = await service.shouldSendInApp(mockUserId, NotificationType.BOOKING_UPDATED);
 

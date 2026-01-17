@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="6" failures="0" errors="0" time="0.62">
+  <testsuite name="AnalyticsService" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:11:32" time="0.493" tests="6">
+    <testcase classname="AnalyticsService should be defined" name="AnalyticsService should be defined" time="0.004">
+    </testcase>
+    <testcase classname="AnalyticsService getRevenueByPackage should return cached data if available" name="AnalyticsService getRevenueByPackage should return cached data if available" time="0.001">
+    </testcase>
+    <testcase classname="AnalyticsService getRevenueByPackage should query database and cache result when no cache" name="AnalyticsService getRevenueByPackage should query database and cache result when no cache" time="0.001">
+    </testcase>
+    <testcase classname="AnalyticsService getRevenueByPackage should bypass cache when nocache is true" name="AnalyticsService getRevenueByPackage should bypass cache when nocache is true" time="0">
+    </testcase>
+    <testcase classname="AnalyticsService getTaxReport should return tax report data" name="AnalyticsService getTaxReport should return tax report data" time="0.003">
+    </testcase>
+    <testcase classname="AnalyticsService getTaxReport should return zeros when no data" name="AnalyticsService getTaxReport should return zeros when no data" time="0">
+    </testcase>
+  </testsuite>
+</testsuites>

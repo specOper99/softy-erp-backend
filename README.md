@@ -257,6 +257,19 @@ For a stable and reliable testing environment, please follow these guidelines:
 - **Database**: Integration tests use `testcontainers`. Ensure Docker is running.
 
 
+## 📚 Documentation Index
+| Category | Document | Description |
+|----------|----------|-------------|
+| **Getting Started** | [Onboarding](./docs/onboarding.md) | Setup, Docker, and Testing guide. |
+| **Architecture** | [ADR Index](./docs/adr/) | Architectural Decision Records. |
+| **Reliability** | [Chaos Experiments](./docs/reliability/chaos-experiments.md) | Database failure simulations. |
+| **Reliability** | [Disaster Recovery](./docs/dr-plan.md) | Backup and Recovery procedures. |
+| **Security** | [Key Rotation](./docs/security/key-rotation.md) | Policy for rotating DB/JWT secrets. |
+| **Security** | [Incident Response](./docs/runbooks/security-incident.md) | Security alert playbook. |
+| **Product** | [Feature Strategy](./docs/product/strategy.md) | Feature Flags and KPIs. |
+| **Release** | [Deployment](./docs/release-strategy.md) | Canary/Blue-Green strategy. |
+| **API** | [Versioning](./docs/api/versioning.md) | API versioning and deprecation policy. |
+
 ## 🏗 Code Quality & Architecture
 
 ### Refactoring Improvements

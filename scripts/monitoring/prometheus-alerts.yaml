@@ -27,3 +27,12 @@ groups:
         annotations:
           summary: "Webhook Delivery Failures"
           description: "Webhook delivery failure rate is increasing."
+
+      - alert: PayrollProcessingStuck
+        expr: chapters_erp_stuck_payouts > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payroll Processing Stuck"
+          description: "There are {{ $value }} payouts stuck in PENDING state for > 10 minutes. Money may have left without ledger record."

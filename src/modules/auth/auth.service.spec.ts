@@ -20,7 +20,7 @@ import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
-import { TokenService } from './services/token.service';
+import { TokenPayload, TokenService } from './services/token.service';
 
 import { TEST_SECRETS } from '../../../test/secrets';
 
@@ -293,7 +293,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw ConflictException if tenant/slug already exists', async () => {
-      const error: Error & { code: string } = new Error('Constraint violation') as any;
+      const error = new Error('Constraint violation') as Error & { code: string };
       error.code = '23505';
       mockTenantsService.createWithManager.mockRejectedValue(error);
 
@@ -530,8 +530,8 @@ describe('AuthService - Comprehensive Tests', () => {
     it('should throw UnauthorizedException if user is inactive in validateUser', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
       mockUsersService.findOne.mockResolvedValue(inactiveUser);
-      // Type assertion to JwtPayload (partial mock for test)
-      const payload: any = { sub: 'u-1' };
+      // Type assertion to TokenPayload (partial mock for test)
+      const payload = { sub: 'u-1' } as unknown as TokenPayload;
       await expect(service.validateUser(payload)).rejects.toThrow(UnauthorizedException);
     });
 

@@ -228,6 +228,33 @@ export class WalletService {
   }
 
   /**
+   * Refund payable balance after a failed payout.
+   * @requires MUST be called within an active transaction context
+   * @throws Error if called outside transaction
+   */
+  async refundPayableBalance(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
+    this.assertTransactionActive(manager, 'refundPayableBalance');
+    if (amount <= 0) {
+      // If amount is 0, nothing to refund, but we should validate
+      return this.getOrCreateWalletWithManager(manager, userId);
+    }
+
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const wallet = await manager.findOne(EmployeeWallet, {
+      where: { userId, tenantId },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!wallet) {
+      throw new NotFoundException(`Wallet not found for user ${userId}`);
+    }
+
+    wallet.payableBalance = MathUtils.add(Number(wallet.payableBalance), amount);
+    this.logger.log(`Refunded $${amount} to user ${userId} payable balance`);
+    return manager.save(wallet);
+  }
+
+  /**
    * Validates that an EntityManager is within an active transaction.
    * Prevents wallet race conditions by ensuring atomic operations.
    */

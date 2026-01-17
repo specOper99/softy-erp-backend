@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CreateEmailTemplateDto, PreviewEmailTemplateDto, UpdateEmailTemplateDto } from '../dto/email-template.dto';
 import { EmailTemplate } from '../entities/email-template.entity';
 import { MailService } from '../mail.service';
 import { EmailTemplatesController } from './email-templates.controller';
@@ -60,7 +61,7 @@ describe('EmailTemplatesController', () => {
 
   describe('findAll', () => {
     it('should return all templates for tenant', async () => {
-      templateRepo.find.mockResolvedValue([mockTemplate] as any);
+      templateRepo.find.mockResolvedValue([mockTemplate] as unknown as EmailTemplate[]);
 
       const result = await controller.findAll();
 
@@ -74,7 +75,7 @@ describe('EmailTemplatesController', () => {
 
   describe('findOne', () => {
     it('should return template by id', async () => {
-      templateRepo.findOne.mockResolvedValue(mockTemplate as any);
+      templateRepo.findOne.mockResolvedValue(mockTemplate as unknown as EmailTemplate);
 
       const result = await controller.findOne('template-123');
 
@@ -96,10 +97,10 @@ describe('EmailTemplatesController', () => {
         content: '<p>Hi</p>',
       };
       templateRepo.findOne.mockResolvedValue(null); // No existing
-      templateRepo.create.mockReturnValue(mockTemplate as any);
-      templateRepo.save.mockResolvedValue(mockTemplate as any);
+      templateRepo.create.mockReturnValue(mockTemplate as unknown as EmailTemplate);
+      templateRepo.save.mockResolvedValue(mockTemplate as unknown as EmailTemplate);
 
-      const result = await controller.create(dto as any);
+      const result = await controller.create(dto as CreateEmailTemplateDto);
 
       expect(templateRepo.create).toHaveBeenCalledWith({
         ...dto,
@@ -110,23 +111,25 @@ describe('EmailTemplatesController', () => {
     });
 
     it('should throw if template name exists', async () => {
-      templateRepo.findOne.mockResolvedValue(mockTemplate as any);
+      templateRepo.findOne.mockResolvedValue(mockTemplate as unknown as EmailTemplate);
 
-      await expect(controller.create({ name: 'welcome' } as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.create({ name: 'welcome' } as CreateEmailTemplateDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('update', () => {
     it('should update template', async () => {
-      templateRepo.findOne.mockResolvedValue({ ...mockTemplate } as any);
+      templateRepo.findOne.mockResolvedValue({ ...mockTemplate } as unknown as EmailTemplate);
       templateRepo.save.mockResolvedValue({
         ...mockTemplate,
         subject: 'Updated',
-      } as any);
+      } as unknown as EmailTemplate);
 
       const result = await controller.update('template-123', {
         subject: 'Updated',
-      } as any);
+      } as UpdateEmailTemplateDto);
 
       expect(result.subject).toBe('Updated');
     });
@@ -134,8 +137,8 @@ describe('EmailTemplatesController', () => {
 
   describe('remove', () => {
     it('should delete non-system template', async () => {
-      templateRepo.findOne.mockResolvedValue(mockTemplate as any);
-      templateRepo.remove.mockResolvedValue(mockTemplate as any);
+      templateRepo.findOne.mockResolvedValue(mockTemplate as unknown as EmailTemplate);
+      templateRepo.remove.mockResolvedValue(mockTemplate as unknown as EmailTemplate);
 
       await controller.remove('template-123');
 
@@ -146,7 +149,7 @@ describe('EmailTemplatesController', () => {
       templateRepo.findOne.mockResolvedValue({
         ...mockTemplate,
         isSystem: true,
-      } as any);
+      } as unknown as EmailTemplate);
 
       await expect(controller.remove('template-123')).rejects.toThrow(BadRequestException);
     });
@@ -156,7 +159,7 @@ describe('EmailTemplatesController', () => {
     it('should compile and return template preview', () => {
       const dto = { content: '<p>Hello {{name}}</p>', data: { name: 'John' } };
 
-      const result = controller.preview(dto as any);
+      const result = controller.preview(dto as PreviewEmailTemplateDto);
 
       expect(result.html).toBe('<p>Hello John</p>');
     });
@@ -164,7 +167,7 @@ describe('EmailTemplatesController', () => {
     it('should throw on invalid template', () => {
       const dto = { content: '{{#if}}', data: {} }; // Invalid Handlebars
 
-      expect(() => controller.preview(dto as any)).toThrow(BadRequestException);
+      expect(() => controller.preview(dto as PreviewEmailTemplateDto)).toThrow(BadRequestException);
     });
   });
 });

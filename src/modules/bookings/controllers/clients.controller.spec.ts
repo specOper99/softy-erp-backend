@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Response } from 'express';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ClientsService } from '../services/clients.service';
 import { ClientsController } from './clients.controller';
 
@@ -66,7 +68,7 @@ describe('ClientsController', () => {
 
   describe('findAll', () => {
     it('should call service.findAll with pagination', async () => {
-      const query = { page: 1, limit: 10 } as any;
+      const query = { page: 1, limit: 10 } as PaginationDto;
 
       const result = await controller.findAll(query, undefined);
 
@@ -75,7 +77,7 @@ describe('ClientsController', () => {
     });
 
     it('should work with empty query', async () => {
-      const emptyQuery = {} as any;
+      const emptyQuery = {} as PaginationDto;
       await controller.findAll(emptyQuery, undefined);
 
       expect(service.findAll).toHaveBeenCalledWith(emptyQuery, undefined);
@@ -132,7 +134,7 @@ describe('ClientsController', () => {
         end: jest.fn(),
       };
 
-      await controller.exportClients(mockResponse as any);
+      await controller.exportClients(mockResponse as unknown as Response);
 
       expect(service.exportToCSV).toHaveBeenCalled();
     });

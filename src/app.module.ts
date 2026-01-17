@@ -13,6 +13,7 @@ import { vaultLoader } from './config/vault.loader';
 
 // Common imports
 import { AppCacheModule } from './common/cache/cache.module';
+import { CommonModule } from './common/common.module';
 import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
 import { I18nModule } from './common/i18n';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
@@ -150,6 +151,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     ScheduleModule.forRoot(),
 
     // Feature Modules
+    CommonModule,
     AdminModule,
     AuthModule,
     UsersModule,

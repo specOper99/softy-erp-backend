@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Booking } from '../../bookings/entities/booking.entity';
@@ -78,14 +78,16 @@ describe('AnalyticsService', () => {
         orderBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue(mockRawResult),
       };
-      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
 
       const result = await service.getRevenueByPackage(mockFilter);
 
       expect(bookingRepo.createQueryBuilder).toHaveBeenCalledWith('b');
-      expect(result[0].packageName).toBe('Basic');
-      expect(result[0].bookingCount).toBe(10); // Converted from string
-      expect(result[0].totalRevenue).toBe(5000);
+      expect(result).toBeDefined();
+      expect(result?.length).toBeGreaterThan(0);
+      expect(result[0]?.packageName).toBe('Basic');
+      expect(result[0]?.bookingCount).toBe(10); // Converted from string
+      expect(result[0]?.totalRevenue).toBe(5000);
       expect(cacheUtils.set).toHaveBeenCalled();
     });
 
@@ -102,12 +104,14 @@ describe('AnalyticsService', () => {
         orderBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue(mockRawResult),
       };
-      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
 
       const result = await service.getRevenueByPackage(mockFilter, true);
 
       expect(cacheUtils.get).not.toHaveBeenCalled();
-      expect(result[0].packageName).toBe('Premium');
+      expect(result).toBeDefined();
+      expect(result?.length).toBeGreaterThan(0);
+      expect(result[0]?.packageName).toBe('Premium');
     });
   });
 
@@ -126,7 +130,7 @@ describe('AnalyticsService', () => {
         addSelect: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue(mockRawResult),
       };
-      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
 
       const result = await service.getTaxReport('2024-01-01', '2024-12-31');
 
@@ -145,7 +149,7 @@ describe('AnalyticsService', () => {
         addSelect: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue(null),
       };
-      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
 
       const result = await service.getTaxReport('2024-01-01', '2024-12-31');
 

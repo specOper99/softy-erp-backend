@@ -1,15 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Test, TestingModule } from '@nestjs/testing';
+import { Cache } from 'cache-manager';
 import * as crypto from 'node:crypto';
 import { TokenBlacklistService } from './token-blacklist.service';
 
 describe('TokenBlacklistService', () => {
   let service: TokenBlacklistService;
-  const mockCache = { set: jest.fn(), get: jest.fn().mockResolvedValue('true') } as any;
+  const mockCache = { set: jest.fn(), get: jest.fn().mockResolvedValue('true') };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TokenBlacklistService, { provide: CACHE_MANAGER, useValue: mockCache }],
+      providers: [TokenBlacklistService, { provide: CACHE_MANAGER, useValue: mockCache as unknown as Cache }],
     }).compile();
 
     service = module.get<TokenBlacklistService>(TokenBlacklistService);

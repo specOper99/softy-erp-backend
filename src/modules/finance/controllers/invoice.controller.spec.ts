@@ -2,6 +2,7 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
 import { createMockInvoice } from '../../../../test/helpers/mock-factories';
+import { Invoice } from '../entities/invoice.entity';
 import { InvoiceService } from '../services/invoice.service';
 import { InvoiceController } from './invoice.controller';
 
@@ -41,7 +42,7 @@ describe('InvoiceController', () => {
 
   describe('generate', () => {
     it('should generate invoice for booking', async () => {
-      invoiceService.createInvoice.mockResolvedValue(mockInvoice as any);
+      invoiceService.createInvoice.mockResolvedValue(mockInvoice as unknown as Invoice);
 
       const result = await controller.generate('booking-123');
 

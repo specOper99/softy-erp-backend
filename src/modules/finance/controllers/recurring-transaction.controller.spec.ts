@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMockRecurringTransaction } from '../../../../test/helpers/mock-factories';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
-import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
+import { RecurringFrequency, RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionService } from '../services/recurring-transaction.service';
 import { RecurringTransactionController } from './recurring-transaction.controller';
@@ -55,7 +55,7 @@ describe('RecurringTransactionController', () => {
         startDate: '2024-01-01',
         frequency: RecurringFrequency.MONTHLY,
       } as CreateRecurringTransactionDto;
-      service.create.mockResolvedValue(mockRecurringTransaction as any);
+      service.create.mockResolvedValue(mockRecurringTransaction as unknown as RecurringTransaction);
 
       const result = await controller.create(dto);
 
@@ -66,7 +66,7 @@ describe('RecurringTransactionController', () => {
 
   describe('findAll', () => {
     it('should return all recurring transactions', async () => {
-      service.findAll.mockResolvedValue([mockRecurringTransaction] as any);
+      service.findAll.mockResolvedValue([mockRecurringTransaction] as unknown as RecurringTransaction[]);
 
       const query = new PaginationDto();
       query.page = 1;
@@ -80,7 +80,7 @@ describe('RecurringTransactionController', () => {
 
   describe('findOne', () => {
     it('should return recurring transaction by id', async () => {
-      service.findOne.mockResolvedValue(mockRecurringTransaction as any);
+      service.findOne.mockResolvedValue(mockRecurringTransaction as unknown as RecurringTransaction);
 
       const result = await controller.findOne('rt-123');
 
@@ -95,7 +95,7 @@ describe('RecurringTransactionController', () => {
       service.update.mockResolvedValue({
         ...mockRecurringTransaction,
         amount: 6000,
-      } as any);
+      } as unknown as RecurringTransaction);
 
       const result = await controller.update('rt-123', dto);
 

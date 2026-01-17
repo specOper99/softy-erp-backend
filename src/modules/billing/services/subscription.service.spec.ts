@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import Stripe from 'stripe';
 import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { BillingCustomer } from '../entities/billing-customer.entity';
@@ -78,7 +79,7 @@ describe('SubscriptionService', () => {
   describe('getOrCreateCustomer', () => {
     it('should return existing customer', async () => {
       const mockCustomer = { id: 'cust-1', tenantId: mockTenantId };
-      customerRepo.findOne.mockResolvedValue(mockCustomer as any);
+      customerRepo.findOne.mockResolvedValue(mockCustomer as unknown as BillingCustomer);
 
       const result = await service.getOrCreateCustomer(mockTenantId);
 
@@ -98,10 +99,10 @@ describe('SubscriptionService', () => {
       const mockNewCustomer = { id: 'cust-1', stripeCustomerId: 'cus_123' };
 
       customerRepo.findOne.mockResolvedValue(null);
-      tenantRepo.findOne.mockResolvedValue(mockTenant as any);
-      stripeService.createCustomer.mockResolvedValue(mockStripeCustomer as any);
-      customerRepo.create.mockReturnValue(mockNewCustomer as any);
-      customerRepo.save.mockResolvedValue(mockNewCustomer as any);
+      tenantRepo.findOne.mockResolvedValue(mockTenant as unknown as Tenant);
+      stripeService.createCustomer.mockResolvedValue(mockStripeCustomer as unknown as Stripe.Customer);
+      customerRepo.create.mockReturnValue(mockNewCustomer as unknown as BillingCustomer);
+      customerRepo.save.mockResolvedValue(mockNewCustomer as unknown as BillingCustomer);
 
       const result = await service.getOrCreateCustomer(mockTenantId);
 
@@ -123,7 +124,7 @@ describe('SubscriptionService', () => {
   describe('getSubscription', () => {
     it('should return subscription for tenant', async () => {
       const mockSubscription = { id: 'sub-1', tenantId: mockTenantId };
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as unknown as Subscription);
 
       const result = await service.getSubscription(mockTenantId);
 
@@ -147,8 +148,8 @@ describe('SubscriptionService', () => {
       const mockCustomer = { stripeCustomerId: 'cus_123' };
       const mockExistingSub = { isActive: () => true };
 
-      customerRepo.findOne.mockResolvedValue(mockCustomer as any);
-      subscriptionRepo.findOne.mockResolvedValue(mockExistingSub as any);
+      customerRepo.findOne.mockResolvedValue(mockCustomer as unknown as BillingCustomer);
+      subscriptionRepo.findOne.mockResolvedValue(mockExistingSub as unknown as Subscription);
 
       await expect(service.createSubscription(mockTenantId, 'price_123')).rejects.toThrow(BadRequestException);
     });
@@ -166,11 +167,11 @@ describe('SubscriptionService', () => {
         stripeSubscriptionId: 'sub_123',
         status: SubscriptionStatus.ACTIVE,
       };
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as unknown as Subscription);
       subscriptionRepo.save.mockResolvedValue({
         ...mockSubscription,
         status: SubscriptionStatus.CANCELED,
-      } as any);
+      } as unknown as Subscription);
 
       const result = await service.cancelSubscription(mockTenantId, true);
 
@@ -183,11 +184,11 @@ describe('SubscriptionService', () => {
         stripeSubscriptionId: 'sub_123',
         cancelAtPeriodEnd: false,
       };
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as unknown as Subscription);
       subscriptionRepo.save.mockResolvedValue({
         ...mockSubscription,
         cancelAtPeriodEnd: true,
-      } as any);
+      } as unknown as Subscription);
 
       const result = await service.cancelSubscription(mockTenantId, false);
 

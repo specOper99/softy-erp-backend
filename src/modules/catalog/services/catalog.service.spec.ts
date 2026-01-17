@@ -8,7 +8,12 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AuditPublisher } from '../../audit/audit.publisher';
+import { CreateServicePackageDto, CreateTaskTypeDto, UpdateServicePackageDto } from '../dto';
+import { PackageItem } from '../entities/package-item.entity';
+import { ServicePackage } from '../entities/service-package.entity';
+import { TaskType } from '../entities/task-type.entity';
 import { PackageItemRepository } from '../repositories/package-item.repository';
 import { ServicePackageRepository } from '../repositories/service-package.repository';
 import { TaskTypeRepository } from '../repositories/task-type.repository';
@@ -96,11 +101,15 @@ describe('CatalogService', () => {
 
   describe('createPackage', () => {
     it('should create and return package', async () => {
-      const dto = { name: 'Wedding Package', price: 5000 };
-      packageRepo.create.mockReturnValue(mockPackage as any);
-      packageRepo.save.mockResolvedValue(mockPackage as any);
+      const dto: CreateServicePackageDto = {
+        name: 'Wedding Package',
+        price: 5000,
+        description: 'Test',
+      };
+      packageRepo.create.mockReturnValue(mockPackage as unknown as ServicePackage);
+      packageRepo.save.mockResolvedValue(mockPackage as unknown as ServicePackage);
 
-      const result = await service.createPackage(dto as any);
+      const result = await service.createPackage(dto);
 
       expect(packageRepo.create).toHaveBeenCalledWith({
         ...dto,
@@ -111,7 +120,7 @@ describe('CatalogService', () => {
     });
 
     it('should reject zero price package', async () => {
-      const dto = { name: 'Free Package', price: 0 };
+      const dto: CreateServicePackageDto = { name: 'Free Package', price: 0, description: 'Test' };
       await expect(service.createPackage(dto)).rejects.toThrow('catalog.price_must_be_positive');
     });
   });
@@ -125,7 +134,7 @@ describe('CatalogService', () => {
         limit: 10,
         getSkip: () => 0,
         getTake: () => 10,
-      } as any);
+      } as unknown as PaginationDto);
 
       expect(cacheUtils.get).toHaveBeenCalled();
       expect(packageRepo.find).not.toHaveBeenCalled();
@@ -134,14 +143,14 @@ describe('CatalogService', () => {
 
     it('should query database when cache miss', async () => {
       cacheUtils.get.mockResolvedValue(null);
-      packageRepo.find.mockResolvedValue([mockPackage] as any);
+      packageRepo.find.mockResolvedValue([mockPackage] as unknown as ServicePackage[]);
 
       const result = await service.findAllPackages({
         page: 1,
         limit: 10,
         getSkip: () => 0,
         getTake: () => 10,
-      } as any);
+      } as unknown as PaginationDto);
 
       expect(packageRepo.find).toHaveBeenCalled();
       expect(cacheUtils.set).toHaveBeenCalled();
@@ -151,7 +160,7 @@ describe('CatalogService', () => {
 
   describe('findPackageById', () => {
     it('should return package by id', async () => {
-      packageRepo.findOne.mockResolvedValue(mockPackage as any);
+      packageRepo.findOne.mockResolvedValue(mockPackage as unknown as ServicePackage);
 
       const result = await service.findPackageById('pkg-123');
 
@@ -167,15 +176,15 @@ describe('CatalogService', () => {
 
   describe('updatePackage', () => {
     it('should update and return package', async () => {
-      packageRepo.findOne.mockResolvedValue({ ...mockPackage } as any);
+      packageRepo.findOne.mockResolvedValue({ ...mockPackage } as unknown as ServicePackage);
       packageRepo.save.mockResolvedValue({
         ...mockPackage,
         price: 6000,
-      } as any);
+      } as unknown as ServicePackage);
 
       const result = await service.updatePackage('pkg-123', {
         price: 6000,
-      } as any);
+      } as UpdateServicePackageDto);
 
       expect(auditService.log).toHaveBeenCalled();
       expect(cacheUtils.del).toHaveBeenCalled();
@@ -185,8 +194,8 @@ describe('CatalogService', () => {
 
   describe('deletePackage', () => {
     it('should delete package', async () => {
-      packageRepo.findOne.mockResolvedValue(mockPackage as any);
-      packageRepo.remove.mockResolvedValue(mockPackage as any);
+      packageRepo.findOne.mockResolvedValue(mockPackage as unknown as ServicePackage);
+      packageRepo.remove.mockResolvedValue(mockPackage as unknown as ServicePackage);
 
       await service.deletePackage('pkg-123');
 
@@ -198,19 +207,19 @@ describe('CatalogService', () => {
   describe('clonePackage', () => {
     it('should clone package with new name', async () => {
       const sourcePackage = { ...mockPackage, packageItems: [] };
-      packageRepo.findOne.mockResolvedValueOnce(sourcePackage as any);
+      packageRepo.findOne.mockResolvedValueOnce(sourcePackage as unknown as ServicePackage);
       packageRepo.create.mockReturnValue({
         ...mockPackage,
         id: 'pkg-new',
-      } as any);
+      } as unknown as ServicePackage);
       packageRepo.save.mockResolvedValue({
         ...mockPackage,
         id: 'pkg-new',
-      } as any);
+      } as unknown as ServicePackage);
       packageRepo.findOne.mockResolvedValueOnce({
         ...mockPackage,
         id: 'pkg-new',
-      } as any);
+      } as unknown as ServicePackage);
 
       const result = await service.clonePackage('pkg-123', {
         newName: 'Cloned Package',
@@ -224,11 +233,11 @@ describe('CatalogService', () => {
   // ============ TASK TYPE TESTS ============
   describe('createTaskType', () => {
     it('should create and return task type', async () => {
-      const dto = { name: 'Photography', defaultCommissionAmount: 100 };
-      taskTypeRepo.create.mockReturnValue(mockTaskType as any);
-      taskTypeRepo.save.mockResolvedValue(mockTaskType as any);
+      const dto: CreateTaskTypeDto = { name: 'Photography', defaultCommissionAmount: 100 };
+      taskTypeRepo.create.mockReturnValue(mockTaskType as unknown as TaskType);
+      taskTypeRepo.save.mockResolvedValue(mockTaskType as unknown as TaskType);
 
-      const result = await service.createTaskType(dto as any);
+      const result = await service.createTaskType(dto);
 
       expect(auditService.log).toHaveBeenCalled();
       expect(result).toEqual(mockTaskType);
@@ -237,7 +246,7 @@ describe('CatalogService', () => {
 
   describe('findTaskTypeById', () => {
     it('should return task type by id', async () => {
-      taskTypeRepo.findOne.mockResolvedValue(mockTaskType as any);
+      taskTypeRepo.findOne.mockResolvedValue(mockTaskType as unknown as TaskType);
 
       const result = await service.findTaskTypeById('tt-123');
 
@@ -253,7 +262,7 @@ describe('CatalogService', () => {
 
   describe('findAllTaskTypes', () => {
     it('should return all task types', async () => {
-      taskTypeRepo.find.mockResolvedValue([mockTaskType] as any);
+      taskTypeRepo.find.mockResolvedValue([mockTaskType] as unknown as TaskType[]);
       const result = await service.findAllTaskTypes();
       expect(result).toEqual([mockTaskType]);
     });
@@ -265,7 +274,7 @@ describe('CatalogService', () => {
         limit: 10,
         getSkip: () => 0,
         getTake: () => 10,
-      } as any);
+      } as unknown as PaginationDto);
       expect(cacheUtils.get).toHaveBeenCalled();
       expect(result).toEqual([mockTaskType]);
     });
@@ -273,8 +282,8 @@ describe('CatalogService', () => {
 
   describe('updateTaskType', () => {
     it('should update task type commission', async () => {
-      taskTypeRepo.findOne.mockResolvedValue(mockTaskType as any);
-      taskTypeRepo.save.mockResolvedValue(mockTaskType as any);
+      taskTypeRepo.findOne.mockResolvedValue(mockTaskType as unknown as TaskType);
+      taskTypeRepo.save.mockResolvedValue(mockTaskType as unknown as TaskType);
 
       await service.updateTaskType('tt-123', {
         defaultCommissionAmount: 150,
@@ -287,8 +296,8 @@ describe('CatalogService', () => {
 
   describe('deleteTaskType', () => {
     it('should delete a task type', async () => {
-      taskTypeRepo.findOne.mockResolvedValue(mockTaskType as any);
-      taskTypeRepo.remove.mockResolvedValue(mockTaskType as any);
+      taskTypeRepo.findOne.mockResolvedValue(mockTaskType as unknown as TaskType);
+      taskTypeRepo.remove.mockResolvedValue(mockTaskType as unknown as TaskType);
 
       await service.deleteTaskType('tt-123');
 
@@ -304,9 +313,9 @@ describe('CatalogService', () => {
         const dto = {
           items: [{ taskTypeId: 'tt-123', quantity: 1 }],
         };
-        packageRepo.findOne.mockResolvedValue(mockPackage as any);
-        packageItemRepo.create.mockReturnValue(mockPackageItem as any);
-        packageItemRepo.save.mockResolvedValue([mockPackageItem] as any);
+        packageRepo.findOne.mockResolvedValue(mockPackage as unknown as ServicePackage);
+        packageItemRepo.create.mockReturnValue(mockPackageItem as unknown as PackageItem);
+        packageItemRepo.save.mockResolvedValue([mockPackageItem] as unknown as PackageItem[]);
 
         await service.addPackageItems('pkg-123', dto);
         expect(packageItemRepo.save).toHaveBeenCalled();
@@ -325,8 +334,8 @@ describe('CatalogService', () => {
 
     describe('removePackageItem', () => {
       it('should remove existing package item', async () => {
-        packageItemRepo.findOne.mockResolvedValue(mockPackageItem as any);
-        packageItemRepo.remove.mockResolvedValue(mockPackageItem as any);
+        packageItemRepo.findOne.mockResolvedValue(mockPackageItem as unknown as PackageItem);
+        packageItemRepo.remove.mockResolvedValue(mockPackageItem as unknown as PackageItem);
 
         await service.removePackageItem('item-123');
 

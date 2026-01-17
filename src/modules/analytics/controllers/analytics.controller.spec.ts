@@ -1,5 +1,6 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Response } from 'express';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { AnalyticsService } from '../services/analytics.service';
@@ -76,7 +77,7 @@ describe('AnalyticsController', () => {
         end: jest.fn(),
       };
 
-      await controller.getRevenueByPackagePdf(filter, mockResponse as any);
+      await controller.getRevenueByPackagePdf(filter, mockResponse as unknown as Response);
 
       expect(analyticsService.getRevenueByPackage).toHaveBeenCalledWith(filter);
       expect(reportGeneratorService.generateRevenueByPackagePdf).toHaveBeenCalledWith(mockData);

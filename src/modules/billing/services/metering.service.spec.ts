@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Subscription } from '../entities/subscription.entity';
 import { UsageMetric, UsageRecord } from '../entities/usage-record.entity';
 import { MeteringService } from './metering.service';
 import { StripeService } from './stripe.service';
@@ -61,8 +62,8 @@ describe('MeteringService', () => {
 
   describe('recordUsage', () => {
     it('should record usage without subscription', async () => {
-      usageRecordRepo.create.mockReturnValue(mockUsageRecord as any);
-      usageRecordRepo.save.mockResolvedValue(mockUsageRecord as any);
+      usageRecordRepo.create.mockReturnValue(mockUsageRecord as unknown as UsageRecord);
+      usageRecordRepo.save.mockResolvedValue(mockUsageRecord as unknown as UsageRecord);
       subscriptionService.getSubscription.mockResolvedValue(null);
 
       const result = await service.recordUsage(mockTenantId, UsageMetric.API_CALLS, 100);
@@ -80,12 +81,12 @@ describe('MeteringService', () => {
 
     it('should record usage with subscription', async () => {
       const mockSubscription = { id: 'sub-123' };
-      usageRecordRepo.create.mockReturnValue({ ...mockUsageRecord } as any);
+      usageRecordRepo.create.mockReturnValue({ ...mockUsageRecord } as unknown as UsageRecord);
       usageRecordRepo.save.mockResolvedValue({
         ...mockUsageRecord,
         subscriptionId: 'sub-123',
-      } as any);
-      subscriptionService.getSubscription.mockResolvedValue(mockSubscription as any);
+      } as unknown as UsageRecord);
+      subscriptionService.getSubscription.mockResolvedValue(mockSubscription as unknown as Subscription);
 
       const result = await service.recordUsage(mockTenantId, UsageMetric.API_CALLS, 50);
 
@@ -95,8 +96,8 @@ describe('MeteringService', () => {
 
     it('should record usage with metadata', async () => {
       const metadata = { endpoint: '/api/bookings' };
-      usageRecordRepo.create.mockReturnValue(mockUsageRecord as any);
-      usageRecordRepo.save.mockResolvedValue(mockUsageRecord as any);
+      usageRecordRepo.create.mockReturnValue(mockUsageRecord as unknown as UsageRecord);
+      usageRecordRepo.save.mockResolvedValue(mockUsageRecord as unknown as UsageRecord);
       subscriptionService.getSubscription.mockResolvedValue(null);
 
       await service.recordUsage(mockTenantId, UsageMetric.API_CALLS, 1, metadata);
@@ -105,8 +106,8 @@ describe('MeteringService', () => {
     });
 
     it('should handle Stripe sync errors gracefully', async () => {
-      usageRecordRepo.create.mockReturnValue(mockUsageRecord as any);
-      usageRecordRepo.save.mockResolvedValue(mockUsageRecord as any);
+      usageRecordRepo.create.mockReturnValue(mockUsageRecord as unknown as UsageRecord);
+      usageRecordRepo.save.mockResolvedValue(mockUsageRecord as unknown as UsageRecord);
       subscriptionService.getSubscription.mockResolvedValue(null);
       stripeService.isConfigured.mockReturnValue(true);
 
@@ -132,7 +133,9 @@ describe('MeteringService', () => {
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue(mockRawResults),
       };
-      usageRecordRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      usageRecordRepo.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as unknown as SelectQueryBuilder<UsageRecord>,
+      );
 
       const startDate = new Date('2024-01-01');
       const endDate = new Date('2024-01-31');
@@ -153,7 +156,9 @@ describe('MeteringService', () => {
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([]),
       };
-      usageRecordRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      usageRecordRepo.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as unknown as SelectQueryBuilder<UsageRecord>,
+      );
 
       const result = await service.getUsageSummary(mockTenantId, new Date('2024-01-01'), new Date('2024-01-31'));
 

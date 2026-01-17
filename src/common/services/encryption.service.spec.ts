@@ -93,7 +93,7 @@ describe('EncryptionService', () => {
           return undefined;
         }),
       };
-      const v1Service = new EncryptionService(v1Config as any);
+      const v1Service = new EncryptionService(v1Config as unknown as ConfigService);
       const secret = 'my-v1-secret';
       const encryptedV1 = v1Service.encrypt(secret);
 
@@ -107,7 +107,7 @@ describe('EncryptionService', () => {
           return undefined;
         }),
       };
-      const v2Service = new EncryptionService(v2Config as any);
+      const v2Service = new EncryptionService(v2Config as unknown as ConfigService);
 
       // Decrypt v1 data with v2 service
       const decrypted = v2Service.decrypt(encryptedV1);
@@ -118,7 +118,7 @@ describe('EncryptionService', () => {
     it('should support legacy unversioned decryption using available keys', () => {
       const key = 'test-key-32-characters-long-!!!!';
       const config = { get: jest.fn().mockReturnValue(key) };
-      const service = new EncryptionService(config as any);
+      const service = new EncryptionService(config as unknown as ConfigService);
 
       // Create a legacy (3-part) ciphertext manually for testing
       // Format: IV:Tag:Cipher

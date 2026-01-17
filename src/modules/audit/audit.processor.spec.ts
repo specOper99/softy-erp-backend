@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
-import { Repository } from 'typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 import { AuditProcessor } from './audit.processor';
 import { AuditLog } from './entities/audit-log.entity';
 
@@ -14,7 +14,7 @@ describe('AuditProcessor', () => {
     hash: 'hash-1',
     sequenceNumber: 1,
     calculateHash: jest.fn().mockReturnValue('new-hash'),
-  } as unknown as AuditLog;
+  } as DeepPartial<AuditLog> as AuditLog;
 
   const mockRepository = {
     findOne: jest.fn(),
@@ -53,11 +53,18 @@ describe('AuditProcessor', () => {
         },
       } as Job;
 
-      const processSpy = jest.spyOn(processor as any, 'handleLog').mockResolvedValue(undefined);
+      // Verify process calls handleLog logic (indirectly via repository calls)
+      const findOneSpy = jest.spyOn(mockRepository, 'findOne').mockResolvedValue(null);
+      const createSpy = jest
+        .spyOn(mockRepository, 'create')
+        .mockReturnValue({ calculateHash: () => 'hash' } as DeepPartial<AuditLog> as AuditLog);
+      const saveSpy = jest.spyOn(mockRepository, 'save').mockResolvedValue({});
 
       await processor.process(job);
 
-      expect(processSpy).toHaveBeenCalledWith(job.data);
+      expect(findOneSpy).toHaveBeenCalled();
+      expect(createSpy).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalled();
     });
 
     it('should ignore other jobs', async () => {
@@ -90,7 +97,7 @@ describe('AuditProcessor', () => {
       // We removed sanitize from processor, so it expects raw values
       mockRepository.create.mockReturnValue(mockEntry);
 
-      await (processor as any).handleLog(logData);
+      await processor.process({ name: 'log', data: logData } as Job);
 
       expect(mockRepository.findOne).toHaveBeenCalledWith({
         where: { tenantId: 'tenant-1' },
@@ -117,7 +124,7 @@ describe('AuditProcessor', () => {
       };
       mockRepository.create.mockReturnValue(mockEntry);
 
-      await (processor as any).handleLog(logData);
+      await processor.process({ name: 'log', data: logData } as Job);
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -129,7 +136,7 @@ describe('AuditProcessor', () => {
 
     it('should rethrow errors', async () => {
       mockRepository.findOne.mockRejectedValue(new Error('DB Error'));
-      await expect((processor as any).handleLog(logData)).rejects.toThrow('DB Error');
+      await expect(processor.process({ name: 'log', data: logData } as Job)).rejects.toThrow('DB Error');
     });
   });
 });

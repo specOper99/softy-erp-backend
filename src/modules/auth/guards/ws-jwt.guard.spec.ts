@@ -10,7 +10,7 @@ describe('WsJwtGuard', () => {
   let jwtService: jest.Mocked<JwtService>;
   // let configService: jest.Mocked<ConfigService>;
 
-  const createMockContext = (client: any) =>
+  const createMockContext = (client: unknown) =>
     ({
       switchToWs: () => ({
         getClient: () => client,
@@ -52,7 +52,7 @@ describe('WsJwtGuard', () => {
           query: { token: 'valid.token' },
           headers: {},
         },
-        data: {} as any,
+        data: {} as Record<string, any>,
       };
       const context = createMockContext(client);
       const payload = { sub: 'user-123', email: 'test@example.com' };
@@ -74,7 +74,7 @@ describe('WsJwtGuard', () => {
           query: {},
           headers: { authorization: 'Bearer valid.token' },
         },
-        data: {} as any,
+        data: {} as Record<string, any>,
       };
       const context = createMockContext(client);
       const payload = { sub: 'user-123', email: 'test@example.com' };
