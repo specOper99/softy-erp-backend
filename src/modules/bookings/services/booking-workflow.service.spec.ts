@@ -81,7 +81,7 @@ describe('BookingWorkflowService', () => {
         {
           provide: AuditPublisher,
           useValue: {
-            log: jest.fn(),
+            log: jest.fn().mockResolvedValue(undefined),
           },
         },
         {

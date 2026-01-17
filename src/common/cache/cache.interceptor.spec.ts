@@ -1,7 +1,7 @@
 import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { CACHEABLE_KEY } from '../decorators/cacheable.decorator';
 import { NO_CACHE_KEY } from '../decorators/no-cache.decorator';
 import { TenantContextService } from '../services/tenant-context.service';
@@ -73,9 +73,8 @@ describe('GlobalCacheInterceptor', () => {
       };
 
       const result = await interceptor.intercept(postContext, mockCallHandler);
-      result.subscribe((data) => {
-        expect(data).toEqual({ data: 'test' });
-      });
+      const data = await firstValueFrom(result);
+      expect(data).toEqual({ data: 'test' });
     });
 
     it('should skip when @Cacheable not present', async () => {
@@ -86,9 +85,8 @@ describe('GlobalCacheInterceptor', () => {
       };
 
       const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
-      result.subscribe((data) => {
-        expect(data).toEqual({ data: 'test' });
-      });
+      const data = await firstValueFrom(result);
+      expect(data).toEqual({ data: 'test' });
     });
 
     it('should skip when @NoCache is present', async () => {
@@ -103,9 +101,8 @@ describe('GlobalCacheInterceptor', () => {
       };
 
       const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
-      result.subscribe((data) => {
-        expect(data).toEqual({ data: 'test' });
-      });
+      const data = await firstValueFrom(result);
+      expect(data).toEqual({ data: 'test' });
     });
 
     it('should skip when no tenantId', async () => {
@@ -120,9 +117,8 @@ describe('GlobalCacheInterceptor', () => {
       };
 
       const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
-      result.subscribe((data) => {
-        expect(data).toEqual({ data: 'test' });
-      });
+      const data = await firstValueFrom(result);
+      expect(data).toEqual({ data: 'test' });
     });
 
     it('should return cached response when available', async () => {
@@ -137,9 +133,8 @@ describe('GlobalCacheInterceptor', () => {
       };
 
       const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
-      result.subscribe((data) => {
-        expect(data).toEqual({ cached: true });
-      });
+      const data = await firstValueFrom(result);
+      expect(data).toEqual({ cached: true });
     });
 
     it('should cache response on cache miss', async () => {
@@ -155,12 +150,10 @@ describe('GlobalCacheInterceptor', () => {
       };
 
       const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
-      result.subscribe(() => {
-        // Allow async cache set to complete
-        setTimeout(() => {
-          expect(cacheService.set).toHaveBeenCalled();
-        }, 10);
-      });
+      await firstValueFrom(result);
+      // Allow async cache set to complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(cacheService.set).toHaveBeenCalled();
     });
 
     it('should handle cache read errors gracefully', async () => {
@@ -175,9 +168,8 @@ describe('GlobalCacheInterceptor', () => {
       };
 
       const result = await interceptor.intercept(mockExecutionContext, mockCallHandler);
-      result.subscribe((data) => {
-        expect(data).toEqual({ data: 'test' });
-      });
+      const data = await firstValueFrom(result);
+      expect(data).toEqual({ data: 'test' });
     });
 
     it('should use user.sub when user.id not available', async () => {
