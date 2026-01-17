@@ -56,7 +56,7 @@ export class WebhookService {
     let url: URL;
     try {
       url = new URL(config.url);
-      if (!['http:', 'https:'].includes(url.protocol)) {
+      if (url.protocol !== 'https:') {
         throw new Error('webhooks.invalid_protocol');
       }
     } catch {
@@ -163,11 +163,18 @@ export class WebhookService {
       /^192\.168\./, // Class C private
       /^169\.254\./, // Link-local
       /^0\./, // Current network
+      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT (100.64.0.0/10)
+      /^198\.(1[89])\./, // Benchmarking (198.18.0.0/15)
     ];
 
     // IPv6 private ranges
     const ipv6PrivateRanges = [
       /^::1$/, // Loopback
+      /^::ffff:127\./i, // IPv4-mapped loopback
+      /^::ffff:10\./i, // IPv4-mapped private
+      /^::ffff:172\.(1[6-9]|2[0-9]|3[0-1])\./i, // IPv4-mapped private
+      /^::ffff:192\.168\./i, // IPv4-mapped private
+      /^::ffff:169\.254\./i, // IPv4-mapped link-local
       /^fe80:/i, // Link-local
       /^fc00:/i, // Unique local
       /^fd00:/i, // Unique local
@@ -249,11 +256,11 @@ export class WebhookService {
   async deliverWebhook(webhook: Webhook, event: WebhookEvent): Promise<void> {
     // Background processor passes a partial entity (no resolvedIps). Load full record.
     const fullWebhook =
-      webhook.resolvedIps !== undefined
-        ? webhook
-        : await this.webhookRepository.findOne({
+      webhook.resolvedIps === undefined
+        ? await this.webhookRepository.findOne({
             where: { id: webhook.id },
-          });
+          })
+        : webhook;
 
     if (!fullWebhook) {
       throw new NotFoundException('webhooks.not_found');
@@ -293,6 +300,9 @@ export class WebhookService {
    */
   private async sendWebhookOnce(webhook: Webhook, event: WebhookEvent): Promise<void> {
     const url = new URL(webhook.url);
+    if (url.protocol !== 'https:') {
+      throw new BadRequestException('webhooks.invalid_protocol');
+    }
 
     // SECURITY: Validate DNS and enforce allowlisted IPs to resist DNS rebinding.
     // NOTE: To fully prevent time-of-check/time-of-use issues, pinning connections

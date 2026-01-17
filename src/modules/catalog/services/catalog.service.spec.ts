@@ -68,7 +68,7 @@ describe('CatalogService', () => {
         },
         {
           provide: AuditPublisher,
-          useValue: { log: jest.fn() },
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
         {
           provide: CacheUtilsService,
