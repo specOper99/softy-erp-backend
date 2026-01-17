@@ -45,6 +45,7 @@
     "prepare": "husky",
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint:circular": "madge --circular src/",
+    "check:sql-safety": "ts-node scripts/ci/check-raw-queries.ts",
     "validate": "npm run lint && npm run type-check && npm run test",
     "pre-push": "npm run validate",
     "test:mutation": "stryker run"

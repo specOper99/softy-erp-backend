@@ -32,6 +32,9 @@ jobs:
       - name: Run type-check
         run: npm run type-check
 
+      - name: Check SQL Safety
+        run: npm run check:sql-safety
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
