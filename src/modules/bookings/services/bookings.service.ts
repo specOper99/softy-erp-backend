@@ -13,7 +13,14 @@ import { CatalogService } from '../../catalog/services/catalog.service';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
-import { BookingFilterDto, CreateBookingDto, RecordPaymentDto, UpdateBookingDto } from '../dto';
+import {
+  BookingFilterDto,
+  BookingSortBy,
+  CreateBookingDto,
+  RecordPaymentDto,
+  SortOrder,
+  UpdateBookingDto,
+} from '../dto';
 import { Booking } from '../entities/booking.entity';
 
 import { BookingStatus } from '../enums/booking-status.enum';
@@ -61,8 +68,14 @@ export class BookingsService {
     }
 
     const subTotal = Number(pkg.price);
-    const taxAmount = Number(subTotal * (taxRate / 100));
+    const taxAmount = MathUtils.round(subTotal * (taxRate / 100), 2);
     const totalPrice = subTotal + taxAmount;
+
+    const depositPercentage = dto.depositPercentage ?? 0;
+    if (depositPercentage < 0 || depositPercentage > 100) {
+      throw new BadRequestException('booking.invalid_deposit_percentage');
+    }
+    const depositAmount = MathUtils.round(totalPrice * (depositPercentage / 100), 2);
 
     const booking = this.bookingRepository.create({
       clientId: dto.clientId,
@@ -74,6 +87,8 @@ export class BookingsService {
       taxAmount,
       totalPrice,
       status: BookingStatus.DRAFT,
+      depositPercentage,
+      depositAmount,
     });
 
     const savedBooking = await this.bookingRepository.save(booking);
@@ -97,9 +112,18 @@ export class BookingsService {
       .leftJoinAndSelect('tasks.assignedUser', 'taskAssignedUser')
       .where('booking.tenantId = :tenantId', { tenantId });
 
-    const sortBy = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'DESC';
-    qb.orderBy(`booking.${sortBy}`, sortOrder);
+    const sortOrder = query.sortOrder === SortOrder.Asc ? SortOrder.Asc : SortOrder.Desc;
+
+    const SORT_COLUMNS: Record<BookingSortBy, string> = {
+      [BookingSortBy.CreatedAt]: 'booking.createdAt',
+      [BookingSortBy.EventDate]: 'booking.eventDate',
+      [BookingSortBy.TotalPrice]: 'booking.totalPrice',
+    };
+
+    const sortBy: BookingSortBy =
+      query.sortBy && Object.values(BookingSortBy).includes(query.sortBy) ? query.sortBy : BookingSortBy.CreatedAt;
+
+    qb.orderBy(SORT_COLUMNS[sortBy], sortOrder);
 
     qb.skip(query.getSkip()).take(query.getTake());
 
@@ -216,10 +240,18 @@ export class BookingsService {
       this.stateMachine.validateTransition(existingBooking.status, dto.status);
     }
 
+    if (dto.eventDate) {
+      const eventDate = new Date(dto.eventDate);
+      const oneHourFromNow = new Date(Date.now() + BUSINESS_CONSTANTS.BOOKING.MIN_LEAD_TIME_MS);
+      if (eventDate < oneHourFromNow) {
+        throw new BadRequestException('booking.event_date_must_be_future');
+      }
+    }
+
     const savedBooking = await this.dataSource.transaction(async (manager) => {
       // Re-fetch with pessimistic lock inside transaction to prevent lost updates
       const booking = await manager.findOne(Booking, {
-        where: { id },
+        where: { id, tenantId: existingBooking.tenantId },
         lock: { mode: 'pessimistic_write' },
       });
 
@@ -240,14 +272,22 @@ export class BookingsService {
     });
 
     // Publish event AFTER transaction commits successfully
-    this.eventBus.publish(
-      new BookingUpdatedEvent(
-        savedBooking.id,
-        savedBooking.tenantId,
-        { ...dto } as Record<string, unknown>,
-        new Date(),
-      ),
-    );
+    const allowedChanges: Record<string, unknown> = {};
+
+    if (dto.clientId !== undefined) {
+      allowedChanges.clientId = dto.clientId;
+    }
+    if (dto.eventDate !== undefined) {
+      allowedChanges.eventDate = dto.eventDate;
+    }
+    if (dto.notes !== undefined) {
+      allowedChanges.notes = dto.notes;
+    }
+    if (dto.status !== undefined) {
+      allowedChanges.status = dto.status;
+    }
+
+    this.eventBus.publish(new BookingUpdatedEvent(savedBooking.id, savedBooking.tenantId, allowedChanges, new Date()));
 
     return savedBooking;
   }
@@ -272,7 +312,7 @@ export class BookingsService {
 
       // 2. Double check the booking inside transaction with lock to prevent race conditions
       const lockedBooking = await manager.findOne(Booking, {
-        where: { id: booking.id },
+        where: { id: booking.id, tenantId: booking.tenantId },
         lock: { mode: 'pessimistic_write' },
       });
 
@@ -296,7 +336,7 @@ export class BookingsService {
 
       await manager.update(
         Booking,
-        { id: lockedBooking.id },
+        { id: lockedBooking.id, tenantId: lockedBooking.tenantId },
         {
           amountPaid: newPaid,
           updatedAt: new Date(),

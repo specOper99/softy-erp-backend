@@ -66,6 +66,12 @@ describe('BookingWorkflowService', () => {
     });
 
     dataSource = createMockDataSource() as unknown as DataSource;
+    // Mock transaction to immediately execute callback with mock manager
+    (dataSource.transaction as jest.Mock).mockImplementation((cb) => {
+      return cb(mockQR.manager);
+    });
+
+    // We keep this just to get access to the manager for assertions
     (dataSource.createQueryRunner as jest.Mock).mockReturnValue(mockQR);
     queryRunner = dataSource.createQueryRunner();
 
@@ -125,8 +131,7 @@ describe('BookingWorkflowService', () => {
 
       const result = await service.confirmBooking('booking-1');
 
-      expect(queryRunner.connect).toHaveBeenCalled();
-      expect(queryRunner.startTransaction).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
       // findOne called twice: once for lock, once for data
       expect(queryRunner.manager.findOne).toHaveBeenCalledTimes(2);
 
@@ -160,14 +165,10 @@ describe('BookingWorkflowService', () => {
       // Verify Event
       expect(eventBus.publish).toHaveBeenCalled();
 
-      // Verify Commit and Release
-      expect(queryRunner.commitTransaction).toHaveBeenCalled();
-      expect(queryRunner.release).toHaveBeenCalled();
-
       expect(result.tasksCreated).toBe(2);
     });
 
-    it('should rollback interaction on error', async () => {
+    it('should propagate error', async () => {
       (queryRunner.manager.findOne as jest.Mock)
         .mockResolvedValueOnce({ id: 'booking-1' })
         .mockResolvedValueOnce(mockBooking);
@@ -176,17 +177,12 @@ describe('BookingWorkflowService', () => {
       (financeService.createTransactionWithManager as jest.Mock).mockRejectedValue(new Error('Finance Error'));
 
       await expect(service.confirmBooking('booking-1')).rejects.toThrow('Finance Error');
-
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
-      expect(queryRunner.release).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if booking not found', async () => {
       (queryRunner.manager.findOne as jest.Mock).mockResolvedValueOnce(null);
 
       await expect(service.confirmBooking('invalid-id')).rejects.toThrow(NotFoundException);
-
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if booking is not DRAFT', async () => {
@@ -201,8 +197,6 @@ describe('BookingWorkflowService', () => {
       });
 
       await expect(service.confirmBooking('booking-1')).rejects.toThrow(BadRequestException);
-
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });
   });
 });

@@ -141,6 +141,28 @@ describe('BookingsService', () => {
       expect(createCallArg.tenantId).toBeUndefined();
     });
 
+    it('should round tax amount to 2 decimal places', async () => {
+      const dto: CreateBookingDto = {
+        clientId: 'client-1',
+        packageId: 'pkg-1',
+        eventDate: new Date(Date.now() + 86400000).toISOString(),
+        taxRate: 10.125,
+      };
+
+      catalogService.findPackageById.mockResolvedValue({ price: 100 });
+      bookingRepository.create.mockReturnValue(mockBooking);
+      bookingRepository.save.mockResolvedValue(mockBooking);
+
+      await service.create(dto);
+
+      expect(bookingRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taxAmount: 10.13,
+          totalPrice: 110.13,
+        }),
+      );
+    });
+
     it('should throw if event date is in the past', async () => {
       const dto: CreateBookingDto = {
         clientId: 'client-1',

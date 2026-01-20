@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Readable } from 'stream';
 import { Repository } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
@@ -119,11 +120,10 @@ export class ClientsService {
     });
   }
 
-  async exportToCSV(res: StreamableResponse): Promise<void> {
+  async getClientExportStream(): Promise<Readable> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    // Stream clients with booking count
-    const stream = await this.clientRepository
+    return this.clientRepository
       .createQueryBuilder('client')
       .leftJoin('client.bookings', 'booking')
       .where('client.tenantId = :tenantId', { tenantId })
@@ -132,6 +132,10 @@ export class ClientsService {
       .groupBy('client.id')
       .orderBy('client.createdAt', 'DESC')
       .stream();
+  }
+
+  async exportToCSV(res: StreamableResponse): Promise<void> {
+    const stream = await this.getClientExportStream();
 
     const fields = ['id', 'name', 'email', 'phone', 'notes', 'bookingCount', 'createdAt'];
 
@@ -146,7 +150,7 @@ export class ClientsService {
       bookingCount: string;
     }
 
-    this.exportService.streamFromStream(
+    await this.exportService.streamFromStream(
       res,
       stream,
       `clients-export-${new Date().toISOString().split('T')[0]}.csv`,

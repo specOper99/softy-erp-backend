@@ -4,6 +4,7 @@ import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { Task } from '../../tasks/entities/task.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 
+import { MoneyColumn, PercentColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Invoice } from '../../finance/entities/invoice.entity';
 import { Client } from './client.entity';
@@ -27,65 +28,29 @@ export class Booking extends BaseTenantEntity {
   })
   status: BookingStatus;
 
-  @Column({ name: 'total_price', type: 'decimal', precision: 12, scale: 2 })
+  @MoneyColumn('total_price')
   totalPrice: number;
 
-  @Column({
-    name: 'sub_total',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('sub_total')
   subTotal: number;
 
-  @Column({
-    name: 'tax_rate',
-    type: 'decimal',
-    precision: 5,
-    scale: 2,
-    default: 0,
-  })
+  @PercentColumn('tax_rate')
   taxRate: number;
 
-  @Column({
-    name: 'tax_amount',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('tax_amount')
   taxAmount: number;
 
   @Column({ name: 'package_id' })
   @Index()
   packageId: string;
 
-  @Column({
-    name: 'deposit_percentage',
-    type: 'decimal',
-    precision: 5,
-    scale: 2,
-    default: 0,
-  })
+  @PercentColumn('deposit_percentage')
   depositPercentage: number;
 
-  @Column({
-    name: 'deposit_amount',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('deposit_amount')
   depositAmount: number;
 
-  @Column({
-    name: 'amount_paid',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('amount_paid')
   amountPaid: number;
 
   @Column({
@@ -102,13 +67,7 @@ export class Booking extends BaseTenantEntity {
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;
 
-  @Column({
-    name: 'refund_amount',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('refund_amount')
   refundAmount: number;
 
   @Column({ name: 'cancellation_reason', type: 'text', nullable: true })

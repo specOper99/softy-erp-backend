@@ -37,6 +37,7 @@ export class CreateBookingDto {
   @IsNumber()
   @IsOptional()
   @Min(0)
+  @Max(100)
   depositPercentage?: number;
 }
 

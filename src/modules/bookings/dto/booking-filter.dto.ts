@@ -4,6 +4,17 @@ import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'cla
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { BookingStatus } from '../enums/booking-status.enum';
 
+export enum BookingSortBy {
+  CreatedAt = 'createdAt',
+  EventDate = 'eventDate',
+  TotalPrice = 'totalPrice',
+}
+
+export enum SortOrder {
+  Asc = 'ASC',
+  Desc = 'DESC',
+}
+
 export class BookingFilterDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Search term (client name, email, booking notes)',
@@ -55,17 +66,17 @@ export class BookingFilterDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description: 'Sort field (createdAt, eventDate, totalPrice)',
-    enum: ['createdAt', 'eventDate', 'totalPrice'],
+    enum: BookingSortBy,
   })
   @IsOptional()
-  @IsString()
-  sortBy?: 'createdAt' | 'eventDate' | 'totalPrice';
+  @IsEnum(BookingSortBy)
+  sortBy?: BookingSortBy;
 
   @ApiPropertyOptional({
     description: 'Sort order (ASC, DESC)',
-    enum: ['ASC', 'DESC'],
+    enum: SortOrder,
   })
   @IsOptional()
-  @IsString()
-  sortOrder?: 'ASC' | 'DESC';
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder;
 }

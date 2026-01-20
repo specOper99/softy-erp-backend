@@ -41,14 +41,11 @@ export class BookingWorkflowService {
    */
   async confirmBooking(id: string): Promise<ConfirmBookingResponseDto> {
     const tenantId = TenantContextService.getTenantId();
+    let eventToPublish: BookingConfirmedEvent | null = null;
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
+    const result = await this.dataSource.transaction(async (manager) => {
       // Step 1: Acquire pessimistic lock to prevent race conditions
-      const bookingLock = await queryRunner.manager.findOne(Booking, {
+      const bookingLock = await manager.findOne(Booking, {
         where: { id, tenantId },
         lock: { mode: 'pessimistic_write' },
       });
@@ -58,7 +55,7 @@ export class BookingWorkflowService {
       }
 
       // Step 2: Fetch actual data with relations.
-      const booking = await queryRunner.manager.findOne(Booking, {
+      const booking = await manager.findOne(Booking, {
         where: { id, tenantId },
         relations: ['client', 'servicePackage', 'servicePackage.packageItems', 'servicePackage.packageItems.taskType'],
       });
@@ -70,7 +67,7 @@ export class BookingWorkflowService {
       this.stateMachine.validateTransition(booking.status, BookingStatus.CONFIRMED);
 
       booking.status = BookingStatus.CONFIRMED;
-      await queryRunner.manager.save(booking);
+      await manager.save(booking);
 
       // Step 3: Generate Tasks from package items (bulk insert for performance)
       const packageItems = await (booking.servicePackage?.packageItems ?? Promise.resolve([]));
@@ -100,10 +97,10 @@ export class BookingWorkflowService {
         }
       }
 
-      const createdTasks = await queryRunner.manager.save(Task, tasksToCreate);
+      const createdTasks = await manager.save(Task, tasksToCreate);
 
       // Step 3: Create INCOME transaction
-      const transaction = await this.financeService.createTransactionWithManager(queryRunner.manager, {
+      const transaction = await this.financeService.createTransactionWithManager(manager, {
         type: TransactionType.INCOME,
         amount: Number(booking.totalPrice),
         category: 'Booking Payment',
@@ -122,20 +119,14 @@ export class BookingWorkflowService {
         notes: 'Booking confirmed, tasks generated and payment recorded.',
       });
 
-      // Commit transaction
-      await queryRunner.commitTransaction();
-
-      // Emit domain event for side effects (webhooks, emails, etc.)
-      this.eventBus.publish(
-        new BookingConfirmedEvent(
-          booking.id,
-          booking.tenantId,
-          booking.client?.email || '',
-          booking.client?.name || 'Client',
-          booking.servicePackage?.name || 'Service Package',
-          Number(booking.totalPrice),
-          booking.eventDate,
-        ),
+      eventToPublish = new BookingConfirmedEvent(
+        booking.id,
+        booking.tenantId,
+        booking.client?.email || '',
+        booking.client?.name || 'Client',
+        booking.servicePackage?.name || 'Service Package',
+        Number(booking.totalPrice),
+        booking.eventDate,
       );
 
       return {
@@ -143,13 +134,13 @@ export class BookingWorkflowService {
         tasksCreated: createdTasks.length,
         transactionId: transaction.id,
       };
-    } catch (error) {
-      // Rollback on failure
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+    });
+
+    if (eventToPublish) {
+      this.eventBus.publish(eventToPublish);
     }
+
+    return result;
   }
   /**
    * WORKFLOW 2: Booking Cancellation
@@ -161,16 +152,13 @@ export class BookingWorkflowService {
    */
   async cancelBooking(id: string, dto?: CancelBookingDto): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
+    let eventToPublish: BookingCancelledEvent | null = null;
 
     // Use a transaction for consistency
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const booking = await queryRunner.manager.findOne(Booking, {
+    const savedBooking = await this.dataSource.transaction(async (manager) => {
+      const booking = await manager.findOne(Booking, {
         where: { id, tenantId },
-        relations: ['client'], // Need client for event
+        relations: ['client'],
       });
 
       if (!booking) {
@@ -187,7 +175,7 @@ export class BookingWorkflowService {
         booking.cancellationReason = dto.reason;
       }
 
-      const savedBooking = await queryRunner.manager.save(booking);
+      const saved = await manager.save(booking);
 
       await this.auditService.log({
         action: 'STATUS_CHANGE',
@@ -197,33 +185,30 @@ export class BookingWorkflowService {
         newValues: { status: BookingStatus.CANCELLED },
       });
 
-      await queryRunner.commitTransaction();
-
       const daysBeforeEvent = Math.ceil((booking.eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
-      this.eventBus.publish(
-        new BookingCancelledEvent(
-          savedBooking.id,
-          savedBooking.tenantId,
-          savedBooking.client?.email || '',
-          savedBooking.client?.name || '',
-          savedBooking.eventDate,
-          booking.cancelledAt,
-          daysBeforeEvent,
-          dto?.reason || '',
-          Number(savedBooking.amountPaid || 0),
-          Number(savedBooking.refundAmount || 0),
-          0,
-        ),
+      eventToPublish = new BookingCancelledEvent(
+        saved.id,
+        saved.tenantId,
+        saved.client?.email || '',
+        saved.client?.name || '',
+        saved.eventDate,
+        booking.cancelledAt,
+        daysBeforeEvent,
+        dto?.reason || '',
+        Number(saved.amountPaid || 0),
+        Number(saved.refundAmount || 0),
+        0,
       );
 
-      return savedBooking;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+      return saved;
+    });
+
+    if (eventToPublish) {
+      this.eventBus.publish(eventToPublish);
     }
+
+    return savedBooking;
   }
 
   /**
@@ -237,12 +222,8 @@ export class BookingWorkflowService {
   async completeBooking(id: string): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const booking = await queryRunner.manager.findOne(Booking, {
+    return this.dataSource.transaction(async (manager) => {
+      const booking = await manager.findOne(Booking, {
         where: { id, tenantId },
         relations: ['tasks'], // Need tasks for validation
       });
@@ -258,8 +239,6 @@ export class BookingWorkflowService {
       const tasksArray = await booking.tasks;
       if (!tasksArray || tasksArray.length === 0) {
         // Warning: This logic assumes a complete booking SHOULD have tasks.
-        // If "no tasks found" is a valid state for completion, remove this throw.
-        // Keeping it consistent with original BookingsService.
         throw new BadRequestException('No tasks found for this booking');
       }
       const pendingTasks = tasksArray.filter((t) => t.status !== TaskStatus.COMPLETED);
@@ -269,7 +248,7 @@ export class BookingWorkflowService {
 
       booking.status = BookingStatus.COMPLETED;
 
-      const savedBooking = await queryRunner.manager.save(booking);
+      const savedBooking = await manager.save(booking);
 
       await this.auditService.log({
         action: 'STATUS_CHANGE',
@@ -279,15 +258,8 @@ export class BookingWorkflowService {
         newValues: { status: BookingStatus.COMPLETED },
       });
 
-      await queryRunner.commitTransaction();
-
       return savedBooking;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
+    });
   }
 
   async duplicateBooking(id: string): Promise<Booking> {
