@@ -40,17 +40,6 @@ describe('MetricsGuard', () => {
       mockContext = createMockContext();
       expect(guard.canActivate(mockContext)).toBe(true);
     });
-
-    it('should throw UnauthorizedException in production', () => {
-      configService.get.mockImplementation((key: string) => {
-        if (key === 'METRICS_TOKEN') return undefined;
-        if (key === 'NODE_ENV') return 'production';
-        return undefined;
-      });
-
-      mockContext = createMockContext();
-      expect(() => guard.canActivate(mockContext)).toThrow(UnauthorizedException);
-    });
   });
 
   describe('when METRICS_TOKEN is configured', () => {

@@ -82,11 +82,16 @@ export class DashboardService {
     return { start, end };
   }
 
-  async getKpiSummary(query: ReportQueryDto = {}, nocache = false): Promise<DashboardKpiDto> {
+  private getContext(query: ReportQueryDto): { tenantId: string; start: Date; end: Date } {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) throw new BadRequestException('common.tenant_missing');
 
     const { start, end } = this.getDateRange(query);
+    return { tenantId, start, end };
+  }
+
+  async getKpiSummary(query: ReportQueryDto = {}, nocache = false): Promise<DashboardKpiDto> {
+    const { tenantId, start, end } = this.getContext(query);
     const startDateStr = start.toISOString().split('T')[0];
     const endDateStr = end.toISOString().split('T')[0];
     const periodKey = `${startDateStr}_${endDateStr}`;
@@ -143,10 +148,7 @@ export class DashboardService {
   }
 
   async getBookingTrends(query: ReportQueryDto = {}): Promise<BookingTrendDto[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new BadRequestException('common.tenant_missing');
-
-    const { start, end } = this.getDateRange(query);
+    const { tenantId, start, end } = this.getContext(query);
 
     const stats = await this.bookingRepository
       .createQueryBuilder('b')
@@ -180,10 +182,7 @@ export class DashboardService {
   }
 
   async getRevenueStats(query: ReportQueryDto = {}): Promise<RevenueStatsDto> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new BadRequestException('common.tenant_missing');
-
-    const { start, end } = this.getDateRange(query);
+    const { tenantId, start, end } = this.getContext(query);
 
     const totals = await this.transactionRepository
       .createQueryBuilder('t')
@@ -213,10 +212,7 @@ export class DashboardService {
   }
 
   async getRevenueSummary(query: ReportQueryDto = {}): Promise<RevenueSummaryDto[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new BadRequestException('common.tenant_missing');
-
-    const { start, end } = this.getDateRange(query);
+    const { tenantId, start, end } = this.getContext(query);
 
     const stats = await this.transactionRepository
       .createQueryBuilder('t')
@@ -240,10 +236,7 @@ export class DashboardService {
   }
 
   async getStaffPerformance(query: ReportQueryDto = {}): Promise<StaffPerformanceDto[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new BadRequestException('common.tenant_missing');
-
-    const { start, end } = this.getDateRange(query);
+    const { tenantId, start, end } = this.getContext(query);
 
     const stats = await this.taskRepository
       .createQueryBuilder('task')
@@ -272,10 +265,7 @@ export class DashboardService {
   }
 
   async getPackageStats(query: ReportQueryDto = {}): Promise<PackageStatsDto[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new BadRequestException('common.tenant_missing');
-
-    const { start, end } = this.getDateRange(query);
+    const { tenantId, start, end } = this.getContext(query);
 
     const stats = await this.bookingRepository
       .createQueryBuilder('b')

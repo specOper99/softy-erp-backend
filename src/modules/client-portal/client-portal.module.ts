@@ -10,6 +10,7 @@ import { Client } from '../bookings/entities/client.entity';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { ClientPortalController } from './client-portal.controller';
+import { ClientTokenGuard } from './guards/client-token.guard';
 import { ClientAuthService } from './services/client-auth.service';
 import { ClientPortalService } from './services/client-portal.service';
 
@@ -34,6 +35,7 @@ import { ClientPortalService } from './services/client-portal.service';
   providers: [
     ClientAuthService,
     ClientPortalService,
+    ClientTokenGuard,
     {
       provide: TENANT_REPO_CLIENT,
       useFactory: (repo: Repository<Client>) => new TenantAwareRepository(repo),

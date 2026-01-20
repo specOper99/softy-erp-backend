@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuditService } from '../audit/audit.service';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AdminController } from './admin.controller';
 import { KeyRotationService } from './services/key-rotation.service';
 
@@ -9,6 +10,7 @@ describe('AdminController', () => {
   let auditService: jest.Mocked<AuditService>;
 
   beforeEach(async () => {
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue('tenant-123');
     const mockKeyRotationService = {
       rotateKeys: jest.fn(),
     };
@@ -69,7 +71,7 @@ describe('AdminController', () => {
 
       const result = await controller.verifyAuditChain();
 
-      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith(undefined, 1000);
+      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith('tenant-123', 1000);
       expect(result).toEqual(mockResult);
     });
 
@@ -79,7 +81,7 @@ describe('AdminController', () => {
 
       const result = await controller.verifyAuditChain(500);
 
-      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith(undefined, 500);
+      expect(auditService.verifyChainIntegrity).toHaveBeenCalledWith('tenant-123', 500);
       expect(result).toEqual(mockResult);
     });
 

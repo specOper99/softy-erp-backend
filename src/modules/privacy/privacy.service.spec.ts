@@ -2,12 +2,12 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
-import { Booking } from '../bookings/entities/booking.entity';
-import { Transaction } from '../finance/entities/transaction.entity';
-import { Profile } from '../hr/entities/profile.entity';
+import { BookingRepository } from '../bookings/repositories/booking.repository';
+import { TransactionRepository } from '../finance/repositories/transaction.repository';
+import { ProfileRepository } from '../hr/repositories/profile.repository';
 import { StorageService } from '../media/storage.service';
-import { Task } from '../tasks/entities/task.entity';
-import { User } from '../users/entities/user.entity';
+import { TaskRepository } from '../tasks/repositories/task.repository';
+import { UserRepository } from '../users/repositories/user.repository';
 import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
 import { PrivacyService } from './privacy.service';
 
@@ -32,6 +32,10 @@ describe('PrivacyService', () => {
   };
 
   const mockTenantId = 'tenant-1';
+
+  beforeEach(() => {
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(mockTenantId);
+  });
   const mockUserId = 'user-1';
 
   const mockPrivacyRequest = {
@@ -104,14 +108,11 @@ describe('PrivacyService', () => {
           provide: getRepositoryToken(PrivacyRequest),
           useValue: privacyRequestRepository,
         },
-        { provide: getRepositoryToken(User), useValue: userRepository },
-        { provide: getRepositoryToken(Booking), useValue: bookingRepository },
-        { provide: getRepositoryToken(Task), useValue: taskRepository },
-        {
-          provide: getRepositoryToken(Transaction),
-          useValue: transactionRepository,
-        },
-        { provide: getRepositoryToken(Profile), useValue: profileRepository },
+        { provide: UserRepository, useValue: userRepository },
+        { provide: BookingRepository, useValue: bookingRepository },
+        { provide: TaskRepository, useValue: taskRepository },
+        { provide: TransactionRepository, useValue: transactionRepository },
+        { provide: ProfileRepository, useValue: profileRepository },
         { provide: StorageService, useValue: storageService },
       ],
     }).compile();
@@ -148,7 +149,9 @@ describe('PrivacyService', () => {
     });
 
     it('should throw BadRequestException when tenant context is missing', async () => {
-      (TenantContextService.getTenantId as jest.Mock).mockReturnValue(null);
+      jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockImplementation(() => {
+        throw new BadRequestException('Tenant context missing');
+      });
 
       await expect(
         service.createRequest(mockUserId, {

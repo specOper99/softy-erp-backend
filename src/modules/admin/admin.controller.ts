@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -31,6 +32,7 @@ export class AdminController {
   @Get('audit/verify')
   @ApiOperation({ summary: 'Verify audit log chain integrity' })
   async verifyAuditChain(@Query('limit') limit?: number) {
-    return this.auditService.verifyChainIntegrity(undefined, limit ?? 1000);
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    return this.auditService.verifyChainIntegrity(tenantId, limit ?? 1000);
   }
 }

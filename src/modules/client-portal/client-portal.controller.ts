@@ -63,12 +63,7 @@ export class ClientPortalController {
   @ApiOperation({ summary: 'Get all bookings for the authenticated client' })
   @UseGuards(ClientTokenGuard)
   async getMyBookings(@Req() req: Request): Promise<Booking[]> {
-    const token = req.headers['x-client-token'] as string;
-    const client = await this.clientAuthService.validateClientToken(token);
-
-    if (!client) {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
+    const client = this.getClientFromRequest(req);
 
     return this.clientPortalService.getMyBookings(client.id, client.tenantId);
   }
@@ -77,12 +72,7 @@ export class ClientPortalController {
   @ApiOperation({ summary: 'Get a specific booking' })
   @UseGuards(ClientTokenGuard)
   async getBooking(@Param('id') id: string, @Req() req: Request): Promise<Booking> {
-    const token = req.headers['x-client-token'] as string;
-    const client = await this.clientAuthService.validateClientToken(token);
-
-    if (!client) {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
+    const client = this.getClientFromRequest(req);
 
     const booking = await this.clientPortalService.getBooking(id, client.id, client.tenantId);
 
@@ -99,13 +89,16 @@ export class ClientPortalController {
   @ApiOperation({ summary: 'Get authenticated client profile' })
   @UseGuards(ClientTokenGuard)
   async getProfile(@Req() req: Request): Promise<Partial<Client>> {
-    const token = req.headers['x-client-token'] as string;
-    const client = await this.clientAuthService.validateClientToken(token);
+    const client = this.getClientFromRequest(req);
 
+    return this.clientPortalService.getClientProfile(client.id, client.tenantId);
+  }
+
+  private getClientFromRequest(req: Request): Client {
+    const client = (req as Request & { client?: Client }).client;
     if (!client) {
       throw new UnauthorizedException('Invalid or expired token');
     }
-
-    return this.clientPortalService.getClientProfile(client.id, client.tenantId);
+    return client;
   }
 }

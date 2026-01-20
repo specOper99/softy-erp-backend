@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createHash } from 'node:crypto';
 import { register } from 'prom-client';
+import { createMockMetricsFactory } from '../../../../test/helpers/mock-factories';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MailService } from '../../mail/mail.service';
@@ -61,22 +62,7 @@ describe('ClientAuthService', () => {
     get: jest.fn(),
   };
 
-  const mockMetricsFactory = {
-    getOrCreateCounter: jest.fn().mockReturnValue({
-      inc: jest.fn(),
-      labels: jest.fn().mockReturnThis(),
-    }),
-    getOrCreateHistogram: jest.fn().mockReturnValue({
-      observe: jest.fn(),
-      labels: jest.fn().mockReturnThis(),
-    }),
-    getOrCreateGauge: jest.fn().mockReturnValue({
-      set: jest.fn(),
-      inc: jest.fn(),
-      dec: jest.fn(),
-      labels: jest.fn().mockReturnThis(),
-    }),
-  };
+  const mockMetricsFactory = createMockMetricsFactory();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

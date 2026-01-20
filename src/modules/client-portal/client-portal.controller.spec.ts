@@ -110,25 +110,21 @@ describe('ClientPortalController', () => {
 
   describe('getMyBookings', () => {
     it('should return bookings for authenticated client', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(mockClient as Client);
       clientPortalService.getMyBookings.mockResolvedValue([mockBooking as Booking]);
 
       const req = {
-        headers: { 'x-client-token': 'access-token-123' },
+        client: mockClient,
       } as unknown as Request;
 
       const result = await controller.getMyBookings(req);
 
-      expect(clientAuthService.validateClientToken).toHaveBeenCalledWith('access-token-123');
       expect(clientPortalService.getMyBookings).toHaveBeenCalledWith('client-1', 'tenant-1');
       expect(result).toEqual([mockBooking]);
     });
 
     it('should throw UnauthorizedException for invalid token', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(null);
-
       const req = {
-        headers: { 'x-client-token': 'invalid-token' },
+        client: undefined,
       } as unknown as Request;
 
       await expect(controller.getMyBookings(req)).rejects.toThrow(UnauthorizedException);
@@ -137,11 +133,10 @@ describe('ClientPortalController', () => {
 
   describe('getBooking', () => {
     it('should return a specific booking for authenticated client', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(mockClient as Client);
       clientPortalService.getBooking.mockResolvedValue(mockBooking as Booking);
 
       const req = {
-        headers: { 'x-client-token': 'access-token-123' },
+        client: mockClient,
       } as unknown as Request;
 
       const result = await controller.getBooking('booking-1', req);
@@ -151,10 +146,8 @@ describe('ClientPortalController', () => {
     });
 
     it('should throw UnauthorizedException for invalid token', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(null);
-
       const req = {
-        headers: { 'x-client-token': 'invalid-token' },
+        client: undefined,
       } as unknown as Request;
 
       await expect(controller.getBooking('booking-1', req)).rejects.toThrow(UnauthorizedException);
@@ -163,7 +156,6 @@ describe('ClientPortalController', () => {
 
   describe('getProfile', () => {
     it('should return client profile for authenticated client', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(mockClient as Client);
       clientPortalService.getClientProfile.mockResolvedValue({
         id: 'client-1',
         name: 'Test Client',
@@ -172,7 +164,7 @@ describe('ClientPortalController', () => {
       });
 
       const req = {
-        headers: { 'x-client-token': 'access-token-123' },
+        client: mockClient,
       } as unknown as Request;
 
       const result = await controller.getProfile(req);
@@ -187,10 +179,8 @@ describe('ClientPortalController', () => {
     });
 
     it('should throw UnauthorizedException for invalid token', async () => {
-      clientAuthService.validateClientToken.mockResolvedValue(null);
-
       const req = {
-        headers: { 'x-client-token': 'invalid-token' },
+        client: undefined,
       } as unknown as Request;
 
       await expect(controller.getProfile(req)).rejects.toThrow(UnauthorizedException);

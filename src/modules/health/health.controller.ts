@@ -33,14 +33,7 @@ export class HealthController {
   @HealthCheck()
   @ApiOperation({ summary: 'Health check endpoint for k8s/load balancers' })
   check() {
-    return this.health.check([
-      // Database health check
-      () => this.db.pingCheck('database'),
-      // Memory heap usage < 150MB
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-      // RSS memory < 300MB
-      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
-    ]);
+    return this.health.check(this.getBasicChecks());
   }
 
   @Get('detailed')
@@ -50,9 +43,7 @@ export class HealthController {
   })
   checkDetailed() {
     return this.health.check([
-      () => this.db.pingCheck('database'),
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+      ...this.getBasicChecks(),
       () => this.s3.isHealthy('storage_s3'),
       () => this.smtp.isHealthy('email_smtp'),
     ]);
@@ -81,13 +72,19 @@ export class HealthController {
   })
   deepHealth() {
     return this.health.check([
-      () => this.db.pingCheck('database'),
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+      ...this.getBasicChecks(),
       () => this.s3.isHealthy('storage_s3'),
       () => this.smtp.isHealthy('email_smtp'),
       () => this.disk.checkStorage('disk', { path: '/', thresholdPercent: 90 }),
     ]);
+  }
+
+  private getBasicChecks() {
+    return [
+      () => this.db.pingCheck('database'),
+      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
+      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+    ];
   }
   @Get('test-error')
   @SkipThrottle({ default: false }) // Re-enable throttling for this endpoint

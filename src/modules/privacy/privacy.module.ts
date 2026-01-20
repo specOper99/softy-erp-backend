@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Booking } from '../bookings/entities/booking.entity';
-import { Transaction } from '../finance/entities/transaction.entity';
-import { Profile } from '../hr/entities/profile.entity';
+import { BookingsModule } from '../bookings/bookings.module';
+import { FinanceModule } from '../finance/finance.module';
+import { HrModule } from '../hr/hr.module';
 import { MediaModule } from '../media/media.module';
-import { Task } from '../tasks/entities/task.entity';
-import { User } from '../users/entities/user.entity';
+import { TasksModule } from '../tasks/tasks.module';
+import { UsersModule } from '../users/users.module';
 import { Consent } from './entities/consent.entity';
 import { PrivacyRequest } from './entities/privacy-request.entity';
 import { ConsentService } from './consent.service';
@@ -14,7 +14,12 @@ import { PrivacyService } from './privacy.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PrivacyRequest, Consent, User, Booking, Task, Transaction, Profile]),
+    TypeOrmModule.forFeature([PrivacyRequest, Consent]),
+    UsersModule,
+    BookingsModule,
+    TasksModule,
+    FinanceModule,
+    HrModule,
     MediaModule,
   ],
   controllers: [PrivacyController],

@@ -1,5 +1,5 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Inject, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Cache } from 'cache-manager';
@@ -19,7 +19,16 @@ export interface ClientTokenPayload {
   type: 'client';
 }
 
-@Injectable()
+const getAllowedJwtAlgorithms = (): Array<'HS256' | 'RS256'> => {
+  const raw = process.env.JWT_ALLOWED_ALGORITHMS || 'HS256';
+  const algorithms = raw
+    .split(',')
+    .map((a) => a.trim().toUpperCase())
+    .filter((a) => a === 'HS256' || a === 'RS256');
+
+  return algorithms.length > 0 ? algorithms : ['HS256'];
+};
+
 export class ClientAuthService {
   private readonly logger = new Logger(ClientAuthService.name);
   private readonly TOKEN_EXPIRY_HOURS = 24;
@@ -200,7 +209,10 @@ export class ClientAuthService {
         return null; // Revoked
       }
 
-      const payload = this.jwtService.verify<ClientTokenPayload>(token);
+      const payload = this.jwtService.verify<ClientTokenPayload>(token, {
+        algorithms: getAllowedJwtAlgorithms(),
+        secret: this.configService.get<string>('JWT_PUBLIC_KEY') || this.configService.get<string>('auth.jwtSecret'),
+      });
 
       if (payload.type !== 'client') {
         return null;
@@ -220,7 +232,12 @@ export class ClientAuthService {
       });
 
       return client;
-    } catch {
+    } catch (error) {
+      // Fail closed: if JWT parsing/verification throws, deny access.
+      // Do not log token contents.
+      this.logger.warn(
+        `Client token validation failed: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
+      );
       return null;
     }
   }
@@ -249,8 +266,8 @@ export class ClientAuthService {
           );
         }
       }
-    } catch {
-      // Ignore decode errors on logout
+    } catch (error) {
+      this.logger.debug(`Logout failed (decode error): ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

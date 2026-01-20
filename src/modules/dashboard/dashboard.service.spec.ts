@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
-import { TenantContextService } from '../../common/services/tenant-context.service';
 import { DailyMetrics } from '../analytics/entities/daily-metrics.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Transaction } from '../finance/entities/transaction.entity';
@@ -12,6 +11,13 @@ import { Task } from '../tasks/entities/task.entity';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
 import { DashboardService } from './dashboard.service';
 import { UserPreference } from './entities/user-preference.entity';
+
+// Mock TenantContextService to avoid ReferenceError/Circular Dependency issues in tests
+jest.mock('../../common/services/tenant-context.service', () => ({
+  TenantContextService: {
+    getTenantId: jest.fn().mockReturnValue('tenant-123'),
+  },
+}));
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -42,7 +48,7 @@ describe('DashboardService', () => {
   };
 
   beforeEach(async () => {
-    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
+    // jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123'); // Removed as we are using jest.mock
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

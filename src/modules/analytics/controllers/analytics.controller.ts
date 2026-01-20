@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
+import { PdfUtils } from '../../../common/utils/pdf.utils';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
 import { FinancialReportFilterDto } from '../../finance/dto/financial-report.dto';
@@ -36,12 +37,7 @@ export class AnalyticsController {
     const data = await this.analyticsService.getRevenueByPackage(filter);
     const pdfBytes = await this.reportGeneratorService.generateRevenueByPackagePdf(data);
 
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename=revenue_by_package.pdf',
-      'Content-Length': pdfBytes.length,
-    });
-    res.end(Buffer.from(pdfBytes));
+    PdfUtils.sendPdfResponse(res, pdfBytes, 'revenue_by_package.pdf');
   }
 
   @Get('tax-report')

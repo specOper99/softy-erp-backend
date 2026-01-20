@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import * as crypto from 'node:crypto';
@@ -24,8 +24,7 @@ export class MetricsGuard implements CanActivate {
     // In production, METRICS_TOKEN is mandatory
     if (!requiredToken) {
       if (isProduction) {
-        // Return 404 to hide the endpoint existence
-        throw new UnauthorizedException('Metrics endpoint not configured');
+        throw new NotFoundException();
       }
       // Allow access in non-production without token for local development
       return true;

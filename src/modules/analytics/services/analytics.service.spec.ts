@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
+import { createMockQueryBuilder } from '../../../../test/helpers/test-setup.utils';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Booking } from '../../bookings/entities/booking.entity';
@@ -68,16 +69,7 @@ describe('AnalyticsService', () => {
 
       cacheUtils.get.mockResolvedValue(null);
 
-      const mockQueryBuilder = {
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue(mockRawResult),
-      };
+      const mockQueryBuilder = createMockQueryBuilder(mockRawResult);
       bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
 
       const result = await service.getRevenueByPackage(mockFilter);

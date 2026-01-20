@@ -15,6 +15,8 @@ describe('KeyRotationService', () => {
     encrypt: jest.fn().mockReturnValue('encrypted'),
     decrypt: jest.fn().mockReturnValue('decrypted'),
     isEncrypted: jest.fn((s) => s.startsWith('v')),
+    needsReencryption: jest.fn().mockReturnValue(true),
+    reencrypt: jest.fn((s) => `v2:new-iv:new-tag:${s}`),
   };
 
   const _mockGeoIpService = {
@@ -58,12 +60,7 @@ describe('KeyRotationService', () => {
 
   describe('rotateKeys', () => {
     it('should rotate all webhook secrets to the current key version', async () => {
-      mockEncryptionService.decrypt.mockImplementation((s) => {
-        if (s === 'v1:iv:tag:encrypted1') return 'secret1';
-        if (s === 'v1:iv:tag:encrypted2') return 'secret2';
-        return s;
-      });
-      mockEncryptionService.encrypt.mockImplementation((s) => `v2:new-iv:new-tag:new-${s}`);
+      mockEncryptionService.reencrypt.mockImplementation((s) => `v2:new-iv:new-tag:${s}`);
 
       const result = await service.rotateKeys();
 
@@ -74,16 +71,15 @@ describe('KeyRotationService', () => {
       expect(mockWebhookRepository.save).toHaveBeenCalledTimes(3);
 
       // Verify re-encryption calls
-      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('secret1');
-      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('secret2');
-      expect(mockEncryptionService.encrypt).toHaveBeenCalledWith('unencrypted-legacy');
+      expect(mockEncryptionService.reencrypt).toHaveBeenCalledWith('v1:iv:tag:encrypted1');
+      expect(mockEncryptionService.reencrypt).toHaveBeenCalledWith('v1:iv:tag:encrypted2');
+      expect(mockEncryptionService.reencrypt).toHaveBeenCalledWith('unencrypted-legacy');
     });
 
     it('should track errors if rotation fails for some entities', async () => {
-      mockEncryptionService.decrypt.mockImplementation((s: string) => {
+      mockEncryptionService.reencrypt.mockImplementation((s: string) => {
         if (s === 'v1:iv:tag:encrypted1') throw new Error('Fail');
-        if (s === 'v1:iv:tag:encrypted2') return 'secret2';
-        return 'secret1';
+        return `v2:new-iv:new-tag:${s}`;
       });
 
       const result = await service.rotateKeys();
