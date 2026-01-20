@@ -2,6 +2,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { createMockQueue, createMockRepository } from '../../../test/helpers/mock-factories';
+import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
@@ -13,6 +14,13 @@ describe('AuditService', () => {
   const mockRepository = createMockRepository<AuditLog>();
 
   const mockQueue = createMockQueue();
+  const mockCounter = {
+    inc: jest.fn(),
+  };
+
+  const mockMetricsFactory = {
+    getOrCreateCounter: jest.fn().mockReturnValue(mockCounter),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -25,6 +33,10 @@ describe('AuditService', () => {
         {
           provide: getQueueToken('audit-queue'),
           useValue: mockQueue,
+        },
+        {
+          provide: MetricsFactory,
+          useValue: mockMetricsFactory,
         },
       ],
     }).compile();
@@ -47,7 +59,7 @@ describe('AuditService', () => {
     const testTenantId = 'tenant-123';
 
     beforeEach(() => {
-      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(testTenantId);
+      jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(testTenantId);
       jest.clearAllMocks();
     });
 
@@ -99,6 +111,18 @@ describe('AuditService', () => {
       auditQueue.add.mockRejectedValue(new Error('Queue Error'));
       // Should not throw
       await expect(service.log(logData)).resolves.not.toThrow();
+
+      expect(mockCounter.inc).toHaveBeenCalledWith({ tenant_id: testTenantId, stage: 'queue' });
+    });
+
+    it('should record metrics when both queue and sync write fail', async () => {
+      auditQueue.add.mockRejectedValue(new Error('Queue Error'));
+      mockRepository.save.mockRejectedValue(new Error('DB Error'));
+
+      await expect(service.log(logData)).resolves.not.toThrow();
+
+      expect(mockCounter.inc).toHaveBeenCalledWith({ tenant_id: testTenantId, stage: 'queue' });
+      expect(mockCounter.inc).toHaveBeenCalledWith({ tenant_id: testTenantId, stage: 'sync' });
     });
   });
 });

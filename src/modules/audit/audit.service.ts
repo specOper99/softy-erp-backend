@@ -2,8 +2,10 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
+import { Counter } from 'prom-client';
 import { Repository } from 'typeorm';
 import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
+import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../common/utils/cursor-pagination.helper';
 import { AuditLogFilterDto } from './dto/audit-log-filter.dto';
@@ -22,18 +24,27 @@ import { CreateAuditLogDto } from './dto/create-audit-log.dto';
 @Injectable()
 export class AuditService implements AuditPublisher {
   private readonly logger = new Logger(AuditService.name);
+  private readonly auditWriteFailureCounter: Counter<'tenant_id' | 'stage'>;
 
   constructor(
     @InjectRepository(AuditLog)
     private readonly auditRepository: Repository<AuditLog>,
     @InjectQueue('audit-queue') private readonly auditQueue: Queue,
-  ) {}
+    private readonly metricsFactory: MetricsFactory,
+  ) {
+    // Best-effort policy: never fail request, but emit a counter for alerting.
+    this.auditWriteFailureCounter = this.metricsFactory.getOrCreateCounter({
+      name: 'audit_write_failures_total',
+      help: 'Total audit log write failures (queue or sync fallback)',
+      labelNames: ['tenant_id', 'stage'],
+    });
+  }
 
   async log(
     data: CreateAuditLogDto,
     // Removed EntityManager as it is not used in async processing
   ): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const sanitizedData = {
       ...data,
       oldValues: this.sanitize(data.oldValues),
@@ -45,6 +56,7 @@ export class AuditService implements AuditPublisher {
       // Primary path: Async queue processing for performance
       await this.auditQueue.add('log', sanitizedData);
     } catch (queueError) {
+      this.auditWriteFailureCounter.inc({ tenant_id: tenantId, stage: 'queue' });
       // Fallback: Synchronous write if queue is unavailable
       this.logger.warn(
         `Audit queue unavailable, falling back to synchronous write: ${queueError instanceof Error ? queueError.message : String(queueError)}`,
@@ -56,20 +68,19 @@ export class AuditService implements AuditPublisher {
         await this.auditRepository.save(auditLog);
         this.logger.debug('Audit log saved synchronously as fallback');
       } catch (dbError) {
+        this.auditWriteFailureCounter.inc({ tenant_id: tenantId, stage: 'sync' });
         // Log error but don't throw to avoid breaking main flow
         this.logger.error(
           `Failed to save audit log (both queue and sync): ${dbError instanceof Error ? dbError.message : String(dbError)}`,
-          { auditData: data },
+          { auditData: sanitizedData },
         );
       }
     }
   }
 
-  async verifyChainIntegrity(tenantId?: string, limit = 1000): Promise<ChainVerificationResult> {
-    const effectiveTenantId = tenantId ?? TenantContextService.getTenantId();
-
+  async verifyChainIntegrity(tenantId: string, limit = 1000): Promise<ChainVerificationResult> {
     const logs = await this.auditRepository.find({
-      where: { tenantId: effectiveTenantId },
+      where: { tenantId },
       order: { sequenceNumber: 'ASC' },
       take: limit,
     });
@@ -106,7 +117,7 @@ export class AuditService implements AuditPublisher {
   }
 
   async findAllCursor(query: AuditLogFilterDto): Promise<{ data: AuditLog[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const queryBuilder = this.auditRepository.createQueryBuilder('audit');
 
@@ -147,7 +158,7 @@ export class AuditService implements AuditPublisher {
   }
 
   async findOne(id: string): Promise<AuditLog | null> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.auditRepository.findOne({
       where: { id, tenantId },
     });
