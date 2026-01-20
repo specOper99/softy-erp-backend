@@ -1,28 +1,50 @@
 name: Performance Load Test
 on: 
   workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target base URL for load tests (e.g. https://staging.example.com)"
+        required: false
+        default: ""
   schedule:
     - cron: '0 2 * * *' # Nightly at 2 AM
   pull_request:
-    labels:
-      - 'performance'
+    types: [opened, reopened, synchronize, labeled]
 
 jobs:
   load-test:
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'performance')
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Resolve BASE_URL
+        run: |
+          if [ -n "${{ inputs.base_url }}" ]; then
+            echo "BASE_URL=${{ inputs.base_url }}" >> "$GITHUB_ENV"
+          elif [ -n "${{ secrets.LOAD_TEST_BASE_URL }}" ]; then
+            echo "BASE_URL=${{ secrets.LOAD_TEST_BASE_URL }}" >> "$GITHUB_ENV"
+          else
+            echo "BASE_URL=" >> "$GITHUB_ENV"
+          fi
+
+      - name: Skip load tests (no BASE_URL configured)
+        if: env.BASE_URL == ''
+        run: |
+          echo "BASE_URL not set; skipping load tests." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Setup k6
+        if: env.BASE_URL != ''
         uses: grafana/setup-k6-action@v1
       
       - name: Run Auth Load Test
+        if: env.BASE_URL != ''
         run: k6 run scripts/load-testing/scenarios/auth-flow.js
         env:
-          BASE_URL: http://localhost:3000 # In real CI, this would target Staging URL
+          BASE_URL: ${{ env.BASE_URL }}
           
       - name: Run Booking Load Test
-        if: success() || failure() # Run even if auth fails, to gather more data
+        if: env.BASE_URL != '' && (success() || failure()) # Run even if auth fails, to gather more data
         run: k6 run scripts/load-testing/scenarios/booking-flow.js
         env:
-          BASE_URL: http://localhost:3000
+          BASE_URL: ${{ env.BASE_URL }}
