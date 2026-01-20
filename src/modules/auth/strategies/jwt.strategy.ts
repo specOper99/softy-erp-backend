@@ -15,15 +15,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly authService: AuthService,
     private readonly tokenBlacklistService: TokenBlacklistService,
   ) {
-    const secretOrKey = configService.get<string>('auth.jwtSecret');
-    if (!secretOrKey) {
-      throw new Error('JWT_SECRET is not defined');
-    }
+    const allowedAlgorithms = (configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256')
+      .split(',')
+      .map((a) => a.trim().toUpperCase())
+      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
+
+    const algorithms: Array<'HS256' | 'RS256'> = allowedAlgorithms.length > 0 ? allowedAlgorithms : ['HS256'];
+
+    const secretOrKey = (() => {
+      if (algorithms.includes('RS256')) {
+        const publicKey = configService.get<string>('JWT_PUBLIC_KEY');
+        if (!publicKey) {
+          throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
+        }
+        return publicKey;
+      }
+
+      const hsSecret = configService.get<string>('auth.jwtSecret');
+      if (!hsSecret) {
+        throw new Error('JWT_SECRET is not defined');
+      }
+      return hsSecret;
+    })();
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey,
-      algorithms: ['HS256'], // SECURITY: Prevent JWT algorithm confusion attacks
+      algorithms,
       passReqToCallback: true,
     });
   }

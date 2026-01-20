@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 import { PII } from '../../../common/decorators';
 
 // Password must have: 8+ chars, uppercase, lowercase, number, special char
@@ -19,15 +19,6 @@ export class LoginDto {
   @PII()
   // Note: Don't apply regex validation on login - it reveals password rules
   password: string;
-
-  @ApiPropertyOptional({
-    example: '123456',
-    description: 'MFA Code if enabled',
-  })
-  @IsOptional()
-  @IsString()
-  @Length(6, 12)
-  code?: string;
 
   @ApiPropertyOptional({ description: 'Extend session duration (30 days)' })
   @IsOptional()
@@ -85,9 +76,14 @@ export class AuthResponseDto {
   expiresIn?: number;
 
   @ApiPropertyOptional({
-    description: 'Indicates MFA code is required to verify login',
+    description: 'Indicates MFA verification is required to complete login',
   })
   requiresMfa?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Temporary MFA token (valid for 5 minutes) used to verify TOTP or recovery code',
+  })
+  tempToken?: string;
 
   @ApiPropertyOptional()
   user?: {
@@ -102,12 +98,24 @@ export class LogoutDto {
   @ApiPropertyOptional({
     description: 'Refresh token to revoke (optional, revokes current session)',
   })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
   refreshToken?: string;
 
   @ApiPropertyOptional({
     description: 'If true, revokes all sessions for this user',
   })
+  @IsOptional()
+  @IsBoolean()
   allSessions?: boolean;
+}
+
+export class RevokeOtherSessionsDto {
+  @ApiProperty({ description: 'Current refresh token to keep (revoke all other sessions)' })
+  @IsString()
+  @IsNotEmpty()
+  currentRefreshToken: string;
 }
 
 export class ResendVerificationDto {

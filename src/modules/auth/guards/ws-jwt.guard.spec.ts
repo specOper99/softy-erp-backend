@@ -3,11 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { WsException } from '@nestjs/websockets';
+import { TokenBlacklistService } from '../services/token-blacklist.service';
 import { WsJwtGuard } from './ws-jwt.guard';
 
 describe('WsJwtGuard', () => {
   let guard: WsJwtGuard;
   let jwtService: jest.Mocked<JwtService>;
+  let tokenBlacklistService: jest.Mocked<TokenBlacklistService>;
   // let configService: jest.Mocked<ConfigService>;
 
   const createMockContext = (client: unknown) =>
@@ -30,7 +32,19 @@ describe('WsJwtGuard', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('test-secret'),
+            get: jest.fn((key: string) => {
+              if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
+              if (key === 'JWT_PUBLIC_KEY') return undefined;
+              if (key === 'auth.jwtSecret') return 'test-secret';
+              return undefined;
+            }),
+            getOrThrow: jest.fn().mockReturnValue('test-secret'),
+          },
+        },
+        {
+          provide: TokenBlacklistService,
+          useValue: {
+            isBlacklisted: jest.fn().mockResolvedValue(false),
           },
         },
       ],
@@ -38,6 +52,7 @@ describe('WsJwtGuard', () => {
 
     guard = module.get<WsJwtGuard>(WsJwtGuard);
     jwtService = module.get(JwtService);
+    tokenBlacklistService = module.get(TokenBlacklistService);
     // configService = module.get(ConfigService);
   });
 
@@ -57,15 +72,21 @@ describe('WsJwtGuard', () => {
       const context = createMockContext(client);
       const payload = { sub: 'user-123', email: 'test@example.com' };
 
+      tokenBlacklistService.isBlacklisted.mockResolvedValue(false);
       jwtService.verifyAsync.mockResolvedValue(payload);
 
       const result = await guard.canActivate(context);
 
       expect(result).toBe(true);
       expect(client.data['user']).toEqual(payload);
-      expect(jwtService.verifyAsync).toHaveBeenCalledWith('valid.token', {
-        secret: 'test-secret',
-      });
+      expect(tokenBlacklistService.isBlacklisted).toHaveBeenCalledWith('valid.token');
+      expect(jwtService.verifyAsync).toHaveBeenCalledWith(
+        'valid.token',
+        expect.objectContaining({
+          secret: 'test-secret',
+          algorithms: ['HS256'],
+        }),
+      );
     });
 
     it('should authenticate with Bearer token in headers', async () => {
@@ -79,6 +100,7 @@ describe('WsJwtGuard', () => {
       const context = createMockContext(client);
       const payload = { sub: 'user-123', email: 'test@example.com' };
 
+      tokenBlacklistService.isBlacklisted.mockResolvedValue(false);
       jwtService.verifyAsync.mockResolvedValue(payload);
 
       const result = await guard.canActivate(context);
@@ -112,6 +134,21 @@ describe('WsJwtGuard', () => {
       const context = createMockContext(client);
 
       jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
+
+      await expect(guard.canActivate(context)).rejects.toThrow(WsException);
+    });
+
+    it('should throw WsException when token is blacklisted', async () => {
+      const client = {
+        handshake: {
+          query: { token: 'revoked.token' },
+          headers: {},
+        },
+        data: {},
+      };
+      const context = createMockContext(client);
+
+      tokenBlacklistService.isBlacklisted.mockResolvedValue(true);
 
       await expect(guard.canActivate(context)).rejects.toThrow(WsException);
     });

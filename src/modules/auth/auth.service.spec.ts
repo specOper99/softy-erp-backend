@@ -17,6 +17,7 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { AccountLockoutService } from './services/account-lockout.service';
 import { MfaService } from './services/mfa.service';
+import { MfaTokenService } from './services/mfa-token.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
@@ -56,12 +57,14 @@ describe('AuthService - Comprehensive Tests', () => {
     findByEmail: jest.fn(),
     findByEmailGlobal: jest.fn(),
     findByEmailWithMfaSecret: jest.fn(),
+    findByIdWithMfaSecret: jest.fn(),
+    findByIdWithRecoveryCodes: jest.fn(),
+    findByIdWithRecoveryCodesGlobal: jest.fn(),
     findOne: jest.fn(),
     validatePassword: jest.fn(),
     updateMfaSecret: jest.fn(),
     update: jest.fn(),
     updateMfaRecoveryCodes: jest.fn(),
-    findByIdWithRecoveryCodes: jest.fn(),
   };
 
   const mockTenantsService = {
@@ -96,6 +99,12 @@ describe('AuthService - Comprehensive Tests', () => {
     disableMfa: jest.fn().mockResolvedValue(undefined),
     verifyRecoveryCode: jest.fn().mockResolvedValue(false),
     getRemainingRecoveryCodes: jest.fn().mockResolvedValue(10),
+  };
+
+  const mockMfaTokenService = {
+    createTempToken: jest.fn().mockResolvedValue('test-mfa-temp-token'),
+    getTempToken: jest.fn().mockResolvedValue(undefined),
+    consumeTempToken: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockSessionService = {
@@ -143,6 +152,7 @@ describe('AuthService - Comprehensive Tests', () => {
     rollbackTransaction: jest.fn(),
     release: jest.fn(),
     manager: mockTransactionManager,
+    isTransactionActive: true,
   };
 
   const mockDataSource = {
@@ -181,6 +191,7 @@ describe('AuthService - Comprehensive Tests', () => {
         { provide: TenantsService, useValue: mockTenantsService },
         { provide: TokenService, useValue: mockTokenService },
         { provide: MfaService, useValue: mockMfaService },
+        { provide: MfaTokenService, useValue: mockMfaTokenService },
         { provide: SessionService, useValue: mockSessionService },
         { provide: GeoIpService, useValue: mockGeoIpService },
         {
@@ -223,7 +234,6 @@ describe('AuthService - Comprehensive Tests', () => {
       ],
     }).compile();
 
-    service = module.get<AuthService>(AuthService);
     service = module.get<AuthService>(AuthService);
     _usersService = module.get<UsersService>(UsersService);
     _tenantsService = module.get<TenantsService>(TenantsService);
@@ -279,6 +289,24 @@ describe('AuthService - Comprehensive Tests', () => {
       expect(result.user!.role).toBe(Role.ADMIN);
     });
 
+    it('should fail registration if verification email cannot be sent', async () => {
+      mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
+      mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(null);
+      mockUsersService.createWithManager.mockResolvedValue(mockUser);
+
+      mockMailService.queueEmailVerification.mockRejectedValue(new Error('Mail error'));
+
+      const dto = {
+        email: 'fail@example.com',
+        password: TEST_PASSWORD,
+        companyName: 'Fail Tenant',
+      };
+
+      await expect(service.register(dto)).rejects.toThrow('Mail error');
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+    });
+
     it('should throw ConflictException if user already exists', async () => {
       mockTenantsService.findBySlug.mockRejectedValue(new NotFoundException('Not Found'));
       mockTenantsService.createWithManager.mockResolvedValue(mockTenant);
@@ -319,6 +347,61 @@ describe('AuthService - Comprehensive Tests', () => {
       expect(result.user!.email).toBe(mockUser.email);
     });
 
+    it('should not fail login if suspicious activity check fails', async () => {
+      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(mockUser);
+      mockUsersService.validatePassword.mockResolvedValue(true);
+      mockSessionService.checkSuspiciousActivity.mockRejectedValue(new Error('suspicious check failed'));
+
+      const loggerSpy = jest.spyOn((service as any).logger, 'error');
+
+      const dto = { email: 'test@example.com', password: TEST_PASSWORD };
+
+      await expect(service.login(dto, { ipAddress: '1.2.3.4', userAgent: 'ua' })).resolves.toHaveProperty(
+        'accessToken',
+        'mock-jwt-token',
+      );
+
+      // Wait for promise resolution (catch block)
+      await new Promise(process.nextTick);
+
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Suspicious activity check failed'));
+    });
+
+    it('should not fail login if new device check fails', async () => {
+      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(mockUser);
+      mockUsersService.validatePassword.mockResolvedValue(true);
+      mockSessionService.checkNewDevice.mockRejectedValue(new Error('new device check failed'));
+
+      const loggerSpy = jest.spyOn((service as any).logger, 'error');
+
+      mockTokenService.generateTokens.mockImplementation((_user, context, _rememberMe, onNewDevice) => {
+        if (onNewDevice && context?.userAgent && context?.ipAddress) {
+          // Await the catch block handling if it returns promise, but here it's fire-and-forget inside callback
+          // The service code calls it and attaches .catch
+          onNewDevice(_user.id, context.userAgent, context.ipAddress);
+        }
+        return Promise.resolve({
+          accessToken: 'mock-jwt-token',
+          refreshToken: 'mock-refresh-token',
+          expiresIn: 900,
+        });
+      });
+
+      const dto = { email: 'test@example.com', password: TEST_PASSWORD };
+
+      await expect(service.login(dto, { ipAddress: '1.2.3.4', userAgent: 'ua' })).resolves.toHaveProperty(
+        'accessToken',
+        'mock-jwt-token',
+      );
+
+      expect(mockSessionService.checkNewDevice).toHaveBeenCalled();
+
+      // Wait for promise resolution
+      await new Promise(process.nextTick);
+
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('New device check failed'));
+    });
+
     it('should throw UnauthorizedException for non-existent email', async () => {
       mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(null);
 
@@ -355,6 +438,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
       const result = await service.login(dto);
       expect(result).toHaveProperty('requiresMfa', true);
+      expect(result).toHaveProperty('tempToken', 'test-mfa-temp-token');
       expect(result.accessToken).toBeUndefined();
     });
   });

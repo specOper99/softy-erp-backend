@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { authenticator } from 'otplib';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { MfaService } from './mfa.service';
@@ -27,12 +28,21 @@ describe('MfaService', () => {
       findByIdWithRecoveryCodes: jest.fn(),
     };
 
+    const mockPasswordHashService = {
+      hash: jest.fn().mockImplementation((password: string) => Promise.resolve(`argon2id$${password}_hashed`)),
+      verify: jest.fn().mockResolvedValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MfaService,
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: PasswordHashService,
+          useValue: mockPasswordHashService,
         },
       ],
     }).compile();
@@ -92,13 +102,14 @@ describe('MfaService', () => {
       expect(codes).toHaveLength(10);
       expect(usersService.updateMfaRecoveryCodes).toHaveBeenCalled();
 
-      // Verify hashing happens (we can't easily check the hashed value without bcrypt compare,
-      // but we can check it was called with an array of strings)
+      // Verify hashing happens - now uses Argon2id instead of bcrypt
       const callArgs = usersService.updateMfaRecoveryCodes.mock.calls[0];
-      expect(callArgs[0]).toBe(mockUser.id);
-      expect(Array.isArray(callArgs[1])).toBe(true);
-      expect(callArgs[1]).toHaveLength(10);
-      expect(callArgs[1][0]).not.toBe(codes[0]); // Hashes should be different from plain text
+      expect(callArgs).toBeDefined();
+      expect(callArgs![0]).toBe(mockUser.id);
+      expect(Array.isArray(callArgs![1])).toBe(true);
+      expect(callArgs![1]).toHaveLength(10);
+      // Hashes should be different from plain text (Argon2id hashed)
+      expect(callArgs![1][0]).not.toBe(codes[0]);
     });
   });
 });

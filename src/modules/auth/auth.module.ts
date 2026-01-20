@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CommonModule } from '../../common/common.module';
 import { GeoIpService } from '../../common/services/geoip.service';
 import { MailModule } from '../mail/mail.module';
 import { TenantsModule } from '../tenants/tenants.module';
@@ -13,8 +14,10 @@ import { EmailVerificationToken } from './entities/email-verification-token.enti
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { MfaRequiredGuard } from './guards/mfa-required.guard';
+import { WsJwtGuard } from './guards/ws-jwt.guard';
 import { AccountLockoutService } from './services/account-lockout.service';
 import { MfaService } from './services/mfa.service';
+import { MfaTokenService } from './services/mfa-token.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
@@ -26,6 +29,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     UsersModule,
     TenantsModule,
     MailModule,
+    CommonModule,
     TypeOrmModule.forFeature([RefreshToken, PasswordResetToken, EmailVerificationToken]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -46,6 +50,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AuthService,
     TokenService,
     MfaService,
+    MfaTokenService,
     SessionService,
     PasswordService,
     JwtStrategy,
@@ -53,7 +58,18 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     MfaRequiredGuard,
     GeoIpService,
     TokenBlacklistService,
+    WsJwtGuard,
   ],
-  exports: [AuthService, TokenService, TokenBlacklistService, MfaService, SessionService, JwtModule, MfaRequiredGuard],
+  exports: [
+    AuthService,
+    TokenService,
+    TokenBlacklistService,
+    MfaService,
+    MfaTokenService,
+    SessionService,
+    JwtModule,
+    MfaRequiredGuard,
+    WsJwtGuard,
+  ],
 })
 export class AuthModule {}

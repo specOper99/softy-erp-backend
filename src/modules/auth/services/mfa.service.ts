@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { authenticator } from 'otplib';
 import { toDataURL } from 'qrcode';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { MfaResponseDto } from '../dto';
@@ -11,7 +11,10 @@ import { MfaResponseDto } from '../dto';
 export class MfaService {
   private readonly logger = new Logger(MfaService.name);
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly passwordHashService: PasswordHashService,
+  ) {}
 
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
     const secret = authenticator.generateSecret();
@@ -66,7 +69,8 @@ export class MfaService {
       codes.push(crypto.randomBytes(4).toString('hex').toUpperCase());
     }
 
-    const hashedCodes = await Promise.all(codes.map((code) => bcrypt.hash(code, 12)));
+    // Use Argon2id for recovery code hashing (more efficient than bcrypt for bulk operations)
+    const hashedCodes = await Promise.all(codes.map((code) => this.passwordHashService.hash(code)));
 
     await this.usersService.updateMfaRecoveryCodes(user.id, hashedCodes);
 
@@ -87,7 +91,7 @@ export class MfaService {
     }
 
     for (const hashedCode of userWithCodes.mfaRecoveryCodes) {
-      const isValid = await bcrypt.compare(code, hashedCode);
+      const isValid = await this.passwordHashService.verify(hashedCode, code);
       if (isValid) {
         const updatedCodes = userWithCodes.mfaRecoveryCodes.filter((c) => c !== hashedCode);
         await this.usersService.updateMfaRecoveryCodes(user.id, updatedCodes);
@@ -114,7 +118,8 @@ export class MfaService {
   verifyTotp(secret: string, token: string): boolean {
     try {
       return authenticator.verify({ token, secret });
-    } catch {
+    } catch (error) {
+      this.logger.debug(`TOTP verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
     }
   }

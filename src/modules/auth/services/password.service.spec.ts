@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { MailService } from '../../mail/mail.service';
 import { UsersService } from '../../users/services/users.service';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
@@ -41,6 +42,12 @@ describe('PasswordService', () => {
     },
   };
 
+  const mockPasswordHashService = {
+    hash: jest.fn().mockResolvedValue('argon2id$hashed_password'),
+    verify: jest.fn().mockResolvedValue(true),
+    verifyAndUpgrade: jest.fn().mockResolvedValue({ valid: true, newHash: undefined, upgraded: false }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -64,6 +71,10 @@ describe('PasswordService', () => {
         {
           provide: DataSource,
           useValue: mockDataSource,
+        },
+        {
+          provide: PasswordHashService,
+          useValue: mockPasswordHashService,
         },
       ],
     }).compile();

@@ -12,7 +12,16 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser } from '../../common/decorators';
@@ -26,8 +35,11 @@ import {
   LoginDto,
   LogoutDto,
   MfaResponseDto,
+  MfaVerifyRecoveryDto,
+  MfaVerifyTotpDto,
   RecoveryCodesResponseDto,
   RefreshTokenDto,
+  RevokeOtherSessionsDto,
   RegisterDto,
   ResendVerificationDto,
   ResetPasswordDto,
@@ -37,13 +49,14 @@ import {
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Auth')
+@ApiExtraModels(AuthResponseDto, TokensDto)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @SkipTenant()
-  @Throttle({ default: { limit: 5, ttl: minutes(1) } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 5, ttl: minutes(1) } })
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
@@ -58,11 +71,29 @@ export class AuthController {
 
   @Post('login')
   @SkipTenant()
-  @Throttle({ default: { limit: 5, ttl: minutes(1) } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 5, ttl: minutes(1) } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiOkResponse({
+    description: 'Login successful or MFA challenge required',
+    schema: {
+      oneOf: [
+        {
+          allOf: [
+            { $ref: getSchemaPath(AuthResponseDto) },
+            {
+              properties: {
+                requiresMfa: { type: 'boolean', example: true },
+                tempToken: { type: 'string', example: 'a1b2c3d4e5f6...' },
+              },
+            },
+          ],
+        },
+        { $ref: getSchemaPath(AuthResponseDto) },
+      ],
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async login(@Body() loginDto: LoginDto, @Req() req: Request, @Ip() ip: string): Promise<AuthResponseDto> {
@@ -130,7 +161,23 @@ export class AuthController {
     summary: 'Enable MFA with verification code',
     description: 'Returns recovery codes on success. Store these securely - they are shown only once!',
   })
-  @ApiResponse({ status: 200, description: 'MFA enabled, recovery codes returned' })
+  @ApiOkResponse({
+    description: 'MFA enabled, recovery codes returned',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(RecoveryCodesResponseDto) },
+        {
+          properties: {
+            codes: {
+              type: 'array',
+              items: { type: 'string', example: 'A1B2C3D4' },
+            },
+            remaining: { type: 'number', example: 10 },
+          },
+        },
+      ],
+    },
+  })
   @ApiResponse({ status: 400, description: 'Invalid verification code' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
@@ -150,6 +197,48 @@ export class AuthController {
   @ApiOperation({ summary: 'Disable MFA' })
   async disableMfa(@CurrentUser() user: User): Promise<void> {
     return this.authService.disableMfa(user);
+  }
+
+  @Post('mfa/verify-totp')
+  @SkipTenant()
+  @Throttle({ default: { limit: 5, ttl: minutes(1) } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify MFA using TOTP code',
+    description: 'Complete login by verifying the authenticator app code.',
+  })
+  @ApiBody({ type: MfaVerifyTotpDto })
+  @ApiOkResponse({ description: 'MFA verified, tokens returned', type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid or expired MFA session' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
+  async verifyMfaTotp(@Body() dto: MfaVerifyTotpDto, @Req() req: Request, @Ip() ip: string): Promise<AuthResponseDto> {
+    return this.authService.verifyMfaTotp(dto.tempToken, dto.code, {
+      userAgent: req.headers['user-agent'],
+      ipAddress: ip,
+    });
+  }
+
+  @Post('mfa/verify-recovery')
+  @SkipTenant()
+  @Throttle({ default: { limit: 5, ttl: minutes(1) } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify MFA using recovery code',
+    description: 'Complete login by verifying a recovery code.',
+  })
+  @ApiBody({ type: MfaVerifyRecoveryDto })
+  @ApiOkResponse({ description: 'MFA verified, tokens returned', type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid or expired MFA session' })
+  @ApiResponse({ status: 429, description: 'Too Many Requests' })
+  async verifyMfaRecovery(
+    @Body() dto: MfaVerifyRecoveryDto,
+    @Req() req: Request,
+    @Ip() ip: string,
+  ): Promise<AuthResponseDto> {
+    return this.authService.verifyMfaRecovery(dto.tempToken, dto.code, {
+      userAgent: req.headers['user-agent'],
+      ipAddress: ip,
+    });
   }
 
   @Get('mfa/recovery-codes')
@@ -224,7 +313,8 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke all other sessions (keep current)' })
-  async revokeOtherSessions(@CurrentUser() user: User, @Body() dto: { currentRefreshToken: string }): Promise<void> {
+  @ApiBody({ type: RevokeOtherSessionsDto })
+  async revokeOtherSessions(@CurrentUser() user: User, @Body() dto: RevokeOtherSessionsDto): Promise<void> {
     await this.authService.revokeOtherSessions(user.id, dto.currentRefreshToken);
   }
 

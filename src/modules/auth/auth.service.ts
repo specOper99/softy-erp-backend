@@ -2,7 +2,6 @@ import { BadRequestException, ConflictException, Injectable, Logger, Unauthorize
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
-import { authenticator } from 'otplib';
 import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MailService } from '../mail/mail.service';
@@ -14,6 +13,7 @@ import { AuthResponseDto, LoginDto, MfaResponseDto, RegisterDto, TokensDto } fro
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { AccountLockoutService } from './services/account-lockout.service';
+import { MfaTokenService } from './services/mfa-token.service';
 import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
@@ -24,6 +24,14 @@ import { RequestContext, TokenPayload, TokenService } from './services/token.ser
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
+  /**
+   * Timing attack mitigation:
+   * Generate a unique dummy hash at service instantiation using random bytes.
+   * This prevents attackers from pre-computing timing patterns and ensures
+   * consistent response times regardless of user existence.
+   */
+  private readonly dummyPasswordHash: string;
+
   constructor(
     private readonly usersService: UsersService,
     private readonly tenantsService: TenantsService,
@@ -31,17 +39,20 @@ export class AuthService {
     private readonly mfaService: MfaService,
     private readonly sessionService: SessionService,
     private readonly passwordService: PasswordService,
+    private readonly mfaTokenService: MfaTokenService,
     @InjectRepository(EmailVerificationToken)
     private readonly emailVerificationRepository: Repository<EmailVerificationToken>,
     private readonly dataSource: DataSource,
     private readonly lockoutService: AccountLockoutService,
     private readonly mailService: MailService,
     private readonly tokenBlacklistService: TokenBlacklistService,
-  ) {}
-
-  // A valid bcrypt hash (cost 10) to simulate password check time
-  // This hash corresponds to 'password' or similar, but we never expect it to match
-  private readonly DUMMY_PASSWORD_HASH = '$2b$10$nOUIs5kJ7naTuTFkBy1veuK0kSx.BNfviYuZFt.vl5vU1KbGytp.6';
+  ) {
+    // Generate a unique dummy hash at startup using cryptographically secure random bytes
+    // This is never stored or exposed - it's solely for timing attack mitigation
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    // Use synchronous hash generation at startup (one-time cost)
+    this.dummyPasswordHash = bcrypt.hashSync(randomPassword, 10);
+  }
 
   async register(registerDto: RegisterDto, context?: RequestContext): Promise<AuthResponseDto> {
     const slug = registerDto.companyName
@@ -81,11 +92,9 @@ export class AuthService {
         tenantId: tenantId,
       });
 
-      await queryRunner.commitTransaction();
+      await this.sendVerificationEmail(user);
 
-      this.sendVerificationEmail(user).catch((err: Error) =>
-        this.logger.error(`Failed to send verification email: ${err.message}`),
-      );
+      await queryRunner.commitTransaction();
 
       return this.generateAuthResponse(user, context);
     } catch (error: unknown) {
@@ -122,7 +131,8 @@ export class AuthService {
       // Timing Attack Mitigation:
       // Perform a dummy bcrypt comparison so the response time roughly matches valid users.
       // This prevents attackers from easily enumerating valid email addresses by measuring response latency.
-      await bcrypt.compare(loginDto.password, this.DUMMY_PASSWORD_HASH);
+      // The dummyPasswordHash is generated uniquely at service startup from random bytes.
+      await bcrypt.compare(loginDto.password, this.dummyPasswordHash);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -136,56 +146,56 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const mfaResult = await this.verifyMfaIfEnabled(user, loginDto.code, loginDto.email);
-    if (mfaResult) {
-      return mfaResult;
+    if (user.isMfaEnabled) {
+      const tempToken = await this.mfaTokenService.createTempToken({
+        userId: user.id,
+        tenantId,
+        rememberMe: !!loginDto.rememberMe,
+      });
+
+      return { requiresMfa: true, tempToken };
     }
 
     await this.lockoutService.clearAttempts(loginDto.email);
 
     if (context?.ipAddress) {
-      void this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress);
+      this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress).catch((error) => {
+        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+        this.logger.error(`Suspicious activity check failed: ${message}`);
+      });
     }
 
     return this.generateAuthResponse(user, context, loginDto.rememberMe);
   }
 
-  private async verifyMfaIfEnabled(
-    user: User,
-    code: string | undefined,
-    email: string,
-  ): Promise<AuthResponseDto | null> {
-    if (!user.isMfaEnabled) {
-      return null;
-    }
-
-    if (!code) {
-      return { requiresMfa: true };
-    }
-
-    let isValid = false;
-    try {
-      isValid = authenticator.verify({
-        token: code,
-        secret: user.mfaSecret,
-      });
-    } catch {
-      // TOTP verification failed, will try recovery code next
-    }
-
-    if (!isValid) {
-      const isRecoveryCodeValid = await this.mfaService.verifyRecoveryCode(user, code);
-      if (!isRecoveryCodeValid) {
-        await this.lockoutService.recordFailedAttempt(email);
-        throw new UnauthorizedException('Invalid MFA code or recovery code');
-      }
-    }
-
-    return null;
-  }
-
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
     return this.mfaService.generateMfaSecret(user);
+  }
+
+  async verifyMfaTotp(tempToken: string, code: string, context?: RequestContext): Promise<AuthResponseDto> {
+    return this.verifyMfaCommon(
+      tempToken,
+      code,
+      context,
+      async (userId) => {
+        const user = await this.usersService.findByIdWithMfaSecret(userId);
+        if (!user || !user.mfaSecret) return null;
+        return user;
+      },
+      (user, c) => this.mfaService.verifyTotp(user.mfaSecret, c),
+      'Invalid MFA code',
+    );
+  }
+
+  async verifyMfaRecovery(tempToken: string, code: string, context?: RequestContext): Promise<AuthResponseDto> {
+    return this.verifyMfaCommon(
+      tempToken,
+      code,
+      context,
+      (userId) => this.usersService.findByIdWithRecoveryCodesGlobal(userId),
+      (user, c) => this.mfaService.verifyRecoveryCode(user, c),
+      'Invalid recovery code',
+    );
   }
 
   async enableMfa(user: User, code: string): Promise<string[]> {
@@ -246,7 +256,10 @@ export class AuthService {
       await manager.save(storedToken);
 
       return this.tokenService.generateTokens(user, context, false, (userId, userAgent, ipAddress) => {
-        void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
+        this.sessionService.checkNewDevice(userId, userAgent, ipAddress).catch((error) => {
+          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+          this.logger.error(`New device check failed: ${message}`);
+        });
       });
     });
   }
@@ -354,7 +367,10 @@ export class AuthService {
     rememberMe?: boolean,
   ): Promise<AuthResponseDto> {
     const tokens = await this.tokenService.generateTokens(user, context, rememberMe, (userId, userAgent, ipAddress) => {
-      void this.sessionService.checkNewDevice(userId, userAgent, ipAddress);
+      this.sessionService.checkNewDevice(userId, userAgent, ipAddress).catch((error) => {
+        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+        this.logger.error(`New device check failed: ${message}`);
+      });
     });
 
     return {
@@ -386,5 +402,54 @@ export class AuthService {
       name: user.email,
       token,
     });
+  }
+
+  private async verifyMfaCommon(
+    tempToken: string,
+    code: string,
+    context: RequestContext | undefined,
+    fetchUser: (userId: string) => Promise<User | null>,
+    verifyFn: (user: User, code: string) => Promise<boolean> | boolean,
+    errorMessage: string,
+  ): Promise<AuthResponseDto> {
+    const tempPayload = await this.mfaTokenService.getTempToken(tempToken);
+    if (!tempPayload) {
+      throw new UnauthorizedException('MFA session expired or invalid. Please login again.');
+    }
+
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new UnauthorizedException('tenants.tenant_id_required');
+    }
+
+    if (tempPayload.tenantId !== tenantId) {
+      throw new UnauthorizedException('Invalid MFA session tenant');
+    }
+
+    const user = await fetchUser(tempPayload.userId);
+    if (!user || user.tenantId !== tenantId) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Check specific conditions if needed (like mfaSecret existence) inside the fetchUser or verifyFn
+    // But for basic user validity, the above is enough.
+
+    const isValid = await verifyFn(user, code);
+    if (!isValid) {
+      await this.lockoutService.recordFailedAttempt(user.email);
+      throw new UnauthorizedException(errorMessage);
+    }
+
+    await this.mfaTokenService.consumeTempToken(tempToken);
+    await this.lockoutService.clearAttempts(user.email);
+
+    if (context?.ipAddress) {
+      this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress).catch((error) => {
+        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+        this.logger.error(`Suspicious activity check failed: ${message}`);
+      });
+    }
+
+    return this.generateAuthResponse(user, context, tempPayload.rememberMe);
   }
 }

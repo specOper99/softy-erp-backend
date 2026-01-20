@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { MailService } from '../../mail/mail.service';
 import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
@@ -20,6 +20,7 @@ export class PasswordService {
     private readonly dataSource: DataSource,
     private readonly mailService: MailService,
     private readonly tokenService: TokenService,
+    private readonly passwordHashService: PasswordHashService,
   ) {}
 
   async forgotPassword(email: string): Promise<void> {
@@ -83,7 +84,8 @@ export class PasswordService {
       throw new BadRequestException('User not found');
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 12);
+    // Use Argon2id instead of deprecated bcrypt
+    const passwordHash = await this.passwordHashService.hash(newPassword);
     await this.dataSource.manager.update(User, { id: user.id }, { passwordHash });
 
     await this.passwordResetRepository.update({ id: resetToken.id }, { used: true });

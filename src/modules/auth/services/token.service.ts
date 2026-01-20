@@ -32,8 +32,8 @@ export class TokenService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
   ) {
-    this.accessTokenExpiresIn = this.configService.get<number>('auth.jwtAccessExpires', 900);
-    this.refreshTokenExpiresIn = this.configService.get<number>('auth.jwtRefreshExpires', 7);
+    this.accessTokenExpiresIn = this.configService.get<number>('auth.jwtAccessExpiresSeconds', 900);
+    this.refreshTokenExpiresIn = this.configService.get<number>('auth.jwtRefreshExpiresDays', 7);
   }
 
   async generateTokens(
