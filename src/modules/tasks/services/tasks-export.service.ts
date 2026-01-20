@@ -15,7 +15,7 @@ export class TasksExportService {
   ) {}
 
   async exportToCSV(res: Response): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const queryStream = await this.taskRepository
       .createQueryBuilder('task')
@@ -58,7 +58,7 @@ export class TasksExportService {
       };
     };
 
-    this.exportService.streamFromStream(
+    await this.exportService.streamFromStream(
       res,
       queryStream,
       `tasks-export-${new Date().toISOString().split('T')[0]}.csv`,

@@ -43,7 +43,7 @@ describe('TasksExportService', () => {
 
     service = module.get<TasksExportService>(TasksExportService);
 
-    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue('tenant-123');
   });
 
   afterEach(() => {

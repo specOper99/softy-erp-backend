@@ -43,6 +43,7 @@ describe('TasksService - Comprehensive Tests', () => {
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
@@ -126,11 +127,20 @@ describe('TasksService - Comprehensive Tests', () => {
       return Promise.resolve(null);
     });
 
-    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue('tenant-123');
   });
 
   // ============ FIND OPERATIONS TESTS ============
   describe('findAll', () => {
+    it('scopes findAll() by tenantId', async () => {
+      const tenantId = 'tenant-123';
+      jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
+
+      await service.findAll();
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('task.tenantId = :tenantId', { tenantId });
+    });
+
     it('should return all tasks with relations', async () => {
       const result = await service.findAll();
       expect(result).toEqual([mockTask]);
@@ -142,6 +152,7 @@ describe('TasksService - Comprehensive Tests', () => {
       const mockQb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
@@ -159,6 +170,7 @@ describe('TasksService - Comprehensive Tests', () => {
       const mockQb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
@@ -187,6 +199,32 @@ describe('TasksService - Comprehensive Tests', () => {
       mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
       const result = await service.findByBooking('booking-uuid-123');
       expect(result).toHaveLength(1);
+      expect(mockTaskRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { bookingId: 'booking-uuid-123' },
+          take: 100,
+        }),
+      );
+    });
+
+    it('should clamp limit to max 100', async () => {
+      mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
+      await service.findByBooking('booking-uuid-123', 1000);
+      expect(mockTaskRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100,
+        }),
+      );
+    });
+
+    it('should clamp limit to min 1', async () => {
+      mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
+      await service.findByBooking('booking-uuid-123', 0);
+      expect(mockTaskRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 1,
+        }),
+      );
     });
 
     it('should return empty array for booking with no tasks', async () => {
@@ -201,6 +239,32 @@ describe('TasksService - Comprehensive Tests', () => {
       mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
       const result = await service.findByUser('user-uuid-123');
       expect(result.length).toBe(1);
+      expect(mockTaskRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { assignedUserId: 'user-uuid-123' },
+          take: 100,
+        }),
+      );
+    });
+
+    it('should clamp limit to max 100', async () => {
+      mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
+      await service.findByUser('user-uuid-123', 1000);
+      expect(mockTaskRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100,
+        }),
+      );
+    });
+
+    it('should clamp limit to min 1', async () => {
+      mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
+      await service.findByUser('user-uuid-123', 0);
+      expect(mockTaskRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 1,
+        }),
+      );
     });
 
     it('should return empty array for user with no tasks', async () => {
@@ -224,6 +288,19 @@ describe('TasksService - Comprehensive Tests', () => {
         dueDate: '2025-01-15T10:00:00Z',
       });
       expect(mockTaskRepository.save).toHaveBeenCalled();
+    });
+
+    it('should reject reassignment via update', async () => {
+      mockTaskRepository.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        assignedUserId: 'user-uuid-123',
+      } as Task);
+
+      await expect(
+        service.update('task-uuid-123', {
+          assignedUserId: 'user-uuid-999',
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException for non-existent task', async () => {

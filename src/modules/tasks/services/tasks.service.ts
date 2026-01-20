@@ -26,6 +26,9 @@ import { TaskRepository } from '../repositories/task.repository';
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
 
+  private static readonly MAX_LIST_LIMIT = 100;
+  private static readonly DEFAULT_LIST_LIMIT = 100;
+
   constructor(
     private readonly taskRepository: TaskRepository,
     private readonly financeService: FinanceService,
@@ -37,31 +40,18 @@ export class TasksService {
   ) {}
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<Task[]> {
-    const tenantId = TenantContextService.getTenantId();
-    const qb = this.taskRepository.createQueryBuilder('task');
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const qb = this.createTaskBaseQuery(tenantId);
 
-    qb.leftJoinAndSelect('task.booking', 'booking')
-      .leftJoinAndSelect('booking.client', 'client')
-      .leftJoinAndSelect('task.taskType', 'taskType')
-      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
-      .where('task.tenantId = :tenantId', { tenantId })
-      .orderBy('task.createdAt', 'DESC')
-      .skip(query.getSkip())
-      .take(query.getTake());
+    qb.orderBy('task.createdAt', 'DESC').skip(query.getSkip()).take(query.getTake());
 
     return qb.getMany();
   }
 
   async findAllCursor(query: CursorPaginationDto): Promise<{ data: Task[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    const qb = this.taskRepository.createQueryBuilder('task');
-
-    qb.leftJoinAndSelect('task.booking', 'booking')
-      .leftJoinAndSelect('booking.client', 'client')
-      .leftJoinAndSelect('task.taskType', 'taskType')
-      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
-      .where('task.tenantId = :tenantId', { tenantId });
+    const qb = this.createTaskBaseQuery(tenantId);
 
     return CursorPaginationHelper.paginate(qb, {
       cursor: query.cursor,
@@ -82,20 +72,28 @@ export class TasksService {
   }
 
   async findByBooking(bookingId: string, limit = 100): Promise<Task[]> {
+    const take = this.normalizeListLimit(limit);
     return this.taskRepository.find({
       where: { bookingId },
       relations: ['taskType', 'assignedUser', 'booking', 'booking.client'],
-      take: limit,
+      take,
     });
   }
 
   async findByUser(userId: string, limit = 100): Promise<Task[]> {
+    const take = this.normalizeListLimit(limit);
     return this.taskRepository.find({
       where: { assignedUserId: userId },
       relations: ['booking', 'booking.client', 'taskType'],
       order: { dueDate: 'ASC' },
-      take: limit,
+      take,
     });
+  }
+
+  private normalizeListLimit(limit: number | undefined): number {
+    const candidate =
+      typeof limit === 'number' && Number.isFinite(limit) ? Math.floor(limit) : TasksService.DEFAULT_LIST_LIMIT;
+    return Math.max(1, Math.min(TasksService.MAX_LIST_LIMIT, candidate));
   }
 
   async exportToCSV(res: Response): Promise<void> {
@@ -124,6 +122,10 @@ export class TasksService {
       task.dueDate = new Date(dto.dueDate);
     }
 
+    if (dto.assignedUserId !== undefined && dto.assignedUserId !== task.assignedUserId) {
+      throw new BadRequestException('Task reassignment must use the assign endpoint');
+    }
+
     // Guard against unauthorized status changes
     if ('status' in dto) {
       throw new BadRequestException('Status updates must use dedicated endpoints (start/complete)');
@@ -137,35 +139,14 @@ export class TasksService {
   }
 
   async assignTask(id: string, dto: AssignTaskDto): Promise<Task> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('Tenant context is required');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: Acquire lock (without relations due to FOR UPDATE limitation)
-      const taskLock = await queryRunner.manager.findOne(Task, {
-        where: { id, tenantId },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!taskLock) {
-        throw new NotFoundException(`Task with ID ${id} not found`);
-      }
-
-      // Step 2: Fetch actual data with relations
-      const task = await queryRunner.manager.findOne(Task, {
-        where: { id, tenantId },
-        relations: ['booking', 'taskType', 'assignedUser'],
-      });
-
-      if (!task) {
-        throw new NotFoundException(`Task with ID ${id} not found`);
-      }
+      const task = await this.findTaskWithLock(queryRunner.manager, id, tenantId);
 
       const oldUserId = task.assignedUserId;
 
@@ -195,7 +176,7 @@ export class TasksService {
           new TaskAssignedEvent(
             task.id,
             tenantId,
-            assignedUser.email.split('@')[0] ?? assignedUser.email, // name approximation or real name if available? Helper used email split.
+            assignedUser.email,
             assignedUser.email,
             task.taskType.name,
             task.booking.client?.name || 'Client',
@@ -302,7 +283,7 @@ export class TasksService {
    * 5. Rollback all on failure
    */
   async completeTask(id: string, user: User): Promise<CompleteTaskResponseDto> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -313,24 +294,7 @@ export class TasksService {
       // Step 1: Acquire pessimistic lock to prevent race conditions
       // Note: We MUST NOT include relations here because "FOR UPDATE" cannot be
       // applied to the nullable side of an outer join (which TypeORM uses for relations)
-      const taskLock = await queryRunner.manager.findOne(Task, {
-        where: { id, tenantId },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!taskLock) {
-        throw new NotFoundException(`Task with ID ${id} not found`);
-      }
-
-      // Step 2: Fetch actual data with relations now that we have the lock
-      const task = await queryRunner.manager.findOne(Task, {
-        where: { id, tenantId },
-        relations: ['booking', 'taskType', 'assignedUser'],
-      });
-
-      if (!task) {
-        throw new NotFoundException(`Task with ID ${id} not found`);
-      }
+      const task = await this.findTaskWithLock(queryRunner.manager, id, tenantId);
 
       this.assertCanUpdateTaskStatus(user, task);
 
@@ -418,5 +382,44 @@ export class TasksService {
     }
 
     throw new ForbiddenException('Not allowed');
+  }
+
+  private createTaskBaseQuery(tenantId: string) {
+    return this.taskRepository
+      .createQueryBuilder('task')
+      .leftJoinAndSelect('task.booking', 'booking')
+      .leftJoinAndSelect('booking.client', 'client')
+      .leftJoinAndSelect('task.taskType', 'taskType')
+      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
+      .andWhere('task.tenantId = :tenantId', { tenantId });
+  }
+
+  private async findTaskWithLock(
+    manager: import('typeorm').EntityManager,
+    id: string,
+    tenantId: string,
+    relations: string[] = ['booking', 'taskType', 'assignedUser'],
+  ): Promise<Task> {
+    // Step 1: Acquire pessimistic lock (without relations due to FOR UPDATE limitation)
+    const taskLock = await manager.findOne(Task, {
+      where: { id, tenantId },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!taskLock) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    // Step 2: Fetch actual data with relations
+    const task = await manager.findOne(Task, {
+      where: { id, tenantId },
+      relations,
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    return task;
   }
 }
