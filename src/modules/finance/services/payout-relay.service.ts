@@ -74,47 +74,18 @@ export class PayoutRelayService {
   private async processSinglePayout(payout: Payout): Promise<void> {
     const loggerMetadata = { payoutId: payout.id, tenantId: payout.tenantId };
 
-    // Set tenant context for this operation to ensure proper isolation if needed downstream
-    // Although services usually rely on injected repositories which are tenant-aware IF they use RequestScope,
-    // but here we are in a Cron job.
-    // FinanceService and WalletService methods usually require TenantContext.
-    // We must manually set it.
     await TenantContextService.run(payout.tenantId, async () => {
       try {
-        // 1. Call Payment Gateway
-        // We need to parse the reference ID to get details or store them in Payout entity?
-        // The current implementation of MockPaymentGatewayService takes specific details.
-        // Payout entity doesn't store 'bankAccount' or 'employeeName'.
-        // PROBLEM: We are missing data in Payout entity to call the gateway!
-        // The original plan didn't account for storing bank account info in Payout.
-        // OPTION 1: Add metadata/jsonb column to Payout.
-        // OPTION 2: Fetch profile using proper ID from reference or similar? No, referencing is weak.
+        const metadata = this.getPayoutMetadata(payout);
+        if (!metadata) {
+          this.logger.error(`Payout ${payout.id} missing or invalid metadata`, loggerMetadata);
+          await this.failPayout(payout, 'Missing or invalid metadata');
+          return;
+        }
 
-        // I should have noticed this in planning.
-        // Payout entity needs to store destination details or we need to look them up.
-        // Looking up is better for consistency (user might have changed bank account), but worse for immutability (payout should go to where it was intended).
-        // Best practice: Store snapshot of destination at time of creation.
-        // I will add a `metadata` jsonb column to Payout to store these details.
-
-        // Wait, I cannot modify entity again easily without updating plan/task.
-        // Let's look at `Payout` entity again. It has `notes`. I could technically stuff JSON in there but that's ugly.
-        // Or I can add `metadata` column now.
-        // Or I can fetch the User/Profile.
-        // PayrollService constructed referenceId: `${tenantId}-${profile.id}-${date}`.
-        // Parsing that is brittle.
-
-        // Decided: I will add `metadata` column to Payout entity. It is a necessary change.
-        // I will do it as part of this step.
-
-        // For now, I will write the code assuming `metadata` exists and then I will update the Entity.
-
-        const metadata = payout.metadata as { employeeName: string; bankAccount: string; referenceId: string };
-
-        if (!metadata || !metadata.bankAccount) {
-          this.logger.error(`Payout ${payout.id} missing metadata`, loggerMetadata);
-          // Mark as FAILED or requires manual intervention?
-          // Let's mark FAILED for now.
-          await this.failPayout(payout, 'Missing metadata');
+        if (metadata.bankAccount === 'NO_BANK_ACCOUNT') {
+          this.logger.error(`Payout ${payout.id} has no bank account on file`, loggerMetadata);
+          await this.failPayout(payout, 'Missing bank account');
           return;
         }
 
@@ -122,7 +93,7 @@ export class PayoutRelayService {
           employeeName: metadata.employeeName,
           bankAccount: metadata.bankAccount,
           amount: Number(payout.amount),
-          referenceId: metadata.referenceId || `PAYOUT-${payout.id}`,
+          referenceId: metadata.referenceId,
         });
 
         if (gatewayResult.success) {
@@ -132,15 +103,36 @@ export class PayoutRelayService {
         }
       } catch (error) {
         this.logger.error(`Error processing payout ${payout.id}`, error);
-        // If critical error, maybe don't fail immediately, but for consistency loop, maybe we should?
-        // If it's a transient error, we leave it PENDING for next retry?
-        // But if we already called gateway and it succeeded but this failed?
-        // We don't know if gateway succeeded if it threw.
-        // MockGateway doesn't throw, it returns success: false.
-        // So this catch block is for other errors.
-        // Leave PENDING to retry.
       }
     });
+  }
+
+  private getPayoutMetadata(
+    payout: Payout,
+  ): { userId: string; employeeName: string; bankAccount: string; referenceId: string } | null {
+    const metadataUnknown: unknown = payout.metadata;
+    if (!metadataUnknown || typeof metadataUnknown !== 'object') return null;
+
+    const metadata = metadataUnknown as Record<string, unknown>;
+
+    const userId = metadata.userId;
+    const bankAccount = metadata.bankAccount;
+    const referenceId = metadata.referenceId;
+    const employeeName = metadata.employeeName;
+
+    if (typeof userId !== 'string' || userId.length === 0) return null;
+    if (typeof bankAccount !== 'string' || bankAccount.length === 0) return null;
+
+    const finalReferenceId =
+      typeof referenceId === 'string' && referenceId.length > 0 ? referenceId : `PAYOUT-${payout.id}`;
+    const finalEmployeeName = typeof employeeName === 'string' && employeeName.length > 0 ? employeeName : 'Employee';
+
+    return {
+      userId,
+      employeeName: finalEmployeeName,
+      bankAccount,
+      referenceId: finalReferenceId,
+    };
   }
 
   private async completePayout(payout: Payout, transactionReference?: string): Promise<void> {
@@ -170,10 +162,6 @@ export class PayoutRelayService {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Failed to complete payout ${payout.id} in DB`, error);
-      // This is the critical "Gateway Success, DB Fail" case.
-      // In a perfect world, we'd have a separate reconciliation job for "Processing" state.
-      // Here, we just log it. The payout remains PENDING (or we should have moved it to PROCESSING first).
-      // For simplicity of this task, relying on idempotency of gateway or manual cleanup.
       throw error;
     } finally {
       await queryRunner.release();
@@ -190,22 +178,8 @@ export class PayoutRelayService {
       payout.notes = `${payout.notes || ''} | Failed: ${reason}`;
       await queryRunner.manager.save(payout);
 
-      // Refund Wallet
-      // We need userId. Again, missing from Payout entity direct link (it links to Tenant).
-      // Actually, we need to know WHICH user.
-      // Payout entity usually doesn't link to User directly?
-      // Let's check Payout entity again.
-      // It extends BaseTenantEntity.
-      // It has `transactions`.
-      // It does NOT have userId.
-
-      // ISSUE: We need userId to refund.
-      // We can store userId in `metadata` or add a column.
-      // I will add `user_id` column to Payout or use metadata.
-      // Metadata is flexible.
-      const metadata = payout.metadata as { userId: string };
-
-      if (metadata && metadata.userId) {
+      const metadata = this.getPayoutMetadata(payout);
+      if (metadata) {
         const commissionAmount = Number(payout.commissionAmount) || 0;
         if (commissionAmount > 0) {
           await this.walletService.refundPayableBalance(queryRunner.manager, metadata.userId, commissionAmount);

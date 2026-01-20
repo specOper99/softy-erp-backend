@@ -20,6 +20,7 @@ describe('RecurringTransactionService', () => {
   let service: RecurringTransactionService;
   let recurringRepo: MockRepository<RecurringTransaction>;
   let financeService: jest.Mocked<FinanceService>;
+  let rawRecurringRepo: { find: jest.Mock };
 
   const mockTenantId = 'tenant-123';
   const mockRecurringTransaction = createMockRecurringTransaction({
@@ -38,6 +39,10 @@ describe('RecurringTransactionService', () => {
   }) as unknown as RecurringTransaction;
 
   beforeEach(async () => {
+    rawRecurringRepo = {
+      find: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RecurringTransactionService,
@@ -55,6 +60,7 @@ describe('RecurringTransactionService', () => {
           provide: DataSource,
           useValue: {
             query: jest.fn().mockResolvedValue([{ acquired: true }]),
+            getRepository: jest.fn().mockReturnValue(rawRecurringRepo),
             createQueryRunner: jest.fn().mockReturnValue({
               connect: jest.fn(),
               startTransaction: jest.fn(),
@@ -184,7 +190,7 @@ describe('RecurringTransactionService', () => {
   describe('processDueTransactions', () => {
     it('should process due transactions', async () => {
       const dueTransactions = [{ ...mockRecurringTransaction }];
-      recurringRepo.find.mockResolvedValue(dueTransactions);
+      rawRecurringRepo.find.mockResolvedValue(dueTransactions);
       financeService.createSystemTransaction.mockResolvedValue({
         id: 'tx-1',
       } as Transaction);
@@ -201,7 +207,7 @@ describe('RecurringTransactionService', () => {
 
     it('should handle errors gracefully', async () => {
       const dueTransactions = [{ ...mockRecurringTransaction }];
-      recurringRepo.find.mockResolvedValue(dueTransactions);
+      rawRecurringRepo.find.mockResolvedValue(dueTransactions);
       financeService.createSystemTransaction.mockRejectedValue(new Error('Failed'));
 
       // Should not throw

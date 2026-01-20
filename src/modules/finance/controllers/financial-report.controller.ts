@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
+import { PdfUtils } from '../../../common/utils/pdf.utils';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
@@ -34,12 +35,7 @@ export class FinancialReportController {
     const data = await this.financialReportService.getProfitAndLoss(filter);
     const pdfBytes = await this.reportGeneratorService.generatePnLPdf(data);
 
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename=profit_and_loss.pdf',
-      'Content-Length': pdfBytes.length,
-    });
-    res.end(Buffer.from(pdfBytes));
+    PdfUtils.sendPdfResponse(res, pdfBytes, 'profit_and_loss.pdf');
   }
 
   @Get('revenue-by-package')
@@ -54,11 +50,6 @@ export class FinancialReportController {
     const data = await this.analyticsService.getRevenueByPackage(filter);
     const pdfBytes = await this.reportGeneratorService.generateRevenueByPackagePdf(data);
 
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename=revenue_by_package.pdf',
-      'Content-Length': pdfBytes.length,
-    });
-    res.end(Buffer.from(pdfBytes));
+    PdfUtils.sendPdfResponse(res, pdfBytes, 'revenue_by_package.pdf');
   }
 }

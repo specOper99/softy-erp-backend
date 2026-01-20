@@ -18,7 +18,7 @@ export class InvoiceService {
   ) {}
 
   async createInvoice(bookingId: string): Promise<Invoice> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const booking = await this.bookingRepository.findOne({
       where: { id: bookingId, tenantId },

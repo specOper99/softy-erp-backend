@@ -1,4 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
+import { MoneyColumn, PercentColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
@@ -64,58 +65,22 @@ export class Invoice extends BaseTenantEntity {
   @Column({ type: 'jsonb', default: [] })
   items: InvoiceLineItem[];
 
-  @Column({
-    name: 'sub_total',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('sub_total')
   subTotal: number;
 
-  @Column({
-    name: 'tax_rate',
-    type: 'decimal',
-    precision: 5,
-    scale: 2,
-    default: 0,
-  })
+  @PercentColumn('tax_rate')
   taxRate: number;
 
-  @Column({
-    name: 'tax_total',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('tax_total')
   taxTotal: number;
 
-  @Column({
-    name: 'total_amount',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('total_amount')
   totalAmount: number;
 
-  @Column({
-    name: 'amount_paid',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('amount_paid')
   amountPaid: number;
 
-  @Column({
-    name: 'balance_due',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  @MoneyColumn('balance_due')
   balanceDue: number;
 
   @Column({ name: 'pdf_url', type: 'varchar', nullable: true })

@@ -197,6 +197,41 @@ describe('FinanceService - Comprehensive Tests', () => {
       expect(result.type).toBe(TransactionType.INCOME);
     });
 
+    it('should reject amounts with more than 2 decimal places (exponential notation)', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: 1e-7,
+        category: 'Booking Payment',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      await expect(service.createTransaction(dto)).rejects.toThrow('finance.amount_precision_error');
+    });
+
+    it('should accept valid exponential notation amount within precision', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: 1e-2,
+        category: 'Booking Payment',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      const result = await service.createTransaction(dto);
+      expect(result).toHaveProperty('id');
+    });
+
+    it('should reject unsupported currency values', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: 100,
+        currency: 'IQD' as unknown as Currency,
+        category: 'Booking Payment',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      await expect(service.createTransaction(dto)).rejects.toThrow('finance.unsupported_currency');
+    });
+
     it('should create EXPENSE transaction', async () => {
       const dto = {
         type: TransactionType.EXPENSE,

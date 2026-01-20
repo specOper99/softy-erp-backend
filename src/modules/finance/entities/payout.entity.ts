@@ -6,12 +6,16 @@ import { Transaction } from './transaction.entity';
 
 @Entity('payouts')
 @Index(['tenantId', 'id'], { unique: true })
+@Index(['tenantId', 'idempotencyKey'], { unique: true })
 export class Payout extends BaseTenantEntity {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: number;
 
   @Column({ name: 'commission_amount', type: 'decimal', precision: 12, scale: 2, default: 0 })
   commissionAmount: number;
+
+  @Column({ name: 'idempotency_key', type: 'text', nullable: true })
+  idempotencyKey: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, string | number | boolean | null> | null;
@@ -22,7 +26,7 @@ export class Payout extends BaseTenantEntity {
   @Column({
     type: 'enum',
     enum: PayoutStatus,
-    default: PayoutStatus.COMPLETED,
+    default: PayoutStatus.PENDING,
   })
   status: PayoutStatus;
 

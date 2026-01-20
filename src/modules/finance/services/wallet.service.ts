@@ -121,23 +121,10 @@ export class WalletService {
    * @throws Error if called outside transaction
    */
   async addPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
-    this.assertTransactionActive(manager, 'addPendingCommission');
     if (amount <= 0) {
       throw new BadRequestException('wallet.commission_must_be_positive');
     }
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    let wallet = await manager.findOne(EmployeeWallet, {
-      where: { userId, tenantId },
-      lock: { mode: 'pessimistic_write' },
-    });
-    if (!wallet) {
-      wallet = manager.create(EmployeeWallet, {
-        userId,
-        pendingBalance: 0,
-        payableBalance: 0,
-        tenantId,
-      });
-    }
+    const wallet = await this.getWalletWithLock(manager, userId, 'addPendingCommission', true);
     wallet.pendingBalance = MathUtils.add(Number(wallet.pendingBalance), Number(amount));
     return manager.save(wallet);
   }
@@ -149,18 +136,10 @@ export class WalletService {
    * @throws Error if called outside transaction
    */
   async subtractPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
-    this.assertTransactionActive(manager, 'subtractPendingCommission');
     if (amount <= 0) {
       throw new BadRequestException('wallet.commission_must_be_positive');
     }
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const wallet = await manager.findOne(EmployeeWallet, {
-      where: { userId, tenantId },
-      lock: { mode: 'pessimistic_write' },
-    });
-    if (!wallet) {
-      throw new NotFoundException(`Wallet not found for user ${userId}`);
-    }
+    const wallet = await this.getWalletWithLock(manager, userId, 'subtractPendingCommission');
     const newBalance = MathUtils.subtract(Number(wallet.pendingBalance), Number(amount));
 
     // L-08: Log warning if balance would go negative (potential accounting issue)
@@ -180,18 +159,10 @@ export class WalletService {
    * @throws Error if called outside transaction
    */
   async moveToPayable(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
-    this.assertTransactionActive(manager, 'moveToPayable');
     if (amount <= 0) {
       throw new BadRequestException('wallet.transfer_must_be_positive');
     }
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const wallet = await manager.findOne(EmployeeWallet, {
-      where: { userId, tenantId },
-      lock: { mode: 'pessimistic_write' },
-    });
-    if (!wallet) {
-      throw new NotFoundException(`Wallet not found for user ${userId}`);
-    }
+    const wallet = await this.getWalletWithLock(manager, userId, 'moveToPayable');
 
     // Validate sufficient pending balance before transfer
     const currentPending = Number(wallet.pendingBalance);
@@ -214,15 +185,7 @@ export class WalletService {
    * @throws Error if called outside transaction
    */
   async resetPayableBalance(manager: EntityManager, userId: string): Promise<EmployeeWallet> {
-    this.assertTransactionActive(manager, 'resetPayableBalance');
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const wallet = await manager.findOne(EmployeeWallet, {
-      where: { userId, tenantId },
-      lock: { mode: 'pessimistic_write' },
-    });
-    if (!wallet) {
-      throw new NotFoundException(`Wallet not found for user ${userId}`);
-    }
+    const wallet = await this.getWalletWithLock(manager, userId, 'resetPayableBalance');
     wallet.payableBalance = 0;
     return manager.save(wallet);
   }
@@ -233,21 +196,12 @@ export class WalletService {
    * @throws Error if called outside transaction
    */
   async refundPayableBalance(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
-    this.assertTransactionActive(manager, 'refundPayableBalance');
     if (amount <= 0) {
       // If amount is 0, nothing to refund, but we should validate
       return this.getOrCreateWalletWithManager(manager, userId);
     }
 
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const wallet = await manager.findOne(EmployeeWallet, {
-      where: { userId, tenantId },
-      lock: { mode: 'pessimistic_write' },
-    });
-
-    if (!wallet) {
-      throw new NotFoundException(`Wallet not found for user ${userId}`);
-    }
+    const wallet = await this.getWalletWithLock(manager, userId, 'refundPayableBalance');
 
     wallet.payableBalance = MathUtils.add(Number(wallet.payableBalance), amount);
     this.logger.log(`Refunded $${amount} to user ${userId} payable balance`);
@@ -262,5 +216,34 @@ export class WalletService {
     if (!manager.queryRunner?.isTransactionActive) {
       throw new Error(`${methodName} must be called within an active transaction context`);
     }
+  }
+
+  private async getWalletWithLock(
+    manager: EntityManager,
+    userId: string,
+    methodName: string,
+    createIfMissing = false,
+  ): Promise<EmployeeWallet> {
+    this.assertTransactionActive(manager, methodName);
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    let wallet = await manager.findOne(EmployeeWallet, {
+      where: { userId, tenantId },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!wallet) {
+      if (createIfMissing) {
+        wallet = manager.create(EmployeeWallet, {
+          userId,
+          pendingBalance: 0,
+          payableBalance: 0,
+          tenantId,
+        });
+      } else {
+        throw new NotFoundException(`Wallet not found for user ${userId}`);
+      }
+    }
+    return wallet;
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { MathUtils } from '../../../common/utils/math.utils';
 import { BudgetResponseDto, CreateBudgetDto, FinancialReportFilterDto } from '../dto';
 import { DepartmentBudget } from '../entities/department-budget.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
@@ -110,16 +111,16 @@ export class FinancialReportService {
       }>();
 
     const reportData: PnLEntry[] = result.map((row) => {
-      const income = parseFloat(row.income) || 0;
-      const expenses = parseFloat(row.expenses) || 0;
-      const payroll = parseFloat(row.payroll) || 0;
+      const income = MathUtils.parseFinancialAmount(row.income);
+      const expenses = MathUtils.parseFinancialAmount(row.expenses);
+      const payroll = MathUtils.parseFinancialAmount(row.payroll);
 
       return {
         period: row.period,
         income,
         expenses,
         payroll,
-        net: income - expenses - payroll,
+        net: MathUtils.subtract(MathUtils.subtract(income, expenses), payroll),
       };
     });
 
@@ -174,7 +175,7 @@ export class FinancialReportService {
     // Create a map for O(1) lookup instead of N lookups
     const spendingMap = new Map<string, number>();
     for (const row of spendingByDepartment) {
-      spendingMap.set(row.department, parseFloat(row.total || '0'));
+      spendingMap.set(row.department, MathUtils.parseFinancialAmount(row.total));
     }
 
     // Build report using the map - O(n) instead of O(n²)

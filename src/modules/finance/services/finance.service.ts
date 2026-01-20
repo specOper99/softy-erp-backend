@@ -7,6 +7,7 @@ import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
+import Decimal from 'decimal.js';
 
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TenantsService } from '../../tenants/tenants.service';
@@ -85,7 +86,7 @@ export class FinanceService {
    * Validates transaction amount with comprehensive checks for financial operations.
    * Prevents fraud, rounding errors, and data corruption.
    */
-  private validateTransactionAmount(amount: number, currency?: string): void {
+  private validateTransactionAmount(amount: number, currency?: Currency): void {
     // Must be a valid finite number
     if (!Number.isFinite(amount)) {
       throw new BadRequestException('finance.amount_must_be_valid_number');
@@ -96,17 +97,21 @@ export class FinanceService {
       throw new BadRequestException('finance.amount_must_be_positive');
     }
 
-    // Currency-specific decimal precision
-    const precision = currency === 'IQD' ? 0 : 2;
-    const [_integer, decimal] = amount.toString().split('.');
-    if (decimal && decimal.length > precision) {
+    if (currency && !Object.values(Currency).includes(currency)) {
+      throw new BadRequestException('finance.unsupported_currency');
+    }
+
+    // Currency-specific decimal precision (currently all supported currencies use 2 dp)
+    const precision = 2;
+    const decimalAmount = new Decimal(String(amount));
+    if (!decimalAmount.toDecimalPlaces(precision).equals(decimalAmount)) {
       throw new BadRequestException(
         `finance.amount_precision_error: Maximum ${precision} decimal places allowed for ${currency || 'default currency'}`,
       );
     }
 
     // Maximum amount validation
-    if (amount > 999999999.99) {
+    if (decimalAmount.greaterThan('999999999.99')) {
       throw new BadRequestException('finance.amount_exceeds_maximum');
     }
 
@@ -237,70 +242,63 @@ export class FinanceService {
       .orderBy('t.transactionDate', 'DESC')
       .stream();
 
-    try {
-      const fields = [
-        'id',
-        'type',
-        'amount',
-        'currency',
-        'exchangeRate',
-        'category',
-        'department',
-        'bookingId',
-        'taskId',
-        'payoutId',
-        'description',
-        'transactionDate',
-        'createdAt',
-      ];
+    const fields = [
+      'id',
+      'type',
+      'amount',
+      'currency',
+      'exchangeRate',
+      'category',
+      'department',
+      'bookingId',
+      'taskId',
+      'payoutId',
+      'description',
+      'transactionDate',
+      'createdAt',
+    ];
 
-      const transformFn = (row: unknown) => {
-        const typedRow = row as {
-          t_id?: string;
-          t_type?: string;
-          t_amount?: string;
-          t_currency?: string;
-          t_exchange_rate?: string;
-          t_category?: string;
-          t_department?: string;
-          t_booking_id?: string;
-          t_task_id?: string;
-          t_payout_id?: string;
-          t_description?: string;
-          t_transaction_date?: string;
-          t_created_at?: string;
-        };
-
-        return {
-          id: typedRow.t_id ?? 'unknown',
-          type: typedRow.t_type ?? 'UNKNOWN',
-          amount: Number(typedRow.t_amount ?? 0),
-          currency: typedRow.t_currency ?? '',
-          exchangeRate: Number(typedRow.t_exchange_rate ?? 1),
-          category: typedRow.t_category ?? '',
-          department: typedRow.t_department ?? '',
-          bookingId: typedRow.t_booking_id ?? '',
-          taskId: typedRow.t_task_id ?? '',
-          payoutId: typedRow.t_payout_id ?? '',
-          description: typedRow.t_description ?? '',
-          transactionDate: typedRow.t_transaction_date ? new Date(typedRow.t_transaction_date).toISOString() : '',
-          createdAt: typedRow.t_created_at ? new Date(typedRow.t_created_at).toISOString() : '',
-        };
+    const transformFn = (row: unknown) => {
+      const typedRow = row as {
+        t_id?: string;
+        t_type?: string;
+        t_amount?: string;
+        t_currency?: string;
+        t_exchange_rate?: string;
+        t_category?: string;
+        t_department?: string;
+        t_booking_id?: string;
+        t_task_id?: string;
+        t_payout_id?: string;
+        t_description?: string;
+        t_transaction_date?: string;
+        t_created_at?: string;
       };
 
-      this.exportService.streamFromStream(
-        res,
-        queryStream,
-        `transactions-export-${new Date().toISOString().split('T')[0]}.csv`,
-        fields,
-        transformFn,
-      );
-    } finally {
-      const streamWithDestroy = queryStream as unknown;
-      if (streamWithDestroy && typeof streamWithDestroy === 'object' && 'destroy' in streamWithDestroy) {
-        await (streamWithDestroy as { destroy: () => Promise<void> }).destroy();
-      }
-    }
+      return {
+        id: typedRow.t_id ?? 'unknown',
+        type: typedRow.t_type ?? 'UNKNOWN',
+        amount: Number(typedRow.t_amount ?? 0),
+        currency: typedRow.t_currency ?? '',
+        exchangeRate: Number(typedRow.t_exchange_rate ?? 1),
+        category: typedRow.t_category ?? '',
+        department: typedRow.t_department ?? '',
+        bookingId: typedRow.t_booking_id ?? '',
+        taskId: typedRow.t_task_id ?? '',
+        payoutId: typedRow.t_payout_id ?? '',
+        description: typedRow.t_description ?? '',
+        transactionDate: typedRow.t_transaction_date ? new Date(typedRow.t_transaction_date).toISOString() : '',
+        createdAt: typedRow.t_created_at ? new Date(typedRow.t_created_at).toISOString() : '',
+      };
+    };
+
+    await this.exportService.streamFromStream(
+      res,
+      queryStream,
+      `transactions-export-${new Date().toISOString().split('T')[0]}.csv`,
+      fields,
+      transformFn,
+    );
   }
 
   async getTransactionSummary(): Promise<{
@@ -329,7 +327,7 @@ export class FinanceService {
     };
 
     for (const row of result) {
-      const amount = parseFloat(row.total) || 0;
+      const amount = MathUtils.parseFinancialAmount(row.total);
       switch (row.type) {
         case TransactionType.INCOME:
           summary.totalIncome = amount;
