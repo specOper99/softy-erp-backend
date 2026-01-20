@@ -4,6 +4,7 @@ import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
@@ -85,12 +86,7 @@ export class HrService {
       take: query.getTake(),
     });
 
-    const userIds = profiles.map((p) => p.userId);
-    const users = await this.usersService.findMany(userIds);
-
-    profiles.forEach((profile) => {
-      profile.user = users.find((u) => u.id === profile.userId)!;
-    });
+    await this.populateProfilesWithUsers(profiles);
 
     return profiles;
   }
@@ -100,40 +96,14 @@ export class HrService {
 
     const qb = this.profileRepository.createQueryBuilder('profile');
 
-    qb.orderBy('profile.createdAt', 'DESC')
-      .addOrderBy('profile.id', 'DESC')
-      .take(limit + 1);
-
-    if (query.cursor) {
-      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
-      const [dateStr, id] = decoded.split('|');
-      if (!dateStr || !id) {
-        return { data: [], nextCursor: null };
-      }
-      const date = new Date(dateStr);
-
-      qb.andWhere('(profile.createdAt < :date OR (profile.createdAt = :date AND profile.id < :id))', { date, id });
-    }
-
-    const profiles = await qb.getMany();
-
-    const userIds = profiles.map((p) => p.userId);
-    const users = await this.usersService.findMany(userIds);
-
-    profiles.forEach((profile) => {
-      profile.user = users.find((u) => u.id === profile.userId)!;
+    // Helper adds orderBy and cursor filter
+    const { data: profiles, nextCursor } = await CursorPaginationHelper.paginate(qb, {
+      cursor: query.cursor,
+      limit,
+      alias: 'profile',
     });
 
-    let nextCursor: string | null = null;
-
-    if (profiles.length > limit) {
-      profiles.pop();
-      const lastItem = profiles[profiles.length - 1];
-      if (lastItem) {
-        const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-        nextCursor = Buffer.from(cursorData).toString('base64');
-      }
-    }
+    await this.populateProfilesWithUsers(profiles);
 
     return { data: profiles, nextCursor };
   }
@@ -243,6 +213,16 @@ export class HrService {
         firstName: profile.firstName,
         lastName: profile.lastName,
       },
+    });
+  }
+
+  private async populateProfilesWithUsers(profiles: Profile[]): Promise<void> {
+    if (!profiles.length) return;
+    const userIds = profiles.map((p) => p.userId);
+    const users = await this.usersService.findMany(userIds);
+
+    profiles.forEach((profile) => {
+      profile.user = users.find((u) => u.id === profile.userId);
     });
   }
 }

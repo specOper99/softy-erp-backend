@@ -1,13 +1,22 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import Stripe from 'stripe';
-import { StripeService } from './stripe.service';
-import { BillingInterval, Subscription, SubscriptionStatus } from '../entities/subscription.entity';
-import { BillingCustomer } from '../entities/billing-customer.entity';
-import { PaymentMethod } from '../entities/payment-method.entity';
+import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
+import { BillingCustomer } from '../entities/billing-customer.entity';
+import { PaymentMethod } from '../entities/payment-method.entity';
+import { BillingInterval, Subscription, SubscriptionStatus } from '../entities/subscription.entity';
+import { StripeService } from './stripe.service';
+
+interface StripeSubscriptionWithPeriod extends Stripe.Subscription {
+  current_period_start: number;
+  current_period_end: number;
+}
+
+interface StripeInvoiceWithExpandedSubscription extends Stripe.Invoice {
+  subscription: string | Stripe.Subscription | null;
+}
 
 @Injectable()
 export class SubscriptionService {
@@ -83,11 +92,9 @@ export class SubscriptionService {
         (stripeSubscription.items.data[0]?.price.recurring?.interval as string) ?? 'month',
       ),
       currentPeriodStart: new Date(
-        (stripeSubscription as unknown as { current_period_start: number }).current_period_start * 1000,
+        ((stripeSubscription as StripeSubscriptionWithPeriod).current_period_start || 0) * 1000,
       ),
-      currentPeriodEnd: new Date(
-        (stripeSubscription as unknown as { current_period_end: number }).current_period_end * 1000,
-      ),
+      currentPeriodEnd: new Date(((stripeSubscription as StripeSubscriptionWithPeriod).current_period_end || 0) * 1000),
       cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
       quantity: stripeSubscription.items.data[0]?.quantity ?? 1,
     });
@@ -172,12 +179,17 @@ export class SubscriptionService {
     }
 
     subscription.status = this.mapStripeStatus(stripeSub.status);
-    const stripeSubAny = stripeSub as unknown as {
-      current_period_start: number;
-      current_period_end: number;
-    };
-    subscription.currentPeriodStart = new Date(stripeSubAny.current_period_start * 1000);
-    subscription.currentPeriodEnd = new Date(stripeSubAny.current_period_end * 1000);
+
+    const periodStart = (stripeSub as StripeSubscriptionWithPeriod).current_period_start;
+    const periodEnd = (stripeSub as StripeSubscriptionWithPeriod).current_period_end;
+
+    if (periodStart == null || periodEnd == null) {
+      this.logger.warn(`Stripe subscription missing period fields: ${stripeSub.id}`);
+      return;
+    }
+
+    subscription.currentPeriodStart = new Date(periodStart * 1000);
+    subscription.currentPeriodEnd = new Date(periodEnd * 1000);
     subscription.cancelAtPeriodEnd = stripeSub.cancel_at_period_end;
     subscription.canceledAt = stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null;
 
@@ -200,12 +212,7 @@ export class SubscriptionService {
   }
 
   private async handlePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
-    const invoiceAny = invoice as unknown as { subscription?: string };
-    if (!invoiceAny.subscription) return;
-
-    const subscription = await this.subscriptionRepo.findOne({
-      where: { stripeSubscriptionId: invoiceAny.subscription },
-    });
+    const subscription = await this.getSubscriptionFromInvoice(invoice);
     if (!subscription) return;
 
     if (subscription.status === SubscriptionStatus.PAST_DUE) {
@@ -215,16 +222,23 @@ export class SubscriptionService {
   }
 
   private async handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
-    const invoiceAny = invoice as unknown as { subscription?: string };
-    if (!invoiceAny.subscription) return;
-
-    const subscription = await this.subscriptionRepo.findOne({
-      where: { stripeSubscriptionId: invoiceAny.subscription },
-    });
+    const subscription = await this.getSubscriptionFromInvoice(invoice);
     if (!subscription) return;
 
     subscription.status = SubscriptionStatus.PAST_DUE;
     await this.subscriptionRepo.save(subscription);
+  }
+
+  private async getSubscriptionFromInvoice(invoice: Stripe.Invoice): Promise<Subscription | null> {
+    const sub = (invoice as StripeInvoiceWithExpandedSubscription).subscription;
+
+    if (!sub) return null;
+
+    const subscriptionId = typeof sub === 'string' ? sub : sub.id;
+
+    return this.subscriptionRepo.findOne({
+      where: { stripeSubscriptionId: subscriptionId },
+    });
   }
 
   private async updateTenantPlan(tenantId: string, priceId: string): Promise<void> {
