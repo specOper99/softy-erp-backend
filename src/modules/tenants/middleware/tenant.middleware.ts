@@ -75,7 +75,13 @@ export class TenantMiddleware implements NestMiddleware {
     }
 
     if (isUuid(potentialId)) {
-      return potentialId;
+      try {
+        const tenant = await this.tenantsService.findOne(potentialId);
+        return tenant.id;
+      } catch (error) {
+        this.logger.debug(`Failed to resolve tenant id ${potentialId}`, error);
+        return undefined;
+      }
     }
 
     try {
@@ -102,11 +108,30 @@ export class TenantMiddleware implements NestMiddleware {
       // Verify JWT signature to prevent spoofing
       // Note: We don't check expiration here necessarily, but verify() usually does by default.
       // If it's expired, verify() throws, so we won't extract tenantId, which is safer.
-      const payload = this.jwtService.verify<JwtPayload>(token);
+      const allowedAlgorithms = (process.env.JWT_ALLOWED_ALGORITHMS || 'HS256')
+        .split(',')
+        .map((a) => a.trim().toUpperCase())
+        .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
+
+      const secretOrKey = (() => {
+        if (allowedAlgorithms.includes('RS256')) {
+          const publicKey = process.env.JWT_PUBLIC_KEY;
+          if (!publicKey) {
+            throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
+          }
+          return publicKey;
+        }
+
+        return this.configService.getOrThrow<string>('auth.jwtSecret');
+      })();
+
+      const payload = this.jwtService.verify<JwtPayload>(token, { algorithms: allowedAlgorithms, secret: secretOrKey });
 
       return payload.tenantId;
-    } catch {
-      // Invalid signature or malformed token - ignore
+    } catch (error) {
+      // Invalid signature / malformed token / misconfiguration.
+      // Do not log token; keep as debug to avoid log noise.
+      this.logger.debug('Failed to extract tenantId from JWT', error);
       return undefined;
     }
   }

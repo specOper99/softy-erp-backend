@@ -85,4 +85,77 @@ export class Tenant {
     comment: 'Resource quotas (e.g. max_users: 10, max_storage_gb: 5)',
   })
   quotas: Record<string, number>;
+
+  // Platform administration fields
+  @Column({ name: 'subscription_tier', type: 'varchar', length: 50, nullable: true })
+  subscriptionTier: string | null;
+
+  @Column({ name: 'stripe_customer_id', type: 'varchar', length: 255, nullable: true })
+  stripeCustomerId: string | null;
+
+  @Column({ name: 'stripe_subscription_id', type: 'varchar', length: 255, nullable: true })
+  stripeSubscriptionId: string | null;
+
+  @Column({ name: 'billing_email', type: 'varchar', length: 255, nullable: true })
+  billingEmail: string | null;
+
+  @Column({ name: 'subscription_started_at', type: 'timestamp', nullable: true })
+  subscriptionStartedAt: Date | null;
+
+  @Column({ name: 'subscription_ends_at', type: 'timestamp', nullable: true })
+  subscriptionEndsAt: Date | null;
+
+  @Column({ name: 'trial_ends_at', type: 'timestamp', nullable: true })
+  trialEndsAt: Date | null;
+
+  @Column({ name: 'suspended_at', type: 'timestamp', nullable: true })
+  suspendedAt: Date | null;
+
+  @Column({ name: 'suspended_by', type: 'uuid', nullable: true })
+  suspendedBy: string | null;
+
+  @Column({ name: 'suspension_reason', type: 'text', nullable: true })
+  suspensionReason: string | null;
+
+  @Column({ name: 'grace_period_ends_at', type: 'timestamp', nullable: true })
+  gracePeriodEndsAt: Date | null;
+
+  @Column({ name: 'deletion_scheduled_at', type: 'timestamp', nullable: true })
+  deletionScheduledAt: Date | null;
+
+  @Column({ name: 'last_activity_at', type: 'timestamp', nullable: true })
+  lastActivityAt: Date | null;
+
+  @Column({ name: 'total_users', type: 'int', default: 0 })
+  totalUsers: number;
+
+  @Column({ name: 'total_bookings', type: 'int', default: 0 })
+  totalBookings: number;
+
+  @Column({ name: 'total_revenue', type: 'decimal', precision: 12, scale: 2, default: 0 })
+  totalRevenue: number;
+
+  @Column({ name: 'mrr', type: 'decimal', precision: 10, scale: 2, default: 0, comment: 'Monthly Recurring Revenue' })
+  mrr: number;
+
+  @Column({ name: 'risk_score', type: 'decimal', precision: 3, scale: 2, default: 0, comment: 'Risk score 0-1' })
+  riskScore: number;
+
+  @Column({ name: 'health_score', type: 'decimal', precision: 3, scale: 2, default: 1, comment: 'Health score 0-1' })
+  healthScore: number;
+
+  @Column({ name: 'compliance_flags', type: 'json', default: '[]' })
+  complianceFlags: string[];
+
+  @Column({ name: 'security_policies', type: 'jsonb', nullable: true })
+  securityPolicies: Record<string, unknown> | null;
+
+  @Column({ name: 'custom_rate_limits', type: 'jsonb', nullable: true })
+  customRateLimits: Record<string, number> | null;
+
+  @Column({ name: 'feature_flags', type: 'jsonb', default: '{}' })
+  featureFlags: Record<string, boolean>;
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, unknown> | null;
 }

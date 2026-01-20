@@ -54,7 +54,7 @@ describe('TenantGuard', () => {
 
     it('should throw UnauthorizedException when no tenantId', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined as unknown as string);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
 
       expect(() => guard.canActivate(mockExecutionContext)).toThrow(UnauthorizedException);
       expect(() => guard.canActivate(mockExecutionContext)).toThrow('tenants.tenant_id_required');
