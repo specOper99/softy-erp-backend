@@ -92,9 +92,11 @@ export class SubscriptionService {
         (stripeSubscription.items.data[0]?.price.recurring?.interval as string) ?? 'month',
       ),
       currentPeriodStart: new Date(
-        ((stripeSubscription as StripeSubscriptionWithPeriod).current_period_start || 0) * 1000,
+        ((stripeSubscription as unknown as StripeSubscriptionWithPeriod).current_period_start || 0) * 1000,
       ),
-      currentPeriodEnd: new Date(((stripeSubscription as StripeSubscriptionWithPeriod).current_period_end || 0) * 1000),
+      currentPeriodEnd: new Date(
+        ((stripeSubscription as unknown as StripeSubscriptionWithPeriod).current_period_end || 0) * 1000,
+      ),
       cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
       quantity: stripeSubscription.items.data[0]?.quantity ?? 1,
     });
@@ -157,8 +159,15 @@ export class SubscriptionService {
   }
 
   private async syncSubscriptionFromStripe(stripeSub: Stripe.Subscription): Promise<void> {
+    const stripeCustomerId = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer?.id;
+
+    if (!stripeCustomerId) {
+      this.logger.error(`Stripe subscription ${stripeSub.id} has no customer ID`);
+      return;
+    }
+
     const customer = await this.customerRepo.findOne({
-      where: { stripeCustomerId: stripeSub.customer as string },
+      where: { stripeCustomerId },
     });
     if (!customer) {
       this.logger.warn(`Customer not found for Stripe subscription: ${stripeSub.id}`);
@@ -169,27 +178,33 @@ export class SubscriptionService {
       where: { stripeSubscriptionId: stripeSub.id },
     });
 
+    const priceId = stripeSub.items.data[0]?.price.id;
+    if (!priceId) {
+      this.logger.warn(`Stripe subscription ${stripeSub.id} has no price ID`);
+      if (!subscription) return;
+    }
+
     if (!subscription) {
       subscription = this.subscriptionRepo.create({
         tenantId: customer.tenantId,
         stripeSubscriptionId: stripeSub.id,
         stripeCustomerId: customer.stripeCustomerId,
-        stripePriceId: stripeSub.items.data[0]?.price.id ?? '',
+        stripePriceId: priceId,
       });
+    } else if (priceId) {
+      subscription.stripePriceId = priceId;
     }
 
     subscription.status = this.mapStripeStatus(stripeSub.status);
 
-    const periodStart = (stripeSub as StripeSubscriptionWithPeriod).current_period_start;
-    const periodEnd = (stripeSub as StripeSubscriptionWithPeriod).current_period_end;
-
-    if (periodStart == null || periodEnd == null) {
+    const subWithPeriod = stripeSub as StripeSubscriptionWithPeriod;
+    if (!subWithPeriod.current_period_start || !subWithPeriod.current_period_end) {
       this.logger.warn(`Stripe subscription missing period fields: ${stripeSub.id}`);
       return;
     }
 
-    subscription.currentPeriodStart = new Date(periodStart * 1000);
-    subscription.currentPeriodEnd = new Date(periodEnd * 1000);
+    subscription.currentPeriodStart = new Date(subWithPeriod.current_period_start * 1000);
+    subscription.currentPeriodEnd = new Date(subWithPeriod.current_period_end * 1000);
     subscription.cancelAtPeriodEnd = stripeSub.cancel_at_period_end;
     subscription.canceledAt = stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null;
 
@@ -230,7 +245,7 @@ export class SubscriptionService {
   }
 
   private async getSubscriptionFromInvoice(invoice: Stripe.Invoice): Promise<Subscription | null> {
-    const sub = (invoice as StripeInvoiceWithExpandedSubscription).subscription;
+    const sub = (invoice as unknown as StripeInvoiceWithExpandedSubscription).subscription;
 
     if (!sub) return null;
 

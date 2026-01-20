@@ -4,8 +4,9 @@ import Stripe from 'stripe';
 
 @Injectable()
 export class StripeService implements OnModuleInit {
-  private stripe: Stripe;
+  private stripe: Stripe | null = null;
   private readonly logger = new Logger(StripeService.name);
+  private loggedDisabledWarning = false;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -13,6 +14,7 @@ export class StripeService implements OnModuleInit {
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!secretKey) {
       this.logger.warn('STRIPE_SECRET_KEY not configured - billing features disabled');
+      this.stripe = null;
       return;
     }
 
@@ -22,80 +24,91 @@ export class StripeService implements OnModuleInit {
     });
   }
 
+  private getStripeClientOrThrow(): Stripe {
+    if (this.stripe) return this.stripe;
+
+    if (!this.loggedDisabledWarning) {
+      this.logger.warn('Stripe client requested but STRIPE_SECRET_KEY is not configured');
+      this.loggedDisabledWarning = true;
+    }
+
+    throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY to enable billing.');
+  }
+
   getClient(): Stripe | null {
-    return this.stripe ?? null;
+    return this.stripe;
   }
 
   isConfigured(): boolean {
-    return !!this.stripe;
+    return this.stripe !== null;
   }
 
   async createCustomer(params: Stripe.CustomerCreateParams): Promise<Stripe.Customer> {
-    return this.stripe.customers.create(params);
+    return this.getStripeClientOrThrow().customers.create(params);
   }
 
   async updateCustomer(customerId: string, params: Stripe.CustomerUpdateParams): Promise<Stripe.Customer> {
-    return this.stripe.customers.update(customerId, params);
+    return this.getStripeClientOrThrow().customers.update(customerId, params);
   }
 
   async deleteCustomer(customerId: string): Promise<Stripe.DeletedCustomer> {
-    return this.stripe.customers.del(customerId);
+    return this.getStripeClientOrThrow().customers.del(customerId);
   }
 
   async getCustomer(customerId: string): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
-    return this.stripe.customers.retrieve(customerId);
+    return this.getStripeClientOrThrow().customers.retrieve(customerId);
   }
 
   async createSubscription(params: Stripe.SubscriptionCreateParams): Promise<Stripe.Subscription> {
-    return this.stripe.subscriptions.create(params);
+    return this.getStripeClientOrThrow().subscriptions.create(params);
   }
 
   async updateSubscription(
     subscriptionId: string,
     params: Stripe.SubscriptionUpdateParams,
   ): Promise<Stripe.Subscription> {
-    return this.stripe.subscriptions.update(subscriptionId, params);
+    return this.getStripeClientOrThrow().subscriptions.update(subscriptionId, params);
   }
 
   async cancelSubscription(
     subscriptionId: string,
     params?: Stripe.SubscriptionCancelParams,
   ): Promise<Stripe.Subscription> {
-    return this.stripe.subscriptions.cancel(subscriptionId, params);
+    return this.getStripeClientOrThrow().subscriptions.cancel(subscriptionId, params);
   }
 
   async getSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
-    return this.stripe.subscriptions.retrieve(subscriptionId);
+    return this.getStripeClientOrThrow().subscriptions.retrieve(subscriptionId);
   }
 
   async attachPaymentMethod(paymentMethodId: string, customerId: string): Promise<Stripe.PaymentMethod> {
-    return this.stripe.paymentMethods.attach(paymentMethodId, {
+    return this.getStripeClientOrThrow().paymentMethods.attach(paymentMethodId, {
       customer: customerId,
     });
   }
 
   async detachPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
-    return this.stripe.paymentMethods.detach(paymentMethodId);
+    return this.getStripeClientOrThrow().paymentMethods.detach(paymentMethodId);
   }
 
   async listPaymentMethods(
     customerId: string,
     type: Stripe.PaymentMethodListParams.Type = 'card',
   ): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
-    return this.stripe.paymentMethods.list({
+    return this.getStripeClientOrThrow().paymentMethods.list({
       customer: customerId,
       type,
     });
   }
 
   async createCheckoutSession(params: Stripe.Checkout.SessionCreateParams): Promise<Stripe.Checkout.Session> {
-    return this.stripe.checkout.sessions.create(params);
+    return this.getStripeClientOrThrow().checkout.sessions.create(params);
   }
 
   async createBillingPortalSession(
     params: Stripe.BillingPortal.SessionCreateParams,
   ): Promise<Stripe.BillingPortal.Session> {
-    return this.stripe.billingPortal.sessions.create(params);
+    return this.getStripeClientOrThrow().billingPortal.sessions.create(params);
   }
 
   async createUsageRecord(
@@ -103,7 +116,7 @@ export class StripeService implements OnModuleInit {
     quantity: number,
     timestamp?: number,
   ): Promise<Stripe.Billing.MeterEvent> {
-    return this.stripe.billing.meterEvents.create({
+    return this.getStripeClientOrThrow().billing.meterEvents.create({
       event_name: 'usage_record',
       payload: {
         stripe_customer_id: subscriptionItemId,
@@ -114,30 +127,30 @@ export class StripeService implements OnModuleInit {
   }
 
   async listInvoices(customerId: string, limit = 10): Promise<Stripe.ApiList<Stripe.Invoice>> {
-    return this.stripe.invoices.list({
+    return this.getStripeClientOrThrow().invoices.list({
       customer: customerId,
       limit,
     });
   }
 
   async getUpcomingInvoice(customerId: string): Promise<Stripe.Response<Stripe.UpcomingInvoice>> {
-    return this.stripe.invoices.createPreview({
+    return this.getStripeClientOrThrow().invoices.createPreview({
       customer: customerId,
     });
   }
 
   async listPrices(productId?: string, active = true): Promise<Stripe.ApiList<Stripe.Price>> {
-    return this.stripe.prices.list({
+    return this.getStripeClientOrThrow().prices.list({
       product: productId,
       active,
     });
   }
 
   async listProducts(active = true): Promise<Stripe.ApiList<Stripe.Product>> {
-    return this.stripe.products.list({ active });
+    return this.getStripeClientOrThrow().products.list({ active });
   }
 
   constructWebhookEvent(payload: Buffer, signature: string, webhookSecret: string): Stripe.Event {
-    return this.stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+    return this.getStripeClientOrThrow().webhooks.constructEvent(payload, signature, webhookSecret);
   }
 }

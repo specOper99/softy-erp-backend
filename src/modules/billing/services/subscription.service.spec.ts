@@ -198,4 +198,50 @@ describe('SubscriptionService', () => {
       expect(result.cancelAtPeriodEnd).toBe(true);
     });
   });
+
+  describe('handleWebhookEvent', () => {
+    it('should handle expanded subscription object in invoice', async () => {
+      const mockInvoice = {
+        subscription: { id: 'sub_123' },
+      };
+      const mockEvent = {
+        type: 'invoice.payment_succeeded',
+        data: { object: mockInvoice },
+      } as unknown as Stripe.Event;
+
+      const mockSubscription = { id: 'sub-db-1', status: SubscriptionStatus.PAST_DUE };
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as unknown as Subscription);
+      subscriptionRepo.save.mockResolvedValue(mockSubscription as unknown as Subscription);
+
+      await service.handleWebhookEvent(mockEvent);
+
+      expect(subscriptionRepo.findOne).toHaveBeenCalledWith({
+        where: { stripeSubscriptionId: 'sub_123' },
+      });
+      expect(subscriptionRepo.save).toHaveBeenCalled();
+    });
+
+    it('should safely handle missing period dates in subscription update', async () => {
+      const mockStripeSub = {
+        id: 'sub_123',
+        customer: 'cus_123',
+        status: 'active',
+        items: { data: [{ price: { id: 'price_123' } }] },
+      };
+      const mockEvent = {
+        type: 'customer.subscription.updated',
+        data: { object: mockStripeSub },
+      } as unknown as Stripe.Event;
+
+      customerRepo.findOne.mockResolvedValue({ tenantId: 'tenant-1' } as unknown as BillingCustomer);
+      subscriptionRepo.findOne.mockResolvedValue({
+        stripeSubscriptionId: 'sub_123',
+        status: SubscriptionStatus.ACTIVE,
+      } as unknown as Subscription);
+
+      await service.handleWebhookEvent(mockEvent);
+
+      expect(subscriptionRepo.save).not.toHaveBeenCalled();
+    });
+  });
 });
