@@ -65,10 +65,12 @@ describe('Payroll Load E2E Tests', () => {
     dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     tenantId = seedData.tenantId;
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({
         email: seedData.admin.email,
         password: process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!',

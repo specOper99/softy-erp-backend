@@ -70,17 +70,19 @@ describe('Workflow Integration Tests (E2E)', () => {
     // Seed Test DB and Get Tenant ID and Client
     const seedData = await seedTestDatabase(_dataSource);
     const { tenantId, client } = seedData;
+    const tenantHost = `${seedData.tenantId}.example.com`;
     globalThis.testTenantId = tenantId;
     (globalThis as unknown as { testClientId: string }).testClientId = client.id;
 
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({ email: seedData.admin.email, password: adminPassword });
     adminToken = adminLoginRes.body.data.accessToken;
 
     // Login as staff (seeded user)
-    const staffLoginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+    const staffLoginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.staff.email,
       password: staffPassword,
     });

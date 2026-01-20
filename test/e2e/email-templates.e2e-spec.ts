@@ -1,10 +1,11 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
-import { User } from '../../src/modules/users/entities/user.entity';
-import { Role } from '../../src/modules/users/enums/role.enum';
+import { TransformInterceptor } from '../../src/common/interceptors';
+import { MailService } from '../../src/modules/mail/mail.service';
+import { seedTestDatabase } from '../utils/seed-data';
 
 describe('Email Templates (E2E)', () => {
   let app: INestApplication;
@@ -14,34 +15,50 @@ describe('Email Templates (E2E)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
+    );
+    app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
-    // Login as Admin
-    // Fetch seeded admin user (email is dynamic with random suffix)
+    // Seed test database to get admin user
     const dataSource = app.get(DataSource);
-    const userRepo = dataSource.getRepository(User);
-    const adminUser = await userRepo.findOne({ where: { role: Role.ADMIN } });
-
-    if (!adminUser) {
-      throw new Error('No admin user found in seed data');
-    }
-
-    const email = adminUser.email;
+    const seedData = await seedTestDatabase(dataSource);
+    const email = seedData.admin.email;
     const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
-    const loginResponse = await request(app.getHttpServer()).post('/auth/login').send({ email, password });
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
+      .send({ email, password });
 
-    if (loginResponse.status !== 201 && loginResponse.status !== 200) {
+    if (loginResponse.status !== 200) {
       console.error('Login failed. Status:', loginResponse.status);
       console.error('Response Body:', JSON.stringify(loginResponse.body, null, 2));
       throw new Error('Failed to login as admin for E2E tests');
     }
 
-    adminToken = loginResponse.body.accessToken;
-    _tenantId = loginResponse.body.user.tenantId;
+    adminToken = loginResponse.body.data.accessToken;
+    _tenantId = seedData.tenantId;
   });
 
   afterAll(async () => {
@@ -59,39 +76,39 @@ describe('Email Templates (E2E)', () => {
 
   it('/email-templates (POST) - Create Template', async () => {
     const response = await request(app.getHttpServer())
-      .post('/email-templates')
+      .post('/api/v1/email-templates')
       .set('Authorization', `Bearer ${adminToken}`)
       .send(templateDto)
       .expect(201);
 
-    expect(response.body.id).toBeDefined();
-    expect(response.body.name).toBe(templateDto.name);
-    templateId = response.body.id;
+    expect(response.body.data.id).toBeDefined();
+    expect(response.body.data.name).toBe(templateDto.name);
+    templateId = response.body.data.id;
   });
 
   it('/email-templates (GET) - List Templates', async () => {
     const response = await request(app.getHttpServer())
-      .get('/email-templates')
+      .get('/api/v1/email-templates')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
-    const found = response.body.find((t: any) => t.id === templateId);
+    expect(Array.isArray(response.body.data)).toBe(true);
+    const found = response.body.data.find((t: any) => t.id === templateId);
     expect(found).toBeDefined();
   });
 
   it('/email-templates/:id (GET) - Get Template', async () => {
     const response = await request(app.getHttpServer())
-      .get(`/email-templates/${templateId}`)
+      .get(`/api/v1/email-templates/${templateId}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(response.body.id).toBe(templateId);
+    expect(response.body.data.id).toBe(templateId);
   });
 
   it('/email-templates/preview (POST) - Preview Template', async () => {
     const response = await request(app.getHttpServer())
-      .post('/email-templates/preview')
+      .post('/api/v1/email-templates/preview')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         content: templateDto.content,
@@ -99,27 +116,27 @@ describe('Email Templates (E2E)', () => {
       })
       .expect(201);
 
-    expect(response.body.html).toContain('Hello World');
+    expect(response.body.data.html).toContain('Hello World');
   });
 
   it('/email-templates/:id (PUT) - Update Template', async () => {
     const response = await request(app.getHttpServer())
-      .put(`/email-templates/${templateId}`)
+      .put(`/api/v1/email-templates/${templateId}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ subject: 'Updated Subject' })
       .expect(200);
 
-    expect(response.body.subject).toBe('Updated Subject');
+    expect(response.body.data.subject).toBe('Updated Subject');
   });
 
   it('/email-templates/:id (DELETE) - Delete Template', async () => {
     await request(app.getHttpServer())
-      .delete(`/email-templates/${templateId}`)
+      .delete(`/api/v1/email-templates/${templateId}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
     await request(app.getHttpServer())
-      .get(`/email-templates/${templateId}`)
+      .get(`/api/v1/email-templates/${templateId}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(404);
   });

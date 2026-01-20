@@ -56,23 +56,27 @@ describe('Time Entries E2E Tests', () => {
     // Seed database
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
-    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.admin.email,
       password: adminPassword,
     });
 
     accessToken = loginResponse.body.data?.accessToken;
+    (globalThis as { e2eTenantHost?: string }).e2eTenantHost = tenantHost;
 
     // Get package ID from seed data
     const packagesRes = await request(app.getHttpServer())
       .get('/api/v1/packages')
+      .set('Host', (globalThis as { e2eTenantHost?: string }).e2eTenantHost)
       .set('Authorization', `Bearer ${accessToken}`);
     const packageId = packagesRes.body.data?.[0]?.id;
 
     // Create client for booking
     const clientRes = await request(app.getHttpServer())
       .post('/api/v1/clients')
+      .set('Host', (globalThis as { e2eTenantHost?: string }).e2eTenantHost)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         name: 'Timer Test Client',

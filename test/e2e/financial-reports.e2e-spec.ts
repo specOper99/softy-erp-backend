@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource, DeepPartial } from 'typeorm';
 import { AppModule } from '../../src/app.module';
+import { TransformInterceptor } from '../../src/common/interceptors';
 import { Booking } from '../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../src/modules/bookings/enums/booking-status.enum';
@@ -10,8 +11,8 @@ import { ServicePackage } from '../../src/modules/catalog/entities/service-packa
 import { Transaction } from '../../src/modules/finance/entities/transaction.entity';
 import { Currency } from '../../src/modules/finance/enums/currency.enum';
 import { TransactionType } from '../../src/modules/finance/enums/transaction-type.enum';
-import { User } from '../../src/modules/users/entities/user.entity';
-import { Role } from '../../src/modules/users/enums/role.enum';
+import { MailService } from '../../src/modules/mail/mail.service';
+import { seedTestDatabase } from '../utils/seed-data';
 
 describe('Financial Report Controller (e2e)', () => {
   let app: INestApplication;
@@ -22,30 +23,47 @@ describe('Financial Report Controller (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
+    );
+    app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
     dataSource = app.get(DataSource);
 
-    // Login as Admin
-    const userRepo = dataSource.getRepository(User);
-    const adminUser = await userRepo.findOne({ where: { role: Role.ADMIN } });
-    if (!adminUser) {
-      throw new Error('No admin user found in seed data');
-    }
-    const adminEmail = adminUser.email;
-    tenantId = adminUser.tenantId;
+    // Seed test database to get admin user and tenant
+    const seedData = await seedTestDatabase(dataSource);
+    tenantId = seedData.tenantId;
+    const adminEmail = seedData.admin.email;
     const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const tenantHost = `${tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({ email: adminEmail, password: adminPassword })
       .expect(200);
 
-    jwtToken = loginResponse.body.accessToken;
+    jwtToken = loginResponse.body.data.accessToken;
+    (globalThis as { financeTenantHost?: string }).financeTenantHost = tenantHost;
 
     await seedFinancialData();
   });
@@ -160,13 +178,14 @@ describe('Financial Report Controller (e2e)', () => {
   describe('GET /finance/reports/pnl', () => {
     it('should return P&L data for the specified period', async () => {
       const response = await request(app.getHttpServer())
-        .get('/finance/reports/pnl')
+        .get('/api/v1/finance/reports/pnl')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 
-      expect(Array.isArray(response.body)).toBe(true);
-      const janData = response.body.find((d) => d.period === '2023-01');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      const janData = response.body.data.find((d) => d.period === '2023-01');
       expect(janData).toBeDefined();
       expect(janData.income).toBe(5000);
       expect(janData.expenses).toBe(1000);
@@ -178,8 +197,9 @@ describe('Financial Report Controller (e2e)', () => {
   describe('GET /finance/reports/pnl/pdf', () => {
     it('should return a PDF file', async () => {
       const response = await request(app.getHttpServer())
-        .get('/finance/reports/pnl/pdf')
+        .get('/api/v1/finance/reports/pnl/pdf')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 
@@ -192,13 +212,14 @@ describe('Financial Report Controller (e2e)', () => {
   describe('GET /finance/reports/revenue-by-package', () => {
     it('should return revenue grouped by package', async () => {
       const response = await request(app.getHttpServer())
-        .get('/finance/reports/revenue-by-package')
+        .get('/api/v1/finance/reports/revenue-by-package')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 
-      expect(Array.isArray(response.body)).toBe(true);
-      const pkgData = response.body.find((d) => d.packageName === 'Wedding Premium');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      const pkgData = response.body.data.find((d) => d.packageName === 'Wedding Premium');
       // Note: If tests run in parallel or DB isn't reset, counts might be higher.
       // But typically E2E_DB_RESET=true ensures fresh DB or we just check > 0
       expect(pkgData).toBeDefined();
@@ -209,8 +230,9 @@ describe('Financial Report Controller (e2e)', () => {
   describe('GET /finance/reports/revenue-by-package/pdf', () => {
     it('should return a PDF file', async () => {
       const response = await request(app.getHttpServer())
-        .get('/finance/reports/revenue-by-package/pdf')
+        .get('/api/v1/finance/reports/revenue-by-package/pdf')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 

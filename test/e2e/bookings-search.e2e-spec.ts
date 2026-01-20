@@ -3,20 +3,30 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
+import { TransformInterceptor } from '../../src/common/interceptors';
 import { BookingStatus } from '../../src/modules/bookings/enums/booking-status.enum';
-import { User } from '../../src/modules/users/entities/user.entity';
-import { Role } from '../../src/modules/users/enums/role.enum';
+import { MailService } from '../../src/modules/mail/mail.service';
+import { seedTestDatabase } from '../utils/seed-data';
 
 describe('Bookings Search (E2E)', () => {
   let app: INestApplication;
   let adminToken: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -27,21 +37,22 @@ describe('Bookings Search (E2E)', () => {
         },
       }),
     );
+    app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
-    // Login as Admin
+    // Seed test database to get admin user
     const dataSource = app.get(DataSource);
-    const userRepo = dataSource.getRepository(User);
-    const adminUser = await userRepo.findOne({ where: { role: Role.ADMIN } });
+    const seedData = await seedTestDatabase(dataSource);
+    const adminEmail = seedData.admin.email;
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    tenantHost = `${seedData.tenantId}.example.com`;
 
-    if (!adminUser) throw new Error('No admin user found');
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
+      .send({ email: adminEmail, password: adminPassword });
 
-    const email = adminUser.email;
-    const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
-
-    const loginResponse = await request(app.getHttpServer()).post('/auth/login').send({ email, password });
-
-    adminToken = loginResponse.body.accessToken;
+    adminToken = loginResponse.body.data.accessToken;
   });
 
   afterAll(async () => {
@@ -50,35 +61,38 @@ describe('Bookings Search (E2E)', () => {
 
   it('should filter bookings by search term', async () => {
     const response = await request(app.getHttpServer())
-      .get('/bookings')
+      .get('/api/v1/bookings')
       .query({ search: 'Test Client' })
+      .set('Host', tenantHost)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
+    expect(Array.isArray(response.body.data)).toBe(true);
     // Expect at least one result if seed data implies "Test Client" was created
   });
 
   it('should filter bookings by status', async () => {
     const response = await request(app.getHttpServer())
-      .get('/bookings')
+      .get('/api/v1/bookings')
       .query({ status: [BookingStatus.DRAFT, BookingStatus.CONFIRMED] })
+      .set('Host', tenantHost)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
+    expect(Array.isArray(response.body.data)).toBe(true);
   });
 
   it('should filter by date range', async () => {
     const response = await request(app.getHttpServer())
-      .get('/bookings')
+      .get('/api/v1/bookings')
       .query({
         startDate: new Date(Date.now() - 86400000).toISOString(),
         endDate: new Date(Date.now() + 86400000).toISOString(),
       })
+      .set('Host', tenantHost)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
+    expect(Array.isArray(response.body.data)).toBe(true);
   });
 });

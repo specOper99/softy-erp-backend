@@ -1,12 +1,13 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
+import { TransformInterceptor } from '../../src/common/interceptors';
+import { MailService } from '../../src/modules/mail/mail.service';
 import { UpdateNotificationPreferenceDto } from '../../src/modules/notifications/dto/notification-preference.dto';
 import { NotificationFrequency, NotificationType } from '../../src/modules/notifications/enums/notification.enum';
-import { User } from '../../src/modules/users/entities/user.entity';
-import { Role } from '../../src/modules/users/enums/role.enum';
+import { seedTestDatabase } from '../utils/seed-data';
 
 describe('Notification Preferences Controller (e2e)', () => {
   let app: INestApplication;
@@ -17,29 +18,48 @@ describe('Notification Preferences Controller (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    app.setGlobalPrefix('api');
+    app.enableVersioning({
+      type: VersioningType.URI,
+      defaultVersion: '1',
+    });
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
+    );
+    app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
     dataSource = app.get(DataSource);
 
-    // Login as Admin (who acts as a regular user for this test)
-    const userRepo = dataSource.getRepository(User);
-    const user = await userRepo.findOne({ where: { role: Role.ADMIN } });
-    if (!user) {
-      throw new Error('No admin user found in seed data');
-    }
-    userId = user.id;
+    const seedData = await seedTestDatabase(dataSource);
+    userId = seedData.admin.id;
     const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ email: user.email, password: password })
+      .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
+      .send({ email: seedData.admin.email, password: password })
       .expect(200);
 
-    jwtToken = loginResponse.body.accessToken;
+    jwtToken = loginResponse.body.data.accessToken;
   });
 
   afterAll(async () => {
@@ -48,11 +68,11 @@ describe('Notification Preferences Controller (e2e)', () => {
 
   it('GET /notifications/preferences - should return empty list initially', async () => {
     const response = await request(app.getHttpServer())
-      .get('/notifications/preferences')
+      .get('/api/v1/notifications/preferences')
       .set('Authorization', `Bearer ${jwtToken}`)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
+    expect(Array.isArray(response.body.data)).toBe(true);
     // It might be empty or valid based on previous implementation
   });
 
@@ -73,30 +93,33 @@ describe('Notification Preferences Controller (e2e)', () => {
     ];
 
     const response = await request(app.getHttpServer())
-      .put('/notifications/preferences')
+      .put('/api/v1/notifications/preferences')
       .set('Authorization', `Bearer ${jwtToken}`)
       .send(updates)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
-    expect(response.body.length).toBeGreaterThanOrEqual(2);
+    expect(Array.isArray(response.body.data)).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(2);
 
-    const bookingPref = response.body.find((p: any) => p.notificationType === NotificationType.BOOKING_CREATED);
+    const bookingPref = response.body.data.find((p: any) => p.notificationType === NotificationType.BOOKING_CREATED);
     expect(bookingPref).toBeDefined();
     expect(bookingPref.emailEnabled).toBe(false);
+    expect(bookingPref.inAppEnabled).toBe(true);
 
-    const taskPref = response.body.find((p: any) => p.notificationType === NotificationType.TASK_ASSIGNED);
+    const taskPref = response.body.data.find((p: any) => p.notificationType === NotificationType.TASK_ASSIGNED);
     expect(taskPref).toBeDefined();
+    expect(taskPref.emailEnabled).toBe(true);
+    expect(taskPref.inAppEnabled).toBe(false);
     expect(taskPref.frequency).toBe(NotificationFrequency.DAILY_DIGEST);
   });
 
   it('GET /notifications/preferences - should return updated preferences', async () => {
     const response = await request(app.getHttpServer())
-      .get('/notifications/preferences')
+      .get('/api/v1/notifications/preferences')
       .set('Authorization', `Bearer ${jwtToken}`)
       .expect(200);
 
-    const bookingPref = response.body.find((p: any) => p.notificationType === NotificationType.BOOKING_CREATED);
+    const bookingPref = response.body.data.find((p: any) => p.notificationType === NotificationType.BOOKING_CREATED);
     expect(bookingPref).toBeDefined();
     expect(bookingPref.emailEnabled).toBe(false);
     expect(bookingPref.userId).toBe(userId);

@@ -1,4 +1,4 @@
-import { INestApplication, Module } from '@nestjs/common';
+import { INestApplication, Module, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -6,6 +6,7 @@ import { AppModule } from '../src/app.module';
 import { MailModule } from '../src/modules/mail/mail.module';
 import { MailService } from '../src/modules/mail/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
+import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
 
 @Module({
   providers: [
@@ -24,6 +25,9 @@ class MockMailModule {}
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
+  let tenantHost: string;
+  let adminEmail: string;
+
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -33,11 +37,23 @@ describe('AppController (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
+    app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
     // Seed and get Tenant ID
     const dataSource = app.get(DataSource);
-    await seedTestDatabase(dataSource);
+    const seedData = await seedTestDatabase(dataSource);
+    tenantHost = `${seedData.tenantId}.example.com`;
+    adminEmail = `admin-${seedData.tenantSlug.split('-').pop()}@chapters.studio`;
   });
 
   afterEach(async () => {
@@ -46,12 +62,13 @@ describe('AppController (e2e)', () => {
 
   it('/auth/login (POST) - should return 401 for invalid credentials', () => {
     return request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ email: 'test@test.com', password: 'wrong' })
+      .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
+      .send({ email: adminEmail, password: 'wrongpassword' })
       .expect(401);
   });
 
   it('/packages (GET) - should return 401 without auth', () => {
-    return request(app.getHttpServer()).get('/packages').expect(401);
+    return request(app.getHttpServer()).get('/api/v1/packages').set('Host', tenantHost).expect(401);
   });
 });

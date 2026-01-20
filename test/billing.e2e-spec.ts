@@ -101,8 +101,9 @@ describe('Billing Module E2E Tests', () => {
     // Seed database and login
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
-    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.admin.email,
       password: adminPassword,
     });

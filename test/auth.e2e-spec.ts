@@ -20,8 +20,10 @@ class MockThrottlerGuard extends ThrottlerGuard {
 describe('Auth & Users E2E Tests', () => {
   let app: INestApplication;
   let _accessToken: string;
+  let _refreshToken: string;
   let testEmail: string;
   let _adminPassword: string;
+  let registeredTenantHost: string;
   const testPassword = process.env.TEST_MOCK_PASSWORD || 'TestUser123!'; // OK for dynamically created test users
 
   beforeAll(async () => {
@@ -72,6 +74,7 @@ describe('Auth & Users E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const { tenantId } = await seedTestDatabase(dataSource);
     globalThis.testTenantId = tenantId;
+    registeredTenantHost = `${tenantId}.example.com`;
 
     testEmail = `test-${Date.now()}@example.com`;
   });
@@ -94,6 +97,7 @@ describe('Auth & Users E2E Tests', () => {
       expect(response.body.data).toHaveProperty('accessToken');
       expect(response.body.data).toHaveProperty('user');
       _accessToken = response.body.data.accessToken;
+      registeredTenantHost = `${response.body.data.user.tenantId}.example.com`;
     });
 
     it('should fail with invalid email', async () => {
@@ -132,19 +136,25 @@ describe('Auth & Users E2E Tests', () => {
 
   describe('POST /api/v1/auth/login', () => {
     it('should login with valid credentials', async () => {
-      const loginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
-        email: testEmail,
-        password: 'ComplexPass123!',
-      });
+      const loginRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .set('Host', registeredTenantHost)
+        .send({
+          email: testEmail,
+          password: 'ComplexPass123!',
+        });
 
       expect(loginRes.status).toBe(200);
       expect(loginRes.body.data).toHaveProperty('accessToken');
+      expect(loginRes.body.data).toHaveProperty('refreshToken');
       _accessToken = loginRes.body.data.accessToken;
+      _refreshToken = loginRes.body.data.refreshToken;
     });
 
     it('should fail with invalid password', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/login')
+        .set('Host', registeredTenantHost)
 
         .send({
           email: testEmail,
@@ -156,6 +166,7 @@ describe('Auth & Users E2E Tests', () => {
     it('should fail with non-existent user', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/login')
+        .set('Host', registeredTenantHost)
 
         .send({
           email: 'nonexistent@example.com',
@@ -180,16 +191,21 @@ describe('Auth & Users E2E Tests', () => {
 
       expect(adminReg.status).toBe(201);
       const adminId = adminReg.body.data.user.id;
+      const adminTenantId = adminReg.body.data.user.tenantId;
+      const adminTenantHost = `${adminTenantId}.example.com`;
 
       // 2. Manually elevate user to ADMIN role in database
       const userRepo = app.get(getRepositoryToken(User));
       await userRepo.update(adminId, { role: 'ADMIN' });
 
       // 3. Login as the newly created admin
-      const adminLogin = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
-        email: adminEmail,
-        password: adminPassword,
-      });
+      const adminLogin = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .set('Host', adminTenantHost)
+        .send({
+          email: adminEmail,
+          password: adminPassword,
+        });
 
       expect(adminLogin.status).toBe(200);
 
@@ -212,6 +228,46 @@ describe('Auth & Users E2E Tests', () => {
 
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
+    });
+  });
+
+  describe('DELETE /api/v1/auth/sessions (revoke other sessions)', () => {
+    it('should fail validation when currentRefreshToken missing', async () => {
+      await request(app.getHttpServer())
+        .delete('/api/v1/auth/sessions')
+        .set('Host', registeredTenantHost)
+        .set('Authorization', `Bearer ${_accessToken}`)
+        .send({})
+        .expect(400);
+    });
+
+    it('should revoke other sessions when currentRefreshToken provided', async () => {
+      await request(app.getHttpServer())
+        .delete('/api/v1/auth/sessions')
+        .set('Host', registeredTenantHost)
+        .set('Authorization', `Bearer ${_accessToken}`)
+        .send({ currentRefreshToken: _refreshToken })
+        .expect(204);
+    });
+  });
+
+  describe('POST /api/v1/auth/logout', () => {
+    it('should fail when refreshToken missing and allSessions not true', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Host', registeredTenantHost)
+        .set('Authorization', `Bearer ${_accessToken}`)
+        .send({})
+        .expect(400);
+    });
+
+    it('should succeed when refreshToken provided', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Host', registeredTenantHost)
+        .set('Authorization', `Bearer ${_accessToken}`)
+        .send({ refreshToken: _refreshToken })
+        .expect(204);
     });
   });
 });

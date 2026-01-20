@@ -53,12 +53,14 @@ describe('Bookings Workflow E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     const tenantId = seedData.tenantId;
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as seeded admin user
-    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.admin.email,
       password: adminPassword,
     });
+
     adminToken = loginResponse.body.data.accessToken;
 
     // Get existing package from seed data

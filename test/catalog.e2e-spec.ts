@@ -58,10 +58,12 @@ describe('Catalog Module E2E Tests', () => {
     // Seed database and get tenant
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin to get access token
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({
         email: seedData.admin.email,
         password: adminPassword || 'ChaptersERP123!',
