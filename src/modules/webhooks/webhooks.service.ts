@@ -59,7 +59,11 @@ export class WebhookService {
       if (url.protocol !== 'https:') {
         throw new Error('webhooks.invalid_protocol');
       }
-    } catch {
+    } catch (error) {
+      // Fail closed: invalid URL must not be persisted.
+      this.logger.warn(
+        `Invalid webhook URL for tenant ${tenantId}: ${config.url} (${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'})`,
+      );
       throw new BadRequestException('webhooks.invalid_url');
     }
 
@@ -197,76 +201,76 @@ export class WebhookService {
    * Otherwise falls back to inline delivery with concurrency limit.
    */
   async emit(event: WebhookEvent): Promise<void> {
-    // Ensure tenant context is set if missing (e.g. from global event handler)
-    if (!TenantContextService.getTenantId() && event.tenantId) {
-      // NOTE: In a real scenario, we might want to use a namespace helper to set this
-      // for the duration of the emit call. For now, we assume the repository will use
-      // the provided tenantId if we pass it, but we refactored it to use context.
-      // So let's check if find can accept a tenantId override.
-      // TenantAwareRepository doesn't currently allow overrides in find().
+    const tenantId = event.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('common.tenant_missing');
     }
 
-    const webhooks = await this.webhookRepository.find({
-      where: { isActive: true },
-    });
+    await TenantContextService.run(tenantId, async () => {
+      const webhooks = await this.webhookRepository.find({
+        where: { isActive: true },
+      });
 
-    const deliveries = webhooks.map(async (webhook) => {
-      // Safety check for malformed webhooks
-      if (!webhook.events || !Array.isArray(webhook.events)) {
-        this.logger.warn(`Webhook ${webhook.id} has no events defined`);
-        return;
-      }
+      const deliveries = webhooks.map(async (webhook) => {
+        // Safety check for malformed webhooks
+        if (!webhook.events || !Array.isArray(webhook.events)) {
+          this.logger.warn(`Webhook ${webhook.id} has no events defined`);
+          return;
+        }
 
-      if (!webhook.events.includes(event.type) && !webhook.events.includes('*')) {
-        return;
-      }
+        if (!webhook.events.includes(event.type) && !webhook.events.includes('*')) {
+          return;
+        }
 
-      if (this.webhookQueue) {
-        // Enqueue for background processing
-        await this.webhookQueue.add(
-          `${event.type}-${webhook.id}`,
-          {
-            webhook: {
-              id: webhook.id,
-              tenantId: webhook.tenantId,
-              url: webhook.url,
-              secret: webhook.secret,
-              events: webhook.events,
+        if (this.webhookQueue) {
+          // Enqueue for background processing
+          await this.webhookQueue.add(
+            `${event.type}-${webhook.id}`,
+            {
+              webhook: {
+                id: webhook.id,
+                tenantId: webhook.tenantId,
+                url: webhook.url,
+                secret: webhook.secret,
+                events: webhook.events,
+              },
+              event,
             },
-            event,
-          },
-          {
-            attempts: 5,
-            backoff: { type: 'exponential', delay: 30000 },
-          },
-        );
-        this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
-      } else {
-        // Fallback to inline delivery with concurrency limit
-        return this.concurrencyLimit(() => this.sendWebhookWithRetry(webhook, event));
-      }
-    });
+            {
+              attempts: 5,
+              backoff: { type: 'exponential', delay: 30000 },
+            },
+          );
+          this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
+        } else {
+          // Fallback to inline delivery with concurrency limit
+          return this.concurrencyLimit(() => this.sendWebhookWithRetry(webhook, event));
+        }
+      });
 
-    await Promise.allSettled(deliveries);
+      await Promise.allSettled(deliveries);
+    });
   }
 
   /**
    * Deliver webhook directly (called by processor or inline fallback)
    */
   async deliverWebhook(webhook: Webhook, event: WebhookEvent): Promise<void> {
-    // Background processor passes a partial entity (no resolvedIps). Load full record.
-    const fullWebhook =
-      webhook.resolvedIps === undefined
-        ? await this.webhookRepository.findOne({
-            where: { id: webhook.id },
-          })
-        : webhook;
+    await TenantContextService.run(webhook.tenantId, async () => {
+      // Background processor passes a partial entity (no resolvedIps). Load full record.
+      const fullWebhook =
+        webhook.resolvedIps === undefined
+          ? await this.webhookRepository.findOne({
+              where: { id: webhook.id },
+            })
+          : webhook;
 
-    if (!fullWebhook) {
-      throw new NotFoundException('webhooks.not_found');
-    }
+      if (!fullWebhook) {
+        throw new NotFoundException('webhooks.not_found');
+      }
 
-    await this.sendWebhookOnce(fullWebhook, event);
+      await this.sendWebhookOnce(fullWebhook, event);
+    });
   }
 
   /**

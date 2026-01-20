@@ -58,6 +58,9 @@ describe('WebhookService', () => {
       statusText: 'OK',
       json: () => Promise.resolve({}),
     } as unknown as Response);
+
+    // Speed up retries
+    Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
   });
 
   afterEach(() => {
@@ -211,7 +214,7 @@ describe('WebhookService', () => {
 
     it('should reject localhost URLs (SSRF prevention)', async () => {
       const config: WebhookConfig = {
-        url: 'http://localhost:3000/webhook',
+        url: 'https://localhost:3000/webhook',
         secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
@@ -221,7 +224,7 @@ describe('WebhookService', () => {
 
     it('should reject 127.0.0.1 URLs (SSRF prevention)', async () => {
       const config: WebhookConfig = {
-        url: 'http://127.0.0.1:3000/webhook',
+        url: 'https://127.0.0.1:3000/webhook',
         secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
@@ -231,7 +234,7 @@ describe('WebhookService', () => {
 
     it('should reject private IP ranges (10.x.x.x)', async () => {
       const config: WebhookConfig = {
-        url: 'http://10.0.0.1/webhook',
+        url: 'https://10.0.0.1/webhook',
         secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
@@ -241,7 +244,7 @@ describe('WebhookService', () => {
 
     it('should reject private IP ranges (192.168.x.x)', async () => {
       const config: WebhookConfig = {
-        url: 'http://192.168.1.1/webhook',
+        url: 'https://192.168.1.1/webhook',
         secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
@@ -251,7 +254,7 @@ describe('WebhookService', () => {
 
     it('should reject private IP ranges (172.16-31.x.x)', async () => {
       const config: WebhookConfig = {
-        url: 'http://172.16.0.1/webhook',
+        url: 'https://172.16.0.1/webhook',
         secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
@@ -338,7 +341,6 @@ describe('WebhookService', () => {
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       await service.emit(event);
-
       expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('webhooks.redirect_blocked'));
     });
   });
@@ -369,6 +371,172 @@ describe('WebhookService', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('DNS and Security edge cases', () => {
+    it('should handle DNS lookup failure gracefully', async () => {
+      (lookup as jest.Mock).mockRejectedValue(new Error('DNS failed'));
+
+      const config: WebhookConfig = {
+        url: 'https://does-not-exist.com/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['booking.created'],
+      };
+
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.dns_lookup_failed');
+    });
+
+    it('should allow legacy webhooks without allowlisted IPs (re-resolves on send)', async () => {
+      (lookup as jest.Mock).mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+
+      const webhook = {
+        id: 'legacy-1',
+        url: 'https://legacy.com/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['booking.created'],
+        resolvedIps: undefined, // legacy
+        tenantId: mockTenantId,
+        isActive: true,
+      } as unknown as Webhook;
+
+      // We need to use deliverWebhook to reach check logic or rely on sendWebhookOnce being called
+      // emit calls concurrencyLimit -> sendWebhookWithRetry -> sendWebhookOnce
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      await service.emit({ type: 'booking.created', tenantId: mockTenantId, payload: {}, timestamp: '' });
+
+      // Should resolve DNS again
+      expect(lookup).toHaveBeenCalledWith('legacy.com', { all: true });
+    });
+
+    it('should block DNS rebinding (IP changed from allowlist)', async () => {
+      // Mock lookup to return a NEW IP not in allowlist
+      (lookup as jest.Mock).mockResolvedValue([{ address: '1.2.3.4', family: 4 }]);
+
+      const webhook = {
+        id: 'rebind-1',
+        url: 'https://rebind.com/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['booking.created'],
+        resolvedIps: ['9.9.9.9'], // Allowlist has original IP
+        tenantId: mockTenantId,
+        isActive: true,
+      } as unknown as Webhook;
+
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
+
+      await service.emit({ type: 'booking.created', tenantId: mockTenantId, payload: {}, timestamp: '' });
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('webhooks.dns_rebinding_blocked'));
+    });
+  });
+
+  describe('Queue and Retry Logic', () => {
+    it('should enqueue job if queue is available', async () => {
+      // Re-create service with mock queue
+      const mockQueue = { add: jest.fn().mockResolvedValue({ id: 'job-1' }) };
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          WebhookService,
+          { provide: ConfigService, useValue: mockConfigService },
+          { provide: WebhookRepository, useValue: { find: jest.fn(), findOne: jest.fn() } }, // minimal repo
+          { provide: EncryptionService, useValue: mockEncryptionService },
+          { provide: 'BullQueue_webhook', useValue: mockQueue }, // Correct BullQueue token
+        ],
+      }).compile();
+      const serviceWithQueue = module.get<WebhookService>(WebhookService);
+      const repo = module.get(WebhookRepository);
+
+      const webhook = { id: 'w1', tenantId: 't1', url: 'https://queue.com', events: ['*'], isActive: true } as any;
+      (repo.find as jest.Mock).mockResolvedValue([webhook]);
+
+      await serviceWithQueue.emit({
+        type: 'booking.created',
+        tenantId: 't1',
+        payload: {},
+        timestamp: '',
+      } as WebhookEvent);
+
+      expect(mockQueue.add).toHaveBeenCalled();
+    });
+
+    it('should retry on failure with backoff', async () => {
+      // Force short delay for test
+      Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
+
+      let callCount = 0;
+      global.fetch = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount < 3) return Promise.reject(new Error('fail'));
+        return Promise.resolve({ ok: true, status: 200 } as Response);
+      });
+
+      const webhook = {
+        id: 'retry-1',
+        url: 'https://retry.com',
+        secret: 's',
+        events: ['*'],
+        isActive: true,
+        resolvedIps: ['1.1.1.1'],
+      } as any;
+      (lookup as jest.Mock).mockResolvedValue([{ address: '1.1.1.1', family: 4 }]);
+
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      await service.emit({
+        type: 'booking.created',
+        tenantId: 't1',
+        payload: {},
+        timestamp: '',
+      } as WebhookEvent);
+
+      expect(callCount).toBeGreaterThanOrEqual(3);
+    });
+
+    it('should give up after max retries', async () => {
+      Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
+
+      global.fetch = jest.fn().mockRejectedValue(new Error('fail forever'));
+
+      const webhook = {
+        id: 'fail-1',
+        url: 'https://fail.com',
+        secret: 's',
+        events: ['*'],
+        isActive: true,
+      } as any;
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
+
+      await service.emit({
+        type: 'booking.created',
+        tenantId: 't1',
+        payload: {},
+        timestamp: '',
+      } as WebhookEvent);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('attempts'));
+    });
+  });
+
+  describe('emit edge cases', () => {
+    it('should throw if tenantId missing in event', async () => {
+      await expect(service.emit({ type: 'booking.created' } as any)).rejects.toThrow('common.tenant_missing');
+    });
+
+    it('should skip invalid webhooks (no events)', async () => {
+      const webhook = { id: 'w1', events: null, isActive: true } as any;
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      const loggerWarnSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'warn');
+
+      await service.emit({ type: 'booking.created', tenantId: 't1' } as any);
+
+      expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining('no events defined'));
     });
   });
 });
