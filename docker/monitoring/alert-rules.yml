@@ -1,0 +1,155 @@
+groups:
+  - name: platform_security_alerts
+    interval: 30s
+    rules:
+      # Failed login attempts spike
+      - alert: HighFailedLoginRate
+        expr: rate(platform_failed_logins_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: authentication
+        annotations:
+          summary: "High rate of failed login attempts"
+          description: "More than 10 failed login attempts per second in the last 5 minutes"
+
+      # Account lockout spike
+      - alert: MultipleAccountLockouts
+        expr: increase(platform_account_lockouts_total[10m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+          component: authentication
+        annotations:
+          summary: "Multiple account lockouts detected"
+          description: "More than 5 accounts locked in 10 minutes - possible brute force attack"
+
+      # Data export requests
+      - alert: FrequentDataExports
+        expr: increase(platform_data_exports_total[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: compliance
+        annotations:
+          summary: "Frequent data export requests"
+          description: "More than 10 data export requests in 1 hour"
+
+      # High risk score tenants
+      - alert: HighRiskTenantCount
+        expr: platform_high_risk_tenants > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High number of high-risk tenants"
+          description: "{{ $value }} tenants with risk score > 70"
+
+      # Session revocations
+      - alert: MassSessionRevocation
+        expr: increase(platform_sessions_revoked_total[5m]) > 100
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Mass session revocation detected"
+          description: "More than 100 sessions revoked in 5 minutes"
+
+  - name: platform_performance_alerts
+    interval: 30s
+    rules:
+      # API response time
+      - alert: HighAPIResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="platform-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High API response time"
+          description: "95th percentile response time is above 2 seconds"
+
+      # Error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          component: reliability
+        annotations:
+          summary: "High error rate detected"
+          description: "More than 5% of requests are returning 5xx errors"
+
+  - name: platform_business_alerts
+    interval: 60s
+    rules:
+      # Churn risk
+      - alert: HighChurnRisk
+        expr: platform_tenants_no_activity_30d > 10
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High churn risk detected"
+          description: "{{ $value }} tenants have been inactive for 30+ days"
+
+      # Revenue drop
+      - alert: MRRDropDetected
+        expr: (platform_mrr - platform_mrr offset 24h) / platform_mrr offset 24h < -0.05
+        for: 1h
+        labels:
+          severity: critical
+          component: business
+        annotations:
+          summary: "MRR drop detected"
+          description: "MRR has dropped by more than 5% in the last 24 hours"
+
+      # Unhealthy tenants
+      - alert: MultipleUnhealthyTenants
+        expr: platform_tenants_health_critical + platform_tenants_health_poor > 15
+        for: 30m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Multiple unhealthy tenants"
+          description: "{{ $value }} tenants have poor or critical health scores"
+
+  - name: platform_system_alerts
+    interval: 30s
+    rules:
+      # Database connection pool
+      - alert: DatabaseConnectionPoolExhausted
+        expr: platform_db_connection_pool_usage > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Connection pool usage is above 90%"
+
+      # Audit log write failures
+      - alert: AuditLogWriteFailures
+        expr: rate(platform_audit_log_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: compliance
+        annotations:
+          summary: "Audit log write failures detected"
+          description: "Critical: Audit logs are failing to write - compliance risk"
+
+      # Impersonation sessions
+      - alert: ActiveImpersonationSessions
+        expr: platform_active_impersonation_sessions > 0
+        for: 4h
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Long-running impersonation sessions"
+          description: "{{ $value }} impersonation sessions active for 4+ hours"

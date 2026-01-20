@@ -1,89 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="38" failures="0" errors="0" time="0.902">
-  <testsuite name="MetricsController" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:54" time="0.296" tests="4">
-    <testcase classname="MetricsController should be defined" name="MetricsController should be defined" time="0.003">
+<testsuites name="jest tests" tests="33" failures="0" errors="0" time="0.657">
+  <testsuite name="ImpersonationService" errors="0" failures="0" skipped="0" timestamp="2026-01-20T16:47:12" time="0.462" tests="22">
+    <testcase classname="ImpersonationService should be defined" name="ImpersonationService should be defined" time="0.004">
     </testcase>
-    <testcase classname="MetricsController getMetrics should return metrics from service" name="MetricsController getMetrics should return metrics from service" time="0.001">
+    <testcase classname="ImpersonationService startImpersonation should create impersonation session successfully" name="ImpersonationService startImpersonation should create impersonation session successfully" time="0.002">
     </testcase>
-    <testcase classname="MetricsController getMetrics should handle errors from service.getMetrics" name="MetricsController getMetrics should handle errors from service.getMetrics" time="0.002">
+    <testcase classname="ImpersonationService startImpersonation should store target user email from DB in session" name="ImpersonationService startImpersonation should store target user email from DB in session" time="0.001">
     </testcase>
-    <testcase classname="MetricsController health should return healthy status" name="MetricsController health should return healthy status" time="0">
+    <testcase classname="ImpersonationService startImpersonation should generate JWT with correct payload" name="ImpersonationService startImpersonation should generate JWT with correct payload" time="0">
     </testcase>
-  </testsuite>
-  <testsuite name="PayrollReconciliationService" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:54" time="0.303" tests="8">
-    <testcase classname="PayrollReconciliationService should be defined" name="PayrollReconciliationService should be defined" time="0.001">
+    <testcase classname="ImpersonationService startImpersonation should log impersonation start to audit" name="ImpersonationService startImpersonation should log impersonation start to audit" time="0.001">
     </testcase>
-    <testcase classname="PayrollReconciliationService reconcileTenant should return empty array when no stale payouts found" name="PayrollReconciliationService reconcileTenant should return empty array when no stale payouts found" time="0.001">
+    <testcase classname="ImpersonationService startImpersonation should throw ConflictException if active session exists" name="ImpersonationService startImpersonation should throw ConflictException if active session exists" time="0.008">
     </testcase>
-    <testcase classname="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_COMPLETED mismatch" name="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_COMPLETED mismatch" time="0.001">
+    <testcase classname="ImpersonationService startImpersonation should include approval ticket ID when provided" name="ImpersonationService startImpersonation should include approval ticket ID when provided" time="0.001">
     </testcase>
-    <testcase classname="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_FAILED mismatch" name="PayrollReconciliationService reconcileTenant should detect PENDING_BUT_FAILED mismatch" time="0">
+    <testcase classname="ImpersonationService endImpersonation should end active session successfully" name="ImpersonationService endImpersonation should end active session successfully" time="0.001">
     </testcase>
-    <testcase classname="PayrollReconciliationService reconcileTenant should return no mismatch when gateway also shows PENDING" name="PayrollReconciliationService reconcileTenant should return no mismatch when gateway also shows PENDING" time="0.001">
+    <testcase classname="ImpersonationService endImpersonation should throw NotFoundException for non-existent session" name="ImpersonationService endImpersonation should throw NotFoundException for non-existent session" time="0">
     </testcase>
-    <testcase classname="PayrollReconciliationService runNightlyReconciliation should skip execution when advisory lock is not acquired" name="PayrollReconciliationService runNightlyReconciliation should skip execution when advisory lock is not acquired" time="0.001">
+    <testcase classname="ImpersonationService endImpersonation should throw ConflictException if session already ended" name="ImpersonationService endImpersonation should throw ConflictException if session already ended" time="0">
     </testcase>
-    <testcase classname="PayrollReconciliationService runNightlyReconciliation should process all tenants when lock is acquired" name="PayrollReconciliationService runNightlyReconciliation should process all tenants when lock is acquired" time="0">
+    <testcase classname="ImpersonationService endImpersonation should throw UnauthorizedException if not session owner" name="ImpersonationService endImpersonation should throw UnauthorizedException if not session owner" time="0.001">
     </testcase>
-    <testcase classname="PayrollReconciliationService runNightlyReconciliation should create tickets for mismatches" name="PayrollReconciliationService runNightlyReconciliation should create tickets for mismatches" time="0">
+    <testcase classname="ImpersonationService endImpersonation should log impersonation end to audit" name="ImpersonationService endImpersonation should log impersonation end to audit" time="0">
     </testcase>
-  </testsuite>
-  <testsuite name="UpdateMetricsHandler Integration" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:55" time="0.094" tests="5">
-    <testcase classname="UpdateMetricsHandler Integration should increment booking count ONLY (no revenue) on BookingConfirmedEvent" name="UpdateMetricsHandler Integration should increment booking count ONLY (no revenue) on BookingConfirmedEvent" time="0.004">
+    <testcase classname="ImpersonationService endImpersonation should use default end reason if not provided" name="ImpersonationService endImpersonation should use default end reason if not provided" time="0.001">
     </testcase>
-    <testcase classname="UpdateMetricsHandler Integration should increment revenue on PaymentRecordedEvent" name="UpdateMetricsHandler Integration should increment revenue on PaymentRecordedEvent" time="0.001">
+    <testcase classname="ImpersonationService getActiveSessions should return active sessions for platform user" name="ImpersonationService getActiveSessions should return active sessions for platform user" time="0">
     </testcase>
-    <testcase classname="UpdateMetricsHandler Integration should increment task count on TaskCompletedEvent" name="UpdateMetricsHandler Integration should increment task count on TaskCompletedEvent" time="0.001">
+    <testcase classname="ImpersonationService getActiveSessions should return empty array when no active sessions" name="ImpersonationService getActiveSessions should return empty array when no active sessions" time="0.001">
     </testcase>
-    <testcase classname="UpdateMetricsHandler Integration should increment cancellations count on BookingCancelledEvent" name="UpdateMetricsHandler Integration should increment cancellations count on BookingCancelledEvent" time="0">
+    <testcase classname="ImpersonationService getHistory should return session history with default limit" name="ImpersonationService getHistory should return session history with default limit" time="0">
     </testcase>
-    <testcase classname="UpdateMetricsHandler Integration should aggregate multiple events correctly" name="UpdateMetricsHandler Integration should aggregate multiple events correctly" time="0.002">
+    <testcase classname="ImpersonationService getHistory should respect custom limit" name="ImpersonationService getHistory should respect custom limit" time="0.001">
     </testcase>
-  </testsuite>
-  <testsuite name="MetricsService" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:55" time="0.048" tests="12">
-    <testcase classname="MetricsService should be defined" name="MetricsService should be defined" time="0.001">
+    <testcase classname="ImpersonationService logAction should add action to session log" name="ImpersonationService logAction should add action to session log" time="0">
     </testcase>
-    <testcase classname="MetricsService getMetrics should return metrics as string" name="MetricsService getMetrics should return metrics as string" time="0.002">
+    <testcase classname="ImpersonationService logAction should silently return if session not found" name="ImpersonationService logAction should silently return if session not found" time="0.001">
     </testcase>
-    <testcase classname="MetricsService getContentType should return prometheus content type" name="MetricsService getContentType should return prometheus content type" time="0.005">
+    <testcase classname="ImpersonationService cleanupExpiredSessions should end sessions older than 4 hours" name="ImpersonationService cleanupExpiredSessions should end sessions older than 4 hours" time="0">
     </testcase>
-    <testcase classname="MetricsService isMetricsRequestAuthorized should return true when no token required in non-prod" name="MetricsService isMetricsRequestAuthorized should return true when no token required in non-prod" time="0">
+    <testcase classname="ImpersonationService cleanupExpiredSessions should not end sessions within 4 hours" name="ImpersonationService cleanupExpiredSessions should not end sessions within 4 hours" time="0.001">
     </testcase>
-    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when no token required in production" name="MetricsService isMetricsRequestAuthorized should return false when no token required in production" time="0.001">
-    </testcase>
-    <testcase classname="MetricsService isMetricsRequestAuthorized should return true when valid token provided" name="MetricsService isMetricsRequestAuthorized should return true when valid token provided" time="0">
-    </testcase>
-    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when invalid token provided" name="MetricsService isMetricsRequestAuthorized should return false when invalid token provided" time="0">
-    </testcase>
-    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when no auth header and token required" name="MetricsService isMetricsRequestAuthorized should return false when no auth header and token required" time="0.001">
-    </testcase>
-    <testcase classname="MetricsService isMetricsRequestAuthorized should return false when auth header is not a string" name="MetricsService isMetricsRequestAuthorized should return false when auth header is not a string" time="0">
-    </testcase>
-    <testcase classname="MetricsService shouldHideMetricsInProduction should return true in production without token" name="MetricsService shouldHideMetricsInProduction should return true in production without token" time="0.001">
-    </testcase>
-    <testcase classname="MetricsService shouldHideMetricsInProduction should return false in production with token" name="MetricsService shouldHideMetricsInProduction should return false in production with token" time="0">
-    </testcase>
-    <testcase classname="MetricsService shouldHideMetricsInProduction should return false in non-production" name="MetricsService shouldHideMetricsInProduction should return false in non-production" time="0">
+    <testcase classname="ImpersonationService cleanupExpiredSessions should handle no expired sessions" name="ImpersonationService cleanupExpiredSessions should handle no expired sessions" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="MetricsGuard" errors="0" failures="0" skipped="0" timestamp="2026-01-17T08:54:55" time="0.032" tests="9">
-    <testcase classname="MetricsGuard when METRICS_TOKEN is not configured should allow access in development without token" name="MetricsGuard when METRICS_TOKEN is not configured should allow access in development without token" time="0">
+  <testsuite name="CsrfMiddleware" errors="0" failures="0" skipped="0" timestamp="2026-01-20T16:47:12" time="0.071" tests="11">
+    <testcase classname="CsrfMiddleware should be defined" name="CsrfMiddleware should be defined" time="0.001">
     </testcase>
-    <testcase classname="MetricsGuard when METRICS_TOKEN is not configured should throw UnauthorizedException in production" name="MetricsGuard when METRICS_TOKEN is not configured should throw UnauthorizedException in production" time="0.004">
+    <testcase classname="CsrfMiddleware use should skip when CSRF is disabled" name="CsrfMiddleware use should skip when CSRF is disabled" time="0.001">
     </testcase>
-    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should allow access with valid bearer token" name="MetricsGuard when METRICS_TOKEN is configured should allow access with valid bearer token" time="0">
+    <testcase classname="CsrfMiddleware use should skip excluded paths (webhooks)" name="CsrfMiddleware use should skip excluded paths (webhooks)" time="0">
     </testcase>
-    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException without Authorization header" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException without Authorization header" time="0">
+    <testcase classname="CsrfMiddleware use should skip health endpoint" name="CsrfMiddleware use should skip health endpoint" time="0">
     </testcase>
-    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with invalid token" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with invalid token" time="0">
+    <testcase classname="CsrfMiddleware use should skip API requests with Bearer token" name="CsrfMiddleware use should skip API requests with Bearer token" time="0.001">
     </testcase>
-    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with wrong format" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with wrong format" time="0.001">
+    <testcase classname="CsrfMiddleware use should skip API requests with API key" name="CsrfMiddleware use should skip API requests with API key" time="0">
     </testcase>
-    <testcase classname="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with empty bearer token" name="MetricsGuard when METRICS_TOKEN is configured should throw UnauthorizedException with empty bearer token" time="0">
+    <testcase classname="CsrfMiddleware use should skip API requests with client token" name="CsrfMiddleware use should skip API requests with client token" time="0">
     </testcase>
-    <testcase classname="MetricsGuard timing-safe comparison should reject tokens of different lengths" name="MetricsGuard timing-safe comparison should reject tokens of different lengths" time="0">
+    <testcase classname="CsrfMiddleware use should generate token for GET requests" name="CsrfMiddleware use should generate token for GET requests" time="0.001">
     </testcase>
-    <testcase classname="MetricsGuard timing-safe comparison should reject tokens of same length but different content" name="MetricsGuard timing-safe comparison should reject tokens of same length but different content" time="0">
+    <testcase classname="CsrfMiddleware use should apply CSRF protection for POST requests" name="CsrfMiddleware use should apply CSRF protection for POST requests" time="0">
+    </testcase>
+    <testcase classname="CsrfMiddleware use should throw ForbiddenException for invalid CSRF token" name="CsrfMiddleware use should throw ForbiddenException for invalid CSRF token" time="0.004">
+    </testcase>
+    <testcase classname="CsrfMiddleware use logs when CSRF token generation throws" name="CsrfMiddleware use logs when CSRF token generation throws" time="0">
     </testcase>
   </testsuite>
 </testsuites>
