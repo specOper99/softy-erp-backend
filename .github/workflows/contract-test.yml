@@ -8,6 +8,29 @@ on:
 jobs:
   pact-verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,13 +40,51 @@ jobs:
           
       - name: Install dependencies
         run: npm ci
+
+      - name: Create .env file
+        run: cp .env.example .env
+
+      - name: Detect provider pact file
+        id: pacts
+        run: |
+          if [ -f "pacts/auth_client-auth_provider.json" ]; then
+            echo "needs_provider=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_provider=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build provider
+        if: steps.pacts.outputs.needs_provider == 'true'
+        run: npm run build
         
       - name: Start Provider (App)
+        if: steps.pacts.outputs.needs_provider == 'true'
         run: |
           npm run start:prod &
-          sleep 10 # Wait for app to boot
+          echo $! > provider.pid
+          for i in {1..30}; do
+            if curl -sf "http://localhost:3000/api/v1/health"; then
+              echo "Provider is healthy"
+              exit 0
+            fi
+            echo "Waiting for provider... ($i/30)"
+            sleep 2
+          done
+          echo "Provider failed to become healthy"
+          exit 1
         env:
           PORT: 3000
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+          VAULT_ENABLED: 'false'
+          DISABLE_RATE_LIMITING: 'true'
+          NODE_ENV: test
           
       - name: Verify Contracts
-        run: npm run test:pact
+        run: npm run test:pact -- --runInBand
