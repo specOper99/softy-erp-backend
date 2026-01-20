@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, StreamableFile } from '@nestjs/common';
+import { CallHandler, ExecutionContext, InternalServerErrorException, StreamableFile } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { of } from 'rxjs';
 import { MessagePackInterceptor } from './message-pack.interceptor';
@@ -125,6 +125,29 @@ describe('MessagePackInterceptor', () => {
       interceptor.intercept(context, mockCallHandler).subscribe((result) => {
         expect(result).toBeInstanceOf(StreamableFile);
         done();
+      });
+    });
+
+    it('should log and throw when serialization fails', (done) => {
+      const context = createMockContext('application/x-msgpack');
+      const mockCallHandler: CallHandler = {
+        handle: () => of({ data: 'test' }),
+      };
+
+      const loggerErrorSpy = jest.spyOn((interceptor as any).logger, 'error');
+      (interceptor as any).packr.pack = jest.fn(() => {
+        throw new Error('pack failed');
+      });
+
+      interceptor.intercept(context, mockCallHandler).subscribe({
+        next: () => {
+          throw new Error('Expected observable to error');
+        },
+        error: (err) => {
+          expect(loggerErrorSpy).toHaveBeenCalled();
+          expect(err).toBeInstanceOf(InternalServerErrorException);
+          done();
+        },
       });
     });
   });

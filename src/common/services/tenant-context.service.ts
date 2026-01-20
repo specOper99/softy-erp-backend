@@ -17,14 +17,10 @@ export class TenantContextService {
   }
 
   static getTenantIdOrThrow(): string {
-    const tenantId = this.getStore();
+    const tenantId = this.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('Tenant context missing');
     }
     return tenantId;
-  }
-
-  private static getStore(): string | undefined {
-    return this.storage.getStore();
   }
 }

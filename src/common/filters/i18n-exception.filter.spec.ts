@@ -1,30 +1,13 @@
-import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockArgumentsHost, createMockFilterRequest } from '../../../test/helpers/test-setup.utils';
 import { I18nService } from '../i18n';
 import { I18nExceptionFilter } from './i18n-exception.filter';
 
 describe('I18nExceptionFilter', () => {
   let filter: I18nExceptionFilter;
   let i18nService: jest.Mocked<I18nService>;
-
-  const mockResponse = {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn(),
-  };
-
-  const mockRequest = {
-    url: '/api/v1/test',
-    headers: {
-      'accept-language': 'en',
-    },
-  };
-
-  const mockHost = {
-    switchToHttp: jest.fn().mockReturnValue({
-      getResponse: () => mockResponse,
-      getRequest: () => mockRequest,
-    }),
-  } as unknown as ArgumentsHost;
+  let mockHost: ReturnType<typeof createMockArgumentsHost>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -48,6 +31,7 @@ describe('I18nExceptionFilter', () => {
 
     filter = module.get<I18nExceptionFilter>(I18nExceptionFilter);
     i18nService = module.get(I18nService);
+    mockHost = createMockArgumentsHost(createMockFilterRequest({ headers: { 'accept-language': 'en' } }));
     jest.clearAllMocks();
   });
 
@@ -61,8 +45,8 @@ describe('I18nExceptionFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.UNAUTHORIZED,
           message: 'Access denied',
@@ -75,7 +59,7 @@ describe('I18nExceptionFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Invalid credentials',
         }),
@@ -87,7 +71,7 @@ describe('I18nExceptionFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.BAD_REQUEST,
         }),
@@ -103,15 +87,7 @@ describe('I18nExceptionFilter', () => {
     });
 
     it('should parse Accept-Language header', () => {
-      const hostWithArabic = {
-        switchToHttp: jest.fn().mockReturnValue({
-          getResponse: () => mockResponse,
-          getRequest: () => ({
-            ...mockRequest,
-            headers: { 'accept-language': 'ar' },
-          }),
-        }),
-      } as unknown as ArgumentsHost;
+      const hostWithArabic = createMockArgumentsHost(createMockFilterRequest({ headers: { 'accept-language': 'ar' } }));
 
       const exception = new HttpException('Forbidden', HttpStatus.FORBIDDEN);
 
@@ -126,7 +102,7 @@ describe('I18nExceptionFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Custom error',
         }),
@@ -138,7 +114,7 @@ describe('I18nExceptionFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           timestamp: expect.any(String),
           path: '/api/v1/test',
@@ -151,7 +127,7 @@ describe('I18nExceptionFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'Not Found',
         }),

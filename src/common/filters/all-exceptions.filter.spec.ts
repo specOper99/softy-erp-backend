@@ -1,27 +1,11 @@
-import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockArgumentsHost } from '../../../test/helpers/test-setup.utils';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;
-
-  const mockResponse = {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn(),
-  };
-
-  const mockRequest = {
-    url: '/api/v1/test',
-    method: 'GET',
-    headers: {},
-  };
-
-  const mockHost = {
-    switchToHttp: jest.fn().mockReturnValue({
-      getResponse: () => mockResponse,
-      getRequest: () => mockRequest,
-    }),
-  } as unknown as ArgumentsHost;
+  let mockHost: ReturnType<typeof createMockArgumentsHost>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -29,6 +13,7 @@ describe('AllExceptionsFilter', () => {
     }).compile();
 
     filter = module.get<AllExceptionsFilter>(AllExceptionsFilter);
+    mockHost = createMockArgumentsHost();
     jest.clearAllMocks();
   });
 
@@ -42,8 +27,8 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.BAD_REQUEST,
           message: 'Bad Request',
@@ -58,8 +43,8 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.FORBIDDEN);
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.status).toHaveBeenCalledWith(HttpStatus.FORBIDDEN);
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.FORBIDDEN,
           message: 'Forbidden',
@@ -75,8 +60,8 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Field is required, Field must be valid',
         }),
@@ -88,8 +73,8 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Something went wrong',
@@ -102,8 +87,8 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Unknown error occurred',
@@ -116,7 +101,7 @@ describe('AllExceptionsFilter', () => {
 
       filter.catch(exception, mockHost);
 
-      expect(mockResponse.json).toHaveBeenCalledWith(
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           timestamp: expect.any(String),
         }),

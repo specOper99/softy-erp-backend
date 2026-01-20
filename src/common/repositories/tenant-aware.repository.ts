@@ -151,48 +151,39 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
   }
 
   async remove<E extends T | T[]>(entityOrEntities: E): Promise<E> {
-    const tenantId = this.getTenantId();
-
-    if (Array.isArray(entityOrEntities)) {
-      for (const entity of entityOrEntities as Array<T & { tenantId: string }>) {
-        if (!entity.tenantId) {
-          entity.tenantId = tenantId;
-        } else if (entity.tenantId !== tenantId) {
-          throw new ForbiddenException('common.cross_tenant_remove_attempt');
-        }
-      }
-      return this.repository.remove(entityOrEntities as unknown as T[]) as unknown as Promise<E>;
-    }
-
-    const entity = entityOrEntities as T & { tenantId: string };
-    if (!entity.tenantId) {
-      entity.tenantId = tenantId;
-    } else if (entity.tenantId !== tenantId) {
-      throw new ForbiddenException('common.cross_tenant_remove_attempt');
-    }
-    return this.repository.remove(entity) as unknown as Promise<E>;
+    return this.handleRemoval(entityOrEntities, 'remove');
   }
 
   async softRemove<E extends T | T[]>(entityOrEntities: E): Promise<E> {
+    return this.handleRemoval(entityOrEntities, 'softRemove');
+  }
+
+  private async handleRemoval<E extends T | T[]>(entityOrEntities: E, action: 'remove' | 'softRemove'): Promise<E> {
     const tenantId = this.getTenantId();
 
     if (Array.isArray(entityOrEntities)) {
-      for (const entity of entityOrEntities as Array<T & { tenantId: string }>) {
-        if (!entity.tenantId) {
-          entity.tenantId = tenantId;
-        } else if (entity.tenantId !== tenantId) {
-          throw new ForbiddenException('common.cross_tenant_remove_attempt');
-        }
-      }
-      return this.repository.softRemove(entityOrEntities as unknown as T[]) as unknown as Promise<E>;
+      this.validateTenantOwnerships(entityOrEntities as Array<T & { tenantId: string }>, tenantId);
+      // @ts-expect-error - TypeORM method overload doesn't play well with generic type
+      return await this.repository[action](entityOrEntities);
     }
 
-    const entity = entityOrEntities as T;
+    const entity = entityOrEntities as T & { tenantId: string };
+    this.validateTenantOwnership(entity, tenantId);
+    // @ts-expect-error - TypeORM method overload doesn't play well with generic type
+    return await this.repository[action](entity);
+  }
+
+  private validateTenantOwnership(entity: T & { tenantId: string }, tenantId: string): void {
     if (!entity.tenantId) {
       entity.tenantId = tenantId;
     } else if (entity.tenantId !== tenantId) {
       throw new ForbiddenException('common.cross_tenant_remove_attempt');
     }
-    return this.repository.softRemove(entity) as unknown as Promise<E>;
+  }
+
+  private validateTenantOwnerships(entities: Array<T & { tenantId: string }>, tenantId: string): void {
+    for (const entity of entities) {
+      this.validateTenantOwnership(entity, tenantId);
+    }
   }
 }

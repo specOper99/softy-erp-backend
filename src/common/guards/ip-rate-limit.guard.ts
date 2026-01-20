@@ -61,6 +61,16 @@ export class IpRateLimitGuard implements CanActivate {
       return true;
     }
 
+    const isEnabled = this.configService.get<string>('RATE_LIMIT_ENABLED') !== 'false';
+    if (!isEnabled) {
+      const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+      if (isProd) {
+        this.logger.warn('Security Alert: Attempt to disable rate limiting in production denied. Limits enforced.');
+      } else {
+        return true;
+      }
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
     const ip = this.getClientIp(request);

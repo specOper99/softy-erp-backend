@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NestInterceptor,
   StreamableFile,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { map } from 'rxjs/operators';
 @Injectable()
 export class MessagePackInterceptor implements NestInterceptor {
   private readonly packr = new Packr();
+  private readonly logger = new Logger(MessagePackInterceptor.name);
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const httpContext = context.switchToHttp();
@@ -43,7 +45,12 @@ export class MessagePackInterceptor implements NestInterceptor {
         // to bypass NestJS JSON serialization and other interceptors
         try {
           return new StreamableFile(Buffer.from(this.packr.pack(data)));
-        } catch {
+        } catch (error) {
+          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+          // Do not log the response body; only log request context.
+          const path = request.originalUrl || request.url || 'unknown';
+          const method = request.method || 'unknown';
+          this.logger.error(`MessagePack serialization failed (${method} ${path}): ${message}`);
           throw new InternalServerErrorException('common.serialization_error');
         }
       }),

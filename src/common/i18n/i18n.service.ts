@@ -28,8 +28,11 @@ export class I18nService implements OnModuleInit {
         const filePath = join(translationsDir, `${lang}.json`);
         const content = readFileSync(filePath, 'utf-8');
         this.translations.set(lang, JSON.parse(content) as TranslationData);
-      } catch {
-        this.logger.warn(`Failed to load translations for language: ${lang}`);
+      } catch (error) {
+        // Fail closed: missing/corrupt translation files should prevent startup.
+        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+        this.logger.error(`Failed to load translations for language: ${lang} (${message})`);
+        throw error instanceof Error ? error : new Error(message);
       }
     }
   }

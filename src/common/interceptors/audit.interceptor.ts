@@ -63,17 +63,19 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap({
         next: (response) => {
-          void this.logAuditEvent(
+          this.logAuditEvent(
             auditOptions,
             request,
             user,
             'SUCCESS',
             Date.now() - startTime,
             auditOptions.includeResponse ? response : undefined,
-          );
+          ).catch((e) => {
+            this.logger.error('AuditInterceptor logAuditEvent failed', e instanceof Error ? e.stack : String(e));
+          });
         },
         error: (error) => {
-          void this.logAuditEvent(
+          this.logAuditEvent(
             auditOptions,
             request,
             user,
@@ -81,7 +83,9 @@ export class AuditInterceptor implements NestInterceptor {
             Date.now() - startTime,
             undefined,
             error instanceof Error ? error.message : String(error),
-          );
+          ).catch((e) => {
+            this.logger.error('AuditInterceptor logAuditEvent failed', e instanceof Error ? e.stack : String(e));
+          });
         },
       }),
     );

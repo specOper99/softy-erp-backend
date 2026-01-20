@@ -32,7 +32,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status: number;
     let message: string;
-    let _error: string;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -45,15 +44,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         };
         const msg = responseObj.message || exception.message;
         message = this.formatMessage(msg);
-        _error = (responseObj.error as string) || exception.name;
+        void responseObj.error;
+        void exception.name;
       } else {
         message = String(exceptionResponse);
-        _error = exception.name;
+        void exception.name;
       }
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = isProduction ? 'An unexpected error occurred. Please try again later.' : exception.message;
-      _error = 'InternalServerError';
 
       this.logger.error({
         message: 'Unhandled exception',
@@ -67,7 +66,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = isProduction ? 'An unexpected error occurred. Please try again later.' : 'Unknown error occurred';
-      _error = 'InternalServerError';
 
       this.logger.error({
         message: 'Unknown exception type',

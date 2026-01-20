@@ -29,51 +29,69 @@ export class ExportService {
     filename: string,
     fields?: string[],
     transformFn?: (row: T) => unknown,
-  ): void {
+  ): Promise<void> {
     const sanitizedFilename = this.sanitizeFilename(filename);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
 
     const json2csv = new Transform({ fields }, { objectMode: true });
 
-    const cleanup = () => {
-      if (!dataStream.destroyed) {
-        dataStream.destroy();
-      }
-      if (!json2csv.destroyed) {
-        json2csv.destroy();
-      }
-    };
-
-    res.on('close', cleanup);
-    res.on('error', cleanup);
-
-    if (transformFn) {
-      dataStream.on('data', (chunk) => {
-        const transformed = transformFn(chunk as T);
-        const canContinue = json2csv.write(transformed);
-        if (!canContinue) {
-          dataStream.pause();
-          json2csv.once('drain', () => dataStream.resume());
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        if (!dataStream.destroyed) {
+          dataStream.destroy();
         }
-      });
+        if (!json2csv.destroyed) {
+          json2csv.destroy();
+        }
+      };
 
-      dataStream.on('end', () => {
-        json2csv.end();
-      });
-
-      dataStream.on('error', (err) => {
-        json2csv.destroy(err);
+      const onError = (err: Error) => {
+        cleanup();
         if (!res.headersSent) {
           res.status(500).end();
         } else {
           res.end();
         }
-      });
+        reject(err);
+      };
 
-      json2csv.pipe(res);
-    } else {
-      dataStream.pipe(json2csv).pipe(res);
-    }
+      res.on('close', cleanup);
+      res.on('error', onError);
+
+      if (transformFn) {
+        dataStream.on('data', (chunk) => {
+          const transformed = transformFn(chunk as T);
+          const canContinue = json2csv.write(transformed);
+          if (!canContinue) {
+            dataStream.pause();
+            json2csv.once('drain', () => dataStream.resume());
+          }
+        });
+
+        dataStream.on('end', () => {
+          json2csv.end();
+        });
+
+        dataStream.on('error', onError);
+
+        json2csv.on('finish', () => {
+          resolve();
+        });
+
+        json2csv.on('error', onError);
+
+        json2csv.pipe(res);
+      } else {
+        dataStream.on('error', onError);
+        dataStream.pipe(json2csv).pipe(res);
+
+        json2csv.on('finish', () => {
+          resolve();
+        });
+
+        json2csv.on('error', onError);
+      }
+    });
   }
 }

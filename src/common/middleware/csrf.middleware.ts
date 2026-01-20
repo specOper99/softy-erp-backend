@@ -88,8 +88,12 @@ export class CsrfMiddleware implements NestMiddleware {
           sameSite: 'strict',
           secure: this.configService.get('NODE_ENV') === 'production',
         });
-      } catch {
-        // First request may not have session, continue
+      } catch (tokenError) {
+        // Log warning but continue - first request may not have session
+        // This is expected behavior for initial requests
+        this.logger.debug(
+          `CSRF token generation skipped for ${req.path}: ${tokenError instanceof Error ? tokenError.message : 'no session'}`,
+        );
       }
       return next();
     }
@@ -121,6 +125,18 @@ export class CsrfMiddleware implements NestMiddleware {
   private isApiRequest(req: Request): boolean {
     const authHeader = req.headers.authorization;
     const apiKeyHeader = req.headers['x-api-key'];
-    return !!(authHeader?.startsWith('Bearer ') || apiKeyHeader);
+    const clientTokenHeader = req.headers['x-client-token'];
+
+    const hasAuthHeader = !!(authHeader?.startsWith('Bearer ') || apiKeyHeader || clientTokenHeader);
+    if (!hasAuthHeader) {
+      return false;
+    }
+
+    const cookieHeader = req.headers.cookie;
+    if (typeof cookieHeader === 'string' && cookieHeader.length > 0) {
+      return false;
+    }
+
+    return true;
   }
 }

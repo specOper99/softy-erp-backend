@@ -106,7 +106,7 @@ describe('GlobalCacheInterceptor', () => {
     });
 
     it('should skip when no tenantId', async () => {
-      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined as unknown as string);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
       jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
         if (key === CACHEABLE_KEY) return true;
         return undefined;

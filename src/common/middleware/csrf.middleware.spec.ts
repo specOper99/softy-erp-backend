@@ -112,6 +112,19 @@ describe('CsrfMiddleware', () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
+    it('should skip API requests with client token', () => {
+      const mockRequest = {
+        path: '/api/v1/client-portal/bookings',
+        headers: { 'x-client-token': 'client-token-123' },
+      } as unknown as Request;
+      const mockResponse = {} as Response;
+      const mockNext = jest.fn();
+
+      middleware.use(mockRequest, mockResponse, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+
     it('should generate token for GET requests', () => {
       const mockRequest = {
         path: '/api/v1/form',
@@ -162,6 +175,29 @@ describe('CsrfMiddleware', () => {
       expect(() => {
         middleware.use(mockRequest, mockResponse, mockNext);
       }).toThrow(ForbiddenException);
+    });
+    it('logs when CSRF token generation throws', () => {
+      const mockRequest = {
+        path: '/api/v1/form',
+        method: 'GET',
+        headers: {},
+        cookies: {},
+      } as unknown as Request;
+      const mockResponse = {
+        cookie: jest.fn(),
+      } as unknown as Response;
+      const mockNext = jest.fn();
+
+      (middleware as any).generateCsrfToken = jest.fn(() => {
+        throw new Error('Token generation error');
+      });
+
+      const loggerSpy = jest.spyOn((middleware as any).logger, 'debug');
+
+      middleware.use(mockRequest, mockResponse, mockNext);
+
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('CSRF token generation skipped'));
+      expect(mockNext).toHaveBeenCalled();
     });
   });
 });

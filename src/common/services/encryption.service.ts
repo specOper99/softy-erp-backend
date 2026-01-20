@@ -113,8 +113,11 @@ export class EncryptionService {
     try {
       const key = this.keys.get(this.currentVersion);
       if (key) return this.performDecryption(key, ivBase64, authTagBase64, encryptedBase64);
-    } catch {
-      // Ignore and try next
+    } catch (error) {
+      // Ignore and try next, but log for observability.
+      this.logger.debug(
+        `Legacy decrypt failed with current key version ${this.currentVersion}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
+      );
     }
 
     // Attempt with other keys
@@ -122,7 +125,10 @@ export class EncryptionService {
       if (version === this.currentVersion) continue;
       try {
         return this.performDecryption(key, ivBase64, authTagBase64, encryptedBase64);
-      } catch {
+      } catch (error) {
+        this.logger.debug(
+          `Legacy decrypt failed with key version ${version}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
+        );
         continue;
       }
     }

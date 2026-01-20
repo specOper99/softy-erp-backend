@@ -25,23 +25,28 @@ describe('ExportService', () => {
     beforeEach(() => {
       mockResponse = new PassThrough() as unknown as Response;
       mockResponse.setHeader = jest.fn();
+      mockResponse.status = jest.fn().mockReturnThis();
+      mockResponse.end = jest.fn();
 
       // Basic mock stream
       mockStream = new Readable({
         objectMode: true,
-        read() {},
+        read() {
+          this.push({ col1: 'val1' });
+          this.push(null); // End immediately
+        },
       });
     });
 
-    it('should set proper headers', () => {
-      service.streamFromStream(mockResponse as Response, mockStream, 'test.csv');
+    it('should set proper headers', async () => {
+      await service.streamFromStream(mockResponse as Response, mockStream, 'test.csv');
 
       expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv');
       expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="test.csv"');
     });
 
-    it('should sanitize filename', () => {
-      service.streamFromStream(mockResponse as Response, mockStream, 'bad/file:name.csv');
+    it('should sanitize filename', async () => {
+      await service.streamFromStream(mockResponse as Response, mockStream, 'bad/file:name.csv');
 
       expect(mockResponse.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
