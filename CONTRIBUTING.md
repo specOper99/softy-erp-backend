@@ -26,7 +26,7 @@ src/
 - **DI Tokens**: `UPPER_SNAKE_CASE` (e.g., `TENANT_REPO_CLIENT`)
 
 ### TypeScript
-- No `any` in production code (tests excepted per eslint config)
+- **No `any` anywhere**: We have a strict zero-tolerance policy for `any`. Do not use it in production code OR tests. Use `unknown` with narrowing or proper types.
 - Use proper generic types for repositories and services
 - Follow strict null checks
 
@@ -85,6 +85,7 @@ describe('MyService', () => {
 | `createMockEventEmitter()`       | NestJS EventEmitter2                      |
 | `createMockLogger()`             | Silent Logger                             |
 | `createMockMinioClient()`        | S3-compatible MinIO client                |
+| `createMockAuditPublisher()`     | Mock implementation of AuditPublisher     |
 | `mockTenantContext(tenantId)`    | Sets up TenantContextService mocks        |
 
 ### Test Commands

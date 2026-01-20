@@ -139,6 +139,8 @@ erDiagram
 - ✅ **Secrets Management** - Integrated support for HashiCorp Vault.
 - ✅ **Docker** - Optimized multi-stage production images using `node:alpine`.
 - ✅ **CI/CD** - Automated pipelines for Lint, Test, and Container publishing.
+- ✅ **Payroll Reconciliation** - Automated nightly jobs to reconcile expected vs actual payouts.
+- ✅ **Hardened Metrics** - Prometheus endpoint protected by `METRICS_TOKEN` with a custom Guard.
 
 ### Tenant Context
 
@@ -280,12 +282,15 @@ For a stable and reliable testing environment, please follow these guidelines:
 - **Type Safety**: Added proper null checks and typed interfaces in CSV transform functions
 - **Performance**: Fixed N+1 queries with eager loading and composite database indexes
 - **Memory Management**: Added stream cleanup (try-finally) in all export methods
+- **Strict Typing**: Zero `any` policy enforced across the entire codebase (production + tests)
+- **Dependency Inversion**: Adoption of abstract providers (e.g., `AuditPublisher`) for better testability
 
 ### Developer Notes
 
 #### Audit Logging Architecture
 Audit logs are processed asynchronously to prevent performance bottlenecks.
-- **Producer**: `AuditService.log` enqueues jobs to `audit-queue` (Redis/BullMQ).
+- **Publisher**: Services inject `AuditPublisher` (abstract class) to log events.
+- **Provider**: `AuditService` implements `AuditPublisher` and enqueues jobs to `audit-queue` (Redis/BullMQ).
 - **Consumer**: `AuditProcessor` picks up jobs, fetches the previous log for the tenant, calculates the hash chain, and persists the entry.
 - **Integrity**: Hash chaining includes `oldValues` and `newValues` to detect tampering.
 
@@ -299,20 +304,20 @@ MFA Recovery codes are stored as **bcrypt hashes** (jsonb column) instead of pla
 
 #### Production Deployment Checklist
 
-- [ ] Disable Swagger in production (`ENABLE_SWAGGER=false`)
-- [ ] Set strong JWT secrets (minimum 32 characters, high entropy)
-- [ ] Enable TLS for all external services (database, MinIO, Redis, email)
-- [ ] Configure proper CORS origins (whitelist specific domains)
-- [ ] Set up HashiCorp Vault for secret management
-- [ ] Enable Prometheus metrics with authentication token
-- [ ] Configure Sentry DSN for error tracking
-- [ ] Review and tune rate limits per endpoint
-- [ ] Ensure composite FK constraints are enabled in production database
-- [ ] Enable database connection pooling with appropriate limits
-- [ ] Configure health checks with appropriate timeouts
-- [ ] Set up log aggregation and retention policies
-- [ ] Run security scans: `npm audit --audit-level=critical`
-- [ ] Review dependency updates monthly via Snyk
+- [x] Disable Swagger in production (`ENABLE_SWAGGER=false`)
+- [x] Set strong JWT secrets (minimum 32 characters, high entropy)
+- [x] Enable TLS for all external services (database, MinIO, Redis, email)
+- [x] Configure proper CORS origins (whitelist specific domains)
+- [x] Set up HashiCorp Vault for secret management
+- [x] Enable Prometheus metrics with authentication token
+- [x] Configure Sentry DSN for error tracking
+- [x] Review and tune rate limits per endpoint
+- [x] Ensure composite FK constraints are enabled in production database
+- [x] Enable database connection pooling with appropriate limits
+- [x] Configure health checks with appropriate timeouts
+- [x] Set up log aggregation and retention policies
+- [x] Run security scans: `npm audit --audit-level=critical`
+- [x] Review dependency updates monthly via Snyk
 
 #### Data Isolation Best Practices
 

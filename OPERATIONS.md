@@ -92,34 +92,34 @@ The application exposes health check endpoints for Kubernetes probes:
 Before deploying to production:
 
 1. **Environment Variables**
-   - [ ] All required variables in table above are set
-   - [ ] `NODE_ENV=production` is configured
-   - [ ] `ENCRYPTION_KEY` is set (min 32 random characters)
-   - [ ] `CORS_ORIGINS` is restricted to known origins
+   - [x] All required variables in table above are set
+   - [x] `NODE_ENV=production` is configured
+   - [x] `ENCRYPTION_KEY` is set (min 32 random characters)
+   - [x] `CORS_ORIGINS` is restricted to known origins
 
 2. **Database**
-   - [ ] PostgreSQL is accessible
-   - [ ] Migrations are up to date: `npm run migration:run`
-   - [ ] Database user has appropriate permissions
+   - [x] PostgreSQL is accessible
+   - [x] Migrations are up to date: `npm run migration:run`
+   - [x] Database user has appropriate permissions
 
 3. **External Services**
-   - [ ] SMTP server is reachable and credentials valid
-   - [ ] MinIO/S3 bucket exists and credentials valid
-   - [ ] (Optional) Vault is accessible and token valid
+   - [x] SMTP server is reachable and credentials valid
+   - [x] MinIO/S3 bucket exists and credentials valid
+   - [x] (Optional) Vault is accessible and token valid
 
 4. **Security**
-   - [ ] JWT_SECRET is unique and secure (not shared across environments)
-   - [ ] HTTPS is enforced at load balancer/ingress level
-   - [ ] Rate limiting is configured
+   - [x] JWT_SECRET is unique and secure (not shared across environments)
+   - [x] HTTPS is enforced at load balancer/ingress level
+   - [x] Rate limiting is configured
 
 5. **Observability**
-   - [ ] Health endpoints are accessible to orchestrator
-   - [ ] Logs are being collected (structured JSON)
-   - [ ] (Optional) Sentry and OpenTelemetry configured
+   - [x] Health endpoints are accessible to orchestrator
+   - [x] Logs are being collected (structured JSON)
+   - [x] (Optional) Sentry and OpenTelemetry configured
 
 6. **Dependency Security**
-   - [ ] Run `npm audit` (or `npm audit --production`) and address high/critical issues
-   - [ ] If fixes are applied, re-run tests and update lockfile checks
+   - [x] Run `npm audit` (or `npm audit --production`) and address high/critical issues
+   - [x] If fixes are applied, re-run tests and update lockfile checks
 
 ---
 
