@@ -1,0 +1,6 @@
+/Users/mohammadnawfal/Desktop/Archive/chapters-studio-erp/src/modules/dashboard/dashboard.service.ts:155: .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.CONFIRMED}' THEN 1 ELSE 0 END)`, 'confirmedBookings')
+/Users/mohammadnawfal/Desktop/Archive/chapters-studio-erp/src/modules/dashboard/dashboard.service.ts:155: .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.CONFIRMED}' THEN 1 ELSE 0 END)`, 'confirmedBookings')
+/Users/mohammadnawfal/Desktop/Archive/chapters-studio-erp/src/modules/dashboard/dashboard.service.ts:156: .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.COMPLETED}' THEN 1 ELSE 0 END)`, 'completedBookings')
+/Users/mohammadnawfal/Desktop/Archive/chapters-studio-erp/src/modules/dashboard/dashboard.service.ts:156: .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.COMPLETED}' THEN 1 ELSE 0 END)`, 'completedBookings')
+/Users/mohammadnawfal/Desktop/Archive/chapters-studio-erp/src/modules/dashboard/dashboard.service.ts:157: .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.CANCELLED}' THEN 1 ELSE 0 END)`, 'cancelledBookings')
+/Users/mohammadnawfal/Desktop/Archive/chapters-studio-erp/src/modules/dashboard/dashboard.service.ts:157: .addSelect(`SUM(CASE WHEN b.status = '${BookingStatus.CANCELLED}' THEN 1 ELSE 0 END)`, 'cancelledBookings')
