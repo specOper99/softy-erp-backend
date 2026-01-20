@@ -93,3 +93,6 @@ scripts/load-testing/reports/
 
 # Sentry
 .sentryclirc
+
+# AI Agent tracking
+.sisyphus/
