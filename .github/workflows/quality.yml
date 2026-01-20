@@ -28,6 +28,23 @@ jobs:
           name: mutation-report
           path: reports/mutation/html
           
+  duplication-check:
+    name: Code Duplication Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Duplication Analysis
+        run: npm run lint:duplication
+        continue-on-error: true # Report but don't fail initially (can enforce later)
+
   flaky-test-analysis:
     name: Flaky Test Report
     runs-on: ubuntu-latest

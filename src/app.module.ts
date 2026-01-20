@@ -46,6 +46,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { MediaModule } from './modules/media/media.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PlatformModule } from './modules/platform/platform.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { UsersModule } from './modules/users/users.module';
@@ -174,6 +175,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     ClientPortalModule,
     PrivacyModule,
     BillingModule,
+    PlatformModule,
     ResilienceModule.forRoot([
       {
         name: 's3',

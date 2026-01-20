@@ -6,7 +6,8 @@ describe('env-validation', () => {
     const config = {
       NODE_ENV: 'development',
       PORT: 3000,
-      JWT_SECRET: 'a_very_long_secret_for_jwt_auth_nest_js_erp_test',
+      // Must contain both letters and numbers for minimum complexity
+      JWT_SECRET: 'a_very_long_secret_for_jwt_auth123456789_nest_js',
     };
 
     const result = validate(config);

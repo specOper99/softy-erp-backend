@@ -27,13 +27,31 @@ async function bootstrap() {
   }
 
   // Security: Apply Helmet for HTTP security headers.
-  // In local dev (HTTP), avoid forcing HTTPS upgrades via CSP/HSTS; Safari will otherwise
-  // attempt to load Swagger UI assets over HTTPS and fail with TLS errors.
+  // Security headers are now enabled in all environments for testing fidelity.
+  // CSP is configured to allow Swagger UI assets in non-production environments.
   app.use(
     helmet({
-      contentSecurityPolicy: isProd ? undefined : false,
-      hsts: isProd ? undefined : false,
-      crossOriginResourcePolicy: isProd ? undefined : false,
+      contentSecurityPolicy: isProd
+        ? undefined // Use default strict CSP in production
+        : {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Required for Swagger UI
+              styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+              fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+              imgSrc: ["'self'", 'data:', 'https://validator.swagger.io'],
+              connectSrc: ["'self'"],
+            },
+          },
+      // HSTS enabled in all environments to ensure test fidelity
+      // In non-production, use shorter max-age to avoid long-term caching issues
+      hsts: isProd
+        ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+        : { maxAge: 86400, includeSubDomains: false },
+      crossOriginResourcePolicy: { policy: 'same-site' },
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginEmbedderPolicy: false, // Disabled to allow Swagger UI to load external resources
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }),
   );
 
@@ -43,7 +61,6 @@ async function bootstrap() {
   // Enable graceful shutdown hooks (SIGTERM, SIGINT)
   app.enableShutdownHooks();
 
-  // Global prefix
   // Global prefix
   app.setGlobalPrefix('api');
 
@@ -69,10 +86,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global interceptors (sanitize inputs, transform outputs)
-  app.useGlobalInterceptors(
-    // SanitizeInterceptor removed in favor of  TransformInterceptor,(),
-    new ClassSerializerInterceptor(app.get(Reflector)),
-  );
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // CORS - Environment-based configuration
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim());
@@ -85,7 +99,10 @@ async function bootstrap() {
   }
 
   app.enableCors({
-    origin: isProd ? corsOrigins : ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
+    origin:
+      corsOrigins && corsOrigins.length > 0
+        ? corsOrigins
+        : ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-XSRF-Token'],
@@ -95,23 +112,69 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle(process.env.APP_NAME || 'SaaS ERP API')
     .setDescription(
-      `API for ${process.env.COMPANY_NAME || 'SaaS Platform'} - Manages Bookings, Field Tasks, Finance, and HR/Payroll`,
+      `API for ${process.env.COMPANY_NAME || 'SaaS Platform'} - Manages Bookings, Field Tasks, Finance, and HR/Payroll.
+
+## API Contexts
+
+This API supports three distinct contexts:
+
+### 🏢 Tenant Context (Business Operations)
+Regular business users access tenant-scoped endpoints. JWT tokens have \`audience: "tenant"\`.
+
+### 👑 Platform Context (Superadmin)
+Platform administrators access \`/platform/*\` endpoints for SaaS management. JWT tokens have \`audience: "platform"\`. **MFA is mandatory.**
+
+### 🔓 Public Context
+Unauthenticated endpoints for registration, login, and public resources.
+
+## Role Hierarchy
+
+| Context | Roles | Access Level |
+|---------|-------|--------------|
+| Platform | SUPER_ADMIN | Full platform access |
+| Platform | SUPPORT_ADMIN | Impersonation, view logs, suspend tenants |
+| Platform | BILLING_ADMIN | Subscriptions, refunds, revenue |
+| Platform | SECURITY_ADMIN | Lock tenants, force password reset |
+| Platform | COMPLIANCE_ADMIN | GDPR export/delete, audit logs |
+| Platform | ANALYTICS_VIEWER | Read-only metrics |
+| Tenant | ADMIN | Full tenant access |
+| Tenant | MANAGER | Operations management |
+| Tenant | STAFF | Task execution |
+| Tenant | CLIENT | Portal access only |
+`,
     )
     .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('Auth', 'Authentication endpoints')
-    .addTag('Users', 'User management')
-    .addTag('Service Packages', 'Catalog - Service packages')
-    .addTag('Task Types', 'Catalog - Task type definitions')
-    .addTag('Bookings', 'Booking management and workflows')
-    .addTag('Tasks', 'Task assignment and completion')
-    .addTag('Finance - Transactions', 'Financial transactions')
-    .addTag('Finance - Wallets', 'Employee commission wallets')
-    .addTag('HR', 'HR and Payroll management')
-    .addTag('Dashboard', 'Reporting and analytics dashboard')
-    .addTag('Client Portal', 'Client-facing portal and magic link auth')
-    .addTag('Audit', 'System audit logs')
-    .addTag('Metrics', 'System performance metrics')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Enter JWT token' },
+      'tenant-auth',
+    )
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Platform Admin JWT (MFA required)' },
+      'platform-auth',
+    )
+    // Public endpoints
+    .addTag('Auth', '🔓 Authentication - Login, Register, Password Reset')
+    .addTag('Client Portal', '🔓 Client-facing portal with Magic Link auth')
+    // Tenant-level endpoints (Business Operations)
+    .addTag('Users', '🏢 [Tenant] User management')
+    .addTag('Service Packages', '🏢 [Tenant] Catalog - Service packages')
+    .addTag('Task Types', '🏢 [Tenant] Catalog - Task type definitions')
+    .addTag('Bookings', '🏢 [Tenant] Booking management and workflows')
+    .addTag('Tasks', '🏢 [Tenant] Task assignment and completion')
+    .addTag('Finance - Transactions', '🏢 [Tenant] Financial transactions')
+    .addTag('Finance - Wallets', '🏢 [Tenant] Employee commission wallets')
+    .addTag('HR', '🏢 [Tenant] HR and Payroll management')
+    .addTag('Dashboard', '🏢 [Tenant] Reporting and analytics dashboard')
+    .addTag('Audit', '🏢 [Tenant] System audit logs')
+    .addTag('Metrics', '🏢 [Tenant] System performance metrics')
+    // Platform-level endpoints (Superadmin)
+    .addTag('Platform - Auth', '👑 [Superadmin] Platform authentication (MFA required)')
+    .addTag('Platform - Tenants', '👑 [Superadmin] Tenant lifecycle management')
+    .addTag('Platform - Support', '👑 [Superadmin] Impersonation and support tools')
+    .addTag('Platform - Security', '👑 [Superadmin] Security operations (password reset, session revoke)')
+    .addTag('Platform - Analytics', '👑 [Superadmin] Platform-wide metrics and revenue')
+    .addTag('Platform - Audit', '👑 [Superadmin] Platform audit logs')
+    .addTag('Platform - MFA', '👑 [Superadmin] Multi-factor authentication setup')
     .setLicense(`Private - ${process.env.COMPANY_NAME || 'Soft-y'}`, process.env.COMPANY_URL || 'https://soft-y.com')
     .build();
 
