@@ -58,6 +58,7 @@ jobs:
       - name: Run Snyk security scan
         uses: snyk/actions/node@master
         continue-on-error: false
+        if: ${{ secrets.SNYK_TOKEN != '' }}
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -69,6 +70,7 @@ jobs:
         with:
           name: snyk-security-report
           path: snyk-report.json
+          if-no-files-found: ignore
 
   test:
     name: Test

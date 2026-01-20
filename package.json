@@ -177,9 +177,12 @@
   },
   "overrides": {
     "nodemailer": "^7.0.12",
+    "diff": "^8.0.3",
     "glob": "^10.5.0",
     "mjml": "file:./scripts/dummy-mjml",
-    "qs": "^6.14.1"
+    "qs": "^6.14.1",
+    "tar": "^7.5.3",
+    "undici": "^6.23.0"
   },
   "jest": {
     "maxWorkers": 2,
