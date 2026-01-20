@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -13,11 +13,13 @@ import {
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 
-// ServicePackage DTOs
-export class CreateServicePackageDto {
+// Base DTOs
+export class BaseServicePackageDto {
   @ApiProperty({ example: 'Wedding Package' })
+  @ApiPropertyOptional()
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @ApiPropertyOptional({
     example: 'Complete wedding photography and video coverage',
@@ -28,23 +30,6 @@ export class CreateServicePackageDto {
   description?: string;
 
   @ApiProperty({ example: 1500.0 })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  price: number;
-}
-
-export class UpdateServicePackageDto {
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  name?: string;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  @SanitizeHtml()
-  description?: string;
-
   @ApiPropertyOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
@@ -57,11 +42,12 @@ export class UpdateServicePackageDto {
   isActive?: boolean;
 }
 
-// TaskType DTOs
-export class CreateTaskTypeDto {
+export class BaseTaskTypeDto {
   @ApiProperty({ example: 'Photography' })
+  @ApiPropertyOptional()
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @ApiPropertyOptional({ example: 'Event photography services' })
   @IsString()
@@ -70,23 +56,6 @@ export class CreateTaskTypeDto {
   description?: string;
 
   @ApiProperty({ example: 100.0 })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  defaultCommissionAmount: number;
-}
-
-export class UpdateTaskTypeDto {
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  name?: string;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  @SanitizeHtml()
-  description?: string;
-
   @ApiPropertyOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
@@ -98,6 +67,34 @@ export class UpdateTaskTypeDto {
   @IsOptional()
   isActive?: boolean;
 }
+
+// ServicePackage DTOs
+export class CreateServicePackageDto extends OmitType(BaseServicePackageDto, ['name', 'price'] as const) {
+  @ApiProperty({ example: 'Wedding Package' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 1500.0 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  price: number;
+}
+
+export class UpdateServicePackageDto extends PartialType(BaseServicePackageDto) {}
+
+// TaskType DTOs
+export class CreateTaskTypeDto extends OmitType(BaseTaskTypeDto, ['name', 'defaultCommissionAmount'] as const) {
+  @ApiProperty({ example: 'Photography' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 100.0 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  defaultCommissionAmount: number;
+}
+
+export class UpdateTaskTypeDto extends PartialType(BaseTaskTypeDto) {}
 
 // PackageItem DTOs
 export class CreatePackageItemDto {
@@ -120,15 +117,12 @@ export class AddPackageItemsDto {
 }
 
 // Response DTOs
-export class ServicePackageResponseDto {
+export class ServicePackageResponseDto extends OmitType(BaseServicePackageDto, ['name', 'price', 'isActive'] as const) {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
   name: string;
-
-  @ApiPropertyOptional()
-  description: string;
 
   @ApiProperty()
   price: number;
@@ -140,15 +134,16 @@ export class ServicePackageResponseDto {
   createdAt: Date;
 }
 
-export class TaskTypeResponseDto {
+export class TaskTypeResponseDto extends OmitType(BaseTaskTypeDto, [
+  'name',
+  'defaultCommissionAmount',
+  'isActive',
+] as const) {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
   name: string;
-
-  @ApiPropertyOptional()
-  description: string;
 
   @ApiProperty()
   defaultCommissionAmount: number;

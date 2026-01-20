@@ -3,6 +3,7 @@ import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import {
   AddPackageItemsDto,
@@ -51,7 +52,7 @@ export class CatalogService {
 
   // Service Package Methods
   async createPackage(dto: CreateServicePackageDto): Promise<ServicePackage> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     // Validate price is positive
     if (dto.price !== undefined && dto.price <= 0) {
@@ -69,14 +70,14 @@ export class CatalogService {
     });
 
     // Invalidate cache
-    await this.invalidatePackagesCache(tenantId ?? 'default');
+    await this.invalidatePackagesCache(tenantId);
 
     return savedPkg;
   }
 
   async findAllPackages(query: PaginationDto = new PaginationDto(), nocache = false): Promise<ServicePackage[]> {
-    const tenantId = TenantContextService.getTenantId();
-    const cacheKey = this.getPackagesCacheKey(tenantId ?? 'default');
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const cacheKey = this.getPackagesCacheKey(tenantId);
 
     // Try cache first (only for default pagination to avoid cache explosion)
     if (!nocache && query.page === 1 && query.limit === 10) {
@@ -92,7 +93,7 @@ export class CatalogService {
     });
 
     // Cache only default pagination
-    if (!nocache && query.page === 1 && query.limit === 10 && tenantId) {
+    if (!nocache && query.page === 1 && query.limit === 10) {
       await this.cacheUtils.set(cacheKey, packages, this.PACKAGES_CACHE_TTL);
     }
 
@@ -105,38 +106,17 @@ export class CatalogService {
     const limit = query.limit || 20;
 
     const qb = this.packageRepository.createQueryBuilder('pkg');
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     qb.leftJoinAndSelect('pkg.packageItems', 'items')
       .leftJoinAndSelect('items.taskType', 'taskType')
-      .where('pkg.tenantId = :tenantId', { tenantId: TenantContextService.getTenantId() })
-      .orderBy('pkg.createdAt', 'DESC')
-      .addOrderBy('pkg.id', 'DESC')
-      .take(limit + 1);
+      .where('pkg.tenantId = :tenantId', { tenantId });
 
-    if (query.cursor) {
-      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
-      const [dateStr, id] = decoded.split('|');
-      if (!dateStr || !id) {
-        return { data: [], nextCursor: null };
-      }
-      const date = new Date(dateStr);
-
-      qb.andWhere('(pkg.createdAt < :date OR (pkg.createdAt = :date AND pkg.id < :id))', { date, id });
-    }
-
-    const packages = await qb.getMany();
-    let nextCursor: string | null = null;
-
-    if (packages.length > limit) {
-      packages.pop();
-      const lastItem = packages[packages.length - 1];
-      if (lastItem) {
-        const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-        nextCursor = Buffer.from(cursorData).toString('base64');
-      }
-    }
-
-    return { data: packages, nextCursor };
+    return CursorPaginationHelper.paginate(qb, {
+      cursor: query.cursor,
+      limit,
+      alias: 'pkg',
+    });
   }
 
   async findPackageById(id: string): Promise<ServicePackage> {
@@ -292,36 +272,15 @@ export class CatalogService {
     const limit = query.limit || 20;
 
     const qb = this.taskTypeRepository.createQueryBuilder('tt');
+    const tenantId = TenantContextService.getTenantId();
 
-    qb.where('tt.tenantId = :tenantId', { tenantId: TenantContextService.getTenantId() })
-      .orderBy('tt.createdAt', 'DESC')
-      .addOrderBy('tt.id', 'DESC')
-      .take(limit + 1);
+    qb.where('tt.tenantId = :tenantId', { tenantId });
 
-    if (query.cursor) {
-      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
-      const [dateStr, id] = decoded.split('|');
-      if (!dateStr || !id) {
-        return { data: [], nextCursor: null };
-      }
-      const date = new Date(dateStr);
-
-      qb.andWhere('(tt.createdAt < :date OR (tt.createdAt = :date AND tt.id < :id))', { date, id });
-    }
-
-    const taskTypes = await qb.getMany();
-    let nextCursor: string | null = null;
-
-    if (taskTypes.length > limit) {
-      taskTypes.pop();
-      const lastItem = taskTypes[taskTypes.length - 1];
-      if (lastItem) {
-        const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-        nextCursor = Buffer.from(cursorData).toString('base64');
-      }
-    }
-
-    return { data: taskTypes, nextCursor };
+    return CursorPaginationHelper.paginate(qb, {
+      cursor: query.cursor,
+      limit,
+      alias: 'tt',
+    });
   }
 
   async findTaskTypeById(id: string): Promise<TaskType> {
