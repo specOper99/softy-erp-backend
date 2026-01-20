@@ -85,11 +85,14 @@ const jestE2eGlobalSetup = async () => {
     }
 
     if (process.env.E2E_DB_RESET !== 'true') {
-      await migrationDataSource.runMigrations();
+      // Don't run migrations, just use synchronize to update schema
+      // await migrationDataSource.runMigrations();
+    } else {
+      // For full reset, drop and recreate schema
     }
 
-    // Synchronize schema to ensure all entity columns exist
-    await migrationDataSource.synchronize();
+    // Synchronize schema - drop and recreate for clean state
+    await migrationDataSource.synchronize(true);
 
     // 4. Seed base data
     // eslint-disable-next-line @typescript-eslint/no-require-imports

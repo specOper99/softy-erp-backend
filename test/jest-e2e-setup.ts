@@ -9,6 +9,11 @@ jest.mock('@nestjs/schedule', () => ({
   ScheduleModule: {
     forRoot: jest.fn().mockReturnValue({ module: class {}, providers: [] }),
   },
+  CronExpression: {
+    EVERY_10_SECONDS: '*/10 * * * * *',
+    EVERY_MINUTE: '* * * * *',
+    EVERY_10_MINUTES: '*/10 * * * *',
+  },
   Cron: () => jest.fn(),
   Interval: () => jest.fn(),
   Timeout: () => jest.fn(),
@@ -31,6 +36,16 @@ jest.mock('cache-manager-redis-yet', () => ({
     }),
   ),
 }));
+
+jest.mock('ioredis', () => {
+  return class Redis {
+    on = jest.fn();
+    set = jest.fn().mockResolvedValue('OK');
+    eval = jest.fn().mockResolvedValue(1);
+    exists = jest.fn().mockResolvedValue(0);
+    quit = jest.fn().mockResolvedValue('OK');
+  };
+});
 
 // Mock AWS S3 to prevent socket leaks in connection pool
 jest.mock('@aws-sdk/client-s3', () => ({
@@ -63,6 +78,8 @@ dotenv.config({
 // Ensure NODE_ENV is set to test
 process.env.NODE_ENV = 'test';
 
+process.env.DB_LOGGING = 'false';
+
 // Migrations and DB setup are now handled in jest-e2e-global-setup.ts
 
 // Verify critical test overrides
@@ -87,3 +104,9 @@ if (process.env.REDIS_URL && process.env.REDIS_URL.trim() !== '') {
 
 // We rely on the mock for redis, so getting rid of the env var completely is safe to avoid accidental connection attempts by non-mocked parts.
 delete process.env.REDIS_URL;
+
+// Clear Prometheus metrics registry before each test to prevent "already registered" errors
+import * as promClient from 'prom-client';
+beforeEach(() => {
+  promClient.register.clear();
+});
