@@ -1,10 +1,14 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
+import { TenantContextService } from '../../../src/common/services/tenant-context.service';
+
+void globalThis.fetch;
 import { GeoIpService } from '../../../src/common/services/geoip.service';
 import { AuditService } from '../../../src/modules/audit/audit.service';
 import { AuthService } from '../../../src/modules/auth/auth.service';
@@ -13,6 +17,12 @@ import { EmailVerificationToken } from '../../../src/modules/auth/entities/email
 import { PasswordResetToken } from '../../../src/modules/auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../../../src/modules/auth/entities/refresh-token.entity';
 import { AccountLockoutService } from '../../../src/modules/auth/services/account-lockout.service';
+import { TokenService } from '../../../src/modules/auth/services/token.service';
+import { MfaService } from '../../../src/modules/auth/services/mfa.service';
+import { MfaTokenService } from '../../../src/modules/auth/services/mfa-token.service';
+import { SessionService } from '../../../src/modules/auth/services/session.service';
+import { PasswordService } from '../../../src/modules/auth/services/password.service';
+import { TokenBlacklistService } from '../../../src/modules/auth/services/token-blacklist.service';
 import { EmployeeWallet } from '../../../src/modules/finance/entities/employee-wallet.entity';
 import { Profile } from '../../../src/modules/hr/entities/profile.entity';
 import { MailService } from '../../../src/modules/mail/mail.service';
@@ -20,6 +30,10 @@ import { Tenant } from '../../../src/modules/tenants/entities/tenant.entity';
 import { TenantsService } from '../../../src/modules/tenants/tenants.service';
 import { User } from '../../../src/modules/users/entities/user.entity';
 import { UsersService } from '../../../src/modules/users/services/users.service';
+import { UserRepository } from '../../../src/modules/users/repositories/user.repository';
+
+void globalThis.fetch;
+import { AuditPublisher } from '../../../src/modules/audit/audit.publisher';
 
 // Mock CacheUtilsService with in-memory map
 class MockCacheUtilsService {
@@ -98,7 +112,54 @@ describe('Auth Lockout Integration', () => {
         AuthService,
         AccountLockoutService,
         UsersService,
+        {
+          provide: UserRepository,
+          useValue: new UserRepository(userRepository),
+        },
+        {
+          provide: AuditPublisher,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: EventBus,
+          useValue: { publish: jest.fn() },
+        },
         TenantsService,
+        TokenService,
+        {
+          provide: MfaService,
+          useValue: {
+            verifyRecoveryCode: jest.fn().mockResolvedValue(false),
+          },
+        },
+        {
+          provide: SessionService,
+          useValue: {
+            checkSuspiciousActivity: jest.fn(),
+            checkNewDevice: jest.fn(),
+          },
+        },
+        {
+          provide: MfaTokenService,
+          useValue: {
+            createTempToken: jest.fn().mockResolvedValue('test-mfa-temp-token'),
+            getTempToken: jest.fn().mockResolvedValue(undefined),
+            consumeTempToken: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: PasswordService,
+          useValue: {
+            forgotPassword: jest.fn(),
+            resetPassword: jest.fn(),
+          },
+        },
+        {
+          provide: TokenBlacklistService,
+          useValue: {
+            blacklist: jest.fn().mockResolvedValue(undefined),
+          },
+        },
         { provide: CacheUtilsService, useClass: MockCacheUtilsService },
         { provide: MailService, useValue: mockMailService },
         { provide: DataSource, useValue: dataSource },
@@ -156,7 +217,7 @@ describe('Auth Lockout Integration', () => {
   });
 
   afterAll(async () => {
-    await module.close();
+    await module?.close();
     await dataSource.destroy();
   });
 
@@ -167,13 +228,20 @@ describe('Auth Lockout Integration', () => {
   });
 
   it('should lock out user after max failed attempts and expire lock', async () => {
-    // 1. Register User
     const registerDto: RegisterDto = {
       email: `test-${uuidv4()}@example.com`,
       password: 'Password123!',
       companyName: `Test Co ${uuidv4()}`,
     };
-    await authService.register(registerDto);
+
+    const registerResult = await authService.register(registerDto);
+    const tenantId = registerResult.user?.tenantId;
+    if (!tenantId) {
+      throw new Error('Missing tenantId from register result');
+    }
+
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
 
     // 2. Fail 3 times
     const loginDto = { email: registerDto.email, password: 'WrongPassword!' };
@@ -213,7 +281,7 @@ describe('Auth Lockout Integration', () => {
 
     // 6. Login Success with correct password
     const result = await authService.login({
-      ...loginDto,
+      email: registerDto.email,
       password: 'Password123!',
     });
     expect(result.accessToken).toBeDefined();

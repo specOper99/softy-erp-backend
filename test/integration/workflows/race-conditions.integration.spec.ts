@@ -36,8 +36,7 @@ describe('Race Condition Tests', () => {
       password: dbConfig.password,
       database: dbConfig.database,
       entities: [__dirname + '/../../../src/**/*.entity.ts'],
-      dropSchema: true,
-      synchronize: true,
+      synchronize: false,
     });
     await dataSource.initialize();
 

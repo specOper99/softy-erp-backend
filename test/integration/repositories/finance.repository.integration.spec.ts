@@ -45,41 +45,6 @@ describe('FinanceRepository Integration Tests', () => {
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
     taskTypeRepository = dataSource.getRepository(TaskType);
-
-    // Manually fix Check Constraint since we can't update schema via migrations here
-    try {
-      // Find constraints on transactions table
-      const constraints = await dataSource.query(
-        `SELECT oid, conname FROM pg_constraint WHERE conrelid = 'transactions'::regclass AND contype = 'c'`,
-      );
-      // Look for the constraint (simplistic approach: drop all check constraints on this table? No, unsafe.
-      // But likely there's only one custom one or a few. We want to drop the one involving booking_id/task_id logic)
-      // Or better: Just ADD a new strict one if the old one is loose?
-      // But the old one allows NULLs.
-      // We must drop the old one. Code generated constraint names are hash-based.
-      // We'll iterate and drop.
-      for (const c of constraints) {
-        // We can check definition but for now just drop all check constraints on transactions?
-        // There might be others.
-        // Let's filter by checking definition if possible?
-        // SELECT pg_get_constraintdef(oid) ...
-        const def = (await dataSource.query(`SELECT pg_get_constraintdef(${c.oid}, true) as def`))[0].def;
-        if (def.includes('booking_id') && def.includes('task_id')) {
-          await dataSource.query(`ALTER TABLE "transactions" DROP CONSTRAINT "${c.conname}"`);
-        }
-      }
-
-      // Add the correct constraint
-      await dataSource.query(
-        `ALTER TABLE "transactions" ADD CONSTRAINT "CHK_transactions_ref_strict" CHECK (
-                ("booking_id" IS NOT NULL AND "task_id" IS NULL AND "payout_id" IS NULL) OR 
-                ("booking_id" IS NULL AND "task_id" IS NOT NULL AND "payout_id" IS NULL) OR 
-                ("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NOT NULL)
-            )`,
-      );
-    } catch (e) {
-      console.warn('Could not update constraint:', e);
-    }
   });
 
   afterAll(async () => {
@@ -407,8 +372,8 @@ describe('FinanceRepository Integration Tests', () => {
 
       expect(tenant1Transactions).toHaveLength(1);
       expect(tenant2Transactions).toHaveLength(1);
-      expect(Number(tenant1Transactions[0].amount)).toBe(5000);
-      expect(Number(tenant2Transactions[0].amount)).toBe(8000);
+      expect(Number(tenant1Transactions.at(0)?.amount)).toBe(5000);
+      expect(Number(tenant2Transactions.at(0)?.amount)).toBe(8000);
 
       // Calculate revenue per tenant
       const tenant1Revenue = await transactionRepository

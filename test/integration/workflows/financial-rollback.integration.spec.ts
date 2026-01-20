@@ -1,7 +1,9 @@
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
+import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
+import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
 import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
 
@@ -9,6 +11,33 @@ describe('Financial Transaction Rollback Integration', () => {
   let dataSource: DataSource;
   let transactionRepository: Repository<Transaction>;
   const tenantId = uuidv4();
+
+  const createBookingWithRefs = async (manager: {
+    save: (entityClass: unknown, entity: unknown) => Promise<unknown>;
+  }): Promise<Booking> => {
+    const client = await manager.save(Client, {
+      name: `Client ${uuidv4()}`,
+      email: `client-${uuidv4()}@test.com`,
+      phone: '123456789',
+      tenantId,
+    });
+
+    const pkg = await manager.save(ServicePackage, {
+      name: `Package ${uuidv4()}`,
+      description: 'Test',
+      price: 1000,
+      tenantId,
+    });
+
+    return manager.save(Booking, {
+      clientId: client.id,
+      packageId: pkg.id,
+      eventDate: new Date(),
+      totalPrice: 5000,
+      status: BookingStatus.DRAFT,
+      tenantId,
+    });
+  };
 
   beforeAll(async () => {
     const dbConfig = globalThis.__DB_CONFIG__!;
@@ -44,10 +73,13 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner.startTransaction();
 
       try {
+        const booking = await createBookingWithRefs(queryRunner.manager);
+
         await queryRunner.manager.save(Transaction, {
           type: TransactionType.INCOME,
           amount: 1000,
           description: 'First transaction',
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });
@@ -56,6 +88,7 @@ describe('Financial Transaction Rollback Integration', () => {
           type: TransactionType.INCOME,
           amount: 2000,
           description: 'Second transaction',
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });
@@ -80,10 +113,13 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner.startTransaction();
 
       try {
+        const booking = await createBookingWithRefs(queryRunner.manager);
+
         await queryRunner.manager.save(Transaction, {
           type: TransactionType.EXPENSE,
           amount: 500,
           description: 'Should be rolled back',
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });
@@ -113,18 +149,24 @@ describe('Financial Transaction Rollback Integration', () => {
       await innerQueryRunner.startTransaction();
 
       try {
+        const booking = await createBookingWithRefs(outerQueryRunner.manager);
+
         await outerQueryRunner.manager.save(Transaction, {
           type: TransactionType.INCOME,
           amount: 1000,
           description: 'Outer transaction - should commit',
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });
+
+        const innerBooking = await createBookingWithRefs(innerQueryRunner.manager);
 
         await innerQueryRunner.manager.save(Transaction, {
           type: TransactionType.EXPENSE,
           amount: 500,
           description: 'Inner transaction - should rollback',
+          bookingId: innerBooking.id,
           tenantId,
           transactionDate: new Date(),
         });
@@ -141,46 +183,63 @@ describe('Financial Transaction Rollback Integration', () => {
       });
 
       expect(transactions).toHaveLength(1);
-      expect(transactions[0].description).toBe('Outer transaction - should commit');
+      expect(transactions.at(0)?.description).toBe('Outer transaction - should commit');
     });
   });
 
   describe('Partial Rollback Scenarios', () => {
     it('should save earlier operations but rollback later operations on error', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
+      const queryRunner1 = dataSource.createQueryRunner();
+      await queryRunner1.connect();
+      await queryRunner1.startTransaction();
 
       try {
-        await queryRunner.manager.save(Transaction, {
+        const booking = await createBookingWithRefs(queryRunner1.manager);
+
+        await queryRunner1.manager.save(Transaction, {
           type: TransactionType.INCOME,
           amount: 1000,
           description: 'Should be saved',
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });
 
-        await queryRunner.manager.save(Transaction, {
+        await queryRunner1.manager.save(Transaction, {
           type: TransactionType.INCOME,
           amount: 2000,
           description: 'Should also be saved',
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });
 
-        await queryRunner.manager.save(Transaction, {
+        await queryRunner1.commitTransaction();
+      } finally {
+        await queryRunner1.release();
+      }
+
+      const queryRunner2 = dataSource.createQueryRunner();
+      await queryRunner2.connect();
+      await queryRunner2.startTransaction();
+
+      try {
+        const booking = await createBookingWithRefs(queryRunner2.manager);
+
+        await queryRunner2.manager.save(Transaction, {
           type: TransactionType.EXPENSE,
           amount: 500,
           description: 'Should be rolled back',
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });
 
-        throw new Error('Error after 3 saves');
+        throw new Error('Error after save');
       } catch {
-        await queryRunner.rollbackTransaction();
+        await queryRunner2.rollbackTransaction();
       } finally {
-        await queryRunner.release();
+        await queryRunner2.release();
       }
 
       const transactions = await transactionRepository.find({
@@ -206,10 +265,19 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner2.startTransaction();
 
       try {
+        const booking1 = await createBookingWithRefs(queryRunner1.manager);
+
+        const booking2 = await createBookingWithRefs({
+          save: async (entity: unknown, data: Record<string, unknown>) => {
+            return queryRunner2.manager.save(entity as never, { ...data, tenantId: tenant2Id } as never);
+          },
+        });
+
         await queryRunner1.manager.save(Transaction, {
           type: TransactionType.INCOME,
           amount: 1000,
           description: 'Tenant 1 transaction',
+          bookingId: booking1.id,
           tenantId,
           transactionDate: new Date(),
         });
@@ -218,6 +286,7 @@ describe('Financial Transaction Rollback Integration', () => {
           type: TransactionType.INCOME,
           amount: 2000,
           description: 'Tenant 2 transaction',
+          bookingId: booking2.id,
           tenantId: tenant2Id,
           transactionDate: new Date(),
         });
@@ -239,8 +308,8 @@ describe('Financial Transaction Rollback Integration', () => {
 
       expect(tenant1Transactions).toHaveLength(1);
       expect(tenant2Transactions).toHaveLength(1);
-      expect(tenant1Transactions[0].tenantId).toBe(tenantId);
-      expect(tenant2Transactions[0].tenantId).toBe(tenant2Id);
+      expect(tenant1Transactions.at(0)?.tenantId).toBe(tenantId);
+      expect(tenant2Transactions.at(0)?.tenantId).toBe(tenant2Id);
     });
   });
 
@@ -253,7 +322,7 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner.startTransaction();
 
       try {
-        await queryRunner.manager.save(Booking, {
+        const booking = await queryRunner.manager.save(Booking, {
           clientId: uuidv4(),
           packageId: uuidv4(),
           eventDate: new Date(),
@@ -266,7 +335,7 @@ describe('Financial Transaction Rollback Integration', () => {
           type: TransactionType.INCOME,
           amount: 5000,
           description: 'Payment for booking',
-          bookingId: null,
+          bookingId: booking.id,
           tenantId,
           transactionDate: new Date(),
         });

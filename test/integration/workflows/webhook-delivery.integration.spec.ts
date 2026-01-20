@@ -2,8 +2,19 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { getQueueToken } from '@nestjs/bullmq';
+import { WebhookRepository } from '../../../src/modules/webhooks/repositories/webhook.repository';
+
+import { WEBHOOK_QUEUE } from '../../../src/modules/webhooks/webhooks.types';
 import { v4 as uuidv4 } from 'uuid';
 import { EncryptionService } from '../../../src/common/services/encryption.service';
+import { TenantContextService } from '../../../src/common/services/tenant-context.service';
+
+void globalThis.fetch;
+
+jest.mock('node:dns/promises', () => ({
+  lookup: jest.fn(() => Promise.resolve([{ address: '1.1.1.1', family: 4 }])),
+}));
 import { Webhook } from '../../../src/modules/webhooks/entities/webhook.entity';
 import { WebhookService } from '../../../src/modules/webhooks/webhooks.service';
 import { WebhookEvent } from '../../../src/modules/webhooks/webhooks.types';
@@ -55,7 +66,19 @@ describe('Webhook Delivery Integration', () => {
         }),
         TypeOrmModule.forFeature([Webhook]),
       ],
-      providers: [WebhookService, EncryptionService, { provide: ConfigService, useValue: mockConfigService }],
+      providers: [
+        WebhookService,
+        EncryptionService,
+        { provide: ConfigService, useValue: mockConfigService },
+        {
+          provide: WebhookRepository,
+          useValue: new WebhookRepository(dataSource.getRepository(Webhook)),
+        },
+        {
+          provide: getQueueToken(WEBHOOK_QUEUE),
+          useValue: null,
+        },
+      ],
     }).compile();
 
     webhookService = module.get<WebhookService>(WebhookService);
@@ -63,13 +86,16 @@ describe('Webhook Delivery Integration', () => {
   });
 
   afterAll(async () => {
-    await module.close();
+    await module?.close();
     await dataSource.destroy();
   });
 
   beforeEach(async () => {
     await dataSource.getRepository(Webhook).createQueryBuilder().delete().execute();
     mockFetch.mockReset();
+
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
+    jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
   });
 
   it('should register and deliver a webhook successfully', async () => {
@@ -77,7 +103,7 @@ describe('Webhook Delivery Integration', () => {
     const secret = 'super-secret-key-32-chars-length!!';
 
     // 1. Register Webhook
-    await webhookService.registerWebhook(tenantId, {
+    await webhookService.registerWebhook({
       url,
       secret,
       events: ['booking.created'],
@@ -119,7 +145,7 @@ describe('Webhook Delivery Integration', () => {
     const url = 'https://webhook.site/fail-endpoint';
     const secret = 'super-secret-key-32-chars-length!!';
 
-    await webhookService.registerWebhook(tenantId, {
+    await webhookService.registerWebhook({
       url,
       secret,
       events: ['*'],
@@ -129,7 +155,7 @@ describe('Webhook Delivery Integration', () => {
     mockFetch.mockRejectedValue(new Error('Network Error'));
 
     // Override constants for testing
-    const webhookConfigurable = webhookService as {
+    const webhookConfigurable = webhookService as unknown as {
       INITIAL_RETRY_DELAY: number;
       MAX_RETRIES: number;
     };
@@ -150,9 +176,9 @@ describe('Webhook Delivery Integration', () => {
 
   it('should use exponential backoff between retries', async () => {
     const url = 'https://webhook.site/slow-endpoint';
-    const secret = 'test-secret';
+    const secret = 'super-secret-key-32-chars-length!!';
 
-    await webhookService.registerWebhook(tenantId, {
+    await webhookService.registerWebhook({
       url,
       secret,
       events: ['booking.created'],
