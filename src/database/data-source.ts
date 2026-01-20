@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { DataSource, DataSourceOptions } from 'typeorm';
-
+import { getDatabaseConnectionConfig } from './db-config';
 // Import all entities
 import { AuditLog } from '../modules/audit/entities/audit-log.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
@@ -38,6 +38,9 @@ import { UserPreference } from '../modules/dashboard/entities/user-preference.en
 import { DepartmentBudget } from '../modules/finance/entities/department-budget.entity';
 import { Attendance } from '../modules/hr/entities/attendance.entity';
 import { PerformanceReview } from '../modules/hr/entities/performance-review.entity';
+import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
+import { PlatformSession } from '../modules/platform/entities/platform-session.entity';
+import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
 import { PrivacyRequest } from '../modules/privacy/entities/privacy-request.entity';
 import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
@@ -46,11 +49,7 @@ import { Webhook } from '../modules/webhooks/entities/webhook.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
+  ...getDatabaseConnectionConfig(),
   entities: [
     Tenant,
     User,
@@ -86,13 +85,17 @@ export const dataSourceOptions: DataSourceOptions = {
     DepartmentBudget,
     Attendance,
     PerformanceReview,
+    PlatformUser,
+    PlatformSession,
+    PlatformAuditLog,
     PrivacyRequest,
     TaskTemplate,
     TenantSubscription,
     WebhookDelivery,
     Webhook,
   ],
-  migrations: ['src/database/migrations/*.ts'],
+  migrations: ['src/database/migrations/*.{ts,js}'],
+  migrationsTableName: 'migrations',
   logging: process.env.DB_LOGGING === 'true',
 
   // CRITICAL SECURITY: Synchronize must NEVER be enabled in production
@@ -111,8 +114,8 @@ export const dataSourceOptions: DataSourceOptions = {
       );
     }
 
-    // Only enable synchronize in test environment for automatic schema updates
-    return nodeEnv === 'test';
+    // Disable auto-synchronize in test environment to manually control it in global setup
+    return false;
   })(),
 };
 

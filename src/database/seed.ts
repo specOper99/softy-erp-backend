@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
+import { getDatabaseConnectionConfig } from './db-config';
 
 // Load environment variables
 config();
@@ -39,6 +40,8 @@ import { TaskType } from '../modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
 import { Transaction } from '../modules/finance/entities/transaction.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
+import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
+import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
 import { Task } from '../modules/tasks/entities/task.entity';
 import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
@@ -47,12 +50,20 @@ import { Role } from '../modules/users/enums/role.enum';
 // Create data source
 const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-  entities: [Tenant, User, Profile, EmployeeWallet, Transaction, ServicePackage, TaskType, PackageItem, Booking, Task],
+  ...getDatabaseConnectionConfig(),
+  entities: [
+    Tenant,
+    User,
+    Profile,
+    EmployeeWallet,
+    Transaction,
+    ServicePackage,
+    TaskType,
+    PackageItem,
+    Booking,
+    Task,
+    PlatformUser,
+  ],
   synchronize: true, // Only for seeding - creates tables
 });
 
@@ -324,6 +335,28 @@ async function seed() {
       SeedLogger.log('   Exists: ops@chapters.studio');
     }
 
+    // ============ 6. CREATE PLATFORM ADMIN USER ============
+    SeedLogger.log('\nCreating platform admin user...');
+    const platformUserRepo = AppDataSource.getRepository(PlatformUser);
+    const existingPlatformAdmin = await platformUserRepo.findOne({
+      where: { email: 'admin@platform.com' },
+    });
+    if (!existingPlatformAdmin) {
+      const passwordHash = await bcrypt.hash('SecurePassword123!', 10);
+      const platformAdmin = platformUserRepo.create({
+        email: 'admin@platform.com',
+        fullName: 'Platform Administrator',
+        passwordHash,
+        role: PlatformRole.SUPER_ADMIN,
+        status: 'active',
+        mfaEnabled: false,
+      });
+      await platformUserRepo.save(platformAdmin);
+      SeedLogger.log('   Created: admin@platform.com');
+    } else {
+      SeedLogger.log('   Exists: admin@platform.com');
+    }
+
     SeedLogger.log('\n========================================');
     SeedLogger.log('Seed completed successfully!');
     SeedLogger.log('========================================\n');
@@ -333,7 +366,9 @@ async function seed() {
     SeedLogger.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');
     SeedLogger.log('  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]');
-    SeedLogger.log('            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]\n');
+    SeedLogger.log('            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('\nPlatform:');
+    SeedLogger.log('  Admin:    admin@platform.com / SecurePassword123!\n');
   } catch (error) {
     SeedLogger.error('Seed failed:', error);
     process.exit(1);

@@ -18,6 +18,9 @@ export class CreateWebhookTable1767362400000 implements MigrationInterface {
       )
     `);
 
+    await queryRunner.query(`ALTER TABLE "webhooks" ADD COLUMN IF NOT EXISTS "resolved_ips" text`);
+    await queryRunner.query(`ALTER TABLE "webhooks" ADD COLUMN IF NOT EXISTS "ips_resolved_at" TIMESTAMP`);
+
     await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS "IDX_webhooks_tenant" ON "webhooks" ("tenant_id")
     `);

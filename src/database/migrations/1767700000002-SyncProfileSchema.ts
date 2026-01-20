@@ -32,6 +32,10 @@ export class SyncProfileSchema1767700000002 implements MigrationInterface {
       `ALTER TABLE "payouts" ADD COLUMN IF NOT EXISTS "currency" character varying DEFAULT 'USD'`,
     );
     await queryRunner.query(
+      `ALTER TABLE "payouts" ADD COLUMN IF NOT EXISTS "commission_amount" numeric(12,2) DEFAULT 0`,
+    );
+    await queryRunner.query(`ALTER TABLE "payouts" ADD COLUMN IF NOT EXISTS "metadata" jsonb`);
+    await queryRunner.query(
       `ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "currency" character varying DEFAULT 'USD'`,
     );
     await queryRunner.query(
@@ -44,6 +48,8 @@ export class SyncProfileSchema1767700000002 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN IF EXISTS "department"`);
     await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN IF EXISTS "exchange_rate"`);
     await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN IF EXISTS "currency"`);
+    await queryRunner.query(`ALTER TABLE "payouts" DROP COLUMN IF EXISTS "metadata"`);
+    await queryRunner.query(`ALTER TABLE "payouts" DROP COLUMN IF EXISTS "commission_amount"`);
     await queryRunner.query(`ALTER TABLE "payouts" DROP COLUMN IF EXISTS "currency"`);
 
     await queryRunner.query(`ALTER TABLE "profiles" DROP COLUMN IF EXISTS "contract_type"`);

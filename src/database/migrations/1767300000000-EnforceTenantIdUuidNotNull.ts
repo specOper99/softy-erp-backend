@@ -5,6 +5,16 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
 
   private readonly uuidRegex = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
+  /**
+   * Parses query result rows to extract count value.
+   * Reusable helper to eliminate duplication in count queries.
+   */
+  private parseCountResult(rowsUnknown: unknown): number {
+    const rows = Array.isArray(rowsUnknown) ? (rowsUnknown as Array<{ count?: unknown }>) : [];
+    const countText = rows?.[0]?.count;
+    return typeof countText === 'string' ? Number(countText) : 0;
+  }
+
   private async getTenantIdDataType(queryRunner: QueryRunner, table: string): Promise<string | undefined> {
     const rowsUnknown: unknown = await queryRunner.query(
       `SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'tenant_id'`,
@@ -19,9 +29,7 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
     const rowsUnknown: unknown = await queryRunner.query(
       `SELECT COUNT(*)::text as count FROM "${table}" WHERE "tenant_id" IS NULL`,
     );
-    const rows = Array.isArray(rowsUnknown) ? (rowsUnknown as Array<{ count?: unknown }>) : [];
-    const countText = rows?.[0]?.count;
-    const count = typeof countText === 'string' ? Number(countText) : 0;
+    const count = this.parseCountResult(rowsUnknown);
     if (count > 0) {
       throw new Error(`Cannot enforce tenant ownership: ${table}.tenant_id has ${count} NULL rows`);
     }
@@ -31,9 +39,7 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
     const rowsUnknown: unknown = await queryRunner.query(
       `SELECT COUNT(*)::text as count FROM "${table}" WHERE "tenant_id" IS NOT NULL AND ("tenant_id"::text) !~* '${this.uuidRegex}'`,
     );
-    const rows = Array.isArray(rowsUnknown) ? (rowsUnknown as Array<{ count?: unknown }>) : [];
-    const countText = rows?.[0]?.count;
-    const count = typeof countText === 'string' ? Number(countText) : 0;
+    const count = this.parseCountResult(rowsUnknown);
     if (count > 0) {
       throw new Error(`Cannot convert ${table}.tenant_id to uuid: ${count} rows are not valid UUIDs`);
     }

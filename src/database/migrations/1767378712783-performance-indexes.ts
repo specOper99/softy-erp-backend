@@ -77,7 +77,7 @@ export class PerformanceIndexes1767378712783 implements MigrationInterface {
       `CREATE INDEX IF NOT EXISTS "IDX_7058f2082c7a4ddc189ad7c9a8" ON "attachments" ("tenant_id") `,
     );
     await queryRunner.query(
-      `ALTER TABLE "transactions" ADD CONSTRAINT "CHK_3c04c8c3a9eb587dc4119d404b" CHECK (("booking_id" IS NOT NULL AND "task_id" IS NULL AND "payout_id" IS NULL) OR ("booking_id" IS NULL AND "task_id" IS NOT NULL AND "payout_id" IS NULL) OR ("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NOT NULL) OR ("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NULL))`,
+      `ALTER TABLE "transactions" ADD CONSTRAINT "CHK_3c04c8c3a9eb587dc4119d404b" CHECK (("booking_id" IS NOT NULL AND "task_id" IS NULL AND "payout_id" IS NULL) OR ("booking_id" IS NULL AND "task_id" IS NOT NULL AND "payout_id" IS NULL) OR ("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NOT NULL))`,
     );
     await queryRunner.query(
       `ALTER TABLE "employee_wallets" ADD CONSTRAINT "FK_a5561fb92e47e5b1423c9a7878e" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
