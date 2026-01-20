@@ -258,6 +258,12 @@ describe('HrService - Comprehensive Tests', () => {
       const result = await service.findAllProfiles();
       expect(result).toEqual([]);
     });
+    it('should handle missing users in findAllProfiles', async () => {
+      mockUsersService.findMany.mockResolvedValueOnce([]);
+      const result = await service.findAllProfiles();
+      expect(result).toHaveLength(1);
+      expect(result[0].user).toBeUndefined();
+    });
   });
 
   describe('findProfileById', () => {
@@ -270,6 +276,11 @@ describe('HrService - Comprehensive Tests', () => {
 
     it('should throw NotFoundException for invalid id', async () => {
       await expect(service.findProfileById('invalid-id')).rejects.toThrow(NotFoundException);
+    });
+    it('should handle missing user in findProfileById', async () => {
+      mockUsersService.findOne.mockResolvedValueOnce(null);
+      const result = await service.findProfileById('profile-uuid-123');
+      expect(result.user).toBeNull();
     });
   });
 

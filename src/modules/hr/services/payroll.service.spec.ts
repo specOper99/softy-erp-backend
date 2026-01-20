@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -45,6 +46,7 @@ describe('PayrollService', () => {
   };
 
   const mockWalletService = {
+    getOrCreateWalletWithManager: jest.fn().mockResolvedValue({ payableBalance: 150 }),
     resetPayableBalance: jest.fn().mockResolvedValue({ payableBalance: 0 }),
   };
 
@@ -75,6 +77,7 @@ describe('PayrollService', () => {
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
     query: jest.fn().mockResolvedValue([{ locked: true }]),
+    manager: {},
     getRepository: jest.fn().mockImplementation((_entity) => {
       return { create: jest.fn(), save: jest.fn(), findOne: jest.fn() };
     }),
@@ -82,6 +85,14 @@ describe('PayrollService', () => {
 
   const mockTenantsService = {
     findAll: jest.fn().mockResolvedValue([{ id: 'test-tenant-id', slug: 'test-tenant' }]),
+  };
+
+  const mockDistributedLockService = {
+    acquire: jest.fn(),
+    release: jest.fn(),
+    acquireWithRetry: jest.fn(),
+    withLock: jest.fn().mockImplementation((_resource, fn) => fn()),
+    isLocked: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -102,6 +113,7 @@ describe('PayrollService', () => {
         { provide: AuditPublisher, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: TenantsService, useValue: mockTenantsService },
+        { provide: DistributedLockService, useValue: mockDistributedLockService },
       ],
     }).compile();
 
@@ -137,6 +149,7 @@ describe('PayrollService', () => {
           user: { wallet: { payableBalance: 0 } },
         },
       ]);
+      mockWalletService.getOrCreateWalletWithManager.mockResolvedValueOnce({ payableBalance: 0 });
       await service.runPayroll();
       expect(mockQueryRunner.manager.save).not.toHaveBeenCalled();
     });

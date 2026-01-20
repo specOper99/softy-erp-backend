@@ -38,6 +38,9 @@ export class HrService {
     try {
       // Step 1: Validate user belongs to the same tenant
       const user = await this.usersService.findOne(dto.userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
       if (user.tenantId !== tenantId) {
         throw new BadRequestException('hr.user_not_found_in_tenant');
       }

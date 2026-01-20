@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CommonModule } from '../../common/common.module';
 import { TENANT_REPO_ATTENDANCE } from '../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
@@ -24,6 +25,7 @@ import { PayrollService } from './services/payroll.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Profile, PayrollRun, EmployeeWallet, Attendance, PerformanceReview, Payout]),
+    CommonModule,
     FinanceModule,
     MailModule,
     MetricsModule,

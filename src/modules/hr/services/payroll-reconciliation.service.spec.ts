@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { createMockMetricsFactory } from '../../../../test/helpers/mock-factories';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { Payout } from '../../finance/entities/payout.entity';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
@@ -16,7 +17,7 @@ describe('PayrollReconciliationService', () => {
   let _paymentGatewayService: jest.Mocked<MockPaymentGatewayService>;
   let ticketingService: jest.Mocked<TicketingService>;
   let tenantsService: jest.Mocked<TenantsService>;
-  let _dataSource: jest.Mocked<DataSource>;
+  let distributedLockService: jest.Mocked<DistributedLockService>;
 
   const mockPayoutRepository = {
     find: jest.fn(),
@@ -37,8 +38,12 @@ describe('PayrollReconciliationService', () => {
     findAll: jest.fn(),
   };
 
-  const mockDataSource = {
-    query: jest.fn(),
+  const mockDistributedLockService = {
+    acquire: jest.fn(),
+    release: jest.fn(),
+    acquireWithRetry: jest.fn(),
+    withLock: jest.fn(),
+    isLocked: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -51,17 +56,17 @@ describe('PayrollReconciliationService', () => {
         { provide: MockPaymentGatewayService, useValue: mockPaymentGatewayService },
         { provide: TicketingService, useValue: mockTicketingService },
         { provide: TenantsService, useValue: mockTenantsService },
-        { provide: DataSource, useValue: mockDataSource },
+        { provide: DistributedLockService, useValue: mockDistributedLockService },
         { provide: MetricsFactory, useValue: createMockMetricsFactory() },
       ],
     }).compile();
 
     service = module.get<PayrollReconciliationService>(PayrollReconciliationService);
     payoutRepository = module.get(getRepositoryToken(Payout));
-    paymentGatewayService = module.get(MockPaymentGatewayService);
+    _paymentGatewayService = module.get(MockPaymentGatewayService);
     ticketingService = module.get(TicketingService);
     tenantsService = module.get(TenantsService);
-    dataSource = module.get(DataSource);
+    distributedLockService = module.get(DistributedLockService);
   });
 
   it('should be defined', () => {
@@ -151,18 +156,21 @@ describe('PayrollReconciliationService', () => {
   });
 
   describe('runNightlyReconciliation', () => {
-    it('should skip execution when advisory lock is not acquired', async () => {
-      mockDataSource.query.mockResolvedValueOnce([{ locked: false }]);
+    it('should skip execution when distributed lock is not acquired', async () => {
+      // withLock returns null when lock cannot be acquired
+      mockDistributedLockService.withLock.mockResolvedValueOnce(null);
 
       await service.runNightlyReconciliation();
 
+      expect(distributedLockService.withLock).toHaveBeenCalled();
       expect(tenantsService.findAll).not.toHaveBeenCalled();
     });
 
     it('should process all tenants when lock is acquired', async () => {
-      mockDataSource.query
-        .mockResolvedValueOnce([{ locked: true }]) // acquire lock
-        .mockResolvedValueOnce(undefined); // release lock
+      // withLock executes the callback and returns result
+      mockDistributedLockService.withLock.mockImplementation((_resource, fn) => {
+        return fn();
+      });
 
       mockTenantsService.findAll.mockResolvedValue([
         { id: 'tenant-1', slug: 'tenant-1' },
@@ -178,7 +186,9 @@ describe('PayrollReconciliationService', () => {
     });
 
     it('should create tickets for mismatches', async () => {
-      mockDataSource.query.mockResolvedValueOnce([{ locked: true }]).mockResolvedValueOnce(undefined);
+      mockDistributedLockService.withLock.mockImplementation((_resource, fn) => {
+        return fn();
+      });
 
       mockTenantsService.findAll.mockResolvedValue([{ id: 'tenant-1', slug: 'tenant-1' }]);
 

@@ -3,7 +3,8 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 import { Counter, Gauge } from 'prom-client';
-import { DataSource, LessThan, Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Payout } from '../../finance/entities/payout.entity';
@@ -39,7 +40,7 @@ export class PayrollReconciliationService {
     private readonly paymentGatewayService: MockPaymentGatewayService,
     private readonly ticketingService: TicketingService,
     private readonly tenantsService: TenantsService,
-    private readonly dataSource: DataSource,
+    private readonly distributedLockService: DistributedLockService,
     metricsFactory: MetricsFactory,
   ) {
     this.reconciliationRunsTotal = metricsFactory.getOrCreateCounter({
@@ -71,49 +72,51 @@ export class PayrollReconciliationService {
    */
   @Cron('0 2 * * *')
   async runNightlyReconciliation(): Promise<void> {
-    const lockId = 3003; // Dedicated lock for reconciliation
-    const queryResult: unknown = await this.dataSource.query('SELECT pg_try_advisory_lock($1) as locked', [lockId]);
-    const typedResult = queryResult as Array<{ locked?: boolean; pg_try_advisory_lock?: boolean }>;
-    const isLocked = typedResult[0] && (typedResult[0].locked === true || typedResult[0].pg_try_advisory_lock === true);
+    // Use Redis-based distributed lock instead of unsafe PostgreSQL advisory locks
+    const result = await this.distributedLockService.withLock(
+      'payroll:nightly-reconciliation',
+      async () => {
+        const span = this.tracer.startSpan('payroll-reconciliation-job');
 
-    if (!isLocked) {
-      this.logger.debug('Skipping reconciliation: another instance is running');
-      return;
-    }
+        try {
+          span.setAttribute('job.type', 'nightly-reconciliation');
+          this.logger.log('Starting nightly payroll reconciliation...');
 
-    const span = this.tracer.startSpan('payroll-reconciliation-job');
+          const tenants = await this.tenantsService.findAll();
+          let totalMismatches = 0;
 
-    try {
-      span.setAttribute('job.type', 'nightly-reconciliation');
-      this.logger.log('Starting nightly payroll reconciliation...');
+          for (const tenant of tenants) {
+            await TenantContextService.run(tenant.id, async () => {
+              const mismatches = await this.reconcileTenant(tenant.id);
+              totalMismatches += mismatches.length;
 
-      const tenants = await this.tenantsService.findAll();
-      let totalMismatches = 0;
-
-      for (const tenant of tenants) {
-        await TenantContextService.run(tenant.id, async () => {
-          const mismatches = await this.reconcileTenant(tenant.id);
-          totalMismatches += mismatches.length;
-
-          // Create tickets for mismatches
-          for (const mismatch of mismatches) {
-            await this.createMismatchTicket(mismatch);
+              // Create tickets for mismatches
+              for (const mismatch of mismatches) {
+                await this.createMismatchTicket(mismatch);
+              }
+            });
           }
-        });
-      }
 
-      span.setStatus({ code: SpanStatusCode.OK });
-      span.setAttribute('mismatches.total', totalMismatches);
-      this.reconciliationRunsTotal.inc({ status: 'success' });
-      this.logger.log(`Nightly reconciliation completed: ${totalMismatches} mismatches found`);
-    } catch (error) {
-      span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
-      this.reconciliationRunsTotal.inc({ status: 'failure' });
-      this.reconciliationFailuresTotal.inc();
-      this.logger.error('Nightly reconciliation failed', error);
-    } finally {
-      span.end();
-      await this.dataSource.query('SELECT pg_advisory_unlock($1)', [lockId]);
+          span.setStatus({ code: SpanStatusCode.OK });
+          span.setAttribute('mismatches.total', totalMismatches);
+          this.reconciliationRunsTotal.inc({ status: 'success' });
+          this.logger.log(`Nightly reconciliation completed: ${totalMismatches} mismatches found`);
+          return { totalMismatches };
+        } catch (error) {
+          span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
+          this.reconciliationRunsTotal.inc({ status: 'failure' });
+          this.reconciliationFailuresTotal.inc();
+          this.logger.error('Nightly reconciliation failed', error);
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+      { ttl: 120000 }, // 2 minute TTL for long-running reconciliation
+    );
+
+    if (!result) {
+      this.logger.debug('Skipping reconciliation: another instance is running');
     }
   }
 
