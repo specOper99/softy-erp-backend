@@ -1,0 +1,11 @@
+/**
+ * Tenant lifecycle status
+ */
+export enum TenantStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  LOCKED = 'LOCKED',
+  PENDING_DELETION = 'PENDING_DELETION',
+  DELETED = 'DELETED',
+  GRACE_PERIOD = 'GRACE_PERIOD',
+}
