@@ -1,10 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
 import { EntityManager, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CursorAuthService } from '../../../common/services/cursor-auth.service';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { CreateUserDto, UpdateUserDto } from '../dto';
@@ -14,15 +15,22 @@ import { UserRepository } from '../repositories/user.repository';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
+  private static readonly MAX_FIND_MANY_IDS = 1000;
+
   constructor(
     private readonly userRepository: UserRepository,
     @InjectRepository(User) private readonly rawUserRepository: Repository<User>,
     private readonly auditService: AuditPublisher,
     private readonly eventBus: EventBus,
+    private readonly passwordHashService: PasswordHashService,
+    private readonly cursorAuthService: CursorAuthService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const passwordHash = await bcrypt.hash(createUserDto.password, 12);
+    // Use Argon2id instead of deprecated bcrypt
+    const passwordHash = await this.passwordHashService.hash(createUserDto.password);
     const user = this.userRepository.create({
       email: createUserDto.email,
       passwordHash,
@@ -49,7 +57,8 @@ export class UsersService {
   }
 
   async createWithManager(manager: EntityManager, createUserDto: CreateUserDto & { tenantId: string }): Promise<User> {
-    const passwordHash = await bcrypt.hash(createUserDto.password, 12);
+    // Use Argon2id instead of deprecated bcrypt
+    const passwordHash = await this.passwordHashService.hash(createUserDto.password);
     const user = manager.create(User, {
       email: createUserDto.email,
       passwordHash,
@@ -78,18 +87,19 @@ export class UsersService {
     const qb = this.userRepository.createQueryBuilder('user');
 
     qb.leftJoinAndSelect('user.wallet', 'wallet')
-      .where('user.tenantId = :tenantId', { tenantId: TenantContextService.getTenantId() })
+      .where('user.tenantId = :tenantId', { tenantId: TenantContextService.getTenantIdOrThrow() })
       .orderBy('user.createdAt', 'DESC')
       .addOrderBy('user.id', 'DESC')
       .take(limit + 1);
 
     if (query.cursor) {
-      const decoded = Buffer.from(query.cursor, 'base64').toString('utf-8');
-      const [dateStr, id] = decoded.split('|');
-      if (!dateStr || !id) {
+      // Use authenticated cursor decoding to prevent cursor manipulation attacks
+      const parsed = this.cursorAuthService.parseUserCursor(query.cursor);
+      if (!parsed) {
+        // Invalid or tampered cursor - return empty result
         return { data: [], nextCursor: null };
       }
-      const date = new Date(dateStr);
+      const { date, id } = parsed;
 
       qb.andWhere('(user.createdAt < :date OR (user.createdAt = :date AND user.id < :id))', { date, id });
     }
@@ -103,8 +113,8 @@ export class UsersService {
       if (!lastItem) {
         return { data: users, nextCursor: null };
       }
-      const cursorData = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
-      nextCursor = Buffer.from(cursorData).toString('base64');
+      // Use authenticated cursor encoding
+      nextCursor = this.cursorAuthService.createUserCursor(lastItem.createdAt, lastItem.id);
     }
 
     return { data: users, nextCursor };
@@ -121,11 +131,8 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string, tenantId?: string): Promise<User | null> {
-    if (tenantId) {
-      return this.userRepository.findOne({ where: { email, tenantId } });
-    }
-    return this.userRepository.findOne({ where: { email } });
+  async findByEmail(email: string, tenantId: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email, tenantId } });
   }
 
   async findByEmailGlobal(email: string): Promise<User | null> {
@@ -135,23 +142,27 @@ export class UsersService {
   async findMany(ids: string[]): Promise<User[]> {
     if (!ids.length) return [];
 
-    const tenantId = TenantContextService.getTenantId();
-    const qb = this.userRepository.createQueryBuilder('user').where('user.id IN (:...ids)', { ids });
-
-    if (tenantId) {
-      qb.andWhere('user.tenantId = :tenantId', { tenantId });
+    if (ids.length > UsersService.MAX_FIND_MANY_IDS) {
+      throw new BadRequestException('common.too_many_ids');
     }
+
+    const qb = this.userRepository.createQueryBuilder('user').andWhere('user.id IN (:...ids)', { ids });
 
     return qb.getMany();
   }
 
   async findByEmailWithMfaSecret(email: string, tenantId?: string): Promise<User | null> {
-    const qb = this.userRepository.createQueryBuilder('user').where('user.email = :email', { email });
+    const qb = this.userRepository.createQueryBuilder('user').andWhere('user.email = :email', { email });
 
-    const finalTenantId = tenantId || TenantContextService.getTenantId();
-    if (finalTenantId) {
-      qb.andWhere('user.tenantId = :tenantId', { tenantId: finalTenantId });
+    if (tenantId) {
+      qb.andWhere('user.tenantId = :tenantId', { tenantId });
     }
+
+    return qb.addSelect('user.mfaSecret').getOne();
+  }
+
+  async findByIdWithMfaSecret(userId: string): Promise<User | null> {
+    const qb = this.userRepository.createQueryBuilder('user').andWhere('user.id = :userId', { userId });
 
     return qb.addSelect('user.mfaSecret').getOne();
   }
@@ -166,6 +177,14 @@ export class UsersService {
     }
 
     return qb.addSelect('user.mfaRecoveryCodes').getOne();
+  }
+
+  async findByIdWithRecoveryCodesGlobal(userId: string): Promise<User | null> {
+    return this.rawUserRepository
+      .createQueryBuilder('user')
+      .addSelect('user.mfaRecoveryCodes')
+      .where('user.id = :userId', { userId })
+      .getOne();
   }
 
   async updateMfaSecret(userId: string, secret: string | null, enabled: boolean): Promise<void> {
@@ -239,7 +258,26 @@ export class UsersService {
     this.eventBus.publish(new UserDeletedEvent(user.id, user.tenantId, user.email));
   }
 
+  /**
+   * Validate user password with automatic hash upgrade.
+   *
+   * If the user has a legacy bcrypt hash, it will be automatically
+   * upgraded to Argon2id upon successful verification.
+   */
   async validatePassword(user: User, password: string): Promise<boolean> {
-    return bcrypt.compare(password, user.passwordHash);
+    const result = await this.passwordHashService.verifyAndUpgrade(user.passwordHash, password);
+
+    // If hash was upgraded from bcrypt to Argon2id, update database
+    if (result.valid && result.newHash && result.upgraded) {
+      try {
+        await this.rawUserRepository.update({ id: user.id }, { passwordHash: result.newHash });
+        this.logger.log(`Password hash upgraded to Argon2id for user ${user.id}`);
+      } catch (error) {
+        // Log but don't fail - hash upgrade is non-critical
+        this.logger.warn(`Failed to upgrade password hash for user ${user.id}`, error);
+      }
+    }
+
+    return result.valid;
   }
 }

@@ -25,6 +25,7 @@ describe('UsersController', () => {
             findByEmail: jest.fn().mockResolvedValue(mockUser),
             update: jest.fn().mockResolvedValue(mockUser),
             remove: jest.fn().mockResolvedValue(undefined),
+            findAllCursor: jest.fn().mockResolvedValue({ data: [mockUser], nextCursor: null }),
           },
         },
         { provide: getRepositoryToken(Tenant), useValue: {} },
@@ -55,6 +56,14 @@ describe('UsersController', () => {
     it('should call service.findAll', async () => {
       await controller.findAll({} as PaginationDto);
       expect(service.findAll).toHaveBeenCalled();
+    });
+  });
+
+  describe('findAllCursor', () => {
+    it('should call service.findAllCursor', async () => {
+      const query = { limit: 10, cursor: 'abc' };
+      await controller.findAllCursor(query);
+      expect(service.findAllCursor).toHaveBeenCalledWith(query);
     });
   });
 

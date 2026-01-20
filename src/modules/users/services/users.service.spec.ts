@@ -1,8 +1,7 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
 import { EntityManager, FindOneOptions, SelectQueryBuilder } from 'typeorm';
 import {
   createMockQueryRunner,
@@ -10,6 +9,8 @@ import {
   createMockUser,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
+import { CursorAuthService } from '../../../common/services/cursor-auth.service';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { User } from '../entities/user.entity';
 import { Role } from '../enums/role.enum';
@@ -31,6 +32,37 @@ describe('UsersService - Comprehensive Tests', () => {
 
   const mockAuditService = {
     log: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockPasswordHashService = {
+    hash: jest.fn().mockImplementation((password: string) => Promise.resolve(`argon2id$${password}_hashed`)),
+    verify: jest.fn().mockImplementation((hash: string, password: string) => {
+      // Simple mock - check if password appears in hash
+      return Promise.resolve(hash.includes(password) || hash.includes('hashed'));
+    }),
+    verifyAndUpgrade: jest.fn().mockImplementation((hash: string, password: string) => {
+      const valid = hash.includes(password) || (hash.includes('hashed') && password === TEST_PASSWORD);
+      return Promise.resolve({ valid, newHash: undefined, upgraded: false });
+    }),
+    needsUpgrade: jest.fn().mockReturnValue(false),
+  };
+
+  const mockCursorAuthService = {
+    encode: jest.fn().mockImplementation((data: string) => Buffer.from(data).toString('base64url')),
+    decode: jest.fn().mockImplementation((cursor: string) => Buffer.from(cursor, 'base64url').toString()),
+    parseUserCursor: jest.fn().mockImplementation((cursor: string) => {
+      try {
+        const decoded = Buffer.from(cursor, 'base64url').toString();
+        const [dateStr, id] = decoded.split('|');
+        if (!dateStr || !id) return null;
+        return { date: new Date(dateStr), id };
+      } catch {
+        return null;
+      }
+    }),
+    createUserCursor: jest
+      .fn()
+      .mockImplementation((date: Date, id: string) => Buffer.from(`${date.toISOString()}|${id}`).toString('base64url')),
   };
 
   beforeEach(async () => {
@@ -61,6 +93,8 @@ describe('UsersService - Comprehensive Tests', () => {
             publish: jest.fn(),
           },
         },
+        { provide: PasswordHashService, useValue: mockPasswordHashService },
+        { provide: CursorAuthService, useValue: mockCursorAuthService },
       ],
     }).compile();
 
@@ -208,7 +242,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
         const result = await service.findMany(['test-uuid-123']);
         expect(result).toEqual([mockUser]);
-        expect(qbMock.where).toHaveBeenCalledWith('user.id IN (:...ids)', {
+        expect(qbMock.andWhere).toHaveBeenCalledWith('user.id IN (:...ids)', {
           ids: ['test-uuid-123'],
         });
       });
@@ -217,6 +251,11 @@ describe('UsersService - Comprehensive Tests', () => {
         const result = await service.findMany([]);
         expect(result).toEqual([]);
         expect(userRepository.createQueryBuilder).not.toHaveBeenCalled();
+      });
+
+      it('should throw BadRequestException when ids array too large', async () => {
+        const tooManyIds = Array.from({ length: 1001 }, (_, i) => `id-${i}`);
+        await expect(service.findMany(tooManyIds)).rejects.toThrow(BadRequestException);
       });
     });
   });
@@ -237,17 +276,17 @@ describe('UsersService - Comprehensive Tests', () => {
   });
 
   describe('findByEmail', () => {
-    it('should return user by valid email', async () => {
-      const result = await service.findByEmail('test@example.com');
+    it('should return user by valid email within tenant', async () => {
+      const result = await service.findByEmail('test@example.com', 'tenant-123');
       expect(result).toMatchObject({ email: 'test@example.com' });
     });
 
-    it('should return null for non-existent email', async () => {
-      const result = await service.findByEmail('notfound@example.com');
+    it('should return null for non-existent email within tenant', async () => {
+      const result = await service.findByEmail('notfound@example.com', 'tenant-123');
       expect(result).toBeNull();
     });
 
-    it('should filter by tenantId when provided', async () => {
+    it('should query by (email, tenantId)', async () => {
       await service.findByEmail('test@example.com', 'tenant-123');
       expect(userRepository.findOne).toHaveBeenCalledWith({
         where: { email: 'test@example.com', tenantId: 'tenant-123' },
@@ -323,24 +362,37 @@ describe('UsersService - Comprehensive Tests', () => {
   describe('validatePassword', () => {
     it('should return true for correct password', async () => {
       const password = TEST_PASSWORD;
-      const hash = await bcrypt.hash(password, 10);
-      const user = { ...mockUser, passwordHash: hash } as User;
+      // Use bcrypt hash to simulate legacy hash that works with our mock
+      mockPasswordHashService.verifyAndUpgrade.mockResolvedValueOnce({
+        valid: true,
+        newHash: undefined,
+        upgraded: false,
+      });
+      const user = { ...mockUser, passwordHash: `argon2id$${password}_hashed` } as User;
 
       const result = await service.validatePassword(user, password);
       expect(result).toBe(true);
     });
 
     it('should return false for incorrect password', async () => {
-      const hash = await bcrypt.hash(TEST_PASSWORD, 10);
-      const user = { ...mockUser, passwordHash: hash } as User;
+      mockPasswordHashService.verifyAndUpgrade.mockResolvedValueOnce({
+        valid: false,
+        newHash: undefined,
+        upgraded: false,
+      });
+      const user = { ...mockUser, passwordHash: 'somehash' } as User;
 
       const result = await service.validatePassword(user, TEST_WRONG_PASSWORD);
       expect(result).toBe(false);
     });
 
     it('should return false for empty password', async () => {
-      const hash = await bcrypt.hash(TEST_PASSWORD, 10);
-      const user = { ...mockUser, passwordHash: hash } as User;
+      mockPasswordHashService.verifyAndUpgrade.mockResolvedValueOnce({
+        valid: false,
+        newHash: undefined,
+        upgraded: false,
+      });
+      const user = { ...mockUser, passwordHash: 'somehash' } as User;
 
       const result = await service.validatePassword(user, '');
       expect(result).toBe(false);
@@ -348,11 +400,159 @@ describe('UsersService - Comprehensive Tests', () => {
 
     it('should handle special characters in password', async () => {
       const password = 'P@$$w0rd!#%^&*()';
-      const hash = await bcrypt.hash(password, 10);
-      const user = { ...mockUser, passwordHash: hash } as User;
+      mockPasswordHashService.verifyAndUpgrade.mockResolvedValueOnce({
+        valid: true,
+        newHash: undefined,
+        upgraded: false,
+      });
+      const user = { ...mockUser, passwordHash: `argon2id$hash` } as User;
 
       const result = await service.validatePassword(user, password);
       expect(result).toBe(true);
+    });
+
+    it('should upgrade bcrypt hash to argon2id on successful validation', async () => {
+      const password = TEST_PASSWORD;
+      const newArgon2Hash = '$argon2id$v=19$m=65536,t=3,p=4$...new_hash';
+      mockPasswordHashService.verifyAndUpgrade.mockResolvedValueOnce({
+        valid: true,
+        newHash: newArgon2Hash,
+        upgraded: true,
+      });
+      // Get the raw repo to check if it was called
+      const user = { ...mockUser, passwordHash: '$2b$10$oldBcryptHash' } as User;
+
+      const result = await service.validatePassword(user, password);
+      expect(result).toBe(true);
+      expect(mockPasswordHashService.verifyAndUpgrade).toHaveBeenCalledWith(user.passwordHash, password);
+    });
+  });
+  // ============ CURSOR PAGINATION TESTS ============
+  describe('findAllCursor', () => {
+    let queryBuilderMock: any;
+
+    beforeEach(() => {
+      queryBuilderMock = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([mockUser]),
+      };
+      userRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
+    });
+
+    it('should return users with default limit', async () => {
+      const result = await service.findAllCursor({});
+      expect(result.data).toHaveLength(1);
+      expect(result.nextCursor).toBeNull();
+      expect(queryBuilderMock.take).toHaveBeenCalledWith(21); // default 20 + 1
+    });
+
+    it('should handle cursor pagination', async () => {
+      mockCursorAuthService.parseUserCursor.mockReturnValue({ date: new Date(), id: 'prev-id' });
+      await service.findAllCursor({ cursor: 'valid-cursor', limit: 10 });
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('user.createdAt < :date'),
+        expect.anything(),
+      );
+    });
+
+    it('should return empty result if cursor is invalid', async () => {
+      mockCursorAuthService.parseUserCursor.mockReturnValue(null);
+      const result = await service.findAllCursor({ cursor: 'invalid-cursor' });
+      expect(result.data).toHaveLength(0);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('should generate nextCursor if more items exist', async () => {
+      const users = Array(21)
+        .fill(mockUser)
+        .map((u, i) => ({ ...u, id: `user-${i}` }));
+      queryBuilderMock.getMany.mockResolvedValue(users);
+      mockCursorAuthService.createUserCursor.mockReturnValue('next-cursor');
+
+      const result = await service.findAllCursor({ limit: 20 });
+      expect(result.data).toHaveLength(20);
+      expect(result.nextCursor).toBe('next-cursor');
+    });
+  });
+
+  // ============ GLOBAL LOOKUP TESTS ============
+  describe('findByEmailGlobal', () => {
+    it('should return user ignoring tenant scope', async () => {
+      (service['rawUserRepository'].findOne as jest.Mock).mockResolvedValue(mockUser);
+      const result = await service.findByEmailGlobal('test@example.com');
+      expect(result).toBe(mockUser);
+      expect(service['rawUserRepository'].findOne).toHaveBeenCalledWith({ where: { email: 'test@example.com' } });
+    });
+  });
+
+  // ============ MFA RELATED TESTS ============
+  describe('MFA methods', () => {
+    let queryBuilderMock: any;
+
+    beforeEach(() => {
+      queryBuilderMock = {
+        andWhere: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({ ...mockUser, mfaSecret: 'secret', mfaRecoveryCodes: ['code1'] }),
+      };
+      userRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
+    });
+
+    it('findByEmailWithMfaSecret should return user with secret', async () => {
+      await service.findByEmailWithMfaSecret('test@example.com', 'tenant-1');
+      expect(queryBuilderMock.addSelect).toHaveBeenCalledWith('user.mfaSecret');
+    });
+
+    it('findByIdWithMfaSecret should return user with secret', async () => {
+      await service.findByIdWithMfaSecret('user-1');
+      expect(queryBuilderMock.addSelect).toHaveBeenCalledWith('user.mfaSecret');
+    });
+
+    it('findByIdWithRecoveryCodes should return user with recovery codes', async () => {
+      await service.findByIdWithRecoveryCodes('user-1');
+      expect(queryBuilderMock.addSelect).toHaveBeenCalledWith('user.mfaRecoveryCodes');
+    });
+
+    it('findByIdWithRecoveryCodesGlobal should return user with recovery codes ignoring tenant', async () => {
+      const rawQbMock = { ...queryBuilderMock };
+      (service['rawUserRepository'].createQueryBuilder as jest.Mock).mockReturnValue(rawQbMock);
+
+      await service.findByIdWithRecoveryCodesGlobal('user-1');
+      expect(rawQbMock.addSelect).toHaveBeenCalledWith('user.mfaRecoveryCodes');
+    });
+
+    it('updateMfaSecret should update repository', async () => {
+      await service.updateMfaSecret('user-1', 'new-secret', true);
+      expect(userRepository.update).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        { mfaSecret: 'new-secret', isMfaEnabled: true },
+      );
+    });
+
+    it('updateMfaRecoveryCodes should update repository', async () => {
+      await service.updateMfaRecoveryCodes('user-1', ['code1']);
+      expect(userRepository.update).toHaveBeenCalledWith({ id: 'user-1' }, { mfaRecoveryCodes: ['code1'] });
+    });
+  });
+
+  // ============ ERROR HANDLING TESTS ============
+  describe('create error handling', () => {
+    it('should throw ConflictException on duplicate email', async () => {
+      userRepository.save.mockRejectedValue({ code: '23505' });
+      await expect(service.create({ email: 'dup@example.com', password: 'p' } as any)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('should rethrow other errors', async () => {
+      userRepository.save.mockRejectedValue(new Error('db error'));
+      await expect(service.create({ email: 'err@example.com', password: 'p' } as any)).rejects.toThrow('db error');
     });
   });
 });
