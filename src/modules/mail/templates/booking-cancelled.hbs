@@ -3,63 +3,17 @@
 
 <head>
     <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            background: #f44336;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .content {
-            background: #f9f9f9;
-            padding: 20px;
-        }
-
-        .cancellation {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 15px 0;
-        }
-
-        .refund {
-            font-size: 20px;
-            font-weight: bold;
-            color: #4CAF50;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            font-size: 12px;
-            color: #999;
-        }
-    </style>
+    {{> styles}}
 </head>
 
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Booking Cancelled</h1>
-        </div>
+        {{> header title="Booking Cancelled"}}
         <div class="content">
             <p>Dear {{clientName}},</p>
             <p>Your booking has been cancelled as requested.</p>
 
-            <div class="cancellation">
+            <div class="detail-box">
                 <h3>Cancellation Details</h3>
                 <p><strong>Booking ID:</strong> {{bookingId}}</p>
                 <p><strong>Original Event Date:</strong> {{eventDate}}</p>
@@ -68,24 +22,21 @@
                 {{#if cancellationReason}}
                 <p><strong>Reason:</strong> {{cancellationReason}}</p>
                 {{/if}}
-                <hr>
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 15px 0;">
                 <p><strong>Total Paid:</strong> ${{amountPaid}}</p>
                 {{#if refundAmount}}
-                <p class="refund">Refund Amount: ${{refundAmount}} ({{refundPercentage}}%)</p>
-                <p style="color: #666;">Your refund will be processed within 5-7 business days.</p>
+                <p style="font-weight: bold; color: #16a34a;">Refund Amount: ${{refundAmount}} ({{refundPercentage}}%)
+                </p>
+                <p style="color: #6b7280; font-size: 13px;">Your refund will be processed within 5-7 business days.</p>
                 {{else}}
-                <p style="color: #999;">No refund applicable based on our cancellation policy.</p>
+                <p style="color: #9ca3af; font-size: 13px;">No refund applicable based on our cancellation policy.</p>
                 {{/if}}
             </div>
 
-            <p>We're sorry to see you go. If you have any questions about this cancellation or would like to rebook in
-                the future, please contact us.</p>
-
+            <p>We're sorry to see you go. If you have any questions, please contact us.</p>
             <p>Best regards,<br>{{tenantName}}</p>
         </div>
-        <div class="footer">
-            <p>This is an automated notification.</p>
-        </div>
+        {{> footer}}
     </div>
 </body>
 

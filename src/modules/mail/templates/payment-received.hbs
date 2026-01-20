@@ -3,68 +3,17 @@
 
 <head>
     <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            background: #4CAF50;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .content {
-            background: #f9f9f9;
-            padding: 20px;
-        }
-
-        .receipt {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 15px 0;
-        }
-
-        .amount {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4CAF50;
-        }
-
-        .balance {
-            font-size: 18px;
-            color: #666;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            font-size: 12px;
-            color: #999;
-        }
-    </style>
+    {{> styles}}
 </head>
 
 <body>
     <div class="container">
-        <div class="header">
-            <h1>✓ Payment Received</h1>
-        </div>
+        {{> header title="✓ Payment Received"}}
         <div class="content">
             <p>Dear {{clientName}},</p>
             <p>Thank you! We have successfully received your payment.</p>
 
-            <div class="receipt">
+            <div class="detail-box">
                 <h3>Payment Details</h3>
                 <p><strong>Booking:</strong> {{bookingId}}</p>
                 <p><strong>Event Date:</strong> {{eventDate}}</p>
@@ -75,17 +24,17 @@
                 <p><strong>Reference:</strong> {{reference}}</p>
                 {{/if}}
                 <p><strong>Date:</strong> {{paymentDate}}</p>
-                <hr>
-                <p class="amount">Amount Paid: ${{amount}}</p>
-                <p class="balance">
-                    Total: ${{totalPrice}}<br>
-                    Previously Paid: ${{previouslyPaid}}<br>
-                    <strong>Remaining Balance: ${{remainingBalance}}</strong>
-                </p>
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 15px 0;">
+                <p style="font-size: 18px; font-weight: bold; color: #16a34a;">Amount Paid: ${{amount}}</p>
+                <div style="background-color: #f3f4f6; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                    <p style="margin: 5px 0;">Total: ${{totalPrice}}</p>
+                    <p style="margin: 5px 0;">Previously Paid: ${{previouslyPaid}}</p>
+                    <p style="margin: 5px 0; font-weight: bold;">Remaining Balance: ${{remainingBalance}}</p>
+                </div>
             </div>
 
             {{#if isFullyPaid}}
-            <p style="color: #4CAF50; font-weight: bold;">✓ Your booking is now fully paid!</p>
+            <p style="color: #16a34a; font-weight: bold;">✓ Your booking is now fully paid!</p>
             {{else}}
             <p>Please note that a balance of ${{remainingBalance}} remains on your booking.</p>
             {{/if}}
@@ -93,9 +42,7 @@
             <p>If you have any questions, please don't hesitate to contact us.</p>
             <p>Best regards,<br>{{tenantName}}</p>
         </div>
-        <div class="footer">
-            <p>This is an automated receipt. Please keep for your records.</p>
-        </div>
+        {{> footer}}
     </div>
 </body>
 

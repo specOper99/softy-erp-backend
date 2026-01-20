@@ -1,0 +1,50 @@
+{{!--
+Base action email layout - reusable template for action-based emails
+(email verification, password reset, magic link, etc.)
+
+Required context:
+- direction: LTR/RTL text direction
+- textAlign: left/right based on direction
+- name: recipient name
+- companyName: company name
+- actionUrl: the URL for the action button
+- actionText: button text (e.g., "Verify Email", "Reset Password")
+- mainMessage: main paragraph text
+- secondaryMessage: secondary/fallback message (optional)
+- expiryMessage: expiry info (optional)
+--}}
+<!DOCTYPE html>
+<html dir="{{direction}}">
+
+<head>
+    <meta charset="utf-8">
+    {{> styles}}
+</head>
+
+<body style="text-align: {{textAlign}};">
+    <div class="container">
+        {{> header}}
+
+        <p>Hello {{name}},</p>
+
+        <p>{{{mainMessage}}}</p>
+
+        {{#if secondaryMessage}}
+        <p>{{secondaryMessage}}</p>
+        {{/if}}
+
+        <div style="text-align: center; margin: 40px 0;">
+            <a href="{{actionUrl}}" class="button">{{actionText}}</a>
+        </div>
+
+        {{#if expiryMessage}}
+        <p>{{expiryMessage}}</p>
+        {{/if}}
+
+        <p>Thank you,<br>The {{companyName}} Team</p>
+
+        {{> footer}}
+    </div>
+</body>
+
+</html>

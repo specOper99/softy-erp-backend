@@ -3,56 +3,12 @@
 
 <head>
     <meta charset="utf-8">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 20px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .footer {
-            text-align: center;
-            font-size: 12px;
-            color: #777;
-            margin-top: 40px;
-        }
-
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #10b981;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: bold;
-        }
-
-        h1 {
-            color: #064e3b;
-        }
-    </style>
+    {{> styles}}
 </head>
 
 <body style="text-align: {{textAlign}};">
     <div class="container">
-        <div class="header">
-            <h1>Chapters Studio</h1>
-        </div>
+        {{> header}}
 
         <p>Hello {{name}},</p>
 
@@ -66,10 +22,7 @@
 
         <p>Thank you,<br>The {{companyName}} Team</p>
 
-        <div class="footer">
-            <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
-            <p><a href="{{companyUrl}}">{{companyUrl}}</a></p>
-        </div>
+        {{> footer}}
     </div>
 </body>
 

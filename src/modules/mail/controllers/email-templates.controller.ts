@@ -50,13 +50,7 @@ export class EmailTemplatesController {
   @ApiOperation({ summary: 'Get template by ID' })
   async findOne(@Param('id') id: string) {
     const tenantId = TenantContextService.getTenantId();
-    const template = await this.templateRepository.findOne({
-      where: { id, tenantId },
-    });
-    if (!template) {
-      throw new NotFoundException('Template not found');
-    }
-    return template;
+    return this.findTemplateOrThrow(id, tenantId);
   }
 
   @Post()
@@ -86,13 +80,7 @@ export class EmailTemplatesController {
   @ApiOperation({ summary: 'Update an email template' })
   async update(@Param('id') id: string, @Body() dto: UpdateEmailTemplateDto) {
     const tenantId = TenantContextService.getTenantId();
-    const template = await this.templateRepository.findOne({
-      where: { id, tenantId },
-    });
-
-    if (!template) {
-      throw new NotFoundException('Template not found');
-    }
+    const template = await this.findTemplateOrThrow(id, tenantId);
 
     Object.assign(template, dto);
     return this.templateRepository.save(template);
@@ -103,13 +91,7 @@ export class EmailTemplatesController {
   @ApiOperation({ summary: 'Delete an email template' })
   async remove(@Param('id') id: string) {
     const tenantId = TenantContextService.getTenantId();
-    const template = await this.templateRepository.findOne({
-      where: { id, tenantId },
-    });
-
-    if (!template) {
-      throw new NotFoundException('Template not found');
-    }
+    const template = await this.findTemplateOrThrow(id, tenantId);
 
     if (template.isSystem) {
       throw new BadRequestException('Cannot delete system templates');
@@ -132,5 +114,15 @@ export class EmailTemplatesController {
       }
       throw new BadRequestException('Template compilation failed');
     }
+  }
+
+  private async findTemplateOrThrow(id: string, tenantId: string | undefined): Promise<EmailTemplate> {
+    const template = await this.templateRepository.findOne({
+      where: { id, tenantId },
+    });
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+    return template;
   }
 }

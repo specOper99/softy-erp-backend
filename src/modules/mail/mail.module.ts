@@ -41,7 +41,16 @@ import { MailTemplateService } from './services/mail-template.service';
         },
         template: {
           dir: join(__dirname, 'templates'),
-          adapter: new HandlebarsAdapter(),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          adapter: new HandlebarsAdapter(undefined, {
+            partials: {
+              dir: join(__dirname, 'templates', 'partials'),
+              options: {
+                strict: true,
+              },
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any),
           options: {
             strict: true,
           },
