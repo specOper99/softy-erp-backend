@@ -17,7 +17,7 @@ import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags
 import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto';
+import { ConfirmUploadDto, CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto';
 import { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
 
@@ -92,8 +92,8 @@ export class MediaController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Attachment not found' })
-  async confirmUpload(@Param('id') id: string, @Body('size') size: number): Promise<Attachment> {
-    return this.mediaService.confirmUpload(id, size);
+  async confirmUpload(@Param('id') id: string, @Body() dto: ConfirmUploadDto): Promise<Attachment> {
+    return this.mediaService.confirmUpload(id, dto.size);
   }
 
   @Post()

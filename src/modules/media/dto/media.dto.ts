@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class CreateAttachmentDto {
   @ApiPropertyOptional({ description: 'ID of the booking to attach to' })
@@ -31,6 +32,15 @@ export class PresignedUploadDto {
   @IsOptional()
   @IsUUID()
   taskId?: string;
+}
+
+export class ConfirmUploadDto {
+  @ApiProperty({ description: 'Client-reported size in bytes (validated against storage metadata on confirm)' })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10 * 1024 * 1024)
+  size: number;
 }
 
 export class LinkAttachmentDto {

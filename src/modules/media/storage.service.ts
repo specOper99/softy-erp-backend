@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   GetObjectCommandOutput,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -76,11 +77,7 @@ export class StorageService implements OnModuleInit {
    */
   async uploadFile(buffer: Buffer, key: string, mimeType: string): Promise<UploadedFile> {
     // Security: Validate MIME type against whitelist
-    if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
-      throw new BadRequestException(
-        `Unsupported file type: ${mimeType}. Allowed types: ${[...StorageService.ALLOWED_MIME_TYPES].join(', ')}`,
-      );
-    }
+    this.validateMimeType(mimeType);
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -135,6 +132,50 @@ export class StorageService implements OnModuleInit {
    * Get a file stream from MinIO
    */
   /**
+   * Get file metadata (size, content type) from MinIO
+   */
+  async getFileMetadata(key: string): Promise<{ size: number; contentType?: string }> {
+    const command = new HeadObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    try {
+      const response = await this.s3Client.send(command);
+
+      return {
+        size: response.ContentLength ?? 0,
+        contentType: response.ContentType,
+      };
+    } catch (error: unknown) {
+      if (this.isS3NotFoundError(error)) {
+        throw new BadRequestException(`File not found in storage: ${key}`);
+      }
+      throw error;
+    }
+  }
+
+  private isS3NotFoundError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+
+    const err = error as {
+      name?: unknown;
+      $metadata?: unknown;
+    };
+
+    const name = err.name;
+    if (typeof name === 'string' && name === 'NotFound') {
+      return true;
+    }
+
+    const metadata = err.$metadata;
+    if (!metadata || typeof metadata !== 'object') return false;
+
+    const httpStatusCode = (metadata as { httpStatusCode?: unknown }).httpStatusCode;
+    return httpStatusCode === 404;
+  }
+
+  /**
    * Type guard to ensure S3 response is valid
    */
   private isGetObjectOutput(output: unknown): output is GetObjectCommandOutput {
@@ -172,11 +213,7 @@ export class StorageService implements OnModuleInit {
    */
   async getPresignedUploadUrl(key: string, mimeType: string, expiresIn = 3600): Promise<string> {
     // Security: Validate MIME type against whitelist
-    if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
-      throw new BadRequestException(
-        `Unsupported file type: ${mimeType}. Allowed types: ${[...StorageService.ALLOWED_MIME_TYPES].join(', ')}`,
-      );
-    }
+    this.validateMimeType(mimeType);
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -214,5 +251,13 @@ export class StorageService implements OnModuleInit {
 
     const match = new RegExp(`${this.bucket}/(.+)$`).exec(url);
     return match?.[1] ?? null;
+  }
+
+  private validateMimeType(mimeType: string): void {
+    if (!StorageService.ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw new BadRequestException(
+        `Unsupported file type: ${mimeType}. Allowed types: ${[...StorageService.ALLOWED_MIME_TYPES].join(', ')}`,
+      );
+    }
   }
 }

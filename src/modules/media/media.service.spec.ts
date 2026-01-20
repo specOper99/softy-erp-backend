@@ -52,11 +52,12 @@ describe('MediaService', () => {
           provide: StorageService,
           useValue: {
             generateKey: jest.fn().mockResolvedValue('mock-key'),
-            uploadFile: jest.fn().mockResolvedValue({ url: 'http://mock-url' }), // This line was intended to be replaced, but the provided replacement was syntactically incorrect. Keeping original for valid syntax.
+            uploadFile: jest.fn().mockResolvedValue({ url: 'http://mock-url' }),
             getPresignedUploadUrl: jest.fn().mockResolvedValue('http://presigned-url'),
             extractKeyFromUrl: jest.fn().mockReturnValue('mock-key'),
             getPresignedDownloadUrl: jest.fn().mockResolvedValue('http://download-url'),
             deleteFile: jest.fn().mockResolvedValue(undefined),
+            getFileMetadata: jest.fn().mockResolvedValue({ size: 1024, contentType: 'image/png' }),
           },
         },
         {
@@ -107,11 +108,12 @@ describe('MediaService', () => {
 
   describe('confirmUpload', () => {
     it('should update attachment size', async () => {
-      const mockAttachment = { id: 'uuid', name: 'test.png' } as Attachment;
+      const mockAttachment = { id: 'uuid', name: 'test.png', url: 'mock-key', mimeType: 'image/png' } as Attachment;
       jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
 
       const result = await service.confirmUpload('uuid', 1024);
 
+      expect(storageService.getFileMetadata).toHaveBeenCalledWith('mock-key');
       expect(attachmentRepository.save).toHaveBeenCalledWith(expect.objectContaining({ size: 1024 }));
       expect(result.size).toBe(1024);
     });
@@ -206,6 +208,7 @@ describe('MediaService', () => {
       expect(attachmentRepository.find).toHaveBeenCalledWith({
         where: { bookingId: 'b-id', tenantId: 'tenant-123' },
         order: { createdAt: 'DESC' },
+        take: 100,
       });
       expect(result).toBe(mockAttachments);
     });
@@ -220,6 +223,7 @@ describe('MediaService', () => {
       expect(attachmentRepository.find).toHaveBeenCalledWith({
         where: { taskId: 't-id', tenantId: 'tenant-123' },
         order: { createdAt: 'DESC' },
+        take: 100,
       });
       expect(result).toBe(mockAttachments);
     });

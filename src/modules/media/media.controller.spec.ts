@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtAuthGuard } from '../auth/guards';
-import { CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto/media.dto';
+import { ConfirmUploadDto, CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto/media.dto';
 import { Attachment } from './entities/attachment.entity';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
@@ -129,7 +129,7 @@ describe('MediaController', () => {
       const mockAttachment = { id: 'file-id', size: 1000 } as unknown as Attachment;
       mockMediaService.confirmUpload.mockResolvedValue(mockAttachment);
 
-      const result = await controller.confirmUpload('file-id', 1000);
+      const result = await controller.confirmUpload('file-id', { size: 1000 } as ConfirmUploadDto);
 
       expect(service.confirmUpload).toHaveBeenCalledWith('file-id', 1000);
       expect(result).toBe(mockAttachment);
@@ -277,7 +277,7 @@ describe('MediaController', () => {
 
     it('should handle undefined args in confirmUpload', async () => {
       try {
-        await controller.confirmUpload(undefined as unknown as string, undefined as unknown as number);
+        await controller.confirmUpload(undefined as unknown as string, undefined as unknown as ConfirmUploadDto);
       } catch {
         // Expected error
       }

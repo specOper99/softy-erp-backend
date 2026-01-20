@@ -21,6 +21,9 @@ export interface UploadFileParams {
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
 
+  private static readonly MAX_LIST_LIMIT = 100;
+  private static readonly DEFAULT_LIST_LIMIT = 100;
+
   constructor(
     @InjectRepository(Attachment)
     private readonly attachmentRepository: Repository<Attachment>,
@@ -153,7 +156,7 @@ export class MediaService {
   /**
    * Confirm upload and update attachment with final URL
    */
-  async confirmUpload(attachmentId: string, size: number): Promise<Attachment> {
+  async confirmUpload(attachmentId: string, _clientReportedSize: number): Promise<Attachment> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -169,7 +172,25 @@ export class MediaService {
       });
     }
 
-    // Update with actual file size
+    const key = this.storageService.extractKeyFromUrl(attachment.url);
+    if (!key) {
+      throw new BadRequestException('media.invalid_storage_key');
+    }
+
+    const { size, contentType } = await this.storageService.getFileMetadata(key);
+
+    const maxSize = 10 * 1024 * 1024;
+    if (size <= 0) {
+      throw new BadRequestException('media.upload_not_found');
+    }
+    if (size > maxSize) {
+      throw new BadRequestException('media.file_too_large');
+    }
+
+    if (contentType && attachment.mimeType && contentType !== attachment.mimeType) {
+      throw new BadRequestException('media.mime_type_mismatch');
+    }
+
     attachment.size = size;
     return this.attachmentRepository.save(attachment);
   }
@@ -182,6 +203,8 @@ export class MediaService {
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
     }
+
+    await this.validateReferences(tenantId, data.bookingId ?? undefined, data.taskId ?? undefined);
 
     const attachment = this.attachmentRepository.create(data);
     if (attachment.tenantId && attachment.tenantId !== tenantId) {
@@ -265,26 +288,38 @@ export class MediaService {
     return attachment;
   }
 
-  async findByBooking(bookingId: string): Promise<Attachment[]> {
+  async findByBooking(bookingId: string, limit = MediaService.DEFAULT_LIST_LIMIT): Promise<Attachment[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
     }
+
+    const take = this.normalizeListLimit(limit);
     return this.attachmentRepository.find({
       where: { bookingId, tenantId },
       order: { createdAt: 'DESC' },
+      take,
     });
   }
 
-  async findByTask(taskId: string): Promise<Attachment[]> {
+  async findByTask(taskId: string, limit = MediaService.DEFAULT_LIST_LIMIT): Promise<Attachment[]> {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
     }
+
+    const take = this.normalizeListLimit(limit);
     return this.attachmentRepository.find({
       where: { taskId, tenantId },
       order: { createdAt: 'DESC' },
+      take,
     });
+  }
+
+  private normalizeListLimit(limit: number | undefined): number {
+    const candidate =
+      typeof limit === 'number' && Number.isFinite(limit) ? Math.floor(limit) : MediaService.DEFAULT_LIST_LIMIT;
+    return Math.max(1, Math.min(MediaService.MAX_LIST_LIMIT, candidate));
   }
 
   /**
