@@ -91,22 +91,28 @@ jobs:
           echo "🔄 Validating migrations..."
           npm run migration:show
         env:
+          NODE_ENV: production
           DB_HOST: ${{ secrets.STAGING_DB_HOST }}
           DB_PORT: 5432
           DB_USERNAME: ${{ secrets.STAGING_DB_USER }}
           DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
           DB_DATABASE: ${{ secrets.STAGING_DB_NAME }}
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: true
 
       - name: Run Migrations
         run: |
           echo "🚀 Running migrations on staging..."
           npm run migration:run
         env:
+          NODE_ENV: production
           DB_HOST: ${{ secrets.STAGING_DB_HOST }}
           DB_PORT: 5432
           DB_USERNAME: ${{ secrets.STAGING_DB_USER }}
           DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
           DB_DATABASE: ${{ secrets.STAGING_DB_NAME }}
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: true
 
   # Deploy to Staging first
   deploy-staging:
