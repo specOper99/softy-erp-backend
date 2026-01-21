@@ -37,50 +37,59 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Create .env file
-        run: cp .env.example .env
-
       - name: List Pending Migrations
         run: npm run migration:show
         env:
+          NODE_ENV: test
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USERNAME: test_user
           DB_PASSWORD: test_password
           DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: true
 
       - name: Run Migrations (Forward)
         run: |
           echo "🔄 Running migrations forward..."
           npm run migration:run
         env:
+          NODE_ENV: test
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USERNAME: test_user
           DB_PASSWORD: test_password
           DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: true
 
       - name: Run Migrations (Revert)
         run: |
           echo "🔙 Testing migration revert..."
           npm run migration:revert || echo "No migrations to revert"
         env:
+          NODE_ENV: test
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USERNAME: test_user
           DB_PASSWORD: test_password
           DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: true
 
       - name: Re-run Migrations
         run: |
           echo "🔄 Re-running migrations to verify idempotency..."
           npm run migration:run
         env:
+          NODE_ENV: test
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USERNAME: test_user
           DB_PASSWORD: test_password
           DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: true
 
       - name: Type Check
         run: npm run type-check
