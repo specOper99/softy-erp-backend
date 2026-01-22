@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
+import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { MFAService } from '../services/mfa.service';
 import { PlatformAuthService } from '../services/platform-auth.service';
@@ -32,9 +33,9 @@ class DisableMFADto {
 @ApiTags('Platform - MFA')
 @ApiBearerAuth('platform-auth')
 @SkipTenant()
-@Controller('platform/mfa')
-@UseGuards(PlatformContextGuard)
+@UseGuards(PlatformContextGuard, PlatformJwtAuthGuard)
 @RequireContext(ContextType.PLATFORM)
+@Controller('platform/mfa')
 export class MFAController {
   constructor(
     private readonly mfaService: MFAService,
