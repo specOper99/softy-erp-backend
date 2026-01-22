@@ -73,6 +73,7 @@ jobs:
           framework: dockerfile,helm,kubernetes
           quiet: true
           soft_fail: false # Fail build on violations
+          skip_check: CKV_DOCKER_2 # Distroless images don't support HEALTHCHECK - using K8s probes instead
 
   npm-audit:
     name: Dependency Audit
