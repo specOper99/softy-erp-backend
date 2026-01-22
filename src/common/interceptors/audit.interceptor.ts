@@ -122,12 +122,14 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Log to audit service (database)
     try {
+      const paramId = request.params?.id;
+      const entityId = Array.isArray(paramId) ? (paramId[0] ?? 'N/A') : (paramId ?? 'N/A');
+
       await this.auditService.log({
         userId: auditData.userId,
         action: `${options.action}_${options.resource.toUpperCase()}`,
         entityName: options.resource,
-        entityId: request.params?.id || 'N/A',
-        newValues: auditData,
+        entityId,
         notes: error || undefined,
         ipAddress: auditData.ip,
         userAgent: auditData.userAgent,
