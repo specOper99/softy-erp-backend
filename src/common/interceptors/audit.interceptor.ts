@@ -5,6 +5,7 @@ import type { Request } from 'express';
 import { Observable, tap } from 'rxjs';
 import { AuditService } from '../../modules/audit/audit.service';
 import { AUDIT_KEY, AuditOptions } from '../decorators/audit.decorator';
+import { getCorrelationId } from '../logger/request-context';
 import { TenantContextService } from '../services/tenant-context.service';
 
 interface User {
@@ -105,7 +106,7 @@ export class AuditInterceptor implements NestInterceptor {
       resource: options.resource,
       userId: user?.sub || 'anonymous',
       tenantId: TenantContextService.getTenantId() || 'N/A',
-      correlationId: request.headers['x-correlation-id'] as string,
+      correlationId: getCorrelationId() ?? (request.headers['x-correlation-id'] as string | undefined) ?? 'N/A',
       method: request.method,
       path: request.path,
       ip: this.getClientIp(request),
@@ -165,7 +166,7 @@ export class AuditInterceptor implements NestInterceptor {
     ];
 
     for (const key of Object.keys(sanitized)) {
-      if (sensitiveKeys.some((k) => k.toLowerCase().includes(key.toLowerCase()))) {
+      if (sensitiveKeys.some((k) => key.toLowerCase().includes(k.toLowerCase()))) {
         sanitized[key] = '[REDACTED]';
       } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
         sanitized[key] = this.sanitizeData(sanitized[key]);
