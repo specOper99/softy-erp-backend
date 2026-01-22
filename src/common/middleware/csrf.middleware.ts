@@ -34,6 +34,11 @@ export class CsrfMiddleware implements NestMiddleware {
     // Use provided secret or fallback for development only
     const effectiveSecret = secret || 'csrf-secret-change-in-production';
 
+    // Production hardening: use __Host- prefix for CSRF cookie
+    // This provides additional security by ensuring the cookie cannot be set by subdomains
+    // and must have Secure, Path=/, and no Domain attribute
+    const csrfCookieName = isProd ? '__Host-csrf' : '_csrf';
+
     const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
       getSecret: () => effectiveSecret,
       getSessionIdentifier: (req: Request) => {
@@ -50,17 +55,24 @@ export class CsrfMiddleware implements NestMiddleware {
         const ua = (req.headers['user-agent'] ?? '').toString().slice(0, 200);
         return createHash('sha256').update(`${ip}:${ua}`).digest('hex');
       },
-      cookieName: '_csrf',
+      cookieName: csrfCookieName,
       cookieOptions: {
         httpOnly: true,
         sameSite: 'strict',
         secure: isProd,
         path: '/',
       },
-      getCsrfTokenFromRequest: (req: Request) =>
-        (req.headers['x-csrf-token'] as string) ||
-        (req.headers['x-xsrf-token'] as string) ||
-        (req.body as { _csrf?: string })?._csrf,
+      getCsrfTokenFromRequest: (req: Request) => {
+        const token =
+          (req.headers['x-csrf-token'] as string) ||
+          (req.headers['x-xsrf-token'] as string) ||
+          (req.body as { _csrf?: string })?._csrf;
+        // Reject non-string tokens for security
+        if (typeof token !== 'string' || token.length === 0) {
+          return undefined;
+        }
+        return token;
+      },
     });
 
     this.doubleCsrfProtection = doubleCsrfProtection;
@@ -87,6 +99,7 @@ export class CsrfMiddleware implements NestMiddleware {
           httpOnly: false,
           sameSite: 'strict',
           secure: this.configService.get('NODE_ENV') === 'production',
+          path: '/',
         });
       } catch (tokenError) {
         // Log warning but continue - first request may not have session
