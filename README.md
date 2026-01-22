@@ -126,19 +126,19 @@ erDiagram
 
 - 🛡️ **Composite FK Constraints** - Database-level tenant isolation enforcing cross-tenant referential integrity.
 - 🛡️ **Helmet Security** - Essential HTTP security headers applied globally.
-- 🛡️ **JWT-Only Auth** - Removed header-based tenant identification; tenant scope derived solely from verified JWTs.
+- 🛡️ **JWT-First Tenant Scoping** - Tenant derived from verified JWTs with subdomain fallback for public routes (no tenant headers).
 - 🛡️ **PII Masking** - Specialized `@PII` decorator ensuring sensitive fields (emails, phones) are masked in structured logs.
 - 🛡️ **Stored XSS Protection** - `@SanitizeHtml` decorator for automatic sanitization of user-provided content.
 - 🛡️ **Account Lockout** - Progressive account locking to thwart brute-force attacks.
 - 🛡️ **Rate Limiting** - Advanced `IpRateLimitGuard` with IP-based throttling.
 - 🛡️ **Encrypted Secrets** - Webhook secrets encrypted at rest using AES-256-GCM.
-- ✅ **Health Checks** - Terminus-based DB, Redis, and Memory probes.
+- ✅ **Health Checks** - Terminus-based DB and Memory probes; deep checks add Disk, S3, and SMTP.
 - ✅ **Structured Logging** - Winston-based JSON logs including correlation IDs and tenant context.
 - ✅ **Telemetry** - OpenTelemetry + Zipkin for distributed tracing.
 - ✅ **Database Migrations** - Robust TypeORM migration system for schema evolution.
 - ✅ **Secrets Management** - Integrated support for HashiCorp Vault.
-- ✅ **Docker** - Optimized multi-stage production images using `node:alpine`.
-- ✅ **CI/CD** - Automated pipelines for Lint, Test, and Container publishing.
+- ✅ **Docker** - Multi-stage build with `node:lts-alpine` builder and distroless runtime.
+- ✅ **CI/CD** - External pipelines (not defined in this repo).
 - ✅ **Payroll Reconciliation** - Automated nightly jobs to reconcile expected vs actual payouts.
 - ✅ **Hardened Metrics** - Prometheus endpoint protected by `METRICS_TOKEN` with a custom Guard.
 

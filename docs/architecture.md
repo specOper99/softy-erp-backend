@@ -43,7 +43,7 @@ We implement multiple layers of security to protect tenant data:
 - **Header Hardening**: `Helmet` removes `X-Powered-By` and adds CSP, HSTS, and other security headers.
 
 ### Layer 2: Authentication & Authorization
-- **JWT-Only**: No client-side tenant selection. Identity and scope are sealed in the JWT.
+- **JWT-First**: Tenant scope comes from verified JWTs, with subdomain fallback for public routes (no tenant headers).
 - **Account Lockout**: Brute-force protection on the login endpoint.
 - **RBAC**: Role-based access control enforced via high-level decorators.
 
@@ -59,16 +59,16 @@ We implement multiple layers of security to protect tenant data:
 
 ## Resilience Mechanisms
 
-- **Health Checks**: `/health/live` and `/health/ready` endpoints monitoring DB, Redis, Disk, and Memory.
+- **Health Checks**: `/api/v1/health/live` and `/api/v1/health/ready` with DB + memory checks; deep checks add disk, S3, and SMTP.
 - **Graceful Shutdown**: All connections (DB, Redis, S3) are drained before the process terminates.
 - **Backup**: Automated PostgreSQL backups uploaded to MinIO/S3.
-- **Distributed Locking**: Critical sections (e.g., payroll, inventory) use Redis-based distributed locks (`Redlock`) to prevent race conditions in a multi-instance environment.
+- **Distributed Locking**: Critical sections (e.g., payroll) use Redis-based locks via SET NX + Lua for safe cross-instance coordination.
 
 ## Code Quality & Standards
 
 We enforce strict quality gates to maintain reliability and manageability:
 
-- **Zero `any` Policy**: Use of the `any` type is strictly forbidden in both production and test code.
+- **Avoid `any`**: `any` is discouraged, but there are limited exceptions in guards and tests.
 - **Dependency Inversion**: Services rely on abstractions (e.g., `AuditPublisher`) rather than concrete implementations.
 - **Tenant Isolation**: All database interaction MUST go through `TenantAwareRepository`.
 
