@@ -98,7 +98,13 @@ export interface PaymentReceiptEmailData {
 
 export const EMAIL_QUEUE = 'email';
 
-export interface BookingConfirmationJobData {
+// Base interface for all email jobs with tenant context
+export interface TenantAwareEmailJobData {
+  tenantId: string;
+}
+
+// Queue job data types (tenant-aware)
+export interface BookingConfirmationJobData extends TenantAwareEmailJobData {
   clientName: string;
   clientEmail: string;
   eventDate: string; // ISO date string
@@ -107,7 +113,7 @@ export interface BookingConfirmationJobData {
   bookingId: string;
 }
 
-export interface TaskAssignmentJobData {
+export interface TaskAssignmentJobData extends TenantAwareEmailJobData {
   employeeName: string;
   employeeEmail: string;
   taskType: string;
@@ -116,7 +122,7 @@ export interface TaskAssignmentJobData {
   commission: number;
 }
 
-export interface PayrollJobData {
+export interface PayrollJobData extends TenantAwareEmailJobData {
   employeeName: string;
   employeeEmail: string;
   baseSalary: number;
@@ -125,7 +131,7 @@ export interface PayrollJobData {
   payrollDate: string;
 }
 
-export interface BookingCancellationJobData {
+export interface BookingCancellationJobData extends TenantAwareEmailJobData {
   clientName: string;
   to: string;
   bookingId: string;
@@ -138,7 +144,7 @@ export interface BookingCancellationJobData {
   refundPercentage: number;
 }
 
-export interface PaymentReceiptJobData {
+export interface PaymentReceiptJobData extends TenantAwareEmailJobData {
   clientName: string;
   to: string;
   bookingId: string;
@@ -150,19 +156,45 @@ export interface PaymentReceiptJobData {
   amountPaid: number;
 }
 
+export interface PasswordResetEmailData {
+  email: string;
+  name: string;
+  token: string;
+  expiresInHours: number;
+}
+
+export interface EmailVerificationEmailData {
+  email: string;
+  name: string;
+  token: string;
+}
+
+export interface NewDeviceLoginJobData extends TenantAwareEmailJobData {
+  email: string;
+  name: string;
+  device: string;
+  ipAddress: string;
+  time: string;
+  location?: string;
+}
+
+export interface SuspiciousActivityJobData extends TenantAwareEmailJobData {
+  email: string;
+  name: string;
+  activityType: string;
+  details: string;
+  ipAddress: string;
+  time: string;
+  location?: string;
+}
+
 export type EmailJobData =
   | { type: 'booking-confirmation'; data: BookingConfirmationJobData }
   | { type: 'task-assignment'; data: TaskAssignmentJobData }
   | { type: 'payroll'; data: PayrollJobData }
-  | { type: 'password-reset'; data: PasswordResetEmailData }
-  | { type: 'email-verification'; data: EmailVerificationEmailData }
+  | { type: 'password-reset'; data: PasswordResetEmailData & { tenantId: string } }
+  | { type: 'email-verification'; data: EmailVerificationEmailData & { tenantId: string } }
   | { type: 'booking-cancellation'; data: BookingCancellationJobData }
   | { type: 'payment-receipt'; data: PaymentReceiptJobData }
-  | {
-      type: 'new-device-login';
-      data: Omit<NewDeviceLoginEmailData, 'time'> & { time: string };
-    }
-  | {
-      type: 'suspicious-activity';
-      data: Omit<SuspiciousActivityEmailData, 'time'> & { time: string };
-    };
+  | { type: 'new-device-login'; data: NewDeviceLoginJobData }
+  | { type: 'suspicious-activity'; data: SuspiciousActivityJobData };
