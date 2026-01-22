@@ -10,7 +10,7 @@ import { PlatformContextGuard } from '../../../common/guards/platform-context.gu
 import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { MFAService } from '../services/mfa.service';
-import { PlatformAuthService } from '../services/platform-auth.service';
+import * as bcrypt from 'bcrypt';
 
 interface AuthenticatedRequest {
   user: {
@@ -39,7 +39,6 @@ class DisableMFADto {
 export class MFAController {
   constructor(
     private readonly mfaService: MFAService,
-    private readonly authService: PlatformAuthService,
     @InjectRepository(PlatformUser)
     private readonly userRepository: Repository<PlatformUser>,
   ) {}
@@ -169,7 +168,10 @@ export class MFAController {
     }
 
     // Verify password before disabling MFA
-    // TODO: Add password verification
+    const passwordMatches = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!passwordMatches) {
+      throw new Error('Incorrect password. MFA cannot be disabled.');
+    }
 
     user.mfaEnabled = false;
     user.mfaSecret = null;

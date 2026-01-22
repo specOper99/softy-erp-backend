@@ -4,6 +4,7 @@ import { PlatformUser } from '../entities/platform-user.entity';
 import { MFAService } from '../services/mfa.service';
 import { PlatformAuthService } from '../services/platform-auth.service';
 import { MFAController } from './mfa.controller';
+import * as bcrypt from 'bcrypt';
 
 interface AuthenticatedRequest {
   user: {
@@ -20,6 +21,10 @@ describe('MFAController', () => {
   let mfaService: MFAService;
   let userRepository: any;
 
+  const verifyTokenMock = jest.fn((_secret: string, _code: string) => false);
+  const verifyBackupCodeMock = jest.fn((_code: string, _recoveryCodes: string[]) => false);
+  const removeUsedBackupCodeMock = jest.fn((_code: string, recoveryCodes: string[]) => recoveryCodes);
+
   const mockUser = {
     id: 'user-123',
     email: 'admin@example.com',
@@ -35,6 +40,10 @@ describe('MFAController', () => {
   };
 
   beforeEach(async () => {
+    verifyTokenMock.mockReset();
+    verifyBackupCodeMock.mockReset();
+    removeUsedBackupCodeMock.mockReset();
+
     userRepository = {
       findOne: jest.fn().mockResolvedValue({ ...mockUser }),
       save: jest.fn().mockImplementation((user) => Promise.resolve(user)),
@@ -47,10 +56,10 @@ describe('MFAController', () => {
           provide: MFAService,
           useValue: {
             setupMFA: jest.fn().mockResolvedValue(mockMFASetup),
-            verifyToken: jest.fn(),
+            verifyToken: verifyTokenMock,
             verifyMFACode: jest.fn(),
-            verifyBackupCode: jest.fn(),
-            removeUsedBackupCode: jest.fn(),
+            verifyBackupCode: verifyBackupCodeMock,
+            removeUsedBackupCode: removeUsedBackupCodeMock,
           },
         },
         {
@@ -123,7 +132,7 @@ describe('MFAController', () => {
       };
 
       userRepository.findOne.mockResolvedValueOnce(userWithSecret);
-      (mfaService.verifyToken as jest.Mock).mockReturnValue(true);
+      verifyTokenMock.mockImplementation(() => true);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -162,7 +171,7 @@ describe('MFAController', () => {
         ...mockUser,
         mfaSecret: 'TEMP_SECRET',
       });
-      (mfaService.verifyToken as jest.Mock).mockReturnValue(false);
+      verifyTokenMock.mockImplementation(() => false);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -177,11 +186,13 @@ describe('MFAController', () => {
 
   describe('disableMFA', () => {
     it('should disable MFA with valid reason', async () => {
+      const password = 'password123';
+
       const userWithMFA = {
         ...mockUser,
         mfaEnabled: true,
         mfaSecret: 'SECRET',
-        passwordHash: 'hash123',
+        passwordHash: bcrypt.hashSync(password, 10),
       };
 
       userRepository.findOne.mockResolvedValueOnce(userWithMFA);
@@ -191,7 +202,7 @@ describe('MFAController', () => {
       } as AuthenticatedRequest;
 
       const dto = {
-        password: 'password123',
+        password,
         reason: 'Device lost',
       };
 
@@ -235,7 +246,7 @@ describe('MFAController', () => {
       };
 
       userRepository.findOne.mockResolvedValueOnce(userWithMFA);
-      (mfaService.verifyToken as jest.Mock).mockReturnValue(true);
+      verifyTokenMock.mockImplementation(() => true);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -261,9 +272,9 @@ describe('MFAController', () => {
       };
 
       userRepository.findOne.mockResolvedValueOnce(userWithMFA);
-      (mfaService.verifyToken as jest.Mock).mockReturnValue(false);
-      (mfaService.verifyBackupCode as jest.Mock).mockReturnValue(true);
-      (mfaService.removeUsedBackupCode as jest.Mock).mockReturnValue(['CODE2', 'CODE3']);
+      verifyTokenMock.mockImplementation(() => false);
+      verifyBackupCodeMock.mockImplementation(() => true);
+      removeUsedBackupCodeMock.mockImplementation(() => ['CODE2', 'CODE3']);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -291,8 +302,8 @@ describe('MFAController', () => {
       };
 
       userRepository.findOne.mockResolvedValueOnce(userWithMFA);
-      (mfaService.verifyToken as jest.Mock).mockReturnValue(false);
-      (mfaService.verifyBackupCode as jest.Mock).mockReturnValue(false);
+      verifyTokenMock.mockImplementation(() => false);
+      verifyBackupCodeMock.mockImplementation(() => false);
 
       const mockRequest = {
         user: { userId: 'user-123' },
