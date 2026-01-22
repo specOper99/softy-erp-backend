@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
 import { Repository } from 'typeorm';
 import { AuditLog } from './entities/audit-log.entity';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 
 /**
  * Data structure for audit log queue job payload.
@@ -38,7 +39,9 @@ export class AuditProcessor extends WorkerHost {
 
   async process(job: Job<AuditLogJobData, void, string>): Promise<void> {
     if (job.name === 'log') {
-      return this.handleLog(job.data);
+      // Ensure tenant context is available for the entire audit log processing
+      const tenantId = job.data.tenantId ?? 'system';
+      return TenantContextService.run(tenantId, () => this.handleLog(job.data));
     }
   }
 
