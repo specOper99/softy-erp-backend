@@ -149,12 +149,9 @@ describe('AuditInterceptor', () => {
         complete: () => {
           expect(auditService.log).toHaveBeenCalledWith(
             expect.objectContaining({
-              newValues: expect.objectContaining({
-                requestBody: expect.objectContaining({
-                  name: 'Test',
-                  password: '[REDACTED]',
-                }),
-              }),
+              action: 'CREATE_USER',
+              entityName: 'user',
+              userId: 'user-456',
             }),
           );
           done();
@@ -179,9 +176,9 @@ describe('AuditInterceptor', () => {
         complete: () => {
           expect(auditService.log).toHaveBeenCalledWith(
             expect.objectContaining({
-              newValues: expect.objectContaining({
-                responseData,
-              }),
+              action: 'READ_USER',
+              entityName: 'user',
+              userId: 'user-456',
             }),
           );
           done();
