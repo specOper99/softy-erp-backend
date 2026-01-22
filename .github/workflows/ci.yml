@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,6 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -98,6 +104,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -160,6 +169,9 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -195,6 +207,9 @@ jobs:
     needs: [lint, test, security-scan]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -222,6 +237,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
