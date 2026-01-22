@@ -2,5 +2,5 @@
   "esversion": 11,
   "node": true,
   "module": true,
-  "predef": ["__ENV"]
+  "predef": ["__ENV", "__VU", "__ITER"]
 }
