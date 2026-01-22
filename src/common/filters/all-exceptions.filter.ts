@@ -1,6 +1,8 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import { Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { randomUUID } from 'node:crypto';
+import { getCorrelationId } from '../logger/request-context';
 
 interface ErrorResponse {
   statusCode: number;
@@ -25,10 +27,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<RequestWithCorrelationId>();
 
     const isProduction = process.env.NODE_ENV === 'production';
-    const correlationId =
-      (request.headers['x-correlation-id'] as string | undefined) ||
-      request.correlationId ||
-      this.generateCorrelationId();
+    const correlationId = this.resolveCorrelationId(request);
+    response.setHeader('X-Correlation-ID', correlationId);
 
     let status: number;
     let message: string;
@@ -44,11 +44,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         };
         const msg = responseObj.message || exception.message;
         message = this.formatMessage(msg);
-        void responseObj.error;
-        void exception.name;
       } else {
         message = String(exceptionResponse);
-        void exception.name;
       }
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -58,7 +55,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message: 'Unhandled exception',
         correlationId,
         error: exception.message,
-        stack: exception.stack,
+        stack: isProduction ? undefined : exception.stack,
         path: request.url,
         method: request.method,
         ipAddress: request.ip,
@@ -94,7 +91,34 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return String(msg);
   }
 
+  private resolveCorrelationId(request: RequestWithCorrelationId): string {
+    const headerValue = request.headers['x-correlation-id'];
+    const headerCorrelationId = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+
+    const correlationIdCandidates = [headerCorrelationId, request.correlationId, getCorrelationId()];
+
+    for (const candidate of correlationIdCandidates) {
+      const value = this.validateCorrelationId(candidate);
+      if (value) return value;
+    }
+
+    return this.generateCorrelationId();
+  }
+
+  private validateCorrelationId(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined;
+
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    if (trimmed.length > 128) return undefined;
+
+    // Allow a safe subset of characters to prevent log injection / header abuse
+    if (!/^[a-zA-Z0-9._:-]+$/.test(trimmed)) return undefined;
+
+    return trimmed;
+  }
+
   private generateCorrelationId(): string {
-    return `corr_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    return randomUUID();
   }
 }

@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
 import { TenantContextService } from '../services/tenant-context.service';
 import { LogSanitizer } from '../utils/log-sanitizer.util';
+import { getCorrelationId } from '../logger/request-context';
 
 interface LogContext {
   correlationId?: string;
@@ -39,7 +40,9 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
     const startTime = Date.now();
 
     const correlationIdHeader = request.headers['x-correlation-id'];
-    const correlationId = Array.isArray(correlationIdHeader) ? correlationIdHeader[0] : correlationIdHeader;
+    const correlationIdFromHeader = Array.isArray(correlationIdHeader) ? correlationIdHeader[0] : correlationIdHeader;
+    const correlationId =
+      getCorrelationId() ?? (typeof correlationIdFromHeader === 'string' ? correlationIdFromHeader : undefined);
 
     const logContext: LogContext = {
       correlationId,

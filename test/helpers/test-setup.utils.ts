@@ -160,6 +160,7 @@ export function createMockFilterResponse() {
   return {
     status: jest.fn().mockReturnThis(),
     json: jest.fn(),
+    setHeader: jest.fn(),
   };
 }
 
