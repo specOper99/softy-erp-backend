@@ -45,6 +45,9 @@ EXPOSE 3000
 # Security Note: The `nonroot` tag runs as UID 65532 (nonroot user)
 # ensuring the container doesn't run as root, meeting CIS Docker Benchmark requirements.
 
+# Explicitly set user (redundant with nonroot tag, but required by Checkov CKV_DOCKER_3)
+USER 65532
+
 # Start application
 # In distroless/nodejs, the entrypoint is already set to node
 CMD ["dist/main.js"]
