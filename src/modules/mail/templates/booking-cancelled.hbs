@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    {{> styles}}
+</head>
+
+<body>
+    <div class="container">
+        {{> header title="Booking Cancelled"}}
+        <div class="content">
+            <p>Dear {{clientName}},</p>
+            <p>Your booking has been cancelled as requested.</p>
+
+            <div class="detail-box">
+                <h3>Cancellation Details</h3>
+                <p><strong>Booking ID:</strong> {{bookingId}}</p>
+                <p><strong>Original Event Date:</strong> {{eventDate}}</p>
+                <p><strong>Cancelled On:</strong> {{cancelledAt}}</p>
+                <p><strong>Days Before Event:</strong> {{daysBeforeEvent}}</p>
+                {{#if cancellationReason}}
+                <p><strong>Reason:</strong> {{cancellationReason}}</p>
+                {{/if}}
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 15px 0;">
+                <p><strong>Total Paid:</strong> ${{amountPaid}}</p>
+                {{#if refundAmount}}
+                <p style="font-weight: bold; color: #16a34a;">Refund Amount: ${{refundAmount}} ({{refundPercentage}}%)
+                </p>
+                <p style="color: #6b7280; font-size: 13px;">Your refund will be processed within 5-7 business days.</p>
+                {{else}}
+                <p style="color: #9ca3af; font-size: 13px;">No refund applicable based on our cancellation policy.</p>
+                {{/if}}
+            </div>
+
+            <p>We're sorry to see you go. If you have any questions, please contact us.</p>
+            <p>Best regards,<br>{{tenantName}}</p>
+        </div>
+        {{> footer}}
+    </div>
+</body>
+
+</html>

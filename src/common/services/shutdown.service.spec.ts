@@ -13,10 +13,7 @@ describe('ShutdownService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ShutdownService,
-        { provide: DataSource, useValue: mockDataSource },
-      ],
+      providers: [ShutdownService, { provide: DataSource, useValue: mockDataSource }],
     }).compile();
 
     service = module.get<ShutdownService>(ShutdownService);

@@ -3,41 +3,22 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  NotFoundException,
   Optional,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { createHmac } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import pLimit from 'p-limit';
-import { Repository } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Webhook } from './entities/webhook.entity';
-import { WEBHOOK_QUEUE, WebhookJobData } from './processors/webhook.processor';
-
-export interface WebhookEvent {
-  type:
-    | 'booking.created'
-    | 'booking.confirmed'
-    | 'booking.updated'
-    | 'booking.cancelled'
-    | 'task.created'
-    | 'task.assigned'
-    | 'task.completed'
-    | 'payroll.processed';
-  tenantId: string;
-  payload: Record<string, unknown>;
-  timestamp: string;
-}
-
-export interface WebhookConfig {
-  url: string;
-  secret: string;
-  events: string[];
-}
+import { WebhookRepository } from './repositories/webhook.repository';
+import { WEBHOOK_QUEUE, WebhookConfig, WebhookEvent, WebhookJobData } from './webhooks.types';
 
 /**
  * Webhook service for sending event notifications to external systems.
@@ -54,8 +35,7 @@ export class WebhookService {
   private readonly concurrencyLimit = pLimit(WEBHOOK_CONSTANTS.MAX_CONCURRENCY);
 
   constructor(
-    @InjectRepository(Webhook)
-    private readonly webhookRepository: Repository<Webhook>,
+    private readonly webhookRepository: WebhookRepository,
     private readonly configService: ConfigService,
     private readonly encryptionService: EncryptionService,
     @Optional()
@@ -66,92 +46,112 @@ export class WebhookService {
   /**
    * Register a webhook endpoint for a tenant (persisted in DB)
    */
-  async registerWebhook(
-    tenantId: string,
-    config: WebhookConfig,
-  ): Promise<void> {
+  async registerWebhook(config: WebhookConfig): Promise<void> {
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('common.tenant_missing');
+    }
+
     // URL Validation
     let url: URL;
     try {
       url = new URL(config.url);
-      if (!['http:', 'https:'].includes(url.protocol)) {
-        throw new Error('Invalid protocol');
+      if (url.protocol !== 'https:') {
+        throw new Error('webhooks.invalid_protocol');
       }
-    } catch {
-      throw new BadRequestException('Invalid webhook URL');
+    } catch (error) {
+      // Fail closed: invalid URL must not be persisted.
+      this.logger.warn(
+        `Invalid webhook URL for tenant ${tenantId}: ${config.url} (${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'})`,
+      );
+      throw new BadRequestException('webhooks.invalid_url');
     }
 
-    // SSRF Prevention: Block private IPs and localhost
-    await this.validateUrlNotPrivate(url);
+    // SSRF Prevention: Block private IPs and localhost, get resolved IPs for caching
+    const resolvedIps = await this.validateUrlNotPrivate(url);
 
     // Secret entropy validation
     if (config.secret.length < this.MIN_SECRET_LENGTH) {
-      throw new BadRequestException(
-        `Webhook secret must be at least ${this.MIN_SECRET_LENGTH} characters`,
-      );
+      throw new BadRequestException({
+        key: 'webhooks.secret_length',
+        args: { min: this.MIN_SECRET_LENGTH },
+      });
     }
 
     // Encrypt the secret before storing
     const encryptedSecret = this.encryptionService.encrypt(config.secret);
 
     const webhook = this.webhookRepository.create({
-      tenantId,
       url: config.url,
       secret: encryptedSecret,
       events: config.events,
+      resolvedIps: resolvedIps.length > 0 ? resolvedIps : undefined,
+      ipsResolvedAt: resolvedIps.length > 0 ? new Date() : undefined,
     });
 
     await this.webhookRepository.save(webhook);
-    this.logger.log(
-      `Registered and persisted webhook for tenant ${tenantId}: ${config.url}`,
-    );
+    this.logger.log(`Registered and persisted webhook for tenant ${tenantId}: ${config.url}`);
   }
 
   /**
    * Validate that a URL does not point to private/internal resources (SSRF prevention)
+   * Returns resolved IP addresses for caching to prevent DNS rebinding attacks
    */
-  private async validateUrlNotPrivate(url: URL): Promise<void> {
+  private async validateUrlNotPrivate(url: URL): Promise<string[]> {
     const hostname = url.hostname;
 
     // Block localhost variants
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '::1' ||
-      hostname === '0.0.0.0'
-    ) {
-      throw new BadRequestException('Webhook URL cannot point to localhost');
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+      throw new BadRequestException('webhooks.localhost_denied');
     }
 
     // If hostname is already an IP, validate it directly
     if (isIP(hostname)) {
       if (this.isPrivateIp(hostname)) {
-        throw new BadRequestException(
-          'Webhook URL cannot point to private IP addresses',
-        );
+        throw new BadRequestException('webhooks.private_ip_denied');
       }
-      return;
+      return [hostname];
     }
 
     // Resolve hostname and check all addresses
     try {
       const addresses = await lookup(hostname, { all: true });
+      const resolvedIps: string[] = [];
       for (const addr of addresses) {
         if (this.isPrivateIp(addr.address)) {
-          throw new BadRequestException(
-            'Webhook URL resolves to a private IP address',
-          );
+          throw new BadRequestException('webhooks.private_ip_denied');
         }
+        resolvedIps.push(addr.address);
       }
+      return resolvedIps;
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      // DNS resolution failed - could be a non-existent domain
-      this.logger.warn(
-        `DNS lookup failed for ${hostname}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      // Allow registration but log warning - infra egress controls should be the primary defense
+      this.logger.warn(`DNS lookup failed for ${hostname}: ${error instanceof Error ? error.message : String(error)}`);
+      // Fail closed: unresolved hosts are not safe to deliver to.
+      throw new BadRequestException('webhooks.dns_lookup_failed');
+    }
+  }
+
+  private async resolveAndValidatePublicIps(url: URL): Promise<string[]> {
+    // validateUrlNotPrivate already blocks localhost/private IPs and fails closed
+    return this.validateUrlNotPrivate(url);
+  }
+
+  private async assertDnsNotRebound(url: URL, allowlistedIps?: string[]) {
+    if (!allowlistedIps || allowlistedIps.length === 0) {
+      // No allowlist stored (legacy webhooks): still validate public IPs on each delivery.
+      await this.resolveAndValidatePublicIps(url);
+      return;
+    }
+
+    const currentIps = await this.resolveAndValidatePublicIps(url);
+    const allowlist = new Set(allowlistedIps);
+    for (const ip of currentIps) {
+      if (!allowlist.has(ip)) {
+        throw new BadRequestException('webhooks.dns_rebinding_blocked');
+      }
     }
   }
 
@@ -167,11 +167,18 @@ export class WebhookService {
       /^192\.168\./, // Class C private
       /^169\.254\./, // Link-local
       /^0\./, // Current network
+      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT (100.64.0.0/10)
+      /^198\.(1[89])\./, // Benchmarking (198.18.0.0/15)
     ];
 
     // IPv6 private ranges
     const ipv6PrivateRanges = [
       /^::1$/, // Loopback
+      /^::ffff:127\./i, // IPv4-mapped loopback
+      /^::ffff:10\./i, // IPv4-mapped private
+      /^::ffff:172\.(1[6-9]|2[0-9]|3[0-1])\./i, // IPv4-mapped private
+      /^::ffff:192\.168\./i, // IPv4-mapped private
+      /^::ffff:169\.254\./i, // IPv4-mapped link-local
       /^fe80:/i, // Link-local
       /^fc00:/i, // Unique local
       /^fd00:/i, // Unique local
@@ -194,69 +201,82 @@ export class WebhookService {
    * Otherwise falls back to inline delivery with concurrency limit.
    */
   async emit(event: WebhookEvent): Promise<void> {
-    const webhooks = await this.webhookRepository.find({
-      where: { tenantId: event.tenantId, isActive: true },
-    });
+    const tenantId = event.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('common.tenant_missing');
+    }
 
-    const deliveries = webhooks.map(async (webhook) => {
-      // Safety check for malformed webhooks
-      if (!webhook.events || !Array.isArray(webhook.events)) {
-        this.logger.warn(`Webhook ${webhook.id} has no events defined`);
-        return;
-      }
+    await TenantContextService.run(tenantId, async () => {
+      const webhooks = await this.webhookRepository.find({
+        where: { isActive: true },
+      });
 
-      if (
-        !webhook.events.includes(event.type) &&
-        !webhook.events.includes('*')
-      ) {
-        return;
-      }
+      const deliveries = webhooks.map(async (webhook) => {
+        // Safety check for malformed webhooks
+        if (!webhook.events || !Array.isArray(webhook.events)) {
+          this.logger.warn(`Webhook ${webhook.id} has no events defined`);
+          return;
+        }
 
-      if (this.webhookQueue) {
-        // Enqueue for background processing
-        await this.webhookQueue.add(
-          `${event.type}-${webhook.id}`,
-          {
-            webhook: {
-              id: webhook.id,
-              tenantId: webhook.tenantId,
-              url: webhook.url,
-              secret: webhook.secret,
-              events: webhook.events,
+        if (!webhook.events.includes(event.type) && !webhook.events.includes('*')) {
+          return;
+        }
+
+        if (this.webhookQueue) {
+          // Enqueue for background processing
+          await this.webhookQueue.add(
+            `${event.type}-${webhook.id}`,
+            {
+              webhook: {
+                id: webhook.id,
+                tenantId: webhook.tenantId,
+                url: webhook.url,
+                secret: webhook.secret,
+                events: webhook.events,
+              },
+              event,
             },
-            event,
-          },
-          {
-            attempts: 5,
-            backoff: { type: 'exponential', delay: 30000 },
-          },
-        );
-        this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
-      } else {
-        // Fallback to inline delivery with concurrency limit
-        return this.concurrencyLimit(() =>
-          this.sendWebhookWithRetry(webhook, event),
-        );
-      }
-    });
+            {
+              attempts: 5,
+              backoff: { type: 'exponential', delay: 30000 },
+            },
+          );
+          this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
+        } else {
+          // Fallback to inline delivery with concurrency limit
+          return this.concurrencyLimit(() => this.sendWebhookWithRetry(webhook, event));
+        }
+      });
 
-    await Promise.allSettled(deliveries);
+      await Promise.allSettled(deliveries);
+    });
   }
 
   /**
    * Deliver webhook directly (called by processor or inline fallback)
    */
   async deliverWebhook(webhook: Webhook, event: WebhookEvent): Promise<void> {
-    await this.sendWebhookOnce(webhook, event);
+    await TenantContextService.run(webhook.tenantId, async () => {
+      // Background processor passes a partial entity (no resolvedIps). Load full record.
+      const fullWebhook =
+        webhook.resolvedIps === undefined
+          ? await this.webhookRepository.findOne({
+              where: { id: webhook.id },
+            })
+          : webhook;
+
+      if (!fullWebhook) {
+        throw new NotFoundException('webhooks.not_found');
+      }
+
+      await this.sendWebhookOnce(fullWebhook, event);
+    });
   }
 
   /**
    * Send webhook with exponential backoff retry and jitter
    */
-  private async sendWebhookWithRetry(
-    webhook: Webhook,
-    event: WebhookEvent,
-  ): Promise<void> {
+  private async sendWebhookWithRetry(webhook: Webhook, event: WebhookEvent): Promise<void> {
     for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
       try {
         await this.sendWebhookOnce(webhook, event);
@@ -279,11 +299,20 @@ export class WebhookService {
 
   /**
    * Single attempt to send webhook with timeout
+   * SECURITY: Always re-validate DNS to prevent DNS rebinding attacks.
+   * Block redirects to prevent SSRF via redirect to private IPs.
    */
-  private async sendWebhookOnce(
-    webhook: Webhook,
-    event: WebhookEvent,
-  ): Promise<void> {
+  private async sendWebhookOnce(webhook: Webhook, event: WebhookEvent): Promise<void> {
+    const url = new URL(webhook.url);
+    if (url.protocol !== 'https:') {
+      throw new BadRequestException('webhooks.invalid_protocol');
+    }
+
+    // SECURITY: Validate DNS and enforce allowlisted IPs to resist DNS rebinding.
+    // NOTE: To fully prevent time-of-check/time-of-use issues, pinning connections
+    // to an allowlisted IP via a custom HTTP agent is required.
+    await this.assertDnsNotRebound(url, webhook.resolvedIps);
+
     const timestamp = Date.now().toString();
     const body = JSON.stringify(event);
 
@@ -293,16 +322,10 @@ export class WebhookService {
       : webhook.secret; // Handle legacy unencrypted secrets
 
     // Include timestamp in signature to prevent replay attacks
-    const signature = this.createSignature(
-      `${timestamp}.${body}`,
-      decryptedSecret,
-    );
+    const signature = this.createSignature(`${timestamp}.${body}`, decryptedSecret);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.WEBHOOK_TIMEOUT,
-    );
+    const timeoutId = setTimeout(() => controller.abort(), this.WEBHOOK_TIMEOUT);
 
     try {
       const response = await fetch(webhook.url, {
@@ -315,18 +338,23 @@ export class WebhookService {
         },
         body,
         signal: controller.signal,
+        // SECURITY: Block redirects to prevent SSRF via redirect to private IPs
+        redirect: 'manual',
       });
+
+      // SECURITY: Check for redirect responses - these could lead to private IPs
+      if (response.status >= 300 && response.status < 400) {
+        throw new BadRequestException('webhooks.redirect_blocked');
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      this.logger.log(
-        `Webhook delivered to ${webhook.url} for event ${event.type}`,
-      );
+      this.logger.log(`Webhook delivered to ${webhook.url} for event ${event.type}`);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Webhook request timed out');
+        throw new RequestTimeoutException('webhooks.request_timeout');
       }
       throw error;
     } finally {

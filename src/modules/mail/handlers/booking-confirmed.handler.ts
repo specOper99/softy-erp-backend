@@ -10,9 +10,7 @@ export class BookingConfirmedMailHandler implements IEventHandler<BookingConfirm
   constructor(private readonly mailService: MailService) {}
 
   async handle(event: BookingConfirmedEvent) {
-    this.logger.log(
-      `Handling BookingConfirmedEvent for mail: ${event.bookingId}`,
-    );
+    this.logger.log(`Handling BookingConfirmedEvent for mail: ${event.bookingId}`);
 
     try {
       await this.mailService.sendBookingConfirmation({

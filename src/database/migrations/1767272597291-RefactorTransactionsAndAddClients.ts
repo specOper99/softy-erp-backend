@@ -18,9 +18,7 @@ export class RefactorTransactionsAndAddClients1767272597291 implements Migration
                 CONSTRAINT "PK_clients_id" PRIMARY KEY ("id")
             )
         `);
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_clients_tenant_id_id" ON "clients" ("tenant_id", "id")`,
-    );
+    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_clients_tenant_id_id" ON "clients" ("tenant_id", "id")`);
 
     // 2. Create payouts table
     await queryRunner.query(`
@@ -36,9 +34,7 @@ export class RefactorTransactionsAndAddClients1767272597291 implements Migration
                 CONSTRAINT "PK_payouts_id" PRIMARY KEY ("id")
             )
         `);
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_payouts_tenant_id_id" ON "payouts" ("tenant_id", "id")`,
-    );
+    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_payouts_tenant_id_id" ON "payouts" ("tenant_id", "id")`);
 
     // 3. Modify bookings table
     await queryRunner.query(`ALTER TABLE "bookings" ADD "client_id" uuid`);
@@ -52,15 +48,9 @@ export class RefactorTransactionsAndAddClients1767272597291 implements Migration
     // If data migration was required, we'd do it here.
 
     await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN "client_name"`);
-    await queryRunner.query(
-      `ALTER TABLE "bookings" DROP COLUMN "client_phone"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "bookings" DROP COLUMN "client_email"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "bookings" ALTER COLUMN "client_id" SET NOT NULL`,
-    );
+    await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN "client_phone"`);
+    await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN "client_email"`);
+    await queryRunner.query(`ALTER TABLE "bookings" ALTER COLUMN "client_id" SET NOT NULL`);
 
     // 4. Modify transactions table
     await queryRunner.query(`ALTER TABLE "transactions" ADD "booking_id" uuid`);
@@ -88,12 +78,8 @@ export class RefactorTransactionsAndAddClients1767272597291 implements Migration
         `);
 
     // Remove polymorphic columns
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP COLUMN "reference_id"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP COLUMN "reference_type"`,
-    );
+    await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN "reference_id"`);
+    await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN "reference_type"`);
 
     // Add composite index for transactions
     await queryRunner.query(
@@ -103,44 +89,20 @@ export class RefactorTransactionsAndAddClients1767272597291 implements Migration
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX "IDX_transactions_tenant_id_id"`);
-    await queryRunner.query(
-      `ALTER TABLE "transactions" ADD "reference_type" character varying`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions" ADD "reference_id" uuid`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP CONSTRAINT "CHK_transactions_exclusive_arc"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP CONSTRAINT "FK_transactions_payout_id"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP CONSTRAINT "FK_transactions_task_id"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP CONSTRAINT "FK_transactions_booking_id"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP COLUMN "payout_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "transactions" ADD "reference_type" character varying`);
+    await queryRunner.query(`ALTER TABLE "transactions" ADD "reference_id" uuid`);
+    await queryRunner.query(`ALTER TABLE "transactions" DROP CONSTRAINT "CHK_transactions_exclusive_arc"`);
+    await queryRunner.query(`ALTER TABLE "transactions" DROP CONSTRAINT "FK_transactions_payout_id"`);
+    await queryRunner.query(`ALTER TABLE "transactions" DROP CONSTRAINT "FK_transactions_task_id"`);
+    await queryRunner.query(`ALTER TABLE "transactions" DROP CONSTRAINT "FK_transactions_booking_id"`);
+    await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN "payout_id"`);
     await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN "task_id"`);
-    await queryRunner.query(
-      `ALTER TABLE "transactions" DROP COLUMN "booking_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "transactions" DROP COLUMN "booking_id"`);
 
-    await queryRunner.query(
-      `ALTER TABLE "bookings" ADD "client_email" character varying`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "bookings" ADD "client_phone" character varying`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "bookings" ADD "client_name" character varying`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "bookings" DROP CONSTRAINT "FK_bookings_client_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "bookings" ADD "client_email" character varying`);
+    await queryRunner.query(`ALTER TABLE "bookings" ADD "client_phone" character varying`);
+    await queryRunner.query(`ALTER TABLE "bookings" ADD "client_name" character varying`);
+    await queryRunner.query(`ALTER TABLE "bookings" DROP CONSTRAINT "FK_bookings_client_id"`);
     await queryRunner.query(`ALTER TABLE "bookings" DROP COLUMN "client_id"`);
 
     await queryRunner.query(`DROP INDEX "IDX_payouts_tenant_id_id"`);

@@ -2,6 +2,7 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
+import { CreateTaskTypeDto, UpdateTaskTypeDto } from '../dto/catalog.dto';
 import { CatalogService } from '../services/catalog.service';
 import { TaskTypesController } from './task-types.controller';
 
@@ -66,7 +67,7 @@ describe('TaskTypesController', () => {
 
   describe('create', () => {
     it('should call service.createTaskType', async () => {
-      const dto = { name: 'Coloring' } as any;
+      const dto = { name: 'Coloring' } as CreateTaskTypeDto;
       await controller.create(dto);
       expect(service.createTaskType).toHaveBeenCalledWith(dto);
     });
@@ -74,7 +75,7 @@ describe('TaskTypesController', () => {
 
   describe('update', () => {
     it('should call service.updateTaskType', async () => {
-      const dto = { name: 'Advanced Editing' } as any;
+      const dto = { name: 'Advanced Editing' } as UpdateTaskTypeDto;
       await controller.update('uuid', dto);
       expect(service.updateTaskType).toHaveBeenCalledWith('uuid', dto);
     });

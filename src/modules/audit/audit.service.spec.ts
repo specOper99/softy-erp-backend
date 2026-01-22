@@ -1,25 +1,25 @@
+import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { createMockQueue, createMockRepository } from '../../../test/helpers/mock-factories';
+import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
 
 describe('AuditService', () => {
   let service: AuditService;
-  let repository: Repository<AuditLog>;
+  let auditQueue: ReturnType<typeof createMockQueue>;
 
-  const mockAuditLog = {
-    id: 'log-123',
-    action: 'CREATE',
-    entityName: 'User',
-    entityId: 'user-123',
-    createdAt: new Date(),
-  } as AuditLog;
+  const mockRepository = createMockRepository<AuditLog>();
 
-  const mockRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
-    save: jest.fn().mockResolvedValue(mockAuditLog),
+  const mockQueue = createMockQueue();
+  const mockCounter = {
+    inc: jest.fn(),
+  };
+
+  const mockMetricsFactory = {
+    getOrCreateCounter: jest.fn().mockReturnValue(mockCounter),
   };
 
   beforeEach(async () => {
@@ -30,11 +30,19 @@ describe('AuditService', () => {
           provide: getRepositoryToken(AuditLog),
           useValue: mockRepository,
         },
+        {
+          provide: getQueueToken('audit-queue'),
+          useValue: mockQueue,
+        },
+        {
+          provide: MetricsFactory,
+          useValue: mockMetricsFactory,
+        },
       ],
     }).compile();
 
     service = module.get<AuditService>(AuditService);
-    repository = module.get<Repository<AuditLog>>(getRepositoryToken(AuditLog));
+    auditQueue = module.get(getQueueToken('audit-queue'));
   });
 
   it('should be defined', () => {
@@ -51,43 +59,70 @@ describe('AuditService', () => {
     const testTenantId = 'tenant-123';
 
     beforeEach(() => {
-      jest
-        .spyOn(TenantContextService, 'getTenantId')
-        .mockReturnValue(testTenantId);
+      jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(testTenantId);
+      jest.clearAllMocks();
     });
 
     afterEach(() => {
       jest.restoreAllMocks();
     });
 
-    it('should log using the injected repository when no manager provided', async () => {
-      const result = await service.log(logData);
-      expect(repository.create).toHaveBeenCalledWith({
-        ...logData,
-        tenantId: testTenantId,
-      });
-      expect(repository.save).toHaveBeenCalled();
-      expect(result).toEqual(mockAuditLog);
+    it('should enqueue log job to audit queue', async () => {
+      await service.log(logData);
+
+      expect(auditQueue.add).toHaveBeenCalledWith(
+        'log',
+        expect.objectContaining({
+          ...logData,
+          tenantId: testTenantId,
+        }),
+      );
     });
 
-    it('should log using the manager repository when manager provided', async () => {
-      const mockManagerRepo = {
-        create: jest.fn().mockImplementation((dto) => dto),
-        save: jest.fn().mockResolvedValue(mockAuditLog),
+    it('should sanitize PII before enqueueing', async () => {
+      const sensitiveData = {
+        action: 'UPDATE',
+        entityName: 'Client',
+        entityId: 'client-1',
+        oldValues: { email: 'test@example.com', phone: '1234567890' },
+        newValues: {
+          email: 'new@example.com',
+          password: 'plain',
+          nested: { ssn: '1234' },
+        },
       };
-      const mockManager = {
-        getRepository: jest.fn().mockReturnValue(mockManagerRepo),
-      } as unknown as EntityManager;
 
-      const result = await service.log(logData, mockManager);
+      await service.log(sensitiveData);
 
-      expect(mockManager.getRepository).toHaveBeenCalledWith(AuditLog);
-      expect(mockManagerRepo.create).toHaveBeenCalledWith({
-        ...logData,
-        tenantId: testTenantId,
-      });
-      expect(mockManagerRepo.save).toHaveBeenCalled();
-      expect(result).toEqual(mockAuditLog);
+      expect(auditQueue.add).toHaveBeenCalledWith(
+        'log',
+        expect.objectContaining({
+          oldValues: { email: '***MASKED***', phone: '***MASKED***' },
+          newValues: {
+            email: '***MASKED***',
+            password: '***MASKED***',
+            nested: { ssn: '***MASKED***' },
+          },
+        }),
+      );
+    });
+
+    it('should handle queue errors gracefully', async () => {
+      auditQueue.add.mockRejectedValue(new Error('Queue Error'));
+      // Should not throw
+      await expect(service.log(logData)).resolves.not.toThrow();
+
+      expect(mockCounter.inc).toHaveBeenCalledWith({ tenant_id: testTenantId, stage: 'queue' });
+    });
+
+    it('should record metrics when both queue and sync write fail', async () => {
+      auditQueue.add.mockRejectedValue(new Error('Queue Error'));
+      mockRepository.save.mockRejectedValue(new Error('DB Error'));
+
+      await expect(service.log(logData)).resolves.not.toThrow();
+
+      expect(mockCounter.inc).toHaveBeenCalledWith({ tenant_id: testTenantId, stage: 'queue' });
+      expect(mockCounter.inc).toHaveBeenCalledWith({ tenant_id: testTenantId, stage: 'sync' });
     });
   });
 });

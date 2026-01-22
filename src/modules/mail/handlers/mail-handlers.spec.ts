@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockMailService } from '../../../../test/helpers/mock-factories';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { TaskAssignedEvent } from '../../tasks/events/task-assigned.event';
 import { MailService } from '../mail.service';
@@ -11,10 +12,8 @@ describe('Mail Handlers', () => {
   let bookingConfirmedHandler: BookingConfirmedMailHandler;
   let taskAssignedHandler: TaskAssignedHandler;
 
-  const mockMailService = {
-    sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
-    sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
-  };
+  // Use centralized mock factory
+  const mockMailService = createMockMailService();
 
   beforeAll(() => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -31,9 +30,7 @@ describe('Mail Handlers', () => {
     }).compile();
 
     mailService = module.get<MailService>(MailService);
-    bookingConfirmedHandler = module.get<BookingConfirmedMailHandler>(
-      BookingConfirmedMailHandler,
-    );
+    bookingConfirmedHandler = module.get<BookingConfirmedMailHandler>(BookingConfirmedMailHandler);
     taskAssignedHandler = module.get<TaskAssignedHandler>(TaskAssignedHandler);
 
     jest.clearAllMocks();
@@ -80,13 +77,9 @@ describe('Mail Handlers', () => {
         testDate,
       );
 
-      mockMailService.sendBookingConfirmation.mockRejectedValueOnce(
-        new Error('SMTP connection failed'),
-      );
+      mockMailService.sendBookingConfirmation.mockRejectedValueOnce(new Error('SMTP connection failed'));
 
-      await expect(
-        bookingConfirmedHandler.handle(event),
-      ).resolves.not.toThrow();
+      await expect(bookingConfirmedHandler.handle(event)).resolves.not.toThrow();
     });
 
     it('should log error message when mail fails', async () => {
@@ -101,15 +94,11 @@ describe('Mail Handlers', () => {
         testDate,
       );
 
-      mockMailService.sendBookingConfirmation.mockRejectedValueOnce(
-        new Error('Network error'),
-      );
+      mockMailService.sendBookingConfirmation.mockRejectedValueOnce(new Error('Network error'));
 
       await bookingConfirmedHandler.handle(event);
 
-      expect(loggerSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to send booking confirmation email'),
-      );
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to send booking confirmation email'));
     });
 
     it('should handle non-Error exceptions', async () => {
@@ -123,13 +112,9 @@ describe('Mail Handlers', () => {
         testDate,
       );
 
-      mockMailService.sendBookingConfirmation.mockRejectedValueOnce(
-        'String error',
-      );
+      mockMailService.sendBookingConfirmation.mockRejectedValueOnce('String error');
 
-      await expect(
-        bookingConfirmedHandler.handle(event),
-      ).resolves.not.toThrow();
+      await expect(bookingConfirmedHandler.handle(event)).resolves.not.toThrow();
     });
   });
 
@@ -176,13 +161,9 @@ describe('Mail Handlers', () => {
         250,
       );
 
-      mockMailService.sendTaskAssignment.mockRejectedValueOnce(
-        new Error('Mail service down'),
-      );
+      mockMailService.sendTaskAssignment.mockRejectedValueOnce(new Error('Mail service down'));
 
-      await expect(taskAssignedHandler.handle(event)).rejects.toThrow(
-        'Mail service down',
-      );
+      await expect(taskAssignedHandler.handle(event)).rejects.toThrow('Mail service down');
     });
   });
 });

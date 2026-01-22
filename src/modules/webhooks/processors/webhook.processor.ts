@@ -1,21 +1,9 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { forwardRef, Inject, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { Webhook } from '../entities/webhook.entity';
-import { WebhookEvent, WebhookService } from '../webhooks.service';
-
-export const WEBHOOK_QUEUE = 'webhook';
-
-export interface WebhookJobData {
-  webhook: {
-    id: string;
-    tenantId: string;
-    url: string;
-    secret: string;
-    events: string[];
-  };
-  event: WebhookEvent;
-}
+import { WebhookService } from '../webhooks.service';
+import { WEBHOOK_QUEUE, WebhookJobData } from '../webhooks.types';
 
 /**
  * Webhook processor for handling background webhook delivery.
@@ -25,18 +13,13 @@ export interface WebhookJobData {
 export class WebhookProcessor extends WorkerHost {
   private readonly logger = new Logger(WebhookProcessor.name);
 
-  constructor(
-    @Inject(forwardRef(() => WebhookService))
-    private readonly webhookService: WebhookService,
-  ) {
+  constructor(private readonly webhookService: WebhookService) {
     super();
   }
 
   async process(job: Job<WebhookJobData>): Promise<void> {
     const { webhook, event } = job.data;
-    this.logger.log(
-      `Processing webhook job ${job.id}: ${event.type} to ${webhook.url}`,
-    );
+    this.logger.log(`Processing webhook job ${job.id}: ${event.type} to ${webhook.url}`);
 
     try {
       // Create a partial Webhook entity for the service method
@@ -50,13 +33,9 @@ export class WebhookProcessor extends WorkerHost {
 
       await this.webhookService.deliverWebhook(webhookEntity, event);
 
-      this.logger.log(
-        `Webhook job ${job.id} completed: ${event.type} to ${webhook.url}`,
-      );
+      this.logger.log(`Webhook job ${job.id} completed: ${event.type} to ${webhook.url}`);
     } catch (error) {
-      this.logger.error(
-        `Webhook job ${job.id} failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`Webhook job ${job.id} failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error; // Re-throw to trigger BullMQ retry
     }
   }

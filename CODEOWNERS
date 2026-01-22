@@ -1,0 +1,18 @@
+# Netlify / Vercel
+netlify.toml     @devops
+vercel.json      @devops
+
+# Github Actions
+.github/         @devops
+
+# Security
+src/modules/auth/   @security-team @backend-leads
+src/common/guards/  @security-team
+package.json        @security-team
+
+# Backend Core
+src/                @backend-team
+src/database/       @db-admins
+
+# Documentation
+docs/               @tech-writers

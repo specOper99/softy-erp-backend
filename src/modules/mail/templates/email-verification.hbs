@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html dir="{{direction}}">
+
+<head>
+    <meta charset="utf-8">
+    {{> styles}}
+</head>
+
+<body style="text-align: {{textAlign}};">
+    <div class="container">
+        {{> header}}
+
+        <p>Hello {{name}},</p>
+
+        <p>Welcome to <strong>{{companyName}}</strong>! Please verify your email address to activate your account.</p>
+
+        <div style="text-align: center; margin: 40px 0;">
+            <a href="{{verificationUrl}}" class="button">Verify Email</a>
+        </div>
+
+        <p>If you didn't create an account, you can safely ignore this email.</p>
+
+        <p>Thank you,<br>The {{companyName}} Team</p>
+
+        {{> footer}}
+    </div>
+</body>
+
+</html>

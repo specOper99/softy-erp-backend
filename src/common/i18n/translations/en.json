@@ -1,0 +1,109 @@
+{
+    "common": {
+        "success": "Success",
+        "error": "Error",
+        "not_found": "Not found",
+        "unauthorized": "Unauthorized access",
+        "forbidden": "Access forbidden",
+        "bad_request": "Bad request",
+        "internal_error": "Internal server error",
+        "serialization_error": "Data serialization failed",
+        "tenant_missing": "Tenant context missing",
+        "user_not_found": "User not found"
+    },
+    "auth": {
+        "login_success": "Login successful",
+        "login_failed": "Invalid email or password",
+        "token_expired": "Token has expired",
+        "token_invalid": "Invalid token",
+        "account_locked": "Account is locked. Please try again later",
+        "register_success": "Registration successful",
+        "logout_success": "Logout successful",
+        "email_already_registered": "Email already registered",
+        "mfa_setup_not_started": "MFA setup not started"
+    },
+    "booking": {
+        "created": "Booking created successfully",
+        "confirmed": "Booking confirmed",
+        "cancelled": "Booking cancelled",
+        "not_found": "Booking not found",
+        "event_date_must_be_future": "Event date must be in the future",
+        "invalid_tax_rate": "Tax rate must be between 0 and 100",
+        "already_confirmed": "Booking is already confirmed",
+        "invalid_status": "Invalid booking status",
+        "cannot_update_non_draft": "Cannot update fields on a non-draft booking",
+        "can_only_delete_draft": "Can only delete draft bookings"
+    },
+    "task": {
+        "created": "Task created successfully",
+        "assigned": "Task assigned to {staffName}",
+        "started": "Task started",
+        "completed": "Task completed",
+        "not_found": "Task not found",
+        "already_assigned": "Task is already assigned"
+    },
+    "payroll": {
+        "run_success": "Payroll processed for {count} employees",
+        "no_employees": "No employees found for payroll",
+        "run_failed": "Payroll run failed"
+    },
+    "validation": {
+        "required": "{field} is required",
+        "invalid_email": "Invalid email format",
+        "min_length": "{field} must be at least {min} characters",
+        "max_length": "{field} must not exceed {max} characters",
+        "invalid_date": "Invalid date format"
+    },
+    "billing": {
+        "tenant_required": "Tenant context required",
+        "stripe_config_error": "Stripe configuration error",
+        "raw_body_error": "Raw body not available"
+    },
+    "finance": {
+        "amount_must_be_positive": "Transaction amount must be positive",
+        "amount_exceeds_maximum": "Transaction amount exceeds maximum allowed value",
+        "unsupported_currency": "Unsupported currency specified"
+    },
+    "wallet": {
+        "commission_must_be_positive": "Commission amount must be positive",
+        "transfer_must_be_positive": "Transfer amount must be positive"
+    },
+    "attendance": {
+        "invalid_date_format": "Invalid date format",
+        "invalid_checkin_format": "Invalid check-in time format",
+        "invalid_checkout_format": "Invalid check-out time format",
+        "checkout_must_be_after_checkin": "Check-out time must be after check-in time",
+        "record_not_found": "Attendance record not found"
+    },
+    "hr": {
+        "user_not_found_in_tenant": "User not found in tenant",
+        "profile_not_found": "Profile not found"
+    },
+    "catalog": {
+        "price_must_be_positive": "Price must be greater than zero"
+    },
+    "tenants": {
+        "tenant_id_required": "Tenant ID header required"
+    },
+    "media": {
+        "booking_not_found_in_tenant": "Booking not found in tenant",
+        "task_not_found_in_tenant": "Task not found in tenant",
+        "unsupported_file_type": "Unsupported file type: {mimeType}. Allowed: {allowed}",
+        "attachment_not_found": "Attachment with ID {id} not found",
+        "cross_tenant_denied": "Cross-tenant attachment write is not allowed",
+        "s3_error": "Storage service error"
+    },
+    "webhooks": {
+        "invalid_protocol": "Invalid protocol",
+        "invalid_url": "Invalid webhook URL",
+        "secret_length": "Webhook secret must be at least {min} characters",
+        "localhost_denied": "Webhook URL cannot point to localhost",
+        "private_ip_denied": "Webhook URL cannot point to private IP addresses"
+    },
+    "health": {
+        "endpoint_disabled": "Endpoint disabled",
+        "missing_key": "Missing key parameter",
+        "invalid_key": "Invalid key",
+        "test_error": "This is a test error for Sentry monitoring"
+    }
+}

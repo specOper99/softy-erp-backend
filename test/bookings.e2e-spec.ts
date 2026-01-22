@@ -20,9 +20,7 @@ describe('Bookings Workflow E2E Tests', () => {
 
     // Validate required environment variable
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -55,14 +53,14 @@ describe('Bookings Workflow E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     const tenantId = seedData.tenantId;
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as seeded admin user
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
+
     adminToken = loginResponse.body.data.accessToken;
 
     // Get existing package from seed data
@@ -72,7 +70,7 @@ describe('Bookings Workflow E2E Tests', () => {
     packageId = packagesRes.body.data[0]?.id;
 
     // Store tenantId for tests
-    (global as any).testTenantId = tenantId;
+    globalThis.testTenantId = tenantId;
   });
 
   afterAll(async () => {
@@ -101,9 +99,7 @@ describe('Bookings Workflow E2E Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           clientId,
-          eventDate: new Date(
-            Date.now() + 30 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
+          eventDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           packageId,
         })
         .expect(201);
@@ -130,10 +126,7 @@ describe('Bookings Workflow E2E Tests', () => {
         .expect(200);
 
       expect(response.body.data.booking.status).toBe('CONFIRMED');
-      console.log(
-        'E2E DEBUG: Confirm response:',
-        JSON.stringify(response.body.data, null, 2),
-      );
+      console.log('E2E DEBUG: Confirm response:', JSON.stringify(response.body.data, null, 2));
       expect(response.body.data.tasksCreated).toBeGreaterThan(0);
       expect(response.body.data).toHaveProperty('transactionId');
     });
@@ -157,15 +150,49 @@ describe('Bookings Workflow E2E Tests', () => {
         .expect(200);
 
       const transactions = response.body.data || response.body;
-      console.log(
-        'E2E DEBUG: All transactions:',
-        JSON.stringify(transactions, null, 2),
-      );
-      const incomeTransaction = transactions.find(
-        (t: any) => t.type === 'INCOME' && t.bookingId === bookingId,
-      );
+      console.log('E2E DEBUG: All transactions:', JSON.stringify(transactions, null, 2));
+      const incomeTransaction = transactions.find((t: any) => t.type === 'INCOME' && t.bookingId === bookingId);
       console.log('E2E DEBUG: Looking for bookingId:', bookingId);
       expect(incomeTransaction).toBeDefined();
+    });
+
+    it('Step 6: Record Payment and Verify Atomicity (Phase 2 Logic Check)', async () => {
+      const paymentAmount = 500;
+      await request(app.getHttpServer())
+        .post(`/api/v1/bookings/${bookingId}/payments`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          amount: paymentAmount,
+          paymentMethod: 'Credit Card',
+          reference: 'REF-TEST-123',
+        })
+        .expect(201);
+
+      // Verify Booking was updated (amountPaid)
+      const bookingRes = await request(app.getHttpServer())
+        .get(`/api/v1/bookings/${bookingId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(Number(bookingRes.body.data.amountPaid)).toBe(paymentAmount);
+
+      // Verify Transaction was created
+      const transactionsRes = await request(app.getHttpServer())
+        .get('/api/v1/transactions')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const transactions = transactionsRes.body.data || transactionsRes.body;
+      const paymentTx = transactions.find(
+        (t: any) =>
+          t.bookingId === bookingId &&
+          t.description.includes('Payment for booking') &&
+          Number(t.amount) === paymentAmount,
+      );
+      if (!paymentTx) {
+        console.log('DEBUG: Failed to find payment transaction. Available:', JSON.stringify(transactions, null, 2));
+      }
+      expect(paymentTx).toBeDefined();
     });
   });
 

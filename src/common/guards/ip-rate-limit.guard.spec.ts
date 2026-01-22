@@ -1,5 +1,6 @@
 import { ExecutionContext, HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../cache/cache-utils.service';
 import { IpRateLimitGuard } from './ip-rate-limit.guard';
@@ -37,6 +38,7 @@ describe('IpRateLimitGuard', () => {
         IpRateLimitGuard,
         { provide: CacheUtilsService, useValue: mockCacheService },
         { provide: ConfigService, useValue: mockConfigService },
+        Reflector,
       ],
     }).compile();
 
@@ -52,6 +54,8 @@ describe('IpRateLimitGuard', () => {
   const createMockContext = (ip: string) => {
     const setHeader = jest.fn();
     return {
+      getHandler: () => createMockContext,
+      getClass: () => IpRateLimitGuard,
       switchToHttp: () => ({
         getRequest: () => ({
           ip,
@@ -64,6 +68,35 @@ describe('IpRateLimitGuard', () => {
       }),
     } as unknown as ExecutionContext;
   };
+
+  it('should allow bypass when disabled in non-production', async () => {
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'RATE_LIMIT_ENABLED') return 'false';
+      if (key === 'NODE_ENV') return 'development';
+      return null;
+    });
+    const context = createMockContext('127.0.0.1');
+    const result = await guard.canActivate(context);
+    expect(result).toBe(true);
+  });
+
+  it('should enforce limits when disabled in production (safety fallback)', async () => {
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'RATE_LIMIT_ENABLED') return 'false';
+      if (key === 'NODE_ENV') return 'production';
+      return 100;
+    });
+
+    mockCacheService.get.mockResolvedValue({
+      count: 101,
+      firstRequest: Date.now(),
+      blocked: false,
+    });
+
+    const context = createMockContext('127.0.0.1');
+
+    await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
+  });
 
   it('should allow request if within limits', async () => {
     mockCacheService.get.mockResolvedValue(null);

@@ -27,9 +27,7 @@ describe('TenantsController', () => {
   };
 
   beforeEach(async () => {
-    jest
-      .spyOn(TenantContextService, 'getTenantId')
-      .mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TenantsController],
@@ -76,9 +74,7 @@ describe('TenantsController', () => {
     });
 
     it('should reject cross-tenant access', () => {
-      expect(() => controller.findOne('other-tenant')).toThrow(
-        ForbiddenException,
-      );
+      expect(() => controller.findOne('other-tenant')).toThrow(ForbiddenException);
     });
   });
 
@@ -92,9 +88,7 @@ describe('TenantsController', () => {
 
     it('should reject cross-tenant updates', () => {
       const updateDto: UpdateTenantDto = { name: 'Updated Tenant' };
-      expect(() => controller.update('other-tenant', updateDto)).toThrow(
-        ForbiddenException,
-      );
+      expect(() => controller.update('other-tenant', updateDto)).toThrow(ForbiddenException);
     });
   });
 

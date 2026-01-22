@@ -24,9 +24,7 @@ describe('Catalog Module E2E Tests', () => {
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
-      throw new Error(
-        'Missing required environment variable: SEED_ADMIN_PASSWORD',
-      );
+      throw new Error('Missing required environment variable: SEED_ADMIN_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -60,10 +58,12 @@ describe('Catalog Module E2E Tests', () => {
     // Seed database and get tenant
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin to get access token
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({
         email: seedData.admin.email,
         password: adminPassword || 'ChaptersERP123!',
@@ -170,9 +170,7 @@ describe('Catalog Module E2E Tests', () => {
           .expect(200);
 
         expect(response.body.data.price).toBe(3000);
-        expect(response.body.data.description).toBe(
-          'Updated full day coverage',
-        );
+        expect(response.body.data.description).toBe('Updated full day coverage');
       });
     });
 
@@ -267,9 +265,7 @@ describe('Catalog Module E2E Tests', () => {
           })
           .expect(200);
 
-        expect(response.body.data.description).toBe(
-          'Advanced video editing task',
-        );
+        expect(response.body.data.description).toBe('Advanced video editing task');
         expect(Number(response.body.data.defaultCommissionAmount)).toBe(200);
       });
     });

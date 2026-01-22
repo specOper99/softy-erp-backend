@@ -1,0 +1,48 @@
+{
+    "common": {
+        "success": "نجاح",
+        "error": "خطأ",
+        "not_found": "غير موجود",
+        "unauthorized": "غير مصرح بالوصول",
+        "forbidden": "الوصول محظور",
+        "bad_request": "طلب غير صالح",
+        "internal_error": "خطأ داخلي في الخادم"
+    },
+    "auth": {
+        "login_success": "تم تسجيل الدخول بنجاح",
+        "login_failed": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+        "token_expired": "انتهت صلاحية الرمز",
+        "token_invalid": "رمز غير صالح",
+        "account_locked": "الحساب مقفل. يرجى المحاولة لاحقاً",
+        "register_success": "تم التسجيل بنجاح",
+        "logout_success": "تم تسجيل الخروج بنجاح"
+    },
+    "booking": {
+        "created": "تم إنشاء الحجز بنجاح",
+        "confirmed": "تم تأكيد الحجز",
+        "cancelled": "تم إلغاء الحجز",
+        "not_found": "الحجز غير موجود",
+        "already_confirmed": "الحجز مؤكد بالفعل",
+        "invalid_status": "حالة حجز غير صالحة"
+    },
+    "task": {
+        "created": "تم إنشاء المهمة بنجاح",
+        "assigned": "تم تعيين المهمة إلى {staffName}",
+        "started": "بدأت المهمة",
+        "completed": "اكتملت المهمة",
+        "not_found": "المهمة غير موجودة",
+        "already_assigned": "المهمة معينة بالفعل"
+    },
+    "payroll": {
+        "run_success": "تمت معالجة الرواتب لـ {count} موظف",
+        "no_employees": "لم يتم العثور على موظفين للرواتب",
+        "run_failed": "فشل تشغيل الرواتب"
+    },
+    "validation": {
+        "required": "{field} مطلوب",
+        "invalid_email": "تنسيق البريد الإلكتروني غير صالح",
+        "min_length": "يجب أن يكون {field} على الأقل {min} حروف",
+        "max_length": "يجب ألا يتجاوز {field} {max} حروف",
+        "invalid_date": "تنسيق التاريخ غير صالح"
+    }
+}

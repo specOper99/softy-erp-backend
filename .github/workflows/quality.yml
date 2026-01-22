@@ -1,0 +1,78 @@
+name: Code Quality
+on:
+  schedule:
+    - cron: '0 4 * * *' # Nightly at 4 AM (Mutation testing is slow)
+  workflow_dispatch:
+
+jobs:
+  mutation-test:
+    name: Stryker Mutation Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run Mutation Tests
+        run: npm run test:mutation
+        continue-on-error: true # Don't fail the workflow yet, just report
+        
+      - name: Upload Mutation Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/html
+          if-no-files-found: ignore
+          
+  duplication-check:
+    name: Code Duplication Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Duplication Analysis
+        run: npm run lint:duplication
+        continue-on-error: true # Report but don't fail initially (can enforce later)
+
+  flaky-test-analysis:
+    name: Flaky Test Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare report directory
+        run: mkdir -p reports
+         
+      - name: Run Tests with JUnit Report
+        run: npm run test -- --runInBand --ci --reporters=default --reporters=jest-junit
+        env:
+          JEST_JUNIT_OUTPUT_DIR: reports
+          JEST_JUNIT_OUTPUT_NAME: jest-junit.xml
+          
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Test Results
+          path: reports/jest-junit.xml
+          reporter: jest-junit

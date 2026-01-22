@@ -4,12 +4,13 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
-import { Role } from '../src/common/enums/role.enum';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { EmployeeWallet } from '../src/modules/finance/entities/employee-wallet.entity';
 import { Profile } from '../src/modules/hr/entities/profile.entity';
+import { MockPaymentGatewayService } from '../src/modules/hr/services/payment-gateway.service';
 import { MailService } from '../src/modules/mail/mail.service';
 import { User } from '../src/modules/users/entities/user.entity';
+import { Role } from '../src/modules/users/enums/role.enum';
 import { seedTestDatabase } from './utils/seed-data';
 
 class MockThrottlerGuard extends ThrottlerGuard {
@@ -39,6 +40,13 @@ describe('Payroll Load E2E Tests', () => {
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
       })
+      .overrideProvider(MockPaymentGatewayService) // Override Random Failure Service
+      .useValue({
+        triggerPayout: jest.fn().mockResolvedValue({
+          success: true,
+          transactionReference: 'MOCK_TXN_REF',
+        }),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -57,10 +65,12 @@ describe('Payroll Load E2E Tests', () => {
     dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     tenantId = seedData.tenantId;
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({
         email: seedData.admin.email,
         password: process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!',
@@ -107,6 +117,7 @@ describe('Payroll Load E2E Tests', () => {
           lastName: 'Test',
           baseSalary: 1000,
           tenantId,
+          hireDate: new Date(),
         }),
       );
 
@@ -138,13 +149,9 @@ describe('Payroll Load E2E Tests', () => {
 
     // Call DB directly to check correct state
     const wallets = await walletRepo.find({ where: { tenantId } });
-    const outstandingBalances = wallets.filter(
-      (w) => Number(w.payableBalance) > 0,
-    );
+    const outstandingBalances = wallets.filter((w) => Number(w.payableBalance) > 0);
     expect(outstandingBalances.length).toBe(0);
 
-    console.log(
-      `Payroll processed ${data.totalEmployees} employees with total payout $${data.totalPayout}`,
-    );
+    console.log(`Payroll processed ${data.totalEmployees} employees with total payout $${data.totalPayout}`);
   }, 120000); // Long timeout for bulk ops
 });

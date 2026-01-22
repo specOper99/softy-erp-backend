@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'refactor/**', 'feature/**', 'fix/**']
   pull_request:
     branches: [main, develop]
 
@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,11 +26,54 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Create .env file
-        run: cp .env.example .env
-      
       - name: Run linter
         run: npm run lint
+
+      - name: Run type-check
+        run: npm run type-check
+
+      - name: Check SQL Safety
+        run: npm run check:sql-safety
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run npm audit
+        run: npm audit --audit-level=critical
+        continue-on-error: false
+      
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: false
+        if: ${{ secrets.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+      
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-security-report
+          path: snyk-report.json
+          if-no-files-found: ignore
 
   test:
     name: Test
@@ -46,9 +92,21 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -60,28 +118,60 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Create .env file
-        run: cp .env.example .env
-      
       - name: Run tests
-        run: npm run test
+        run: npm run test -- --runInBand
         env:
+          NODE_ENV: test
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USERNAME: test_user
           DB_PASSWORD: test_password
           DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
           JWT_SECRET: test-jwt-secret-minimum-32-chars-here
           VAULT_ENABLED: 'false'
           DISABLE_RATE_LIMITING: 'true'
-          NODE_ENV: test
 
-  build:
-    name: Build
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+          VAULT_ENABLED: 'false'
+          DISABLE_RATE_LIMITING: 'true'
+
+  stability-test:
+    name: Stability Test
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -93,8 +183,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Create .env file
-        run: cp .env.example .env
+      - name: Run tests repeatedly (Stability Check)
+        run: |
+          for i in {1..3}; do
+            echo "Run #$i"
+            npm run test -- --runInBand
+          done
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+          JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+          VAULT_ENABLED: 'false'
+          DISABLE_RATE_LIMITING: 'true'
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test, security-scan]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
       
       - name: Build
         run: npm run build
@@ -112,12 +237,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
-      - name: Create .env file
-        run: cp .env.example .env
       
       - name: Build Docker image
         uses: docker/build-push-action@v5

@@ -2,6 +2,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Readable } from 'stream';
+import { TEST_SECRETS } from '../../../test/secrets';
 import { StorageService } from './storage.service';
 
 const mockSend = jest.fn();
@@ -28,7 +29,7 @@ describe('StorageService', () => {
     MINIO_BUCKET: 'test-bucket',
     MINIO_REGION: 'us-east-1',
     MINIO_ACCESS_KEY: 'test-access-key',
-    MINIO_SECRET_KEY: 'test-secret-key-placeholder-32-chars',
+    MINIO_SECRET_KEY: TEST_SECRETS.STORAGE_SECRET_KEY,
     MINIO_PUBLIC_URL: 'http://public-url',
   };
 
@@ -42,9 +43,7 @@ describe('StorageService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: keyof typeof mockConfig) => mockConfig[key]),
-            getOrThrow: jest.fn(
-              (key: keyof typeof mockConfig) => mockConfig[key],
-            ),
+            getOrThrow: jest.fn((key: keyof typeof mockConfig) => mockConfig[key]),
           },
         },
         {
@@ -101,15 +100,13 @@ describe('StorageService', () => {
       const key = 'test-key';
       const unsupportedType = 'application/x-executable';
 
-      await expect(
-        service.uploadFile(buffer, key, unsupportedType),
-      ).rejects.toThrow('Unsupported file type');
+      await expect(service.uploadFile(buffer, key, unsupportedType)).rejects.toThrow('Unsupported file type');
     });
   });
 
   describe('generateKey', () => {
-    it('should generate a unique key', () => {
-      const key = service.generateKey('test file.png');
+    it('should generate a unique key', async () => {
+      const key = await service.generateKey('test file.png');
       expect(key).toMatch(/^uploads\/\d+-[a-z0-9]+-test_file\.png$/);
     });
   });

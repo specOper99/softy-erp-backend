@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
+import LokiTransport from 'winston-loki';
 import { sanitizeFormat } from './log-sanitizer';
 import { getRequestContext } from './request-context';
 
@@ -47,12 +48,8 @@ const correlationFormat = winston.format((info) => {
                       const corrId = correlationId
                         ? `[${typeof correlationId === 'string' ? correlationId.substring(0, 8) : JSON.stringify(correlationId).substring(0, 8)}]`
                         : '';
-                      const ctx = context
-                        ? `[${typeof context === 'string' ? context : JSON.stringify(context)}]`
-                        : '';
-                      const metaStr = Object.keys(meta).length
-                        ? JSON.stringify(meta)
-                        : '';
+                      const ctx = context ? `[${typeof context === 'string' ? context : JSON.stringify(context)}]` : '';
+                      const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
                       return `${String(timestamp)} ${String(level)} ${corrId}${ctx} ${String(message)} ${metaStr}`;
                     },
                   ),
@@ -69,6 +66,25 @@ const correlationFormat = winston.format((info) => {
                   }),
                   new winston.transports.File({
                     filename: 'logs/combined.log',
+                  }),
+                ]
+              : []),
+            // Add Loki transport if LOKI_HOST is configured
+            ...(configService.get('LOKI_HOST')
+              ? [
+                  new LokiTransport({
+                    host: configService.get<string>('LOKI_HOST') as string,
+                    labels: {
+                      app: 'chapters-studio-erp',
+                      environment: configService.get<string>('NODE_ENV') ?? 'development',
+                    },
+                    json: true,
+                    batching: true,
+                    interval: 5,
+                    replaceTimestamp: true,
+                    onConnectionError: (err: Error) => {
+                      process.stderr.write(`[LoggerModule] Loki connection error: ${err.message}\n`);
+                    },
                   }),
                 ]
               : []),

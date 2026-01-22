@@ -1,4 +1,4 @@
-import { HeadBucketCommand } from '@aws-sdk/client-s3';
+import { HeadBucketCommand, HeadBucketCommandOutput } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError } from '@nestjs/terminus';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -54,7 +54,7 @@ describe('S3HealthIndicator', () => {
     });
 
     it('should return up status if S3 is responsive', async () => {
-      mockSend.mockResolvedValue({} as any);
+      mockSend.mockResolvedValue({} as unknown as HeadBucketCommandOutput);
 
       const result = await indicator.isHealthy('s3');
 
@@ -72,9 +72,7 @@ describe('S3HealthIndicator', () => {
 
     it('should handle non-Error rejection', async () => {
       mockSend.mockRejectedValue('String Error');
-      await expect(indicator.isHealthy('s3')).rejects.toThrow(
-        's3 check failed',
-      );
+      await expect(indicator.isHealthy('s3')).rejects.toThrow('s3 check failed');
     });
   });
 

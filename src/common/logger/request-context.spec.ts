@@ -1,8 +1,4 @@
-import {
-  asyncLocalStorage,
-  getCorrelationId,
-  getRequestContext,
-} from './request-context';
+import { asyncLocalStorage, getCorrelationId, getRequestContext } from './request-context';
 
 describe('RequestContext', () => {
   it('should set and get correlation ID using asyncLocalStorage', (done) => {

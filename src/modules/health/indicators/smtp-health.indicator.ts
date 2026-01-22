@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  HealthCheckError,
-  HealthIndicator,
-  HealthIndicatorResult,
-} from '@nestjs/terminus';
+import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
 import * as net from 'net';
 
 @Injectable()
@@ -32,29 +28,19 @@ export class SmtpHealthIndicator extends HealthIndicator {
 
       socket.once('connect', () => {
         cleanup();
-        resolve(
-          this.getStatus(key, true, { host: this.host, port: this.port }),
-        );
+        resolve(this.getStatus(key, true, { host: this.host, port: this.port }));
       });
 
       socket.once('timeout', () => {
         cleanup();
         reject(
-          new HealthCheckError(
-            `${key} check failed`,
-            this.getStatus(key, false, { message: 'Connection timeout' }),
-          ),
+          new HealthCheckError(`${key} check failed`, this.getStatus(key, false, { message: 'Connection timeout' })),
         );
       });
 
       socket.once('error', (error) => {
         cleanup();
-        reject(
-          new HealthCheckError(
-            `${key} check failed`,
-            this.getStatus(key, false, { message: error.message }),
-          ),
-        );
+        reject(new HealthCheckError(`${key} check failed`, this.getStatus(key, false, { message: error.message })));
       });
 
       try {

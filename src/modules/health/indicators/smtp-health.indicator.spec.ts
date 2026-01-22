@@ -63,15 +63,12 @@ describe('SmtpHealthIndicator', () => {
         removeAllListeners: jest.fn(),
       };
       mockSocket.once = jest.fn((event, cb) => {
-        if (event === 'error')
-          setTimeout(() => cb(new Error('Connection refused')), 10);
+        if (event === 'error') setTimeout(() => cb(new Error('Connection refused')), 10);
         return mockSocket;
       });
       (net.Socket as unknown as jest.Mock).mockReturnValue(mockSocket);
 
-      await expect(indicator.isHealthy('smtp')).rejects.toThrow(
-        HealthCheckError,
-      );
+      await expect(indicator.isHealthy('smtp')).rejects.toThrow(HealthCheckError);
     });
 
     it('should throw HealthCheckError if SMTP connection timeouts', async () => {
@@ -87,9 +84,7 @@ describe('SmtpHealthIndicator', () => {
       });
       (net.Socket as unknown as jest.Mock).mockReturnValue(mockSocket);
 
-      await expect(indicator.isHealthy('smtp')).rejects.toThrow(
-        HealthCheckError,
-      );
+      await expect(indicator.isHealthy('smtp')).rejects.toThrow(HealthCheckError);
     });
   });
 

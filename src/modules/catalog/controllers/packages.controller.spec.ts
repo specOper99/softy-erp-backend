@@ -2,6 +2,7 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
+import { AddPackageItemsDto, CreateServicePackageDto, UpdateServicePackageDto } from '../dto/catalog.dto';
 import { CatalogService } from '../services/catalog.service';
 import { PackagesController } from './packages.controller';
 
@@ -68,7 +69,7 @@ describe('PackagesController', () => {
 
   describe('create', () => {
     it('should call service.createPackage', async () => {
-      const dto = { name: 'Premium' } as any;
+      const dto = { name: 'Premium' } as CreateServicePackageDto;
       await controller.create(dto);
       expect(service.createPackage).toHaveBeenCalledWith(dto);
     });
@@ -76,7 +77,7 @@ describe('PackagesController', () => {
 
   describe('update', () => {
     it('should call service.updatePackage', async () => {
-      const dto = { name: 'Gold' } as any;
+      const dto = { name: 'Gold' } as UpdateServicePackageDto;
       await controller.update('uuid', dto);
       expect(service.updatePackage).toHaveBeenCalledWith('uuid', dto);
     });
@@ -91,7 +92,7 @@ describe('PackagesController', () => {
 
   describe('addItems', () => {
     it('should call service.addPackageItems', async () => {
-      const dto = { itemIds: ['1'] } as any;
+      const dto = { items: [{ taskTypeId: '1', quantity: 1 }] } as unknown as AddPackageItemsDto;
       await controller.addItems('uuid', dto);
       expect(service.addPackageItems).toHaveBeenCalledWith('uuid', dto);
     });

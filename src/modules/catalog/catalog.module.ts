@@ -5,12 +5,15 @@ import { TaskTypesController } from './controllers/task-types.controller';
 import { PackageItem } from './entities/package-item.entity';
 import { ServicePackage } from './entities/service-package.entity';
 import { TaskType } from './entities/task-type.entity';
+import { PackageItemRepository } from './repositories/package-item.repository';
+import { ServicePackageRepository } from './repositories/service-package.repository';
+import { TaskTypeRepository } from './repositories/task-type.repository';
 import { CatalogService } from './services/catalog.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ServicePackage, TaskType, PackageItem])],
   controllers: [PackagesController, TaskTypesController],
-  providers: [CatalogService],
-  exports: [CatalogService],
+  providers: [CatalogService, ServicePackageRepository, TaskTypeRepository, PackageItemRepository],
+  exports: [CatalogService, ServicePackageRepository],
 })
 export class CatalogModule {}

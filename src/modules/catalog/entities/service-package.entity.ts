@@ -17,6 +17,12 @@ export class ServicePackage extends BaseTenantEntity {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ name: 'is_template', default: false })
+  isTemplate: boolean;
+
+  @Column({ name: 'template_category', type: 'varchar', nullable: true })
+  templateCategory: string | null;
+
   @OneToMany(() => PackageItem, (item) => item.servicePackage)
   packageItems: Promise<PackageItem[]>;
 

@@ -10,13 +10,13 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Role } from '../../../common/enums';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
-import { Profile } from '../../hr/entities/profile.entity';
 import { Task } from '../../tasks/entities/task.entity';
+import { Role } from '../enums/role.enum';
 
 @Entity('users')
-@Index(['email'], { unique: true })
+@Index(['email'])
+@Index(['tenantId', 'email'], { unique: true })
 @Index(['id', 'tenantId'], { unique: true }) // Composite index for foreign key referencing
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -32,6 +32,22 @@ export class User {
   @Exclude()
   passwordHash: string;
 
+  @Column({ name: 'mfa_secret', nullable: true, select: false })
+  @Exclude()
+  mfaSecret: string;
+
+  @Column({ name: 'is_mfa_enabled', default: false })
+  isMfaEnabled: boolean;
+
+  @Column({
+    name: 'mfa_recovery_codes',
+    type: 'json',
+    nullable: true,
+    select: false,
+  })
+  @Exclude()
+  mfaRecoveryCodes: string[];
+
   @Column({
     type: 'enum',
     enum: Role,
@@ -42,6 +58,9 @@ export class User {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ name: 'email_verified', default: false })
+  emailVerified: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
@@ -50,9 +69,6 @@ export class User {
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
-
-  @OneToOne(() => Profile, (profile) => profile.user)
-  profile: Profile;
 
   @OneToOne(() => EmployeeWallet, (wallet) => wallet.user)
   wallet: EmployeeWallet;

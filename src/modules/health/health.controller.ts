@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpException,
-  HttpStatus,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
@@ -15,12 +9,14 @@ import {
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 import { minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
-import { SkipTenant } from '../../common/decorators';
+import { SkipIpRateLimit } from '../../common/decorators/skip-ip-rate-limit.decorator';
+import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 
 @ApiTags('Health')
 @Controller('health')
 @SkipThrottle() // Health checks should not be rate limited
+@SkipIpRateLimit() // Health checks should not be rate limited (custom IP limiter)
 @SkipTenant()
 export class HealthController {
   constructor(
@@ -37,14 +33,7 @@ export class HealthController {
   @HealthCheck()
   @ApiOperation({ summary: 'Health check endpoint for k8s/load balancers' })
   check() {
-    return this.health.check([
-      // Database health check
-      () => this.db.pingCheck('database'),
-      // Memory heap usage < 150MB
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-      // RSS memory < 300MB
-      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
-    ]);
+    return this.health.check(this.getBasicChecks());
   }
 
   @Get('detailed')
@@ -54,9 +43,7 @@ export class HealthController {
   })
   checkDetailed() {
     return this.health.check([
-      () => this.db.pingCheck('database'),
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+      ...this.getBasicChecks(),
       () => this.s3.isHealthy('storage_s3'),
       () => this.smtp.isHealthy('email_smtp'),
     ]);
@@ -78,6 +65,27 @@ export class HealthController {
     return this.health.check([() => this.db.pingCheck('database')]);
   }
 
+  @Get('deep')
+  @HealthCheck()
+  @ApiOperation({
+    summary: 'Deep health check - all dependencies including storage',
+  })
+  deepHealth() {
+    return this.health.check([
+      ...this.getBasicChecks(),
+      () => this.s3.isHealthy('storage_s3'),
+      () => this.smtp.isHealthy('email_smtp'),
+      () => this.disk.checkStorage('disk', { path: '/', thresholdPercent: 90 }),
+    ]);
+  }
+
+  private getBasicChecks() {
+    return [
+      () => this.db.pingCheck('database'),
+      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
+      () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
+    ];
+  }
   @Get('test-error')
   @SkipThrottle({ default: false }) // Re-enable throttling for this endpoint
   @Throttle({ default: { limit: 3, ttl: minutes(1) } }) // Only 3 attempts per minute
@@ -93,18 +101,18 @@ export class HealthController {
     const secretKey = this.configService.get<string>('TEST_ERROR_KEY');
 
     if (!secretKey) {
-      throw new HttpException('Endpoint disabled', HttpStatus.NOT_FOUND);
+      throw new HttpException('health.endpoint_disabled', HttpStatus.NOT_FOUND);
     }
 
     if (!key) {
-      throw new HttpException('Missing key parameter', HttpStatus.BAD_REQUEST);
+      throw new HttpException('health.missing_key', HttpStatus.BAD_REQUEST);
     }
 
     if (key !== secretKey) {
-      throw new HttpException('Invalid key', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('health.invalid_key', HttpStatus.UNAUTHORIZED);
     }
 
     // Throw an unhandled error to test Sentry
-    throw new Error('This is a test error for Sentry monitoring');
+    throw new Error('health.test_error');
   }
 }

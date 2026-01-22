@@ -101,44 +101,18 @@ export class AddCompositeFKConstraints1767400000000 implements MigrationInterfac
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "profiles" DROP CONSTRAINT IF EXISTS "FK_profile_user_composite"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "FK_wallet_user_composite"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_item_tasktype_composite"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_item_package_composite"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "bookings" DROP CONSTRAINT IF EXISTS "FK_booking_package_composite"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_tasktype_composite"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_booking_composite"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_user_composite"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_tasktype_composite_tenant"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_package_composite_tenant"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_task_composite_tenant"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_booking_composite_tenant"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_user_composite_tenant"`,
-    );
+    await queryRunner.query(`ALTER TABLE "profiles" DROP CONSTRAINT IF EXISTS "FK_profile_user_composite"`);
+    await queryRunner.query(`ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "FK_wallet_user_composite"`);
+    await queryRunner.query(`ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_item_tasktype_composite"`);
+    await queryRunner.query(`ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_item_package_composite"`);
+    await queryRunner.query(`ALTER TABLE "bookings" DROP CONSTRAINT IF EXISTS "FK_booking_package_composite"`);
+    await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_tasktype_composite"`);
+    await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_booking_composite"`);
+    await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_user_composite"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_tasktype_composite_tenant"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_package_composite_tenant"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_task_composite_tenant"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_booking_composite_tenant"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_user_composite_tenant"`);
   }
 }

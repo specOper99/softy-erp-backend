@@ -1,6 +1,17 @@
+import { BadRequestException } from '@nestjs/common';
 import { TenantContextService } from './tenant-context.service';
 
 describe('TenantContextService', () => {
+  it('getTenantIdOrThrow() uses getTenantId()', () => {
+    const getTenantIdSpy = jest.spyOn(TenantContextService, 'getTenantId');
+    getTenantIdSpy.mockReturnValue(undefined);
+
+    expect(() => TenantContextService.getTenantIdOrThrow()).toThrow(BadRequestException);
+    expect(getTenantIdSpy).toHaveBeenCalled();
+
+    getTenantIdSpy.mockRestore();
+  });
+
   it('should store and retrieve tenantId', (done) => {
     const tenantId = 'test-tenant-123';
 

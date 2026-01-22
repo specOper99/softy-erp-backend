@@ -1,9 +1,5 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { Observable, tap } from 'rxjs';
@@ -41,16 +37,19 @@ interface AuditLogData {
  */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
+  private readonly trustProxyHeaders: boolean;
+
   constructor(
     private readonly reflector: Reflector,
     private readonly auditService: AuditService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.trustProxyHeaders = this.configService.get<string>('TRUST_PROXY') === 'true';
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const auditOptions = this.reflector.get<AuditOptions>(
-      AUDIT_KEY,
-      context.getHandler(),
-    );
+    const auditOptions = this.reflector.get<AuditOptions>(AUDIT_KEY, context.getHandler());
 
     // Skip if endpoint is not decorated with @Audit
     if (!auditOptions) {
@@ -64,17 +63,19 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap({
         next: (response) => {
-          void this.logAuditEvent(
+          this.logAuditEvent(
             auditOptions,
             request,
             user,
             'SUCCESS',
             Date.now() - startTime,
             auditOptions.includeResponse ? response : undefined,
-          );
+          ).catch((e) => {
+            this.logger.error('AuditInterceptor logAuditEvent failed', e instanceof Error ? e.stack : String(e));
+          });
         },
         error: (error) => {
-          void this.logAuditEvent(
+          this.logAuditEvent(
             auditOptions,
             request,
             user,
@@ -82,7 +83,9 @@ export class AuditInterceptor implements NestInterceptor {
             Date.now() - startTime,
             undefined,
             error instanceof Error ? error.message : String(error),
-          );
+          ).catch((e) => {
+            this.logger.error('AuditInterceptor logAuditEvent failed', e instanceof Error ? e.stack : String(e));
+          });
         },
       }),
     );
@@ -109,31 +112,34 @@ export class AuditInterceptor implements NestInterceptor {
       userAgent: request.headers['user-agent'],
       status,
       durationMs,
-      ...(options.includeBody &&
-      typeof request.body === 'object' &&
-      request.body !== null
+      ...(options.includeBody && typeof request.body === 'object' && request.body !== null
         ? { requestBody: this.sanitizeData(request.body) }
         : {}),
-      ...(options.includeResponse && response !== undefined
-        ? { responseData: this.sanitizeData(response) }
-        : {}),
+      ...(options.includeResponse && response !== undefined ? { responseData: this.sanitizeData(response) } : {}),
       ...(error ? { error } : {}),
       timestamp: new Date().toISOString(),
     };
 
     // Log to audit service (database)
     try {
+      const paramId = request.params?.id;
+      const entityId = Array.isArray(paramId) ? (paramId[0] ?? 'N/A') : (paramId ?? 'N/A');
+
       await this.auditService.log({
         userId: auditData.userId,
         action: `${options.action}_${options.resource.toUpperCase()}`,
         entityName: options.resource,
-        entityId: request.params?.id || 'N/A',
-        newValues: auditData,
+        entityId,
         notes: error || undefined,
+        ipAddress: auditData.ip,
+        userAgent: auditData.userAgent,
+        method: auditData.method,
+        path: auditData.path,
+        statusCode: status === 'SUCCESS' ? 200 : 500, // Approximate. Ideally get real status.
+        durationMs: auditData.durationMs,
       });
     } catch (e) {
-      // Swallow audit errors to not affect main flow
-      console.error('Audit logging failed:', e);
+      this.logger.error('Audit logging failed', e instanceof Error ? e.stack : String(e));
     }
   }
 
@@ -159,14 +165,9 @@ export class AuditInterceptor implements NestInterceptor {
     ];
 
     for (const key of Object.keys(sanitized)) {
-      if (
-        sensitiveKeys.some((k) => key.toLowerCase().includes(k.toLowerCase()))
-      ) {
+      if (sensitiveKeys.some((k) => k.toLowerCase().includes(key.toLowerCase()))) {
         sanitized[key] = '[REDACTED]';
-      } else if (
-        typeof sanitized[key] === 'object' &&
-        sanitized[key] !== null
-      ) {
+      } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
         sanitized[key] = this.sanitizeData(sanitized[key]);
       }
     }
@@ -175,9 +176,17 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private getClientIp(request: Request): string {
-    const forwarded = request.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
+    // Only trust proxy headers when explicitly configured
+    if (this.trustProxyHeaders) {
+      const forwarded = request.headers['x-forwarded-for'];
+      if (typeof forwarded === 'string') {
+        const ip = forwarded.split(',')[0]?.trim();
+        if (ip) return ip;
+      }
+      const realIp = request.headers['x-real-ip'];
+      if (typeof realIp === 'string') {
+        return realIp;
+      }
     }
     return request.ip || 'unknown';
   }

@@ -1,14 +1,10 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
+import { isIP } from 'net';
 import { CacheUtilsService } from '../cache/cache-utils.service';
+import { SKIP_IP_RATE_LIMIT_KEY } from '../decorators/skip-ip-rate-limit.decorator';
 
 interface IpRateLimitInfo {
   count: number;
@@ -38,27 +34,43 @@ export class IpRateLimitGuard implements CanActivate {
   constructor(
     private readonly cacheService: CacheUtilsService,
     private readonly configService: ConfigService,
+    private readonly reflector: Reflector,
   ) {
     // 50 requests per minute soft limit (starts slowing down)
     this.softLimit = this.configService.get<number>('RATE_LIMIT_SOFT') || 50;
     // 100 requests per minute hard limit (blocks IP)
     this.hardLimit = this.configService.get<number>('RATE_LIMIT_HARD') || 100;
     // 1 minute window (default)
-    const windowSeconds =
-      this.configService.get<number>('RATE_LIMIT_WINDOW_SECONDS') || 60;
+    const windowSeconds = this.configService.get<number>('RATE_LIMIT_WINDOW_SECONDS') || 60;
     this.windowMs = windowSeconds * 1000;
 
     // 15 minute block duration (default)
-    const blockSeconds =
-      this.configService.get<number>('RATE_LIMIT_BLOCK_SECONDS') || 900;
+    const blockSeconds = this.configService.get<number>('RATE_LIMIT_BLOCK_SECONDS') || 900;
     this.blockDurationMs = blockSeconds * 1000;
 
     // Only trust proxy headers when explicitly enabled
-    this.trustProxyHeaders =
-      this.configService.get<string>('TRUST_PROXY') === 'true';
+    this.trustProxyHeaders = this.configService.get<string>('TRUST_PROXY') === 'true';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const skip = this.reflector.getAllAndOverride<boolean>(SKIP_IP_RATE_LIMIT_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (skip) {
+      return true;
+    }
+
+    const isEnabled = this.configService.get<string>('RATE_LIMIT_ENABLED') !== 'false';
+    if (!isEnabled) {
+      const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+      if (isProd) {
+        this.logger.warn('Security Alert: Attempt to disable rate limiting in production denied. Limits enforced.');
+      } else {
+        return true;
+      }
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
     const ip = this.getClientIp(request);
@@ -88,13 +100,18 @@ export class IpRateLimitGuard implements CanActivate {
     } else {
       info.count++;
 
+      // Authenticated users get full limits, anonymous get half
+      const isAuthenticated = !!(request as Request & { user?: unknown }).user;
+      const effectiveSoftLimit = isAuthenticated ? this.softLimit : Math.floor(this.softLimit / 2);
+      const effectiveHardLimit = isAuthenticated ? this.hardLimit : Math.floor(this.hardLimit / 2);
+
       // Check hard limit - block IP
-      if (info.count > this.hardLimit) {
+      if (info.count > effectiveHardLimit) {
         info.blocked = true;
         info.blockedUntil = now + this.blockDurationMs;
         await this.cacheService.set(key, info, this.blockDurationMs);
         this.logger.warn(
-          `IP ${ip} blocked for exceeding rate limit (${info.count} requests)`,
+          `IP ${ip} blocked for exceeding rate limit (${info.count} requests, authenticated: ${isAuthenticated})`,
         );
 
         const remainingSecs = Math.ceil(this.blockDurationMs / 1000);
@@ -106,15 +123,9 @@ export class IpRateLimitGuard implements CanActivate {
       }
 
       // Check soft limit - reject instead of server-side sleeping (avoids self-DoS)
-      if (info.count > this.softLimit) {
-        const windowRemainingMs = Math.max(
-          0,
-          this.windowMs - (now - info.firstRequest),
-        );
-        const retryAfterSeconds = Math.max(
-          1,
-          Math.ceil(windowRemainingMs / 1000),
-        );
+      if (info.count > effectiveSoftLimit) {
+        const windowRemainingMs = Math.max(0, this.windowMs - (now - info.firstRequest));
+        const retryAfterSeconds = Math.max(1, Math.ceil(windowRemainingMs / 1000));
         response?.setHeader?.('Retry-After', String(retryAfterSeconds));
         throw new HttpException(
           {
@@ -133,17 +144,24 @@ export class IpRateLimitGuard implements CanActivate {
   }
 
   private getClientIp(request: Request): string {
-    // Check various headers for proxied requests
     if (this.trustProxyHeaders) {
       const forwarded = request.headers['x-forwarded-for'];
       if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
+        const ip = forwarded.split(',')[0]?.trim();
+        if (ip && isIP(ip)) return ip;
+        if (ip) this.logger.warn(`Invalid IP in X-Forwarded-For header: ${ip}`);
       }
       const realIp = request.headers['x-real-ip'];
       if (typeof realIp === 'string') {
-        return realIp;
+        if (isIP(realIp)) return realIp;
+        this.logger.warn(`Invalid IP in X-Real-IP header: ${realIp}`);
       }
     }
-    return request.ip || request.socket?.remoteAddress || 'unknown';
+    const ip = request.ip || request.socket?.remoteAddress || 'unknown';
+    if (ip !== 'unknown' && !isIP(ip)) {
+      this.logger.warn(`Invalid IP address from request: ${ip}`);
+      return 'unknown';
+    }
+    return ip;
   }
 }

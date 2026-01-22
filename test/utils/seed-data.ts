@@ -1,14 +1,19 @@
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
-import { Role } from '../../src/common/enums';
+import { PasswordHashService } from '../../src/common/services/password-hash.service';
 import { Client } from '../../src/modules/bookings/entities/client.entity';
 import { PackageItem } from '../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
 import { TaskType } from '../../src/modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../../src/modules/finance/entities/employee-wallet.entity';
 import { Profile } from '../../src/modules/hr/entities/profile.entity';
+import { PlatformUser } from '../../src/modules/platform/entities/platform-user.entity';
+import { PlatformRole } from '../../src/modules/platform/enums/platform-role.enum';
 import { Tenant } from '../../src/modules/tenants/entities/tenant.entity';
 import { User } from '../../src/modules/users/entities/user.entity';
+import { Role } from '../../src/modules/users/enums/role.enum';
+
+import { SubscriptionPlan } from '../../src/modules/tenants/enums/subscription-plan.enum';
 
 export async function seedTestDatabase(dataSource: DataSource) {
   const tenantRepo = dataSource.getRepository(Tenant);
@@ -19,6 +24,49 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const packageRepo = dataSource.getRepository(ServicePackage);
   const packageItemRepo = dataSource.getRepository(PackageItem);
   const clientRepo = dataSource.getRepository(Client);
+  const platformUserRepo = dataSource.getRepository(PlatformUser);
+
+  // Initialize password hash service
+  const passwordHashService = new PasswordHashService();
+
+  // 0. Create Platform Users
+  const platformAdminEmail = 'admin@platform.com';
+  const platformAdminPassword = 'SecurePassword123!';
+  const platformAdminPasswordHash = await passwordHashService.hash(platformAdminPassword);
+
+  let platformAdmin = await platformUserRepo.findOne({
+    where: { email: platformAdminEmail },
+  });
+  if (!platformAdmin) {
+    platformAdmin = platformUserRepo.create({
+      email: platformAdminEmail,
+      fullName: 'Platform Admin',
+      passwordHash: platformAdminPasswordHash,
+      role: PlatformRole.SUPER_ADMIN,
+      status: 'active',
+    });
+    platformAdmin = await platformUserRepo.save(platformAdmin);
+  }
+
+  // Create MFA platform user
+  const mfaUserEmail = 'mfa-user@platform.com';
+  const mfaUserPassword = 'SecurePassword123!';
+  const mfaUserPasswordHash = await passwordHashService.hash(mfaUserPassword);
+
+  let mfaUser = await platformUserRepo.findOne({
+    where: { email: mfaUserEmail },
+  });
+  if (!mfaUser) {
+    mfaUser = platformUserRepo.create({
+      email: mfaUserEmail,
+      fullName: 'MFA Test User',
+      passwordHash: mfaUserPasswordHash,
+      role: PlatformRole.ADMIN,
+      status: 'active',
+      mfaEnabled: true,
+    });
+    mfaUser = await platformUserRepo.save(mfaUser);
+  }
 
   // Generate random suffix for isolation
   const suffix = Date.now().toString().slice(-6);
@@ -32,6 +80,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
     tenant = tenantRepo.create({
       name: `Chapters Studio ${suffix}`,
       slug: tenantSlug,
+      subscriptionPlan: SubscriptionPlan.PRO,
     });
     tenant = await tenantRepo.save(tenant);
   }
@@ -231,12 +280,9 @@ export async function seedTestDatabase(dataSource: DataSource) {
       }
     }
 
-    return { tenantId, admin, staff, pkg, taskType, client };
+    return { tenantId, tenantSlug, admin, staff, pkg, taskType, client };
   } catch (outerError: unknown) {
-    console.error(
-      'Seeder error:',
-      outerError instanceof Error ? outerError.message : String(outerError),
-    );
+    console.error('Seeder error:', outerError instanceof Error ? outerError.message : String(outerError));
     throw outerError;
   }
 }

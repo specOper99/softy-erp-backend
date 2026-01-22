@@ -12,7 +12,7 @@ describe('LogSanitizer', () => {
       },
     };
 
-    const result = sanitizeObject(input) as any;
+    const result = sanitizeObject(input) as Record<string, any>;
 
     expect(result.user).toBe('testuser');
     expect(result.password).toBe('[REDACTED]');
@@ -36,9 +36,9 @@ describe('LogSanitizer', () => {
 
   it('should provide a winston format that sanitizes', () => {
     const format = sanitizeFormat();
-    const info = { level: 'info', message: 'test', password: 'secret' } as any;
+    const info = { level: 'info', message: 'test', password: 'secret' };
     const result = format.transform(info, {});
-    expect((result as any).password).toBe('[REDACTED]');
+    expect((result as Record<string, any>).password).toBe('[REDACTED]');
   });
 
   it('should redact long base64/hex-like strings', () => {
@@ -60,7 +60,7 @@ describe('LogSanitizer', () => {
 
   it('should handle arrays', () => {
     const input = ['normal', 'password', 'mypassword'];
-    const result = sanitizeObject(input) as any[];
+    const result = sanitizeObject(input) as string[];
     expect(result[0]).toBe('normal');
     // Note: the value itself isn't redacted unless it matches JWT/base64 patterns
     // OR it's a value associated with a sensitive KEY in an object.
@@ -69,10 +69,14 @@ describe('LogSanitizer', () => {
   });
 
   it('should protect against infinite recursion', () => {
-    const obj: any = { name: 'circular' };
+    interface Circular {
+      name: string;
+      self?: Circular;
+    }
+    const obj: Circular = { name: 'circular' };
     obj.self = obj;
 
-    const result = sanitizeObject(obj) as any;
+    const result = sanitizeObject(obj) as Circular;
     expect(result.name).toBe('circular');
     // It should hit MAX_DEPTH at level 11
     // Our mock structure: depth 0 (root), 1 (self), 2 (self.self)...

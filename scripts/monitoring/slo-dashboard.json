@@ -1,0 +1,329 @@
+{
+    "title": "Chapters Studio ERP - SLO Dashboard",
+    "uid": "chapters-erp-slo",
+    "tags": [
+        "slo",
+        "sli",
+        "error-budget",
+        "erp"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "1m",
+    "annotations": {
+        "list": [
+            {
+                "name": "Deployments",
+                "datasource": "Prometheus",
+                "expr": "changes(kube_deployment_status_observed_generation{deployment=\"chapters-studio-erp\"}[5m]) > 0",
+                "iconColor": "blue"
+            }
+        ]
+    },
+    "templating": {
+        "list": [
+            {
+                "name": "window",
+                "type": "custom",
+                "current": {
+                    "text": "30d",
+                    "value": "30d"
+                },
+                "options": [
+                    {
+                        "text": "7d",
+                        "value": "7d"
+                    },
+                    {
+                        "text": "30d",
+                        "value": "30d"
+                    },
+                    {
+                        "text": "90d",
+                        "value": "90d"
+                    }
+                ]
+            }
+        ]
+    },
+    "panels": [
+        {
+            "id": 1,
+            "title": "🎯 Availability SLI",
+            "description": "Percentage of successful requests (non-5xx)",
+            "type": "stat",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "100 * (1 - (sum(rate(http_request_duration_seconds_count{status_code=~\"5..\"}[$window])) / sum(rate(http_request_duration_seconds_count[$window]))))",
+                    "legendFormat": "Availability",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "red"
+                            },
+                            {
+                                "value": 99,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 99.9,
+                                "color": "green"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 2,
+            "title": "⚡ Latency SLI (P99)",
+            "description": "99th percentile response time",
+            "type": "stat",
+            "gridPos": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[$window])) by (le))",
+                    "legendFormat": "P99 Latency",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 0.5,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 1,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 3,
+            "title": "📊 Error Budget Remaining",
+            "description": "Based on 99.9% availability SLO (43.8 min/month)",
+            "type": "gauge",
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "100 * (1 - (sum(increase(http_request_duration_seconds_count{status_code=~\"5..\"}[$window])) / (sum(increase(http_request_duration_seconds_count[$window])) * 0.001)))",
+                    "legendFormat": "Error Budget",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "red"
+                            },
+                            {
+                                "value": 25,
+                                "color": "orange"
+                            },
+                            {
+                                "value": 50,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 75,
+                                "color": "green"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 4,
+            "title": "🔥 Error Budget Burn Rate",
+            "description": "Rate of error budget consumption (1 = on target, >1 = burning fast)",
+            "type": "stat",
+            "gridPos": {
+                "x": 18,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "(sum(rate(http_request_duration_seconds_count{status_code=~\"5..\"}[1h])) / sum(rate(http_request_duration_seconds_count[1h]))) / 0.001",
+                    "legendFormat": "Burn Rate",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "x",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 1,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 2,
+                                "color": "orange"
+                            },
+                            {
+                                "value": 3,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 5,
+            "title": "Availability Over Time",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "expr": "100 * (1 - (sum(rate(http_request_duration_seconds_count{status_code=~\"5..\"}[5m])) / sum(rate(http_request_duration_seconds_count[5m]))))",
+                    "legendFormat": "Availability %",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10,
+                        "thresholdsStyle": {
+                            "mode": "line"
+                        }
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 99.9,
+                                "color": "green"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 6,
+            "title": "Latency Distribution (P50, P95, P99)",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 12,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+                    "legendFormat": "P50",
+                    "refId": "A"
+                },
+                {
+                    "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+                    "legendFormat": "P95",
+                    "refId": "B"
+                },
+                {
+                    "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+                    "legendFormat": "P99",
+                    "refId": "C"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 0
+                    }
+                }
+            }
+        },
+        {
+            "id": 7,
+            "title": "Error Budget Consumption Over Time",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 12,
+                "w": 24,
+                "h": 6
+            },
+            "targets": [
+                {
+                    "expr": "100 * (sum(increase(http_request_duration_seconds_count{status_code=~\"5..\"}[5m])) / (sum(increase(http_request_duration_seconds_count[5m])) * 0.001))",
+                    "legendFormat": "Error Budget Used %",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 20
+                    }
+                }
+            }
+        }
+    ]
+}

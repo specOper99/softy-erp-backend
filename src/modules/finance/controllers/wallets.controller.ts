@@ -1,33 +1,41 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
 import { NoCache } from '../../../common/decorators/no-cache.decorator';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
+import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { FinanceService } from '../services/finance.service';
+import { Role } from '../../users/enums/role.enum';
+import { WalletService } from '../services/wallet.service';
 
 @ApiTags('Finance - Wallets')
 @ApiBearerAuth()
 @Controller('wallets')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@MfaRequired()
 export class WalletsController {
-  constructor(private readonly financeService: FinanceService) {}
+  constructor(private readonly walletService: WalletService) {}
 
   @Get()
   @NoCache()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Get all employee wallets' })
+  @ApiOperation({
+    summary: 'Get all employee wallets (Offset Pagination)',
+    deprecated: true,
+    description: 'Use /wallets/cursor for better performance with large datasets.',
+  })
   findAll(@Query() query: PaginationDto = new PaginationDto()) {
-    return this.financeService.getAllWallets(query);
+    return this.walletService.getAllWallets(query);
+  }
+
+  @Get('cursor')
+  @NoCache()
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all employee wallets with cursor pagination' })
+  findAllCursor(@Query() query: CursorPaginationDto) {
+    return this.walletService.getAllWalletsCursor(query);
   }
 
   @Get('user/:userId')
@@ -35,6 +43,6 @@ export class WalletsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get wallet by user ID' })
   findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
-    return this.financeService.getWalletByUserId(userId);
+    return this.walletService.getWalletByUserId(userId);
   }
 }

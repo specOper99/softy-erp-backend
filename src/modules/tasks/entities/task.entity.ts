@@ -1,19 +1,15 @@
-import {
-  Column,
-  DeleteDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-} from 'typeorm';
-import { TaskStatus } from '../../../common/enums';
+import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { TaskType } from '../../catalog/entities/task-type.entity';
 import { User } from '../../users/entities/user.entity';
+import { TaskStatus } from '../enums/task-status.enum';
 
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 
 @Entity('tasks')
+@Index(['tenantId', 'status', 'dueDate'])
+@Index(['tenantId', 'deletedAt'])
+@Index(['tenantId', 'createdAt']) // Optimize default pagination
 export class Task extends BaseTenantEntity {
   @Index()
   @Column({ name: 'booking_id' })
@@ -26,6 +22,10 @@ export class Task extends BaseTenantEntity {
   @Index()
   @Column({ name: 'assigned_user_id', nullable: true })
   assignedUserId: string | null;
+
+  @Index()
+  @Column({ name: 'parent_id', nullable: true })
+  parentId: string | null;
 
   @Column({
     type: 'enum',
@@ -66,4 +66,11 @@ export class Task extends BaseTenantEntity {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'assigned_user_id' })
   assignedUser: Promise<User | null>;
+
+  @ManyToOne(() => Task, (task) => task.subTasks, { nullable: true })
+  @JoinColumn({ name: 'parent_id' })
+  parent: Task | null;
+
+  @OneToMany(() => Task, (task) => task.parent)
+  subTasks: Promise<Task[]>;
 }

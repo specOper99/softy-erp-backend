@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    {{> styles}}
+</head>
+
+<body>
+    <div class="container">
+        {{> header title="✓ Payment Received"}}
+        <div class="content">
+            <p>Dear {{clientName}},</p>
+            <p>Thank you! We have successfully received your payment.</p>
+
+            <div class="detail-box">
+                <h3>Payment Details</h3>
+                <p><strong>Booking:</strong> {{bookingId}}</p>
+                <p><strong>Event Date:</strong> {{eventDate}}</p>
+                {{#if paymentMethod}}
+                <p><strong>Payment Method:</strong> {{paymentMethod}}</p>
+                {{/if}}
+                {{#if reference}}
+                <p><strong>Reference:</strong> {{reference}}</p>
+                {{/if}}
+                <p><strong>Date:</strong> {{paymentDate}}</p>
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 15px 0;">
+                <p style="font-size: 18px; font-weight: bold; color: #16a34a;">Amount Paid: ${{amount}}</p>
+                <div style="background-color: #f3f4f6; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                    <p style="margin: 5px 0;">Total: ${{totalPrice}}</p>
+                    <p style="margin: 5px 0;">Previously Paid: ${{previouslyPaid}}</p>
+                    <p style="margin: 5px 0; font-weight: bold;">Remaining Balance: ${{remainingBalance}}</p>
+                </div>
+            </div>
+
+            {{#if isFullyPaid}}
+            <p style="color: #16a34a; font-weight: bold;">✓ Your booking is now fully paid!</p>
+            {{else}}
+            <p>Please note that a balance of ${{remainingBalance}} remains on your booking.</p>
+            {{/if}}
+
+            <p>If you have any questions, please don't hesitate to contact us.</p>
+            <p>Best regards,<br>{{tenantName}}</p>
+        </div>
+        {{> footer}}
+    </div>
+</body>
+
+</html>

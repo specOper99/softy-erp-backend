@@ -5,6 +5,9 @@ import { Booking } from './booking.entity';
 
 @Entity('clients')
 @Index(['tenantId', 'id'], { unique: true })
+@Index(['tenantId', 'email'])
+@Index(['tenantId', 'phone'])
+@Index(['tenantId', 'accessTokenHash']) // Index for efficient hash lookups
 export class Client extends BaseTenantEntity {
   @Column()
   @SanitizeHtml()
@@ -22,6 +25,29 @@ export class Client extends BaseTenantEntity {
   @SanitizeHtml()
   notes: string;
 
-  @OneToMany('Booking', 'client')
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  @Index('idx_clients_tags', { synchronize: false }) // GIN index created via migration
+  tags: string[];
+
+  // Magic Link Authentication - SECURITY: Store hash, not plaintext
+  @Column({
+    name: 'access_token_hash',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  accessTokenHash: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  accessTokenExpiry: Date | null;
+
+  @OneToMany(() => Booking, (booking) => booking.client)
   bookings: Promise<Booking[]>;
+
+  isAccessTokenValid(): boolean {
+    if (!this.accessTokenHash || !this.accessTokenExpiry) {
+      return false;
+    }
+    return new Date() < this.accessTokenExpiry;
+  }
 }

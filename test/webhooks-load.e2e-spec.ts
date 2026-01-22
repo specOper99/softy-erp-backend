@@ -6,6 +6,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
+import { TenantContextService } from '../src/common/services/tenant-context.service';
 import { MailService } from '../src/modules/mail/mail.service';
 import { Webhook } from '../src/modules/webhooks/entities/webhook.entity';
 import { WebhookService } from '../src/modules/webhooks/webhooks.service';
@@ -69,11 +70,13 @@ describe('Webhooks Load E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedResult = await seedTestDatabase(dataSource);
     testTenantId = seedResult.tenantId;
+    const tenantHost = `${seedResult.tenantId}.example.com`;
     webhookService = app.get(WebhookService);
 
     // Login to get token
     const loginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({
         email: seedResult.admin.email,
         password: process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!',
@@ -87,13 +90,16 @@ describe('Webhooks Load E2E Tests', () => {
   });
 
   it('should handle high volume of webhooks concurrently', async () => {
-    // 1. Register 50 Webhooks using Service directly (No Controller)
+    // 1. Register 50 Webhooks using Service directly with TenantContextService
     const webhookCount = 50;
+
     for (let i = 0; i < webhookCount; i++) {
-      await webhookService.registerWebhook(testTenantId, {
-        url: `https://example.com/webhook-${i}`,
-        secret: `very-long-secret_key_for_testing_${i}`, // > 32 chars
-        events: ['booking.created'],
+      await TenantContextService.run(testTenantId, async () => {
+        await webhookService.registerWebhook({
+          url: `https://example.com/webhook-${i}`,
+          secret: `very-long-secret_key_for_testing_${i}`, // > 32 chars
+          events: ['booking.created'],
+        });
       });
     }
 
@@ -111,9 +117,7 @@ describe('Webhooks Load E2E Tests', () => {
     // Debug: Check if webhooks exist
     // Check if webhooks exist
     const dataSource = app.get(DataSource);
-    const webhooks = await dataSource
-      .getRepository(Webhook)
-      .find({ where: { tenantId: testTenantId } });
+    const webhooks = await dataSource.getRepository(Webhook).find({ where: { tenantId: testTenantId } });
     expect(webhooks.length).toBe(webhookCount);
 
     const startTime = Date.now();

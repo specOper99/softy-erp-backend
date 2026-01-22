@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { SubscriptionPlan, TenantStatus } from '../entities/tenant.entity';
+import { SubscriptionPlan } from '../tenants.enums';
 
 export class CreateTenantDto {
   @IsString()
@@ -13,18 +13,4 @@ export class CreateTenantDto {
   @IsEnum(SubscriptionPlan)
   @IsOptional()
   subscriptionPlan?: SubscriptionPlan;
-}
-
-export class UpdateTenantDto {
-  @IsString()
-  @IsOptional()
-  name?: string;
-
-  @IsEnum(SubscriptionPlan)
-  @IsOptional()
-  subscriptionPlan?: SubscriptionPlan;
-
-  @IsEnum(TenantStatus)
-  @IsOptional()
-  status?: TenantStatus;
 }

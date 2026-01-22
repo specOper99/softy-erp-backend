@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Login to {{companyName}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .content {
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 12px 30px;
+      background: #4f46e5;
+      color: white !important;
+      text-decoration: none;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+
+    .warning {
+      color: #666;
+      font-size: 14px;
+      margin-top: 20px;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 20px 0;
+      color: #666;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body dir="{{direction}}" style="text-align: {{textAlign}};">
+  <div class="container">
+    <div class="header">
+      <h1>{{companyName}}</h1>
+    </div>
+    <div class="content">
+      <p>Hello {{clientName}},</p>
+      <p>You requested to log in to your client portal. Click the button below to access your account:</p>
+      <p style="text-align: center;">
+        <a href="{{magicLinkUrl}}" class="button">Login to Portal</a>
+      </p>
+      <p class="warning">
+        This link will expire in {{expiresInHours}} hours. If you didn't request this login, you can safely ignore this
+        email.
+      </p>
+      <p class="warning">
+        If the button doesn't work, copy and paste this link into your browser:<br>
+        <small>{{magicLinkUrl}}</small>
+      </p>
+    </div>
+    <div class="footer">
+      <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+      <p><a href="{{companyUrl}}">{{companyUrl}}</a></p>
+    </div>
+  </div>
+</body>
+
+</html>

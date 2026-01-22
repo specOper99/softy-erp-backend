@@ -4,15 +4,13 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
-import {
-  BookingStatus,
-  TaskStatus,
-  TransactionType,
-} from '../src/common/enums';
 import { TransformInterceptor } from '../src/common/interceptors';
+import { BookingStatus } from '../src/modules/bookings/enums/booking-status.enum';
 import { Transaction } from '../src/modules/finance/entities/transaction.entity';
+import { TransactionType } from '../src/modules/finance/enums/transaction-type.enum';
 import { MailService } from '../src/modules/mail/mail.service';
 import { Task } from '../src/modules/tasks/entities/task.entity';
+import { TaskStatus } from '../src/modules/tasks/enums/task-status.enum';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests
@@ -36,9 +34,7 @@ describe('Workflow Integration Tests (E2E)', () => {
 
     // Validate required environment variables
     if (!adminPassword || !staffPassword) {
-      throw new Error(
-        'Missing required environment variables: SEED_ADMIN_PASSWORD and/or SEED_STAFF_PASSWORD',
-      );
+      throw new Error('Missing required environment variables: SEED_ADMIN_PASSWORD and/or SEED_STAFF_PASSWORD');
     }
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -74,22 +70,22 @@ describe('Workflow Integration Tests (E2E)', () => {
     // Seed Test DB and Get Tenant ID and Client
     const seedData = await seedTestDatabase(_dataSource);
     const { tenantId, client } = seedData;
-    (global as unknown as { testTenantId: string }).testTenantId = tenantId;
-    (global as unknown as { testClientId: string }).testClientId = client.id;
+    const tenantHost = `${seedData.tenantId}.example.com`;
+    globalThis.testTenantId = tenantId;
+    (globalThis as unknown as { testClientId: string }).testClientId = client.id;
 
     // Login as admin (seeded user)
     const adminLoginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('Host', tenantHost)
       .send({ email: seedData.admin.email, password: adminPassword });
     adminToken = adminLoginRes.body.data.accessToken;
 
     // Login as staff (seeded user)
-    const staffLoginRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.staff.email,
-        password: staffPassword,
-      });
+    const staffLoginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
+      email: seedData.staff.email,
+      password: staffPassword,
+    });
     staffToken = staffLoginRes.body.data.accessToken;
 
     staffUserId = staffLoginRes.body.data.user.id;
@@ -126,8 +122,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
 
         .send({
-          clientId: (global as unknown as { testClientId: string })
-            .testClientId,
+          clientId: (globalThis as unknown as { testClientId: string }).testClientId,
           eventDate: eventDate.toISOString(),
           packageId: packageId,
           notes: 'E2E workflow test booking',
@@ -157,9 +152,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       }
 
       expect(res.status).toBe(200);
-      expect(res.body.data.booking?.status || res.body.data.status).toBe(
-        BookingStatus.CONFIRMED,
-      );
+      expect(res.body.data.booking?.status || res.body.data.status).toBe(BookingStatus.CONFIRMED);
     });
 
     it('should have created tasks for the booking', async () => {
@@ -168,14 +161,10 @@ describe('Workflow Integration Tests (E2E)', () => {
         return;
       }
 
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/tasks')
-        .set('Authorization', `Bearer ${adminToken}`);
+      const res = await request(app.getHttpServer()).get('/api/v1/tasks').set('Authorization', `Bearer ${adminToken}`);
       // Handle wrapped response format { data: [...] }
       const tasks = res.body.data || res.body;
-      const bookingTasks = Array.isArray(tasks)
-        ? tasks.filter((t: Task) => t.bookingId === bookingId)
-        : [];
+      const bookingTasks = Array.isArray(tasks) ? tasks.filter((t: Task) => t.bookingId === bookingId) : [];
       expect(bookingTasks.length).toBeGreaterThan(0);
       expect(bookingTasks[0].status).toBe(TaskStatus.PENDING);
     });
@@ -193,10 +182,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       // Handle wrapped response format { data: [...] }
       const transactions = res.body.data || res.body;
       const bookingTransaction = Array.isArray(transactions)
-        ? transactions.find(
-            (t: Transaction) =>
-              t.bookingId === bookingId && t.type === TransactionType.INCOME,
-          )
+        ? transactions.find((t: Transaction) => t.bookingId === bookingId && t.type === TransactionType.INCOME)
         : undefined;
       expect(bookingTransaction).toBeDefined();
     });
@@ -213,9 +199,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`);
       // Handle wrapped response format { data: [...] }
       const tasks = tasksRes.body.data || tasksRes.body;
-      const pendingTask = Array.isArray(tasks)
-        ? tasks.find((t: Task) => t.status === TaskStatus.PENDING)
-        : undefined;
+      const pendingTask = Array.isArray(tasks) ? tasks.find((t: Task) => t.status === TaskStatus.PENDING) : undefined;
 
       if (pendingTask) {
         taskId = pendingTask.id;
@@ -264,7 +248,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .get(`/api/v1/wallets/user/${staffUserId}`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
-      expect(parseFloat(res.body.data.payableBalance)).toBeGreaterThan(0);
+      expect(Number.parseFloat(res.body.data.payableBalance)).toBeGreaterThan(0);
     });
   });
 
@@ -285,7 +269,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .get(`/api/v1/wallets/user/${staffUserId}`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
-      expect(parseFloat(res.body.data.payableBalance)).toBe(0);
+      expect(Number.parseFloat(res.body.data.payableBalance)).toBe(0);
     });
 
     it('should have created payroll transactions', async () => {
@@ -295,9 +279,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       expect(res.status).toBe(200);
       // Handle wrapped response format { data: [...] }
       const transactions = res.body.data || res.body;
-      expect(
-        Array.isArray(transactions) ? transactions.length : 0,
-      ).toBeGreaterThan(0);
+      expect(Array.isArray(transactions) ? transactions.length : 0).toBeGreaterThan(0);
     });
   });
 

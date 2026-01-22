@@ -1,13 +1,9 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
 import { TenantContextService } from '../services/tenant-context.service';
+import { LogSanitizer } from '../utils/log-sanitizer.util';
 
 interface LogContext {
   correlationId?: string;
@@ -19,16 +15,23 @@ interface LogContext {
   duration?: number;
   userAgent?: string;
   ip?: string;
+  body?: unknown;
 }
 
 /**
  * Structured JSON logging interceptor.
  * Logs all HTTP requests/responses in JSON format with correlation IDs.
  * Integrates with the CorrelationIdMiddleware for request tracing.
+ * Sanitizes PII from request bodies.
  */
 @Injectable()
 export class StructuredLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
+  private readonly trustProxyHeaders: boolean;
+
+  constructor(private readonly configService: ConfigService) {
+    this.trustProxyHeaders = this.configService.get<string>('TRUST_PROXY') === 'true';
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -36,9 +39,7 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
     const startTime = Date.now();
 
     const correlationIdHeader = request.headers['x-correlation-id'];
-    const correlationId = Array.isArray(correlationIdHeader)
-      ? correlationIdHeader[0]
-      : correlationIdHeader;
+    const correlationId = Array.isArray(correlationIdHeader) ? correlationIdHeader[0] : correlationIdHeader;
 
     const logContext: LogContext = {
       correlationId,
@@ -48,6 +49,13 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
       userAgent: request.headers['user-agent'],
       ip: this.getClientIp(request),
     };
+
+    // Log sanitized body for non-GET requests, exclude binary (file uploads)
+    // We assume JSON/Form data. If multipart, body might be complex/large, so explicit checks help.
+    const body = request.body as Record<string, unknown>;
+    if (request.method !== 'GET' && body && Object.keys(body).length > 0) {
+      logContext.body = LogSanitizer.sanitize(body);
+    }
 
     // Extract user ID from JWT if available
     // Safe access to user property which might be added by middleware
@@ -65,15 +73,10 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
         },
         error: (error: unknown) => {
           const status =
-            error && typeof error === 'object' && 'status' in error
-              ? (error as { status: number }).status
-              : 500;
+            error && typeof error === 'object' && 'status' in error ? (error as { status: number }).status : 500;
           logContext.statusCode = status;
           logContext.duration = Date.now() - startTime;
-          this.logRequest(
-            logContext,
-            error instanceof Error ? error : new Error(String(error)),
-          );
+          this.logRequest(logContext, error instanceof Error ? error : new Error(String(error)));
         },
       }),
     );
@@ -104,9 +107,17 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
   }
 
   private getClientIp(request: Request): string {
-    const forwarded = request.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
+    // Only trust proxy headers when explicitly configured
+    if (this.trustProxyHeaders) {
+      const forwarded = request.headers['x-forwarded-for'];
+      if (typeof forwarded === 'string') {
+        const firstIp = forwarded.split(',')[0]?.trim();
+        if (firstIp) return firstIp;
+      }
+      const realIp = request.headers['x-real-ip'];
+      if (typeof realIp === 'string') {
+        return realIp;
+      }
     }
     return request.ip || request.socket?.remoteAddress || 'unknown';
   }

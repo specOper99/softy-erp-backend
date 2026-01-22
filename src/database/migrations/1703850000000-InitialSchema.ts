@@ -351,39 +351,17 @@ export class InitialSchema1703850000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop foreign keys first
-    await queryRunner.query(
-      `ALTER TABLE "attachments" DROP CONSTRAINT IF EXISTS "FK_attachments_task"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "attachments" DROP CONSTRAINT IF EXISTS "FK_attachments_booking"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "refresh_tokens" DROP CONSTRAINT IF EXISTS "FK_refresh_tokens_user"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_tasks_user"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_tasks_task_type"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_tasks_booking"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "bookings" DROP CONSTRAINT IF EXISTS "FK_bookings_package"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_package_items_task_type"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_package_items_package"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "FK_employee_wallets_user"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "profiles" DROP CONSTRAINT IF EXISTS "FK_profiles_user"`,
-    );
+    await queryRunner.query(`ALTER TABLE "attachments" DROP CONSTRAINT IF EXISTS "FK_attachments_task"`);
+    await queryRunner.query(`ALTER TABLE "attachments" DROP CONSTRAINT IF EXISTS "FK_attachments_booking"`);
+    await queryRunner.query(`ALTER TABLE "refresh_tokens" DROP CONSTRAINT IF EXISTS "FK_refresh_tokens_user"`);
+    await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_tasks_user"`);
+    await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_tasks_task_type"`);
+    await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_tasks_booking"`);
+    await queryRunner.query(`ALTER TABLE "bookings" DROP CONSTRAINT IF EXISTS "FK_bookings_package"`);
+    await queryRunner.query(`ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_package_items_task_type"`);
+    await queryRunner.query(`ALTER TABLE "package_items" DROP CONSTRAINT IF EXISTS "FK_package_items_package"`);
+    await queryRunner.query(`ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "FK_employee_wallets_user"`);
+    await queryRunner.query(`ALTER TABLE "profiles" DROP CONSTRAINT IF EXISTS "FK_profiles_user"`);
 
     // Drop tables in reverse order
     await queryRunner.query(`DROP TABLE IF EXISTS "attachments"`);
@@ -401,17 +379,13 @@ export class InitialSchema1703850000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "tenants"`);
 
     // Drop enums
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "transactions_reference_type_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "transactions_reference_type_enum"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "transactions_type_enum"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "tasks_status_enum"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "bookings_status_enum"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "users_role_enum"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "tenants_status_enum"`);
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "tenants_subscriptionplan_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "tenants_subscriptionplan_enum"`);
 
     // Note: uuid-ossp is usually not dropped to avoid affecting other schemas using it
   }

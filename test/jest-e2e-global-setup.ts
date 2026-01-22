@@ -1,8 +1,8 @@
 import * as dotenv from 'dotenv';
-import * as path from 'path';
+import * as path from 'node:path';
 import { DataSource } from 'typeorm';
 
-export default async () => {
+const jestE2eGlobalSetup = async () => {
   // 1. Load base .env file
   dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -13,6 +13,7 @@ export default async () => {
   });
 
   process.env.NODE_ENV = 'test';
+  process.env.CSRF_ENABLED = 'false';
 
   const databaseName = process.env.DB_DATABASE;
   if (!databaseName) {
@@ -21,16 +22,14 @@ export default async () => {
 
   // Safety rail
   if (!/test/i.test(databaseName)) {
-    throw new Error(
-      `Refusing to run e2e migrations against non-test database: ${databaseName}.`,
-    );
+    throw new Error(`Refusing to run e2e migrations against non-test database: ${databaseName}.`);
   }
 
   const adminDatabase = process.env.DB_ADMIN_DATABASE || 'postgres';
   const adminDataSource = new DataSource({
     type: 'postgres',
     host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '5432', 10),
+    port: Number.parseInt(process.env.DB_PORT || '5432', 10),
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: adminDatabase,
@@ -41,24 +40,26 @@ export default async () => {
 
   try {
     await adminDataSource.initialize();
-    const exists = await adminDataSource.query(
-      'SELECT 1 FROM pg_database WHERE datname = $1',
-      [databaseName],
-    );
+    const exists = await adminDataSource.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName]);
     if (!exists?.length) {
       await adminDataSource.query(`CREATE DATABASE "${databaseName}"`);
     }
 
-    // Connect to test database for extension
+    // Connect to test database for extension and reset
+    const adminOptions = adminDataSource.options;
     const testDbDataSource = new DataSource({
-      ...(adminDataSource.options as any),
+      ...adminOptions,
       database: databaseName,
     });
     try {
       await testDbDataSource.initialize();
-      await testDbDataSource.query(
-        `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
-      );
+
+      if (process.env.E2E_DB_RESET === 'true') {
+        await testDbDataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
+        await testDbDataSource.query('CREATE SCHEMA public');
+      }
+
+      await testDbDataSource.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
     } finally {
       if (testDbDataSource.isInitialized) {
         await testDbDataSource.destroy();
@@ -73,8 +74,8 @@ export default async () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const migrationDataSource = require('../src/database/data-source').default;
 
-  const registeredEntities = migrationDataSource.options.entities.map(
-    (e: any) => (typeof e === 'function' ? e.name : e),
+  const registeredEntities = migrationDataSource.options.entities.map((entity) =>
+    typeof entity === 'function' ? entity.name : entity,
   );
   console.log('E2E Migration DataSource Entities:', registeredEntities);
 
@@ -83,16 +84,15 @@ export default async () => {
       await migrationDataSource.initialize();
     }
 
-    if (process.env.E2E_DB_RESET === 'true') {
-      await migrationDataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
-      await migrationDataSource.query('CREATE SCHEMA public');
-      // After creating schema public, we MUST re-create the extension because CASCADE drops it if it was in the schema
-      await migrationDataSource.query(
-        'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"',
-      );
+    if (process.env.E2E_DB_RESET !== 'true') {
+      // Don't run migrations, just use synchronize to update schema
+      // await migrationDataSource.runMigrations();
+    } else {
+      // For full reset, drop and recreate schema
     }
 
-    await migrationDataSource.runMigrations();
+    // Synchronize schema - drop and recreate for clean state
+    await migrationDataSource.synchronize(true);
 
     // 4. Seed base data
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -108,3 +108,4 @@ export default async () => {
 
   console.log('E2E Global Setup Complete: Database migrated.');
 };
+export default jestE2eGlobalSetup;

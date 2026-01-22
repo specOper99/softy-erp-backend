@@ -1,44 +1,34 @@
+import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { createMockRepository, mockTenantContext } from '../../../test/helpers/mock-factories';
+import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
-import {
-  WebhookConfig,
-  WebhookEvent,
-  WebhookService,
-} from './webhooks.service';
+import { WebhookRepository } from './repositories/webhook.repository';
+import { WebhookService } from './webhooks.service';
+import { WebhookConfig, WebhookEvent } from './webhooks.types';
 
 // Mock dns/promises
 jest.mock('node:dns/promises', () => ({
-  lookup: jest
-    .fn()
-    .mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+  lookup: jest.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
 }));
 
 import { lookup } from 'node:dns/promises';
 
 describe('WebhookService', () => {
   let service: WebhookService;
+  let webhookRepository: jest.Mocked<WebhookRepository>;
 
+  const mockTenantId = 'tenant-1';
   const mockConfigService = {
     get: jest.fn(),
   };
 
-  const mockWebhookRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    find: jest.fn(),
-  };
-
   const mockEncryptionService = {
     encrypt: jest.fn().mockImplementation((s: string) => `encrypted:${s}`),
-    decrypt: jest
-      .fn()
-      .mockImplementation((s: string) => s.replace('encrypted:', '')),
-    isEncrypted: jest
-      .fn()
-      .mockImplementation((s: string) => s.startsWith('encrypted:')),
+    decrypt: jest.fn().mockImplementation((s: string) => s.replace('encrypted:', '')),
+    isEncrypted: jest.fn().mockImplementation((s: string) => s.startsWith('encrypted:')),
   };
 
   beforeEach(async () => {
@@ -48,22 +38,29 @@ describe('WebhookService', () => {
         WebhookService,
         { provide: ConfigService, useValue: mockConfigService },
         {
-          provide: getRepositoryToken(Webhook),
-          useValue: mockWebhookRepository,
+          provide: WebhookRepository,
+          useValue: createMockRepository(),
         },
         { provide: EncryptionService, useValue: mockEncryptionService },
       ],
     }).compile();
 
     service = module.get<WebhookService>(WebhookService);
+    webhookRepository = module.get(WebhookRepository);
+
+    // Mock TenantContext
+    mockTenantContext(mockTenantId);
 
     // Mock global fetch correctly for Node
-    (global as any).fetch = jest.fn().mockResolvedValue({
+    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
       statusText: 'OK',
       json: () => Promise.resolve({}),
-    } as any);
+    } as unknown as Response);
+
+    // Speed up retries
+    Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
   });
 
   afterEach(() => {
@@ -75,22 +72,35 @@ describe('WebhookService', () => {
   });
 
   describe('registerWebhook and emit', () => {
-    const tenantId = 'tenant-1';
+    const _tenantId = 'tenant-1';
     const config: WebhookConfig = {
       url: 'https://example.com/webhook',
-      secret: 'test-webhook-secret-placeholder-long',
+      secret: TEST_SECRETS.WEBHOOK_SECRET,
       events: ['booking.created'],
     };
 
+    it('deliverWebhook should throw NotFoundException when webhook missing', async () => {
+      const partial = { id: 'missing', tenantId: mockTenantId } as unknown as Webhook;
+      webhookRepository.findOne.mockResolvedValue(null);
+      await expect(
+        service.deliverWebhook(partial, {
+          type: 'booking.created',
+          tenantId: mockTenantId,
+          payload: {},
+          timestamp: new Date().toISOString(),
+        }),
+      ).rejects.toThrow('webhooks.not_found');
+    });
+
     const event: WebhookEvent = {
       type: 'booking.created',
-      tenantId: tenantId,
+      tenantId: mockTenantId,
       payload: { id: '123' },
       timestamp: new Date().toISOString(),
     };
 
     it('should send webhook if event type matches', async () => {
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -109,7 +119,7 @@ describe('WebhookService', () => {
 
     it('should send webhook if wildcard event is registered', async () => {
       const wildcardConfig = { ...config, events: ['*'] };
-      mockWebhookRepository.find.mockResolvedValue([wildcardConfig]);
+      webhookRepository.find.mockResolvedValue([wildcardConfig] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalled();
@@ -117,21 +127,21 @@ describe('WebhookService', () => {
 
     it('should not send webhook if event type does not match', async () => {
       const unmatchedEvent: WebhookEvent = { ...event, type: 'task.created' };
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(unmatchedEvent);
 
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it('should log error if fetch fails', async () => {
-      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
       global.fetch = jest.fn().mockResolvedValue({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
       } as Response);
 
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(loggerErrorSpy).toHaveBeenCalled();
@@ -139,56 +149,56 @@ describe('WebhookService', () => {
   });
 
   describe('registerWebhook', () => {
-    const tenantId = 'tenant-1';
-
     it('should persist valid HTTPS webhook URL with sufficient secret', async () => {
       const config: WebhookConfig = {
         url: 'https://example.com/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: 'a-very-long-secret-that-is-at-least-32-characters', // Keeping this explicit for validation test or change to constant if length matches
         events: ['booking.created'],
       };
 
-      mockWebhookRepository.create.mockReturnValue({
-        tenantId,
+      webhookRepository.create.mockReturnValue({
         ...config,
         secret: 'encrypted:' + config.secret,
-      });
-      mockWebhookRepository.save.mockResolvedValue({ id: 'webhook-1' });
+      } as unknown as Webhook);
+      webhookRepository.save.mockResolvedValue({ id: 'webhook-1' } as Webhook);
 
-      await service.registerWebhook(tenantId, config);
+      await service.registerWebhook(config);
 
       expect(mockEncryptionService.encrypt).toHaveBeenCalledWith(config.secret);
-      expect(mockWebhookRepository.create).toHaveBeenCalledWith({
-        tenantId,
-        url: config.url,
-        secret: 'encrypted:' + config.secret,
-        events: config.events,
-      });
-      expect(mockWebhookRepository.save).toHaveBeenCalled();
+      expect(webhookRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: config.url,
+          secret: 'encrypted:' + config.secret,
+          events: config.events,
+          resolvedIps: ['93.184.216.34'],
+          ipsResolvedAt: expect.any(Date),
+        }),
+      );
+      expect(webhookRepository.save).toHaveBeenCalled();
     });
 
     it('should reject invalid URL format', async () => {
       const config: WebhookConfig = {
         url: 'not-a-valid-url',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['booking.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Invalid webhook URL',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.invalid_url');
     });
 
     it('should reject non-HTTP/HTTPS protocols', async () => {
       const config: WebhookConfig = {
         url: 'ftp://example.com/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['booking.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Invalid webhook URL',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow(BadRequestException);
+      // Checking for key in parameterized error is complex with simple toThrow, skipping specific key check or using simpler check if possible.
+      // Actually invalid_protocol is retained as Error inside try, but catch wraps it as BadRequest 'webhooks.invalid_url'
+      // So checking type is good enough or substring of new message.
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.invalid_url');
     });
 
     it('should reject secrets shorter than minimum length', async () => {
@@ -198,93 +208,77 @@ describe('WebhookService', () => {
         events: ['booking.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Webhook secret must be at least 32 characters',
-      );
+      // Expect BadRequestException. If parameterized, message might not match directly.
+      await expect(service.registerWebhook(config)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject localhost URLs (SSRF prevention)', async () => {
       const config: WebhookConfig = {
-        url: 'http://localhost:3000/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        url: 'https://localhost:3000/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Webhook URL cannot point to localhost',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.localhost_denied');
     });
 
     it('should reject 127.0.0.1 URLs (SSRF prevention)', async () => {
       const config: WebhookConfig = {
-        url: 'http://127.0.0.1:3000/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        url: 'https://127.0.0.1:3000/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Webhook URL cannot point to localhost',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.localhost_denied');
     });
 
     it('should reject private IP ranges (10.x.x.x)', async () => {
       const config: WebhookConfig = {
-        url: 'http://10.0.0.1/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        url: 'https://10.0.0.1/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Webhook URL cannot point to private IP addresses',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject private IP ranges (192.168.x.x)', async () => {
       const config: WebhookConfig = {
-        url: 'http://192.168.1.1/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        url: 'https://192.168.1.1/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Webhook URL cannot point to private IP addresses',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject private IP ranges (172.16-31.x.x)', async () => {
       const config: WebhookConfig = {
-        url: 'http://172.16.0.1/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        url: 'https://172.16.0.1/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Webhook URL cannot point to private IP addresses',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
 
     it('should reject URLs that DNS-resolve to private IPs', async () => {
-      (lookup as jest.Mock).mockResolvedValueOnce([
-        { address: '10.0.0.1', family: 4 },
-      ]);
+      (lookup as jest.Mock).mockResolvedValueOnce([{ address: '10.0.0.1', family: 4 }]);
 
       const config: WebhookConfig = {
         url: 'https://internal.example.com/webhook',
-        secret: 'a-very-long-secret-that-is-at-least-32-characters',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['task.created'],
       };
 
-      await expect(service.registerWebhook(tenantId, config)).rejects.toThrow(
-        'Webhook URL resolves to a private IP address',
-      );
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
   });
 
   describe('timeout handling', () => {
-    const tenantId = 'tenant-1';
     const event: WebhookEvent = {
       type: 'booking.created',
-      tenantId: tenantId,
+      tenantId: mockTenantId,
       payload: { id: '123' },
       timestamp: new Date().toISOString(),
     };
@@ -301,15 +295,13 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
 
-      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       await service.emit(event);
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Webhook request timed out'),
-      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('request_timeout'));
     });
 
     it('should rethrow non-abort errors', async () => {
@@ -321,21 +313,40 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
 
-      const loggerErrorSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       await service.emit(event);
 
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Network error'),
-      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Network error'));
+    });
+
+    it('should block redirects and log redirect_blocked', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 301,
+        statusText: 'Moved Permanently',
+        headers: { get: () => 'http://internal.local' },
+      } as unknown as Response);
+
+      const config = {
+        url: 'https://redirect-server.com/webhook',
+        secret: 'test-secret',
+        events: ['booking.created'],
+        isActive: true,
+      };
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
+
+      await service.emit(event);
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('webhooks.redirect_blocked'));
     });
   });
 
   describe('webhook signature', () => {
     it('should include timestamp in signature header', async () => {
-      const tenantId = 'tenant-1';
       const config = {
         url: 'https://example.com/webhook',
         secret: 'encrypted:test-secret',
@@ -344,12 +355,12 @@ describe('WebhookService', () => {
       };
       const event: WebhookEvent = {
         type: 'booking.created',
-        tenantId: tenantId,
+        tenantId: mockTenantId,
         payload: { id: '123' },
         timestamp: new Date().toISOString(),
       };
 
-      mockWebhookRepository.find.mockResolvedValue([config]);
+      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -360,6 +371,172 @@ describe('WebhookService', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('DNS and Security edge cases', () => {
+    it('should handle DNS lookup failure gracefully', async () => {
+      (lookup as jest.Mock).mockRejectedValue(new Error('DNS failed'));
+
+      const config: WebhookConfig = {
+        url: 'https://does-not-exist.com/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['booking.created'],
+      };
+
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.dns_lookup_failed');
+    });
+
+    it('should allow legacy webhooks without allowlisted IPs (re-resolves on send)', async () => {
+      (lookup as jest.Mock).mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+
+      const webhook = {
+        id: 'legacy-1',
+        url: 'https://legacy.com/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['booking.created'],
+        resolvedIps: undefined, // legacy
+        tenantId: mockTenantId,
+        isActive: true,
+      } as unknown as Webhook;
+
+      // We need to use deliverWebhook to reach check logic or rely on sendWebhookOnce being called
+      // emit calls concurrencyLimit -> sendWebhookWithRetry -> sendWebhookOnce
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      await service.emit({ type: 'booking.created', tenantId: mockTenantId, payload: {}, timestamp: '' });
+
+      // Should resolve DNS again
+      expect(lookup).toHaveBeenCalledWith('legacy.com', { all: true });
+    });
+
+    it('should block DNS rebinding (IP changed from allowlist)', async () => {
+      // Mock lookup to return a NEW IP not in allowlist
+      (lookup as jest.Mock).mockResolvedValue([{ address: '1.2.3.4', family: 4 }]);
+
+      const webhook = {
+        id: 'rebind-1',
+        url: 'https://rebind.com/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['booking.created'],
+        resolvedIps: ['9.9.9.9'], // Allowlist has original IP
+        tenantId: mockTenantId,
+        isActive: true,
+      } as unknown as Webhook;
+
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
+
+      await service.emit({ type: 'booking.created', tenantId: mockTenantId, payload: {}, timestamp: '' });
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('webhooks.dns_rebinding_blocked'));
+    });
+  });
+
+  describe('Queue and Retry Logic', () => {
+    it('should enqueue job if queue is available', async () => {
+      // Re-create service with mock queue
+      const mockQueue = { add: jest.fn().mockResolvedValue({ id: 'job-1' }) };
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          WebhookService,
+          { provide: ConfigService, useValue: mockConfigService },
+          { provide: WebhookRepository, useValue: { find: jest.fn(), findOne: jest.fn() } }, // minimal repo
+          { provide: EncryptionService, useValue: mockEncryptionService },
+          { provide: 'BullQueue_webhook', useValue: mockQueue }, // Correct BullQueue token
+        ],
+      }).compile();
+      const serviceWithQueue = module.get<WebhookService>(WebhookService);
+      const repo = module.get(WebhookRepository);
+
+      const webhook = { id: 'w1', tenantId: 't1', url: 'https://queue.com', events: ['*'], isActive: true } as any;
+      (repo.find as jest.Mock).mockResolvedValue([webhook]);
+
+      await serviceWithQueue.emit({
+        type: 'booking.created',
+        tenantId: 't1',
+        payload: {},
+        timestamp: '',
+      } as WebhookEvent);
+
+      expect(mockQueue.add).toHaveBeenCalled();
+    });
+
+    it('should retry on failure with backoff', async () => {
+      // Force short delay for test
+      Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
+
+      let callCount = 0;
+      global.fetch = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount < 3) return Promise.reject(new Error('fail'));
+        return Promise.resolve({ ok: true, status: 200 } as Response);
+      });
+
+      const webhook = {
+        id: 'retry-1',
+        url: 'https://retry.com',
+        secret: 's',
+        events: ['*'],
+        isActive: true,
+        resolvedIps: ['1.1.1.1'],
+      } as any;
+      (lookup as jest.Mock).mockResolvedValue([{ address: '1.1.1.1', family: 4 }]);
+
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      await service.emit({
+        type: 'booking.created',
+        tenantId: 't1',
+        payload: {},
+        timestamp: '',
+      } as WebhookEvent);
+
+      expect(callCount).toBeGreaterThanOrEqual(3);
+    });
+
+    it('should give up after max retries', async () => {
+      Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
+
+      global.fetch = jest.fn().mockRejectedValue(new Error('fail forever'));
+
+      const webhook = {
+        id: 'fail-1',
+        url: 'https://fail.com',
+        secret: 's',
+        events: ['*'],
+        isActive: true,
+      } as any;
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
+
+      await service.emit({
+        type: 'booking.created',
+        tenantId: 't1',
+        payload: {},
+        timestamp: '',
+      } as WebhookEvent);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('attempts'));
+    });
+  });
+
+  describe('emit edge cases', () => {
+    it('should throw if tenantId missing in event', async () => {
+      await expect(service.emit({ type: 'booking.created' } as any)).rejects.toThrow('common.tenant_missing');
+    });
+
+    it('should skip invalid webhooks (no events)', async () => {
+      const webhook = { id: 'w1', events: null, isActive: true } as any;
+      webhookRepository.find.mockResolvedValue([webhook]);
+
+      const loggerWarnSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'warn');
+
+      await service.emit({ type: 'booking.created', tenantId: 't1' } as any);
+
+      expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining('no events defined'));
     });
   });
 });

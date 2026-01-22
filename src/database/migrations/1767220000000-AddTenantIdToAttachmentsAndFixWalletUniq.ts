@@ -5,32 +5,20 @@ export class AddTenantIdToAttachmentsAndFixWalletUniq1767220000000 implements Mi
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Attachments: add tenant_id for tenant scoping
-    const hasAttachmentsTenantId = await queryRunner.hasColumn(
-      'attachments',
-      'tenant_id',
-    );
+    const hasAttachmentsTenantId = await queryRunner.hasColumn('attachments', 'tenant_id');
     if (!hasAttachmentsTenantId) {
       await queryRunner.query(`ALTER TABLE "attachments" ADD "tenant_id" uuid`);
     } else {
       const typeRowsUnknown: unknown = await queryRunner.query(
         `SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'attachments' AND column_name = 'tenant_id'`,
       );
-      const typeRows = Array.isArray(typeRowsUnknown)
-        ? (typeRowsUnknown as Array<{ data_type?: unknown }>)
-        : [];
-      const dataType =
-        typeof typeRows?.[0]?.data_type === 'string'
-          ? typeRows[0].data_type
-          : undefined;
+      const typeRows = Array.isArray(typeRowsUnknown) ? (typeRowsUnknown as Array<{ data_type?: unknown }>) : [];
+      const dataType = typeof typeRows?.[0]?.data_type === 'string' ? typeRows[0].data_type : undefined;
       if (dataType && dataType !== 'uuid') {
-        await queryRunner.query(
-          `ALTER TABLE "attachments" ALTER COLUMN "tenant_id" TYPE uuid USING "tenant_id"::uuid`,
-        );
+        await queryRunner.query(`ALTER TABLE "attachments" ALTER COLUMN "tenant_id" TYPE uuid USING "tenant_id"::uuid`);
       }
     }
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_attachments_tenant" ON "attachments" ("tenant_id")`,
-    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_attachments_tenant" ON "attachments" ("tenant_id")`);
 
     // Best-effort backfill from linked booking/task
     await queryRunner.query(`
@@ -64,27 +52,19 @@ export class AddTenantIdToAttachmentsAndFixWalletUniq1767220000000 implements Mi
     `);
 
     // Employee wallets: change uniqueness from global user_id to (tenant_id, user_id)
-    await queryRunner.query(
-      `ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "UQ_employee_wallets_user"`,
-    );
+    await queryRunner.query(`ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "UQ_employee_wallets_user"`);
     await queryRunner.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_employee_wallets_tenant_user" ON "employee_wallets" ("tenant_id", "user_id")`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_employee_wallets_tenant_user"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_employee_wallets_tenant_user"`);
     await queryRunner.query(
       `ALTER TABLE "employee_wallets" ADD CONSTRAINT "UQ_employee_wallets_user" UNIQUE ("user_id")`,
     );
 
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_attachments_tenant"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "attachments" DROP COLUMN "tenant_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_attachments_tenant"`);
+    await queryRunner.query(`ALTER TABLE "attachments" DROP COLUMN "tenant_id"`);
   }
 }

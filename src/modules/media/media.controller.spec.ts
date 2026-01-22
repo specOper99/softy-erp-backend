@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtAuthGuard } from '../auth/guards';
-import { CreateAttachmentDto, PresignedUploadDto } from './dto/media.dto';
+import { ConfirmUploadDto, CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto/media.dto';
+import { Attachment } from './entities/attachment.entity';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
 
@@ -76,7 +77,7 @@ describe('MediaController', () => {
         mimetype: 'image/png',
         size: 100,
       } as Express.Multer.File;
-      const dto: any = {}; // Empty DTO
+      const dto: CreateAttachmentDto = {}; // Empty DTO
       const expectedResult = { id: 'file-id', url: 'http://url' };
 
       mockMediaService.uploadFile.mockResolvedValue(expectedResult);
@@ -106,12 +107,7 @@ describe('MediaController', () => {
 
       const result = await controller.getPresignedUploadUrl(dto);
 
-      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith(
-        dto.filename,
-        dto.mimeType,
-        undefined,
-        undefined,
-      );
+      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith(dto.filename, dto.mimeType, undefined, undefined);
       expect(result).toBe(expectedResult);
     });
 
@@ -124,21 +120,16 @@ describe('MediaController', () => {
       };
       mockMediaService.getPresignedUploadUrl.mockResolvedValue({});
       await controller.getPresignedUploadUrl(dto);
-      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith(
-        'test.png',
-        'image/png',
-        'b-1',
-        't-1',
-      );
+      expect(service.getPresignedUploadUrl).toHaveBeenCalledWith('test.png', 'image/png', 'b-1', 't-1');
     });
   });
 
   describe('confirmUpload', () => {
     it('should return confirmed attachment', async () => {
-      const mockAttachment = { id: 'file-id', size: 1000 } as any;
+      const mockAttachment = { id: 'file-id', size: 1000 } as unknown as Attachment;
       mockMediaService.confirmUpload.mockResolvedValue(mockAttachment);
 
-      const result = await controller.confirmUpload('file-id', 1000);
+      const result = await controller.confirmUpload('file-id', { size: 1000 } as ConfirmUploadDto);
 
       expect(service.confirmUpload).toHaveBeenCalledWith('file-id', 1000);
       expect(result).toBe(mockAttachment);
@@ -147,8 +138,8 @@ describe('MediaController', () => {
 
   describe('create', () => {
     it('should create attachment link', async () => {
-      const data = { url: 'http://external' };
-      const expectedResult = { id: '1', ...data } as any;
+      const data: LinkAttachmentDto = { url: 'http://external' };
+      const expectedResult = { id: '1', ...data } as unknown as Attachment;
       mockMediaService.create.mockResolvedValue(expectedResult);
 
       const result = await controller.create(data);
@@ -158,9 +149,7 @@ describe('MediaController', () => {
 
     it('should propagate errors', async () => {
       mockMediaService.create.mockRejectedValue(new Error('Create Error'));
-      await expect(controller.create({ url: 'http://u' })).rejects.toThrow(
-        'Create Error',
-      );
+      await expect(controller.create({ url: 'http://u' })).rejects.toThrow('Create Error');
     });
   });
 
@@ -204,12 +193,8 @@ describe('MediaController', () => {
     });
 
     it('should propagate errors', async () => {
-      mockMediaService.getDownloadUrl.mockRejectedValue(
-        new Error('Download Error'),
-      );
-      await expect(controller.getDownloadUrl('1')).rejects.toThrow(
-        'Download Error',
-      );
+      mockMediaService.getDownloadUrl.mockRejectedValue(new Error('Download Error'));
+      await expect(controller.getDownloadUrl('1')).rejects.toThrow('Download Error');
     });
   });
 
@@ -223,12 +208,8 @@ describe('MediaController', () => {
     });
 
     it('should propagate errors', async () => {
-      mockMediaService.findByBooking.mockRejectedValue(
-        new Error('Booking Error'),
-      );
-      await expect(controller.findByBooking('1')).rejects.toThrow(
-        'Booking Error',
-      );
+      mockMediaService.findByBooking.mockRejectedValue(new Error('Booking Error'));
+      await expect(controller.findByBooking('1')).rejects.toThrow('Booking Error');
     });
   });
 
@@ -265,7 +246,7 @@ describe('MediaController', () => {
       // Simulate Multer not passing a file (though ParseFilePipe prevents this in real world)
       // This hits potential default parameter branches in transpiled code
       try {
-        await controller.uploadFile(undefined as any, {} as any);
+        await controller.uploadFile(undefined as unknown as Express.Multer.File, {} as CreateAttachmentDto);
       } catch {
         // Expected error
       }
@@ -280,7 +261,7 @@ describe('MediaController', () => {
       } as Express.Multer.File;
 
       try {
-        await controller.uploadFile(file, undefined as any);
+        await controller.uploadFile(file, undefined as unknown as CreateAttachmentDto);
       } catch {
         // Expected error
       }
@@ -288,7 +269,7 @@ describe('MediaController', () => {
 
     it('should handle undefined dto in getPresignedUploadUrl', async () => {
       try {
-        await controller.getPresignedUploadUrl(undefined as any);
+        await controller.getPresignedUploadUrl(undefined as unknown as PresignedUploadDto);
       } catch {
         // Expected error
       }
@@ -296,7 +277,7 @@ describe('MediaController', () => {
 
     it('should handle undefined args in confirmUpload', async () => {
       try {
-        await controller.confirmUpload(undefined as any, undefined as any);
+        await controller.confirmUpload(undefined as unknown as string, undefined as unknown as ConfirmUploadDto);
       } catch {
         // Expected error
       }
@@ -304,7 +285,7 @@ describe('MediaController', () => {
 
     it('should handle undefined dto in create', async () => {
       try {
-        await controller.create(undefined as any);
+        await controller.create(undefined as unknown as LinkAttachmentDto);
       } catch {
         // Expected error
       }
@@ -312,7 +293,7 @@ describe('MediaController', () => {
 
     it('should handle undefined id in findOne', async () => {
       try {
-        await controller.findOne(undefined as any);
+        await controller.findOne(undefined as unknown as string);
       } catch {
         // Expected error
       }
@@ -320,7 +301,7 @@ describe('MediaController', () => {
 
     it('should handle undefined id in getDownloadUrl', async () => {
       try {
-        await controller.getDownloadUrl(undefined as any);
+        await controller.getDownloadUrl(undefined as unknown as string);
       } catch {
         // Expected error
       }
@@ -328,7 +309,7 @@ describe('MediaController', () => {
 
     it('should handle undefined id in findByBooking', async () => {
       try {
-        await controller.findByBooking(undefined as any);
+        await controller.findByBooking(undefined as unknown as string);
       } catch {
         // Expected error
       }
@@ -336,7 +317,7 @@ describe('MediaController', () => {
 
     it('should handle undefined id in findByTask', async () => {
       try {
-        await controller.findByTask(undefined as any);
+        await controller.findByTask(undefined as unknown as string);
       } catch {
         // Expected error
       }
@@ -344,7 +325,7 @@ describe('MediaController', () => {
 
     it('should handle undefined id in remove', async () => {
       try {
-        await controller.remove(undefined as any);
+        await controller.remove(undefined as unknown as string);
       } catch {
         // Expected error
       }

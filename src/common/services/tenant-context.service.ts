@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**
@@ -13,5 +14,13 @@ export class TenantContextService {
 
   static getTenantId(): string | undefined {
     return this.storage.getStore();
+  }
+
+  static getTenantIdOrThrow(): string {
+    const tenantId = this.getTenantId();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context missing');
+    }
+    return tenantId;
   }
 }

@@ -3,68 +3,49 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterface {
   name = 'EnforceTenantIdUuidNotNull1767300000000';
 
-  private readonly uuidRegex =
-    '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+  private readonly uuidRegex = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
-  private async getTenantIdDataType(
-    queryRunner: QueryRunner,
-    table: string,
-  ): Promise<string | undefined> {
+  /**
+   * Parses query result rows to extract count value.
+   * Reusable helper to eliminate duplication in count queries.
+   */
+  private parseCountResult(rowsUnknown: unknown): number {
+    const rows = Array.isArray(rowsUnknown) ? (rowsUnknown as Array<{ count?: unknown }>) : [];
+    const countText = rows?.[0]?.count;
+    return typeof countText === 'string' ? Number(countText) : 0;
+  }
+
+  private async getTenantIdDataType(queryRunner: QueryRunner, table: string): Promise<string | undefined> {
     const rowsUnknown: unknown = await queryRunner.query(
       `SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'tenant_id'`,
       [table],
     );
 
-    const rows = Array.isArray(rowsUnknown)
-      ? (rowsUnknown as Array<{ data_type?: unknown }>)
-      : [];
-    return typeof rows?.[0]?.data_type === 'string'
-      ? rows[0].data_type
-      : undefined;
+    const rows = Array.isArray(rowsUnknown) ? (rowsUnknown as Array<{ data_type?: unknown }>) : [];
+    return typeof rows?.[0]?.data_type === 'string' ? rows[0].data_type : undefined;
   }
 
-  private async assertNoNullTenantId(
-    queryRunner: QueryRunner,
-    table: string,
-  ): Promise<void> {
+  private async assertNoNullTenantId(queryRunner: QueryRunner, table: string): Promise<void> {
     const rowsUnknown: unknown = await queryRunner.query(
       `SELECT COUNT(*)::text as count FROM "${table}" WHERE "tenant_id" IS NULL`,
     );
-    const rows = Array.isArray(rowsUnknown)
-      ? (rowsUnknown as Array<{ count?: unknown }>)
-      : [];
-    const countText = rows?.[0]?.count;
-    const count = typeof countText === 'string' ? Number(countText) : 0;
+    const count = this.parseCountResult(rowsUnknown);
     if (count > 0) {
-      throw new Error(
-        `Cannot enforce tenant ownership: ${table}.tenant_id has ${count} NULL rows`,
-      );
+      throw new Error(`Cannot enforce tenant ownership: ${table}.tenant_id has ${count} NULL rows`);
     }
   }
 
-  private async assertNoInvalidTenantId(
-    queryRunner: QueryRunner,
-    table: string,
-  ): Promise<void> {
+  private async assertNoInvalidTenantId(queryRunner: QueryRunner, table: string): Promise<void> {
     const rowsUnknown: unknown = await queryRunner.query(
       `SELECT COUNT(*)::text as count FROM "${table}" WHERE "tenant_id" IS NOT NULL AND ("tenant_id"::text) !~* '${this.uuidRegex}'`,
     );
-    const rows = Array.isArray(rowsUnknown)
-      ? (rowsUnknown as Array<{ count?: unknown }>)
-      : [];
-    const countText = rows?.[0]?.count;
-    const count = typeof countText === 'string' ? Number(countText) : 0;
+    const count = this.parseCountResult(rowsUnknown);
     if (count > 0) {
-      throw new Error(
-        `Cannot convert ${table}.tenant_id to uuid: ${count} rows are not valid UUIDs`,
-      );
+      throw new Error(`Cannot convert ${table}.tenant_id to uuid: ${count} rows are not valid UUIDs`);
     }
   }
 
-  private async ensureTenantIdUuidNotNull(
-    queryRunner: QueryRunner,
-    table: string,
-  ): Promise<void> {
+  private async ensureTenantIdUuidNotNull(queryRunner: QueryRunner, table: string): Promise<void> {
     const hasTenantId = await queryRunner.hasColumn(table, 'tenant_id');
     if (!hasTenantId) {
       return;
@@ -77,18 +58,10 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
 
       // For 'users' table: drop dependent composite FKs before type change
       if (table === 'users') {
-        await queryRunner.query(
-          `ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "FK_wallet_user_composite"`,
-        );
-        await queryRunner.query(
-          `ALTER TABLE "profiles" DROP CONSTRAINT IF EXISTS "FK_profile_user_composite"`,
-        );
-        await queryRunner.query(
-          `ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_user_composite"`,
-        );
-        await queryRunner.query(
-          `DROP INDEX IF EXISTS "public"."IDX_user_composite_tenant"`,
-        );
+        await queryRunner.query(`ALTER TABLE "employee_wallets" DROP CONSTRAINT IF EXISTS "FK_wallet_user_composite"`);
+        await queryRunner.query(`ALTER TABLE "profiles" DROP CONSTRAINT IF EXISTS "FK_profile_user_composite"`);
+        await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT IF EXISTS "FK_task_user_composite"`);
+        await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_user_composite_tenant"`);
       }
 
       await queryRunner.query(
@@ -104,9 +77,7 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
     }
 
     await this.assertNoNullTenantId(queryRunner, table);
-    await queryRunner.query(
-      `ALTER TABLE "${table}" ALTER COLUMN "tenant_id" SET NOT NULL`,
-    );
+    await queryRunner.query(`ALTER TABLE "${table}" ALTER COLUMN "tenant_id" SET NOT NULL`);
   }
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -171,12 +142,8 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
     }
 
     // Helpful indexes (idempotent) for newly-enforced tables
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_profiles_tenant" ON "profiles" ("tenant_id")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_attachments_tenant" ON "attachments" ("tenant_id")`,
-    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_profiles_tenant" ON "profiles" ("tenant_id")`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_attachments_tenant" ON "attachments" ("tenant_id")`);
 
     // Recreate composite FK constraints now that all tables have uuid tenant_id
     await queryRunner.query(`
@@ -197,11 +164,7 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Do not attempt to revert normalization, only remove added indexes.
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_profiles_tenant"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "public"."IDX_attachments_tenant"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_profiles_tenant"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_attachments_tenant"`);
   }
 }

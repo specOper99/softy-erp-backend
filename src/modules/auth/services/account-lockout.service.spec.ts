@@ -1,22 +1,19 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMockCacheManager, createMockConfigService } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { AccountLockoutService } from './account-lockout.service';
 
 describe('AccountLockoutService', () => {
   let service: AccountLockoutService;
 
-  const mockCacheService = {
-    get: jest.fn(),
-    set: jest.fn(),
-    del: jest.fn(),
-  };
-
-  const mockConfigService = {
-    get: jest.fn((key, defaultValue) => defaultValue),
-  };
+  let mockCacheService: ReturnType<typeof createMockCacheManager>;
+  let mockConfigService: ReturnType<typeof createMockConfigService>;
 
   beforeEach(async () => {
+    mockCacheService = createMockCacheManager();
+    mockConfigService = createMockConfigService();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AccountLockoutService,
@@ -102,9 +99,7 @@ describe('AccountLockoutService', () => {
   describe('clearAttempts', () => {
     it('should delete keys from cache', async () => {
       await service.clearAttempts('test@test.com');
-      expect(mockCacheService.del).toHaveBeenCalledWith(
-        'lockout:test@test.com',
-      );
+      expect(mockCacheService.del).toHaveBeenCalledWith('lockout:test@test.com');
     });
   });
 });

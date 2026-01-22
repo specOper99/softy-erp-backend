@@ -1,0 +1,7 @@
+jshint:
+  enabled: true
+  config_file: .jshintrc
+
+eslint:
+  enabled: true
+  config_file: eslint.config.mjs

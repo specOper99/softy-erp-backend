@@ -1,14 +1,38 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Request, Response } from 'express';
-import { register } from 'prom-client';
+import { Response } from 'express';
 import { MetricsController } from './metrics.controller';
+import { MetricsService } from './metrics.service';
 
+/**
+ * Note: Auth logic is now handled by MetricsGuard.
+ * See guards/metrics.guard.spec.ts for auth-specific tests.
+ */
 describe('MetricsController', () => {
   let controller: MetricsController;
 
+  const mockMetricsService = {
+    getMetrics: jest.fn().mockResolvedValue('test_metrics'),
+    getContentType: jest.fn().mockReturnValue('text/plain'),
+  };
+
+  const mockConfigService = {
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === 'METRICS_TOKEN') return 'test-token';
+      if (key === 'NODE_ENV') return 'test';
+      return undefined;
+    }),
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MetricsController],
+      providers: [
+        { provide: MetricsService, useValue: mockMetricsService },
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
     }).compile();
 
     controller = module.get<MetricsController>(MetricsController);
@@ -19,116 +43,29 @@ describe('MetricsController', () => {
   });
 
   describe('getMetrics', () => {
-    const originalEnv = process.env;
-
-    afterEach(() => {
-      process.env = originalEnv;
-    });
-
-    it('should return metrics from register', async () => {
+    it('should return metrics from service', async () => {
       const mockRes = {
         set: jest.fn(),
         send: jest.fn(),
       } as unknown as Response;
-
-      const metricsSpy = jest
-        .spyOn(register, 'metrics')
-        .mockResolvedValue('test_metrics');
 
       await controller.getMetrics(mockRes);
 
-      expect(mockRes.set).toHaveBeenCalledWith(
-        'Content-Type',
-        expect.any(String),
-      );
+      expect(mockRes.set).toHaveBeenCalledWith('Content-Type', 'text/plain');
       expect(mockRes.send).toHaveBeenCalledWith('test_metrics');
-
-      metricsSpy.mockRestore();
     });
 
-    it('should return 401 when METRICS_TOKEN is set and auth is missing', async () => {
-      process.env = { ...originalEnv, NODE_ENV: 'test', METRICS_TOKEN: 'abc' };
+    it('should handle errors from service.getMetrics', async () => {
+      mockMetricsService.getMetrics.mockRejectedValue(new Error('Metrics Error'));
 
-      const mockRes = {
-        set: jest.fn(),
-        send: jest.fn(),
-        status: jest.fn().mockReturnThis(),
-      } as unknown as Response;
-
-      const mockReq = {
-        headers: {},
-      } as unknown as Request;
-
-      await controller.getMetrics(mockRes, mockReq);
-
-      expect(mockRes.status).toHaveBeenCalledWith(401);
-      expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
-    });
-
-    it('should return 401 when METRICS_TOKEN is set and auth is wrong', async () => {
-      process.env = { ...originalEnv, NODE_ENV: 'test', METRICS_TOKEN: 'abc' };
-
-      const mockRes = {
-        set: jest.fn(),
-        send: jest.fn(),
-        status: jest.fn().mockReturnThis(),
-      } as unknown as Response;
-
-      const mockReq = {
-        headers: { authorization: 'Bearer wrong' },
-      } as unknown as Request;
-
-      await controller.getMetrics(mockRes, mockReq);
-
-      expect(mockRes.status).toHaveBeenCalledWith(401);
-      expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
-    });
-
-    it('should return metrics when METRICS_TOKEN is set and auth is correct', async () => {
-      process.env = { ...originalEnv, NODE_ENV: 'test', METRICS_TOKEN: 'abc' };
-
-      const mockRes = {
-        set: jest.fn(),
-        send: jest.fn(),
-        status: jest.fn().mockReturnThis(),
-      } as unknown as Response;
-
-      const mockReq = {
-        headers: { authorization: 'Bearer abc' },
-      } as unknown as Request;
-
-      const metricsSpy = jest
-        .spyOn(register, 'metrics')
-        .mockResolvedValue('test_metrics');
-
-      await controller.getMetrics(mockRes, mockReq);
-
-      expect(mockRes.status).not.toHaveBeenCalled();
-      expect(mockRes.send).toHaveBeenCalledWith('test_metrics');
-
-      metricsSpy.mockRestore();
-    });
-
-    it('should handle errors from register.metrics', async () => {
       const mockRes = {
         set: jest.fn(),
         send: jest.fn(),
       } as unknown as Response;
 
-      const metricsSpy = jest
-        .spyOn(register, 'metrics')
-        .mockRejectedValue(new Error('Metrics Error'));
+      await expect(controller.getMetrics(mockRes)).rejects.toThrow('Metrics Error');
 
-      await expect(controller.getMetrics(mockRes)).rejects.toThrow(
-        'Metrics Error',
-      );
-
-      expect(mockRes.set).toHaveBeenCalledWith(
-        'Content-Type',
-        expect.any(String),
-      );
-
-      metricsSpy.mockRestore();
+      expect(mockRes.set).toHaveBeenCalledWith('Content-Type', 'text/plain');
     });
   });
 

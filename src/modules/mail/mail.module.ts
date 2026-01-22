@@ -4,10 +4,20 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
-import { join } from 'path';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { join } from 'node:path';
+import { EmailTemplatesController } from './controllers/email-templates.controller';
+import { EmailTemplate } from './entities/email-template.entity';
+import { BookingCancelledHandler } from './handlers/booking-cancelled.handler';
 import { BookingConfirmedMailHandler } from './handlers/booking-confirmed.handler';
+import { PaymentReceivedHandler } from './handlers/payment-received.handler';
+import { TaskAssignedHandler } from './handlers/task-assigned.handler';
 import { MailService } from './mail.service';
-import { EMAIL_QUEUE, EmailProcessor } from './processors/email.processor';
+import { EMAIL_QUEUE } from './mail.types';
+import { EmailProcessor } from './processors/email.processor';
+import { MailQueueService } from './services/mail-queue.service';
+import { MailSenderService } from './services/mail-sender.service';
+import { MailTemplateService } from './services/mail-template.service';
 
 @Module({
   imports: [
@@ -31,7 +41,16 @@ import { EMAIL_QUEUE, EmailProcessor } from './processors/email.processor';
         },
         template: {
           dir: join(__dirname, 'templates'),
-          adapter: new HandlebarsAdapter(),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          adapter: new HandlebarsAdapter(undefined, {
+            partials: {
+              dir: join(__dirname, 'templates', 'partials'),
+              options: {
+                strict: true,
+              },
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any),
           options: {
             strict: true,
           },
@@ -42,8 +61,20 @@ import { EMAIL_QUEUE, EmailProcessor } from './processors/email.processor';
       name: EMAIL_QUEUE,
     }),
     CqrsModule,
+    TypeOrmModule.forFeature([EmailTemplate]),
   ],
-  providers: [MailService, EmailProcessor, BookingConfirmedMailHandler],
-  exports: [MailService],
+  controllers: [EmailTemplatesController],
+  providers: [
+    MailTemplateService,
+    MailSenderService,
+    MailQueueService,
+    MailService,
+    EmailProcessor,
+    BookingConfirmedMailHandler,
+    BookingCancelledHandler,
+    PaymentReceivedHandler,
+    TaskAssignedHandler,
+  ],
+  exports: [MailService, MailSenderService, MailQueueService],
 })
 export class MailModule {}

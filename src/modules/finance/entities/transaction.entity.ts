@@ -1,19 +1,21 @@
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { TransactionType } from '../../../common/enums';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Task } from '../../tasks/entities/task.entity';
+import { Currency } from '../enums/currency.enum';
+import { TransactionType } from '../enums/transaction-type.enum';
 import { Payout } from './payout.entity';
+import { TransactionCategory } from './transaction-category.entity';
 
 @Entity('transactions')
 @Check(
   `("booking_id" IS NOT NULL AND "task_id" IS NULL AND "payout_id" IS NULL) OR ` +
     `("booking_id" IS NULL AND "task_id" IS NOT NULL AND "payout_id" IS NULL) OR ` +
-    `("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NOT NULL) OR ` +
-    `("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NULL)`,
+    `("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NOT NULL)`,
 )
 @Index(['tenantId', 'id'], { unique: true })
 @Index(['tenantId', 'transactionDate']) // Optimized for "transactions by date within tenant"
+@Index(['tenantId', 'department']) // Optimized for department-level budget reporting
 export class Transaction extends BaseTenantEntity {
   @Column({
     type: 'enum',
@@ -21,11 +23,34 @@ export class Transaction extends BaseTenantEntity {
   })
   type: TransactionType;
 
+  @Column({
+    type: 'enum',
+    enum: Currency,
+    default: Currency.USD,
+  })
+  currency: Currency;
+
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 6,
+    name: 'exchange_rate',
+    default: 1.0,
+  })
+  exchangeRate: number;
+
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: number;
 
   @Column({ nullable: true })
   category: string;
+
+  @Column({ name: 'category_id', type: 'uuid', nullable: true })
+  categoryId: string | null;
+
+  @Column({ nullable: true })
+  @Index()
+  department: string;
 
   @Column({ name: 'booking_id', type: 'uuid', nullable: true })
   bookingId: string | null;
@@ -43,18 +68,25 @@ export class Transaction extends BaseTenantEntity {
   @Index() // Frequent range queries
   transactionDate: Date;
 
-  @ManyToOne('Booking', { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Booking, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'booking_id' })
   booking: Booking | null;
 
-  @ManyToOne('Task', { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Task, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'task_id' })
   task: Task | null;
 
-  @ManyToOne('Payout', 'transactions', {
+  @ManyToOne(() => Payout, (payout) => payout.transactions, {
     nullable: true,
     onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'payout_id' })
   payout: Payout | null;
+
+  @ManyToOne(() => TransactionCategory, (category) => category.transactions, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'category_id' })
+  categoryRelation: TransactionCategory | null;
 }

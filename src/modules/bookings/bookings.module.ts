@@ -1,26 +1,44 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ServicePackage } from '../catalog/entities/service-package.entity';
+import { CatalogModule } from '../catalog/catalog.module';
 import { FinanceModule } from '../finance/finance.module';
 import { MailModule } from '../mail/mail.module';
-import { BookingsController } from './bookings.controller';
-import { BookingsService } from './bookings.service';
-import { ClientsController } from './clients.controller';
+import { BookingsController } from './controllers/bookings.controller';
+import { ClientsController } from './controllers/clients.controller';
 import { Booking } from './entities/booking.entity';
 import { Client } from './entities/client.entity';
 
+import { ExportService } from '../../common/services/export.service';
 import { AuditModule } from '../audit/audit.module';
+import { DashboardModule } from '../dashboard/dashboard.module';
+import { TenantsModule } from '../tenants/tenants.module';
+import { BookingRepository } from './repositories/booking.repository';
+import { BookingExportService } from './services/booking-export.service';
+import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingWorkflowService } from './services/booking-workflow.service';
+import { BookingsService } from './services/bookings.service';
+import { ClientsService } from './services/clients.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, ServicePackage, Client]),
+    TypeOrmModule.forFeature([Booking, Client]),
     FinanceModule,
+    CatalogModule,
+    TenantsModule,
     MailModule,
     AuditModule,
+    DashboardModule,
   ],
   controllers: [BookingsController, ClientsController],
-  providers: [BookingsService, BookingWorkflowService],
-  exports: [BookingsService],
+  providers: [
+    BookingsService,
+    BookingWorkflowService,
+    BookingStateMachineService,
+    ClientsService,
+    BookingExportService,
+    ExportService,
+    BookingRepository,
+  ],
+  exports: [BookingsService, BookingStateMachineService, ClientsService, BookingExportService, BookingRepository],
 })
 export class BookingsModule {}

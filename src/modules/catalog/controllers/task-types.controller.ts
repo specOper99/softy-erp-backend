@@ -13,9 +13,9 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { Cacheable, Roles } from '../../../common/decorators';
-import { Role } from '../../../common/enums';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { Role } from '../../users/enums/role.enum';
 import { CreateTaskTypeDto, UpdateTaskTypeDto } from '../dto';
 import { CatalogService } from '../services/catalog.service';
 
@@ -51,10 +51,7 @@ export class TaskTypesController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update task type' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateTaskTypeDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTaskTypeDto) {
     return this.catalogService.updateTaskType(id, dto);
   }
 

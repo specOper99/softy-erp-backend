@@ -3,21 +3,30 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EncryptionService } from '../../common/services/encryption.service';
-import { Webhook } from './entities/webhook.entity';
+import { Webhook, WebhookDelivery } from './entities';
 import { BookingConfirmedWebhookHandler } from './handlers/booking-confirmed.handler';
 import { BookingUpdatedWebhookHandler } from './handlers/booking-updated.handler';
 import { TaskCompletedWebhookHandler } from './handlers/task-completed.handler';
-import {
-  WEBHOOK_QUEUE,
-  WebhookProcessor,
-} from './processors/webhook.processor';
+import { WebhookProcessor } from './processors/webhook.processor';
+import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
+import { WebhookRepository } from './repositories/webhook.repository';
 import { WebhookService } from './webhooks.service';
+import { WEBHOOK_QUEUE } from './webhooks.types';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Webhook]),
+    TypeOrmModule.forFeature([Webhook, WebhookDelivery]),
     BullModule.registerQueue({
       name: WEBHOOK_QUEUE,
+      defaultJobOptions: {
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
     }),
     CqrsModule,
   ],
@@ -28,7 +37,9 @@ import { WebhookService } from './webhooks.service';
     BookingConfirmedWebhookHandler,
     BookingUpdatedWebhookHandler,
     TaskCompletedWebhookHandler,
+    WebhookRepository,
+    WebhookDeliveryRepository,
   ],
-  exports: [WebhookService],
+  exports: [WebhookService, WebhookRepository, WebhookDeliveryRepository],
 })
 export class WebhooksModule {}

@@ -20,20 +20,21 @@ npm run start:dev
 
 ## 🔗 Service URLs
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| **API Server** | http://localhost:3000/api/v1 | REST API base |
-| **Swagger Docs** | http://localhost:3000/api/docs | Interactive API documentation (requires `ENABLE_SWAGGER=true`) |
-| **Health Check** | http://localhost:3000/api/v1/health | Full health status |
-| **Liveness Probe** | http://localhost:3000/api/v1/health/live | K8s liveness check |
-| **Readiness Probe** | http://localhost:3000/api/v1/health/ready | K8s readiness check |
-| **Prometheus Metrics** | http://localhost:3000/api/v1/metrics | Prometheus scrape endpoint (token-protected in production) |
-| **MinIO Console** | http://localhost:9001 | Object storage admin (minioadmin/minioadmin) |
-| **Zipkin UI** | http://localhost:9411 | Distributed tracing (optional) |
+| Service                | URL                                       | Description                                                    |
+| ---------------------- | ----------------------------------------- | -------------------------------------------------------------- |
+| **API Server**         | http://localhost:3000/api/v1              | REST API base                                                  |
+| **Swagger Docs**       | http://localhost:3000/api/docs            | Interactive API documentation (requires `ENABLE_SWAGGER=true`) |
+| **Health Check**       | http://localhost:3000/api/v1/health       | Full health status                                             |
+| **Liveness Probe**     | http://localhost:3000/api/v1/health/live  | K8s liveness check                                             |
+| **Readiness Probe**    | http://localhost:3000/api/v1/health/ready | K8s readiness check                                            |
+| **Prometheus Metrics** | http://localhost:3000/api/v1/metrics      | Prometheus scrape endpoint (token-protected in production)     |
+| **MinIO Console**      | http://localhost:9001                     | Object storage admin (minioadmin/minioadmin)                   |
+| **Zipkin UI**          | http://localhost:9411                     | Distributed tracing (optional)                                 |
 
 ## 📦 Features
 
 ### Core Modules
+
 - **Auth** - JWT authentication with refresh tokens
 - **Users** - User management with roles (ADMIN, OPS_MANAGER, FIELD_STAFF)
 - **Bookings** - Client booking management
@@ -43,7 +44,86 @@ npm run start:dev
 - **HR** - Employee profiles and payroll
 - **Media** - File uploads via MinIO/S3
 
+### Database Schema
+
+```mermaid
+erDiagram
+    User ||--o{ Booking : "manages/staffs"
+    User ||--o{ Task : "assigned to"
+    User ||--|| EmployeeWallet : "has"
+    User ||--o| Profile : "has"
+    Client ||--o{ Booking : "requests"
+    Booking ||--o{ Task : "contains"
+    Booking ||--o| Invoice : "generates"
+    Booking ||--o{ Transaction : "related to"
+    Booking }|--|| Package : "includes"
+    Task }|--|| TaskType : "defined by"
+    Invoice ||--o{ Transaction : "paid by"
+    AuditLog }|--|| User : "performed by"
+
+    User {
+        uuid id
+        string email
+        enum role
+        string tenantId
+    }
+    Profile {
+        uuid id
+        string firstName
+        string lastName
+        date hireDate
+    }
+    EmployeeWallet {
+        uuid id
+        decimal pendingBalance
+        decimal payableBalance
+    }
+    Client {
+        uuid id
+        string name
+        string email
+        string tenantId
+    }
+    Booking {
+        uuid id
+        date eventDate
+        enum status
+        string tenantId
+    }
+    Task {
+        uuid id
+        enum status
+        date dueDate
+        string tenantId
+    }
+    Invoice {
+        uuid id
+        decimal amount
+        enum status
+        string tenantId
+    }
+    Transaction {
+        uuid id
+        decimal amount
+        enum type
+        date transactionDate
+    }
+    AuditLog {
+        uuid id
+        string action
+        string entityName
+        string entityId
+    }
+```
+
+### New Features (v1.1)
+
+- **Client Portal** - Magic link authentication for clients to view bookings and profile
+- **Multi-language (i18n)** - Support for English, Arabic, Kurdish, and French
+- **Dashboard Analytics** - KPIs, revenue stats, booking trends, CSV/PDF export
+
 ### Production Infrastructure & Security Hardening
+
 - 🛡️ **Composite FK Constraints** - Database-level tenant isolation enforcing cross-tenant referential integrity.
 - 🛡️ **Helmet Security** - Essential HTTP security headers applied globally.
 - 🛡️ **JWT-Only Auth** - Removed header-based tenant identification; tenant scope derived solely from verified JWTs.
@@ -59,6 +139,8 @@ npm run start:dev
 - ✅ **Secrets Management** - Integrated support for HashiCorp Vault.
 - ✅ **Docker** - Optimized multi-stage production images using `node:alpine`.
 - ✅ **CI/CD** - Automated pipelines for Lint, Test, and Container publishing.
+- ✅ **Payroll Reconciliation** - Automated nightly jobs to reconcile expected vs actual payouts.
+- ✅ **Hardened Metrics** - Prometheus endpoint protected by `METRICS_TOKEN` with a custom Guard.
 
 ### Tenant Context
 
@@ -79,9 +161,17 @@ npm run start:prod         # Start production build
 
 # Testing
 npm run test               # Run unit tests
+npm run test:integration   # Run integration tests with testcontainers
 npm run test:e2e           # Run E2E tests
 npm run test:cov           # Test coverage
-npm run load-test          # Run k6 load tests
+npm run test:integration:cov # Integration test coverage
+
+# Performance Testing
+npm run test:load:auth     # Load test authentication flow
+npm run test:load:booking  # Load test booking workflow
+npm run test:load:finance  # Load test finance operations
+npm run test:load:stress   # Stress test (500 concurrent users)
+npm run test:load:all      # Run all load tests
 
 # Database
 npm run seed               # Seed database with sample data
@@ -95,187 +185,160 @@ npm run format             # Format code with Prettier
 npm run lint               # Lint code with ESLint
 ```
 
-## 🐳 Docker
+## 🔒 Security Scanning
 
-### Development
+Automated security scanning is integrated into the CI/CD pipeline:
+
+- **npm audit**: Scans for critical vulnerabilities in dependencies (fails build on critical findings)
+- **Snyk**: Deep dependency analysis with severity thresholds (requires `SNYK_TOKEN` in GitHub secrets)
+- **Security reports**: Generated as GitHub Actions artifacts
+
+Run manually:
+
 ```bash
-# Start core services (PostgreSQL + MinIO + Redis)
-docker compose up -d
-
-# Start with telemetry (adds Zipkin)
-docker compose --profile telemetry up -d
+npm audit --audit-level=critical
 ```
 
-### Production
+## 🧪 Integration Testing
+
+Comprehensive integration tests using **testcontainers** for real database testing:
+
+### Features
+
+- Real PostgreSQL instances via Docker containers
+- Multi-tenant data isolation verification
+- Composite foreign key constraint testing
+- Transaction rollback scenarios
+- Complex query and pagination testing
+
+### Running Integration Tests
+
 ```bash
-# Build production image
-docker build -t chapters-studio-erp .
+# Run integration tests (Docker required)
+npm run test:integration
 
-# Run container
-docker run -p 3000:3000 --env-file .env chapters-studio-erp
+# With coverage
+npm run test:integration:cov
 ```
 
-## 🔄 CI/CD
+### Test Coverage
 
-GitHub Actions workflows are included:
+- **Repositories**: Bookings, Tasks, Finance
+- **Multi-tenant isolation**: Cross-tenant data access prevention
+- **Database constraints**: FK constraints, check constraints
+- **Transactions**: Atomic operations and rollback testing
+- **Integration Scenarios**:
+  - Multi-tenant data isolation verification
+  - Composite foreign key constraint enforcement
+  - Financial transaction rollback scenarios
+  - Webhook delivery retry logic with exponential backoff
+  - Nested transaction handling
+  - Webhook delivery retry logic with exponential backoff
 
-- **CI** (`.github/workflows/ci.yml`)
-  - Runs on every PR to main/develop
-  - Lint → Test → Build → Docker build
+## 🧪 Testing Guidelines
 
-- **Deploy** (`.github/workflows/deploy.yml`)
-  - Runs on push to main or version tags
-  - Builds and pushes to GitHub Container Registry
+For a stable and reliable testing environment, please follow these guidelines:
 
-## 🔐 Environment Variables
+### Running Tests
+- **Isolation**: Run tests in band to prevent race conditions and resource contention:
+  ```bash
+  npm run test -- --runInBand
+  ```
+- **Stability**: Use the stability test script to detect flaky tests:
+  ```bash
+  npm run test:stability
+  ```
 
-Copy `.env.example` to `.env` and configure the following variables:
+### Writing Tests
+- **Secrets**: NEVER hardcode secrets in test files. Use `test/secrets.ts` which provides centralized, overridable constants.
+- **Mocking**:
+  - Use `jest.clearAllMocks()` in `afterEach` for resetting mock call counts.
+  - Use `jest.restoreAllMocks()` when using `jest.spyOn()` to restore original implementations.
+  - For tests involving global state or singletons, use `jest.resetModules()` in `beforeEach`.
+- **Tenant Context**: Use `mockTenantContext(tenantId)` helper to set up tenant scoping in tests.
+- **Database**: Integration tests use `testcontainers`. Ensure Docker is running.
 
-### Application
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NODE_ENV` | development | Environment mode (`development`, `production`, `test`) |
-| `PORT` | 3000 | API server port |
+## 📚 Documentation Index
+| Category | Document | Description |
+|----------|----------|-------------|
+| **Getting Started** | [Onboarding](./docs/onboarding.md) | Setup, Docker, and Testing guide. |
+| **Architecture** | [ADR Index](./docs/adr/) | Architectural Decision Records. |
+| **Reliability** | [Chaos Experiments](./docs/reliability/chaos-experiments.md) | Database failure simulations. |
+| **Reliability** | [Disaster Recovery](./docs/dr-plan.md) | Backup and Recovery procedures. |
+| **Security** | [Key Rotation](./docs/security/key-rotation.md) | Policy for rotating DB/JWT secrets. |
+| **Security** | [Incident Response](./docs/runbooks/security-incident.md) | Security alert playbook. |
+| **Product** | [Feature Strategy](./docs/product/strategy.md) | Feature Flags and KPIs. |
+| **Release** | [Deployment](./docs/release-strategy.md) | Canary/Blue-Green strategy. |
+| **API** | [Versioning](./docs/api/versioning.md) | API versioning and deprecation policy. |
 
-### Database (PostgreSQL)
+## 🏗 Code Quality & Architecture
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_HOST` | localhost | PostgreSQL host |
-| `DB_PORT` | 5434 | PostgreSQL port |
-| `DB_USERNAME` | - | PostgreSQL username (required) |
-| `DB_PASSWORD` | - | PostgreSQL password (required) |
-| `DB_DATABASE` | - | PostgreSQL database name (required) |
-| `DB_SYNCHRONIZE` | true | Auto-sync schema (disable in production) |
-| `DB_LOGGING` | false | Enable SQL query logging |
+### Refactoring Improvements
 
-### Authentication (JWT)
+- **Cursor Pagination Helper**: Shared utility for consistent cursor-based pagination across all services
+- **Export Service Extraction**: Separated CSV export logic into dedicated `BookingExportService`
+- **Service Separation**: Extracted `ClientsService` from booking operations
+- **Type Safety**: Added proper null checks and typed interfaces in CSV transform functions
+- **Performance**: Fixed N+1 queries with eager loading and composite database indexes
+- **Memory Management**: Added stream cleanup (try-finally) in all export methods
+- **Strict Typing**: Zero `any` policy enforced across the entire codebase (production + tests)
+- **Dependency Inversion**: Adoption of abstract providers (e.g., `AuditPublisher`) for better testability
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_SECRET` | - | JWT signing secret (required) |
-| `JWT_ACCESS_EXPIRES_SECONDS` | 900 | Access token expiry (15 min) |
-| `JWT_REFRESH_EXPIRES_DAYS` | 7 | Refresh token expiry (7 days) |
+### Developer Notes
 
-### MinIO / S3 Storage
+#### Audit Logging Architecture
+Audit logs are processed asynchronously to prevent performance bottlenecks.
+- **Publisher**: Services inject `AuditPublisher` (abstract class) to log events.
+- **Provider**: `AuditService` implements `AuditPublisher` and enqueues jobs to `audit-queue` (Redis/BullMQ).
+- **Consumer**: `AuditProcessor` picks up jobs, fetches the previous log for the tenant, calculates the hash chain, and persists the entry.
+- **Integrity**: Hash chaining includes `oldValues` and `newValues` to detect tampering.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MINIO_ENDPOINT` | http://localhost:9000 | MinIO/S3 endpoint URL |
-| `MINIO_BUCKET` | chapters-studio | Bucket name for file storage |
-| `MINIO_REGION` | us-east-1 | S3 region |
-| `MINIO_ACCESS_KEY` | - | MinIO/S3 access key (required) |
-| `MINIO_SECRET_KEY` | - | MinIO/S3 secret key (required) |
-| `MINIO_PUBLIC_URL` | http://localhost:9000 | Public URL for file access |
+#### MFA Security
+MFA Recovery codes are stored as **bcrypt hashes** (jsonb column) instead of plain text.
+- **Generation**: Codes are generated, hashed, and stored. Plain codes are returned to the user *once*.
+- **Verification**: Codes are verified using `bcrypt.compare`.
+- **Migration**: Existing plain-text codes (if any) are automatically hashed via migration `1681234567892`.
 
-### Email (SMTP)
+### Security Best Practices
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MAIL_HOST` | - | SMTP server host |
-| `MAIL_PORT` | 587 | SMTP server port |
-| `MAIL_USER` | - | SMTP username |
-| `MAIL_PASSWORD` | - | SMTP password |
-| `MAIL_FROM` | - | Default "From" address |
+#### Production Deployment Checklist
 
-### Telemetry & Monitoring
+- [x] Disable Swagger in production (`ENABLE_SWAGGER=false`)
+- [x] Set strong JWT secrets (minimum 32 characters, high entropy)
+- [x] Enable TLS for all external services (database, MinIO, Redis, email)
+- [x] Configure proper CORS origins (whitelist specific domains)
+- [x] Set up HashiCorp Vault for secret management
+- [x] Enable Prometheus metrics with authentication token
+- [x] Configure Sentry DSN for error tracking
+- [x] Review and tune rate limits per endpoint
+- [x] Ensure composite FK constraints are enabled in production database
+- [x] Enable database connection pooling with appropriate limits
+- [x] Configure health checks with appropriate timeouts
+- [x] Set up log aggregation and retention policies
+- [x] Run security scans: `npm audit --audit-level=critical`
+- [x] Review dependency updates monthly via Snyk
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OTEL_ENABLED` | false | Enable OpenTelemetry tracing |
-| `ZIPKIN_ENDPOINT` | http://localhost:9411/api/v2/spans | Zipkin collector URL |
-| `SENTRY_DSN` | - | Sentry error tracking DSN |
-| `METRICS_TOKEN` | - | If set, `/api/v1/metrics` requires `Authorization: Bearer <token>` (in production, unset disables metrics with 404) |
-| `TEST_ERROR_KEY` | - | Key for triggering test errors |
+#### Data Isolation Best Practices
 
-### Redis Cache
+- **TenantAwareRepository**: Use `TenantAwareRepository<T>` for all tenant-scoped entities. It automatically applies `tenantId` to `find`, `findOne`, `save`, `remove`, and `count` operations.
+- **Tenant Context**: `TenantContextService.getTenantId()` provides the current tenant ID from `AsyncLocalStorage`.
+- **Multi-tenant Constraints**: Ensure composite foreign keys enforce cross-tenant isolation at the database level.
+- **Query Filters**: For `createQueryBuilder`, manually add `tenantId` in WHERE clauses.
+- **Transaction Boundaries**: All operations within tenant-scoped transactions.
+- **Audit Trail**: Tenant ID included in all audit log entries.
+- **Testing**: Verify tenant isolation with integration tests using `mockTenantContext()`.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | redis://localhost:6379 | Redis connection URL |
+#### API Security Guidelines
 
-### HashiCorp Vault (Optional)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VAULT_ENABLED` | false | Enable Vault secret loading |
-| `VAULT_ADDR` | - | Vault server address (e.g., `http://localhost:8200`) |
-| `VAULT_TOKEN` | - | Vault authentication token |
-| `VAULT_SECRET_PATH` | - | Path to secrets (e.g., `secret/data/myapp`) |
-
-### Backup & Seeding
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `UPLOAD_TO_MINIO` | false | Upload backups to MinIO |
-| `SEED_ADMIN_PASSWORD` | - | Admin password for seeding (required for `npm run seed`) |
-| `SEED_STAFF_PASSWORD` | - | Staff password for seeding (required for `npm run seed`) |
-| `SEED_OPS_PASSWORD` | - | Ops manager password for seeding (required for `npm run seed`) |
-
-### Testing (Optional)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TEST_MOCK_PASSWORD` | - | Mock password for unit tests |
-| `TEST_MOCK_PASSWORD_WRONG` | - | Wrong mock password for unit tests |
-
-## 📊 API Rate Limits
-
-| Tier | Limit | Scope |
-|------|-------|-------|
-| Short | 3 req/sec | Per IP |
-| Medium | 20 req/10sec | Per IP |
-| Long | 100 req/min | Per IP |
-| Auth endpoints | 5 req/min | Login/Register |
-
-## 🗄️ API Versioning
-
-The API uses URL-based versioning:
-
-```
-/api/v1/...  ← Current version
-/api/v2/...  ← Future version (when needed)
-```
-
-To add a new API version:
-1. Create `src/modules/v2/` directory
-2. Add version-specific modules/controllers
-3. Configure separate route prefix in `main.ts`
-
-## 🏗 Project Structure
-
-```
-src/
-├── common/           # Shared utilities
-│   ├── cache/        # Redis caching
-│   ├── decorators/   # Custom decorators
-│   ├── filters/      # Exception filters
-│   ├── interceptors/ # Response transformers
-│   ├── logger/       # Winston logging
-│   ├── middleware/   # Correlation ID
-│   ├── sentry/       # Error tracking
-│   └── telemetry/    # OpenTelemetry
-├── config/           # Configuration
-├── database/         # Migrations & seeds
-└── modules/          # Feature modules
-    ├── auth/
-    ├── bookings/
-    ├── catalog/
-    ├── dashboard/
-    ├── finance/
-    ├── health/
-    ├── hr/
-    ├── mail/
-    ├── media/
-    ├── tasks/
-    └── users/
-
-.github/
-└── workflows/
-    ├── ci.yml        # CI pipeline
-    └── deploy.yml    # Deployment pipeline
-```
+- **Rate Limiting**: Use `@RateLimit()` decorator for sensitive endpoints
+- **Authentication**: JWT-only auth (remove header-based tenant identification)
+- **Input Validation**: Always validate DTOs with class-validator
+- **Output Encoding**: Use `@SanitizeHtml()` for user-generated content
+- **PII Protection**: Sensitive fields masked in logs with `@PII()` decorator
+- **Request Timeout**: Set appropriate timeouts for external calls
+- **CSRF Protection**: Use SameSite cookies for auth tokens
+- **Content Security**: Configure Content-Security-Policy headers
 
 ## 📝 License
 

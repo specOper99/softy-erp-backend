@@ -54,6 +54,7 @@ describe('HR Module E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     tenantId = seedData.tenantId;
+    const tenantHost = `${seedData.tenantId}.example.com`;
 
     // Find the profile created for staff in seeder
     const profileRepo = dataSource.getRepository(Profile);
@@ -64,12 +65,10 @@ describe('HR Module E2E Tests', () => {
     testUserId = seedData.admin.id;
 
     // Login as admin
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email: seedData.admin.email,
-        password: adminPassword,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
+      email: seedData.admin.email,
+      password: adminPassword,
+    });
 
     accessToken = loginResponse.body.data?.accessToken;
   });

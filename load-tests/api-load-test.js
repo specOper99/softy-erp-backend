@@ -1,3 +1,4 @@
+/* globals __ENV, __VU */
 import { check, group, sleep } from 'k6';
 import http from 'k6/http';
 import { Rate, Trend } from 'k6/metrics';
@@ -76,7 +77,6 @@ export function setup() {
         {
             headers: {
                 'Content-Type': 'application/json',
-                'X-Tenant-ID': TENANT_ID,
             }
         }
     );
@@ -94,10 +94,10 @@ export function setup() {
 }
 
 export default function (data) {
+    // Tenant context is derived from JWT token - no X-Tenant-ID header needed
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': data.token ? `Bearer ${data.token}` : '',
-        'X-Tenant-ID': data.tenantId,
     };
 
     // ============ Health Check ============
@@ -245,12 +245,37 @@ export default function (data) {
 
     sleep(0.5);
 
-    // ============ Dashboard ============
+    // ============ Dashboard (Reporting) ============
     group('Dashboard', () => {
-        const res = http.get(`${BASE_URL}/dashboard/stats`, { headers });
-        check(res, {
-            'dashboard stats 200': (r) => r.status === 200,
+        const start = Date.now();
+
+        // KPIs
+        const kpisRes = http.get(`${BASE_URL}/dashboard/kpis`, { headers });
+        check(kpisRes, {
+            'dashboard kpis 200': (r) => r.status === 200,
+            'has totalRevenue': (r) => r.json('data.totalRevenue') !== undefined,
         });
+
+        // Revenue Stats
+        const revenueRes = http.get(`${BASE_URL}/dashboard/revenue`, { headers });
+        check(revenueRes, {
+            'dashboard revenue 200': (r) => r.status === 200,
+        });
+
+        // Booking Trends
+        const trendsRes = http.get(`${BASE_URL}/dashboard/booking-trends`, { headers });
+        check(trendsRes, {
+            'booking trends 200': (r) => r.status === 200,
+        });
+
+        // Staff Performance
+        const staffRes = http.get(`${BASE_URL}/dashboard/staff-performance`, { headers });
+        check(staffRes, {
+            'staff performance 200': (r) => r.status === 200,
+        });
+
+        const duration = Date.now() - start;
+        console.log(`Dashboard endpoints took ${duration}ms`);
     });
 
     sleep(1);

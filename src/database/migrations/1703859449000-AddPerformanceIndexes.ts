@@ -88,9 +88,7 @@ export class AddPerformanceIndexes1703859449000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS idx_tasks_tenant_status`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_refresh_tokens_hash`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_refresh_tokens_user`);
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS idx_transactions_tenant_date`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_transactions_tenant_date`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_transactions_reference`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_audit_logs_entity_date`);
     await queryRunner.query(`DROP INDEX IF EXISTS idx_attachments_booking`);

@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { CreateTenantDto } from './dto/create-tenant.dto';
+import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { Tenant } from './entities/tenant.entity';
 
 @Injectable()
@@ -16,16 +18,18 @@ export class TenantsService {
     return this.tenantRepository.save(tenant);
   }
 
-  async createWithManager(
-    manager: EntityManager,
-    createTenantDto: CreateTenantDto,
-  ): Promise<Tenant> {
+  async createWithManager(manager: EntityManager, createTenantDto: CreateTenantDto): Promise<Tenant> {
     const tenant = manager.create(Tenant, createTenantDto);
     return manager.save(tenant);
   }
 
-  async findAll(): Promise<Tenant[]> {
-    return this.tenantRepository.find();
+  // PERFORMANCE: Added pagination to prevent unbounded query memory consumption
+  async findAll(query: PaginationDto = new PaginationDto()): Promise<Tenant[]> {
+    return this.tenantRepository.find({
+      skip: query.getSkip(),
+      take: query.getTake(),
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOne(id: string): Promise<Tenant> {
@@ -46,7 +50,15 @@ export class TenantsService {
 
   async update(id: string, updateTenantDto: UpdateTenantDto): Promise<Tenant> {
     const tenant = await this.findOne(id);
-    Object.assign(tenant, updateTenantDto);
+    const { parentTenantId, ...rest } = updateTenantDto;
+
+    Object.assign(tenant, rest);
+
+    if (parentTenantId) {
+      // Efficiently set relation by ID without loading the whole entity
+      tenant.parent = { id: parentTenantId } as Tenant;
+    }
+
     return this.tenantRepository.save(tenant);
   }
 

@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { Tenant } from './entities/tenant.entity';
 import { TenantsService } from './tenants.service';
@@ -19,7 +19,7 @@ describe('TenantsService', () => {
     version: 1,
     subscriptionPlan: 'FREE',
     status: 'ACTIVE',
-  } as Tenant;
+  } as unknown as Tenant;
 
   const mockRepository = {
     create: jest.fn().mockImplementation((dto) => dto),
@@ -66,7 +66,7 @@ describe('TenantsService', () => {
       const managerMock = {
         create: jest.fn().mockReturnValue(mockTenant),
         save: jest.fn().mockResolvedValue(mockTenant),
-      } as any;
+      } as unknown as EntityManager;
       const dto = { name: 'T', slug: 't' };
       const result = await service.createWithManager(managerMock, dto);
       expect(managerMock.create).toHaveBeenCalledWith(Tenant, dto);
@@ -94,9 +94,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if not found', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.findOne('invalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('invalid')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -111,9 +109,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if not found by slug', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.findBySlug('invalid-slug')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findBySlug('invalid-slug')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -130,9 +126,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if tenant to update not found', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.update('invalid', {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.update('invalid', {})).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -147,9 +141,7 @@ describe('TenantsService', () => {
 
     it('should throw NotFoundException if tenant to remove not found', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
-      await expect(service.remove('invalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('invalid')).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -34,9 +34,7 @@ describe('TenantContextProvider', () => {
     });
 
     it('should throw when outside context', () => {
-      expect(() => provider.getRequiredTenantId()).toThrow(
-        'Tenant context is required but not available',
-      );
+      expect(() => provider.getRequiredTenantId()).toThrow('Tenant context is required but not available');
     });
   });
 });

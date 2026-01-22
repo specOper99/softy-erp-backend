@@ -1,29 +1,38 @@
 import * as bcrypt from 'bcrypt';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
+import { getDatabaseConnectionConfig } from './db-config';
 
 // Load environment variables
 config();
 
+class SeedLogger {
+  static log(message: string): void {
+    process.stdout.write(`${message}\n`);
+  }
+
+  static error(message: string, error?: unknown): void {
+    process.stderr.write(`${message}\n`);
+    if (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error);
+      process.stderr.write(`${errorMessage}\n`);
+    }
+  }
+}
+
 // Validate required environment variables
-const requiredEnvVars = [
-  'SEED_ADMIN_PASSWORD',
-  'SEED_STAFF_PASSWORD',
-  'SEED_OPS_PASSWORD',
-] as const;
+const requiredEnvVars = ['SEED_ADMIN_PASSWORD', 'SEED_STAFF_PASSWORD', 'SEED_OPS_PASSWORD'] as const;
 
 const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 if (missingEnvVars.length > 0) {
-  console.error('❌ Missing required environment variables:');
-  missingEnvVars.forEach((envVar) => console.error(`   - ${envVar}`));
-  console.error(
-    '\nPlease set these in your .env file before running the seeder.',
-  );
+  SeedLogger.error('Missing required environment variables:');
+  missingEnvVars.forEach((envVar) => SeedLogger.error(`   - ${envVar}`));
+  SeedLogger.error('\nPlease set these in your .env file before running the seeder.');
   process.exit(1);
 }
 
 // Import entities
-import { Role } from '../common/enums';
 import { Booking } from '../modules/bookings/entities/booking.entity';
 import { PackageItem } from '../modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
@@ -31,18 +40,17 @@ import { TaskType } from '../modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
 import { Transaction } from '../modules/finance/entities/transaction.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
+import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
+import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
 import { Task } from '../modules/tasks/entities/task.entity';
 import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
+import { Role } from '../modules/users/enums/role.enum';
 
 // Create data source
 const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
+  ...getDatabaseConnectionConfig(),
   entities: [
     Tenant,
     User,
@@ -54,16 +62,17 @@ const AppDataSource = new DataSource({
     PackageItem,
     Booking,
     Task,
+    PlatformUser,
   ],
   synchronize: true, // Only for seeding - creates tables
 });
 
 async function seed() {
-  console.log('🌱 Starting database seed...\n');
+  SeedLogger.log('Starting database seed...\n');
 
   try {
     await AppDataSource.initialize();
-    console.log('✅ Database connected\n');
+    SeedLogger.log('Database connected\n');
 
     // Get repositories
     const tenantRepo = AppDataSource.getRepository(Tenant);
@@ -75,7 +84,7 @@ async function seed() {
     const packageItemRepo = AppDataSource.getRepository(PackageItem);
 
     // ============ 0. CREATE DEFAULT TENANT ============
-    console.log('🏢 Creating default tenant...');
+    SeedLogger.log('Creating default tenant...');
     let mainTenant = await tenantRepo.findOne({
       where: { slug: 'chapters-studio-hq' },
     });
@@ -86,25 +95,22 @@ async function seed() {
         slug: 'chapters-studio-hq',
       });
       mainTenant = await tenantRepo.save(mainTenant);
-      console.log('   ✅ Tenant created: Chapters Studio HQ');
+      SeedLogger.log('   Tenant created: Chapters Studio HQ');
     } else {
-      console.log('   ⏭️  Tenant already exists');
+      SeedLogger.log('   Tenant already exists');
     }
 
     const tenantId = mainTenant.id;
 
     // ============ 1. CREATE ADMIN USER ============
-    console.log('👤 Creating admin user...');
+    SeedLogger.log('Creating admin user...');
     const existingAdmin = await userRepo.findOne({
       where: { email: 'admin@chapters.studio' }, // Unique constraint is (email, tenantId) typically, but we check email + tenant
     });
 
     let _adminUser: User;
     if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(
-        process.env.SEED_ADMIN_PASSWORD!,
-        10,
-      );
+      const passwordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD!, 10);
       _adminUser = userRepo.create({
         email: 'admin@chapters.studio',
         passwordHash,
@@ -113,14 +119,14 @@ async function seed() {
         tenantId,
       });
       _adminUser = await userRepo.save(_adminUser);
-      console.log('   ✅ Admin user created: admin@chapters.studio');
+      SeedLogger.log('   Admin user created: admin@chapters.studio');
     } else {
       _adminUser = existingAdmin;
-      console.log('   ⏭️  Admin user already exists');
+      SeedLogger.log('   Admin user already exists');
     }
 
     // ============ 2. CREATE TASK TYPES ============
-    console.log('\n📋 Creating task types...');
+    SeedLogger.log('\nCreating task types...');
     const taskTypesData = [
       {
         name: 'Photography',
@@ -162,20 +168,19 @@ async function seed() {
       if (!existing) {
         const taskType = taskTypeRepo.create({ ...data, tenantId });
         taskTypes.push(await taskTypeRepo.save(taskType));
-        console.log(`   ✅ Created: ${data.name}`);
+        SeedLogger.log(`   Created: ${data.name}`);
       } else {
         taskTypes.push(existing);
-        console.log(`   ⏭️  Exists: ${data.name}`);
+        SeedLogger.log(`   Exists: ${data.name}`);
       }
     }
 
     // ============ 3. CREATE SERVICE PACKAGES ============
-    console.log('\n📦 Creating service packages...');
+    SeedLogger.log('\nCreating service packages...');
     const packagesData = [
       {
         name: 'Wedding Premium',
-        description:
-          'Complete wedding coverage with photography, videography, drone, and full editing',
+        description: 'Complete wedding coverage with photography, videography, drone, and full editing',
         price: 2500,
         items: [
           { taskTypeName: 'Photography', quantity: 2 },
@@ -226,13 +231,11 @@ async function seed() {
           tenantId,
         });
         pkg = await packageRepo.save(pkg);
-        console.log(`   ✅ Created package: ${pkgData.name}`);
+        SeedLogger.log(`   Created package: ${pkgData.name}`);
 
         // Add package items
         for (const itemData of pkgData.items) {
-          const taskType = taskTypes.find(
-            (t) => t.name === itemData.taskTypeName,
-          );
+          const taskType = taskTypes.find((t) => t.name === itemData.taskTypeName);
           if (taskType) {
             const item = packageItemRepo.create({
               packageId: pkg.id,
@@ -244,12 +247,12 @@ async function seed() {
           }
         }
       } else {
-        console.log(`   ⏭️  Exists: ${pkgData.name}`);
+        SeedLogger.log(`   Exists: ${pkgData.name}`);
       }
     }
 
     // ============ 4. CREATE FIELD STAFF USERS ============
-    console.log('\n👥 Creating field staff users...');
+    SeedLogger.log('\nCreating field staff users...');
     const staffData = [
       {
         email: 'john.photographer@chapters.studio',
@@ -277,10 +280,7 @@ async function seed() {
     for (const data of staffData) {
       let user = await userRepo.findOne({ where: { email: data.email } });
       if (!user) {
-        const passwordHash = await bcrypt.hash(
-          process.env.SEED_STAFF_PASSWORD!,
-          10,
-        );
+        const passwordHash = await bcrypt.hash(process.env.SEED_STAFF_PASSWORD!, 10);
         user = userRepo.create({
           email: data.email,
           passwordHash,
@@ -289,7 +289,7 @@ async function seed() {
           tenantId,
         });
         user = await userRepo.save(user);
-        console.log(`   ✅ Created user: ${data.email}`);
+        SeedLogger.log(`   Created user: ${data.email}`);
 
         // Create profile
         const profile = profileRepo.create({
@@ -311,20 +311,17 @@ async function seed() {
         });
         await walletRepo.save(wallet);
       } else {
-        console.log(`   ⏭️  Exists: ${data.email}`);
+        SeedLogger.log(`   Exists: ${data.email}`);
       }
     }
 
     // ============ 5. CREATE OPS MANAGER ============
-    console.log('\n👔 Creating operations manager...');
+    SeedLogger.log('\nCreating operations manager...');
     const existingOps = await userRepo.findOne({
       where: { email: 'ops@chapters.studio' },
     });
     if (!existingOps) {
-      const passwordHash = await bcrypt.hash(
-        process.env.SEED_OPS_PASSWORD!,
-        10,
-      );
+      const passwordHash = await bcrypt.hash(process.env.SEED_OPS_PASSWORD!, 10);
       const opsUser = userRepo.create({
         email: 'ops@chapters.studio',
         passwordHash,
@@ -333,29 +330,47 @@ async function seed() {
         tenantId,
       });
       await userRepo.save(opsUser);
-      console.log('   ✅ Created: ops@chapters.studio');
+      SeedLogger.log('   Created: ops@chapters.studio');
     } else {
-      console.log('   ⏭️  Exists: ops@chapters.studio');
+      SeedLogger.log('   Exists: ops@chapters.studio');
     }
 
-    console.log('\n========================================');
-    console.log('🎉 Seed completed successfully!');
-    console.log('========================================\n');
-    console.log('Tenant: Chapters Studio HQ (chapters-studio-hq)');
-    console.log('Login credentials:');
-    console.log('  Admin:    admin@chapters.studio / [SEED_ADMIN_PASSWORD]');
-    console.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');
-    console.log(
-      '  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]',
-    );
-    console.log(
-      '            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]',
-    );
-    console.log(
-      '            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]\n',
-    );
+    // ============ 6. CREATE PLATFORM ADMIN USER ============
+    SeedLogger.log('\nCreating platform admin user...');
+    const platformUserRepo = AppDataSource.getRepository(PlatformUser);
+    const existingPlatformAdmin = await platformUserRepo.findOne({
+      where: { email: 'admin@platform.com' },
+    });
+    if (!existingPlatformAdmin) {
+      const passwordHash = await bcrypt.hash('SecurePassword123!', 10);
+      const platformAdmin = platformUserRepo.create({
+        email: 'admin@platform.com',
+        fullName: 'Platform Administrator',
+        passwordHash,
+        role: PlatformRole.SUPER_ADMIN,
+        status: 'active',
+        mfaEnabled: false,
+      });
+      await platformUserRepo.save(platformAdmin);
+      SeedLogger.log('   Created: admin@platform.com');
+    } else {
+      SeedLogger.log('   Exists: admin@platform.com');
+    }
+
+    SeedLogger.log('\n========================================');
+    SeedLogger.log('Seed completed successfully!');
+    SeedLogger.log('========================================\n');
+    SeedLogger.log('Tenant: Chapters Studio HQ (chapters-studio-hq)');
+    SeedLogger.log('Login credentials:');
+    SeedLogger.log('  Admin:    admin@chapters.studio / [SEED_ADMIN_PASSWORD]');
+    SeedLogger.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');
+    SeedLogger.log('  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('\nPlatform:');
+    SeedLogger.log('  Admin:    admin@platform.com / SecurePassword123!\n');
   } catch (error) {
-    console.error('❌ Seed failed:', error);
+    SeedLogger.error('Seed failed:', error);
     process.exit(1);
   } finally {
     await AppDataSource.destroy();

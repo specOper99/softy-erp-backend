@@ -1,5 +1,13 @@
 import vault from 'node-vault';
+import { TEST_SECRETS } from '../../test/secrets';
 import { vaultLoader } from './vault.loader';
+
+/** Typed mock for Vault client methods used in tests */
+interface MockVaultClient {
+  approleLogin: jest.Mock;
+  read: jest.Mock;
+  token: string;
+}
 
 // Mock node-vault factory function
 jest.mock('node-vault', () => {
@@ -12,7 +20,7 @@ jest.mock('node-vault', () => {
 });
 
 describe('vaultLoader', () => {
-  let mockClient: any;
+  let mockClient: MockVaultClient;
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -48,12 +56,12 @@ describe('vaultLoader', () => {
   it('should fetch secrets with token auth', async () => {
     process.env.VAULT_ENABLED = 'true';
     process.env.VAULT_ADDR = 'http://localhost:8200';
-    process.env.VAULT_TOKEN = 'root';
+    process.env.VAULT_TOKEN = TEST_SECRETS.VAULT_TOKEN;
     process.env.VAULT_SECRET_PATH = 'secret/data/app';
 
     mockClient.read.mockResolvedValue({
       data: {
-        data: { SECRET_KEY: 'abc' },
+        data: { DB_PASSWORD: 'test-db-pass' },
       },
     });
 
@@ -62,11 +70,11 @@ describe('vaultLoader', () => {
     expect(vault).toHaveBeenCalledWith({
       apiVersion: 'v1',
       endpoint: 'http://localhost:8200',
-      token: 'root',
+      token: TEST_SECRETS.VAULT_TOKEN,
     });
     expect(mockClient.read).toHaveBeenCalledWith('secret/data/app');
-    expect(result).toEqual({ SECRET_KEY: 'abc' });
-    expect(process.env.SECRET_KEY).toBe('abc');
+    expect(result).toEqual({ DB_PASSWORD: 'test-db-pass' });
+    expect(process.env.DB_PASSWORD).toBe('test-db-pass');
   });
 
   it('should authenticat with AppRole if configured', async () => {
@@ -80,7 +88,7 @@ describe('vaultLoader', () => {
       auth: { client_token: 'new-token' },
     });
     mockClient.read.mockResolvedValue({
-      data: { API_KEY: 'xyz' }, // KV v1 structure
+      data: { JWT_SECRET: 'test-jwt-secret' }, // KV v1 structure
     });
 
     const result = await vaultLoader();
@@ -90,7 +98,7 @@ describe('vaultLoader', () => {
       secret_id: 'secret-id',
     });
     expect(mockClient.read).toHaveBeenCalledWith('secret/app');
-    expect(result).toEqual({ API_KEY: 'xyz' });
+    expect(result).toEqual({ JWT_SECRET: 'test-jwt-secret' });
   });
 
   it('should handle vault errors gracefully in non-prod', async () => {

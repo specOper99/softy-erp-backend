@@ -1,0 +1,109 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+route:
+  group_by: ['alertname', 'severity', 'component']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'platform-team'
+  
+  routes:
+    # Critical security alerts
+    - match:
+        severity: critical
+        component: security
+      receiver: 'security-team'
+      continue: true
+    
+    # Critical compliance alerts
+    - match:
+        severity: critical
+        component: compliance
+      receiver: 'compliance-team'
+      continue: true
+    
+    # Business alerts
+    - match:
+        component: business
+      receiver: 'business-team'
+    
+    # Performance warnings
+    - match:
+        component: performance
+      receiver: 'engineering-team'
+
+receivers:
+  - name: 'platform-team'
+    slack_configs:
+      - channel: '#platform-alerts'
+        title: 'Platform Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+    
+    email_configs:
+      - to: 'platform-team@company.com'
+        from: 'alerts@company.com'
+        smarthost: 'smtp.company.com:587'
+        auth_username: '${SMTP_USERNAME}'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[{{ .Status }}] Platform Alert: {{ .GroupLabels.alertname }}'
+
+  - name: 'security-team'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SECURITY_KEY}'
+        severity: '{{ .GroupLabels.severity }}'
+        description: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+    
+    slack_configs:
+      - channel: '#security-incidents'
+        title: '🚨 CRITICAL SECURITY ALERT'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+        color: 'danger'
+
+  - name: 'compliance-team'
+    email_configs:
+      - to: 'compliance@company.com'
+        from: 'alerts@company.com'
+        smarthost: 'smtp.company.com:587'
+        auth_username: '${SMTP_USERNAME}'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '🚨 [{{ .Status }}] COMPLIANCE ALERT: {{ .GroupLabels.alertname }}'
+          Priority: 'urgent'
+    
+    slack_configs:
+      - channel: '#compliance-alerts'
+        title: 'Compliance Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+
+  - name: 'business-team'
+    slack_configs:
+      - channel: '#business-metrics'
+        title: 'Business Metrics Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+  - name: 'engineering-team'
+    slack_configs:
+      - channel: '#engineering-alerts'
+        title: 'Platform Performance Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+inhibit_rules:
+  # Inhibit lower severity alerts when critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'component']
+  
+  # Inhibit performance alerts during known maintenance
+  - source_match:
+      alertname: 'MaintenanceMode'
+    target_match:
+      component: 'performance'

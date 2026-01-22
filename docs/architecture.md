@@ -20,6 +20,20 @@ The Chapters Studio ERP is a robust NestJS application designed for high securit
     -   Self-contained modules with dedicated DTOs, Controllers, Services, and Entities.
     -   Modules communicate via services or internal events.
 
+### Bookings Module Service Hierarchy
+
+The Bookings module follows a separation-of-concerns pattern with specialized services:
+
+| Service | Responsibility |
+|---------|----------------|
+| `BookingsService` | Core booking CRUD, workflow orchestration |
+| `ClientsService` | Client management, tag filtering, CRUD |
+| `BookingExportService` | Memory-efficient CSV streaming exports |
+| `BookingStateMachineService` | State transition validation, guards |
+
+> [!NOTE]
+> See [ADR-0005](./adr/0005-service-extraction-pattern.md) for the rationale behind this extraction.
+
 ## The Security Shield
 
 We implement multiple layers of security to protect tenant data:
@@ -48,6 +62,15 @@ We implement multiple layers of security to protect tenant data:
 - **Health Checks**: `/health/live` and `/health/ready` endpoints monitoring DB, Redis, Disk, and Memory.
 - **Graceful Shutdown**: All connections (DB, Redis, S3) are drained before the process terminates.
 - **Backup**: Automated PostgreSQL backups uploaded to MinIO/S3.
+- **Distributed Locking**: Critical sections (e.g., payroll, inventory) use Redis-based distributed locks (`Redlock`) to prevent race conditions in a multi-instance environment.
+
+## Code Quality & Standards
+
+We enforce strict quality gates to maintain reliability and manageability:
+
+- **Zero `any` Policy**: Use of the `any` type is strictly forbidden in both production and test code.
+- **Dependency Inversion**: Services rely on abstractions (e.g., `AuditPublisher`) rather than concrete implementations.
+- **Tenant Isolation**: All database interaction MUST go through `TenantAwareRepository`.
 
 ## Infrastructure Diagram
 
