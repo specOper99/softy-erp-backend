@@ -1,0 +1,68 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-erp-traffic
+  namespace: chapters-studio-erp
+  labels:
+    app: chapters-studio-erp
+spec:
+  podSelector:
+    matchLabels:
+      app: chapters-studio-erp
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Allow traffic from Prometheus for metrics
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Allow internal cluster traffic
+    - from:
+        - podSelector:
+            matchLabels:
+              app: chapters-studio-erp
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    # Allow DNS queries
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow external HTTPS for third-party APIs
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow database connections (adjust based on your setup)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow internal cluster communication
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000

@@ -34,9 +34,16 @@ COPY --from=builder --chown=65532:65532 /app/package*.json ./
 # Expose port
 EXPOSE 3000
 
-# Note: HEALTHCHECK is not supported in distroless images because there's no shell
-# Use Kubernetes liveness/readiness probes instead, or a sidecar container
-# The app exposes /api/v1/health/live and /api/v1/health/ready endpoints
+# HEALTHCHECK Configuration:
+# Distroless images do not support HEALTHCHECK directive because they lack a shell.
+# Instead, Kubernetes liveness and readiness probes are used:
+#   - Liveness probe: GET /api/v1/health/live (port 3000)
+#   - Readiness probe: GET /api/v1/health/ready (port 3000)
+# This approach is the recommended best practice for containerized applications
+# and provides more sophisticated health monitoring than Docker's HEALTHCHECK.
+#
+# Security Note: The `nonroot` tag runs as UID 65532 (nonroot user)
+# ensuring the container doesn't run as root, meeting CIS Docker Benchmark requirements.
 
 # Start application
 # In distroless/nodejs, the entrypoint is already set to node

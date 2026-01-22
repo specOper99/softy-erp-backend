@@ -2,6 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   name: chapters-studio-erp
+  namespace: chapters-studio-erp
   labels:
     app: chapters-studio-erp
 spec:
@@ -42,14 +43,35 @@ spec:
     spec:
       containers:
         - name: app
-          image: chapters-studio-erp:latest
+          # TODO: Replace with actual image digest after building
+          image: chapters-studio-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
-          envFrom:
-            - secretRef:
-                name: erp-secrets
-            - configMapRef:
-                name: erp-config
+          securityContext:
+            runAsUser: 65532
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: []
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: erp-config
+                  key: NODE_ENV
+          volumeMounts:
+            - name: secret-volume
+              mountPath: /etc/erp-secrets
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /app/logs
           resources:
             requests:
               cpu: "250m"
@@ -69,12 +91,21 @@ spec:
               port: 3000
             initialDelaySeconds: 20
             periodSeconds: 15
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: erp-secrets
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
 ---
 # Analysis Template for automatic rollback
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
   name: success-rate
+  namespace: chapters-studio-erp
 spec:
   metrics:
     - name: success-rate
@@ -106,6 +137,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: chapters-studio-erp-blue
+  namespace: chapters-studio-erp
   labels:
     app: chapters-studio-erp
     color: blue
@@ -123,14 +155,35 @@ spec:
     spec:
       containers:
         - name: app
-          image: chapters-studio-erp:v1.0.0
+          # TODO: Replace with actual image digest
+          image: chapters-studio-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
-          envFrom:
-            - secretRef:
-                name: erp-secrets
-            - configMapRef:
-                name: erp-config
+          securityContext:
+            runAsUser: 65532
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: []
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: erp-config
+                  key: NODE_ENV
+          volumeMounts:
+            - name: secret-volume
+              mountPath: /etc/erp-secrets
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /app/logs
           resources:
             requests:
               cpu: "250m"
@@ -150,12 +203,21 @@ spec:
               port: 3000
             initialDelaySeconds: 20
             periodSeconds: 15
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: erp-secrets
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
 ---
 # Blue-Green Service (switch between blue/green via selector)
 apiVersion: v1
 kind: Service
 metadata:
   name: chapters-studio-erp
+  namespace: chapters-studio-erp
   annotations:
     # Current active deployment
     deployment.color: blue

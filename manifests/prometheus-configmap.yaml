@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
+  namespace: chapters-studio-erp
   labels:
     app: prometheus
 data:
@@ -34,6 +35,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: prometheus-metrics-token
+  namespace: chapters-studio-erp
   labels:
     app: prometheus
 type: Opaque
@@ -44,6 +46,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-alert-rules
+  namespace: chapters-studio-erp
   labels:
     app: prometheus
 data:
