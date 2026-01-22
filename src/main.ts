@@ -31,8 +31,23 @@ async function bootstrap() {
   // CSP is configured to allow Swagger UI assets in non-production environments.
   app.use(
     helmet({
+      // Content Security Policy - strict mode for maximum security
       contentSecurityPolicy: isProd
-        ? undefined // Use default strict CSP in production
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'"],
+              imgSrc: ["'self'", 'data:'],
+              connectSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              baseUri: ["'self'"],
+              formAction: ["'self'"],
+              frameAncestors: ["'none'"],
+              reportUri: process.env.CSP_REPORT_URI || 'https://csp-report.example.com/csp-violation',
+            },
+            reportOnly: false,
+          }
         : {
             directives: {
               defaultSrc: ["'self'"],
@@ -43,15 +58,21 @@ async function bootstrap() {
               connectSrc: ["'self'"],
             },
           },
-      // HSTS enabled in all environments to ensure test fidelity
-      // In non-production, use shorter max-age to avoid long-term caching issues
+      // HTTP Strict Transport Security - enable with preload for production
       hsts: isProd
         ? { maxAge: 31536000, includeSubDomains: true, preload: true }
         : { maxAge: 86400, includeSubDomains: false },
+      // Cross-Origin policies for enhanced security
       crossOriginResourcePolicy: { policy: 'same-site' },
       crossOriginOpenerPolicy: { policy: 'same-origin' },
       crossOriginEmbedderPolicy: false, // Disabled to allow Swagger UI to load external resources
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      // Additional security headers
+      xContentTypeOptions: true,
+      xDnsPrefetchControl: { allow: false },
+      xDownloadOptions: true,
+      xFrameOptions: { action: 'deny' },
+      xXssProtection: false, // Deprecated in modern browsers, Content-Security-Policy is preferred
     }),
   );
 
