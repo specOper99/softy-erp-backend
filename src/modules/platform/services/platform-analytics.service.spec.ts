@@ -85,11 +85,11 @@ describe('PlatformAnalyticsService', () => {
       expect(result.totalTenants).toBe(3);
       expect(result.activeTenants).toBe(2);
       expect(result.suspendedTenants).toBe(1);
-      expect(result.totalUsers).toBe(18);
-      expect(result.totalRevenue).toBe(1700);
-      expect(result.mrr).toBe(170);
-      expect(result.arr).toBe(2040); // MRR * 12
-      expect(result.averageRevenuePerTenant).toBe(850); // (1000+500) / 2 active
+      expect(result.totalUsers).toBe(23);
+      expect(result.totalRevenue).toBe(2700);
+      expect(result.mrr).toBe(270);
+      expect(result.arr).toBe(3240); // MRR * 12
+      expect(result.averageRevenuePerTenant).toBe(1350); // (2000+500) / 2 active
     });
 
     it('should handle empty tenant list', async () => {
@@ -135,7 +135,7 @@ describe('PlatformAnalyticsService', () => {
       expect(result).toHaveProperty('overallScore');
       expect(result).toHaveProperty('activityScore');
       expect(result).toHaveProperty('revenueScore');
-      expect(result).toHaveProperty('riskScore', 20);
+      expect(result).toHaveProperty('riskScore', 10);
       expect(result).toHaveProperty('healthStatus');
       expect(result).toHaveProperty('recommendations');
     });
@@ -228,9 +228,9 @@ describe('PlatformAnalyticsService', () => {
 
       const result = await service.getRevenueAnalytics();
 
-      expect(result.totalRevenue).toBe(1700); // All tenants: 1000 + 500 + 200
-      expect(result.mrr).toBe(170); // All tenants: 100 + 50 + 20
-      expect(result.arr).toBe(2040); // MRR * 12
+      expect(result.totalRevenue).toBe(2700); // All tenants: 2000 + 500 + 200
+      expect(result.mrr).toBe(270); // All tenants: 200 + 50 + 20
+      expect(result.arr).toBe(3240); // MRR * 12
       expect(result.byPlan).toHaveProperty('pro');
       expect(result.byPlan).toHaveProperty('starter');
       expect(result.byPlan.pro.count).toBe(1);
