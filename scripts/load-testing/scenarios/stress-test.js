@@ -1,3 +1,5 @@
+/* jshint esversion: 11 */
+/* globals __ENV */
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { Counter, Rate } from 'k6/metrics';
