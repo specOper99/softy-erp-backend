@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MetricsModule } from '../metrics/metrics.module';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
@@ -11,6 +12,7 @@ import { AuditPublisher } from './audit.publisher';
 @Module({
   imports: [
     TypeOrmModule.forFeature([AuditLog]),
+    MetricsModule,
     BullModule.registerQueue({
       name: 'audit-queue',
       defaultJobOptions: {
