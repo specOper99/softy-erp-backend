@@ -21,5 +21,6 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "strictPropertyInitialization": false
-  }
+  },
+  "include": ["src/**/*"]
 }
