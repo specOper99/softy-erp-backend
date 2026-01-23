@@ -20,6 +20,7 @@ export enum PlatformPermission {
   SUPPORT_IMPERSONATE = 'platform:support:impersonate',
   SUPPORT_VIEW_LOGS = 'platform:support:view_logs',
   SUPPORT_VIEW_ERRORS = 'platform:support:view_errors',
+  SUPPORT_TIME_ENTRIES = 'platform:support:time_entries',
 
   // Security operations
   SECURITY_POLICIES_MANAGE = 'platform:security:policies_manage',
