@@ -12,6 +12,8 @@ import { PlatformAuditLog } from './entities/platform-audit-log.entity';
 import { PlatformSession } from './entities/platform-session.entity';
 import { PlatformUser } from './entities/platform-user.entity';
 import { TenantLifecycleEvent } from './entities/tenant-lifecycle-event.entity';
+import { Task } from '../tasks/entities/task.entity';
+import { TimeEntry } from '../tasks/entities/time-entry.entity';
 
 // Services
 import { EmailNotificationService } from './services/email-notification.service';
@@ -53,6 +55,8 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
       ImpersonationSession,
       TenantLifecycleEvent,
       Tenant,
+      Task,
+      TimeEntry,
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
