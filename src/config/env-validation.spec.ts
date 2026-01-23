@@ -62,4 +62,82 @@ describe('env-validation', () => {
     };
     expect(() => validate(config)).toThrow();
   });
+
+  describe('Vault enforcement (VAULT_ENABLED=true)', () => {
+    it('should require VAULT_ADDR', () => {
+      const config = {
+        NODE_ENV: 'development',
+        VAULT_ENABLED: 'true',
+        VAULT_TOKEN: 'token',
+        VAULT_SECRET_PATH: 'secret/data/app',
+      };
+      expect(() => validate(config)).toThrow('SECURITY: VAULT_ADDR is required when VAULT_ENABLED=true');
+    });
+
+    it('should require VAULT_SECRET_PATH', () => {
+      const config = {
+        NODE_ENV: 'development',
+        VAULT_ENABLED: 'true',
+        VAULT_ADDR: 'http://localhost:8200',
+        VAULT_TOKEN: 'token',
+      };
+      expect(() => validate(config)).toThrow('SECURITY: VAULT_SECRET_PATH is required when VAULT_ENABLED=true');
+    });
+
+    it('should require Vault auth (token or full AppRole)', () => {
+      const config = {
+        NODE_ENV: 'development',
+        VAULT_ENABLED: 'true',
+        VAULT_ADDR: 'http://localhost:8200',
+        VAULT_SECRET_PATH: 'secret/data/app',
+      };
+      expect(() => validate(config)).toThrow(
+        'SECURITY: Vault auth must use VAULT_TOKEN or VAULT_ROLE_ID+VAULT_SECRET_ID when VAULT_ENABLED=true',
+      );
+    });
+
+    it('should reject partial AppRole config', () => {
+      const config = {
+        NODE_ENV: 'development',
+        VAULT_ENABLED: 'true',
+        VAULT_ADDR: 'http://localhost:8200',
+        VAULT_SECRET_PATH: 'secret/data/app',
+        VAULT_ROLE_ID: 'role',
+      };
+      expect(() => validate(config)).toThrow(
+        'SECURITY: Vault AppRole auth requires both VAULT_ROLE_ID and VAULT_SECRET_ID',
+      );
+    });
+
+    it('should allow token auth', () => {
+      const config = {
+        NODE_ENV: 'development',
+        VAULT_ENABLED: 'true',
+        VAULT_ADDR: 'http://localhost:8200',
+        VAULT_SECRET_PATH: 'secret/data/app',
+        VAULT_TOKEN: 'token',
+      };
+      expect(() => validate(config)).not.toThrow();
+    });
+
+    it('should allow AppRole auth', () => {
+      const config = {
+        NODE_ENV: 'development',
+        VAULT_ENABLED: 'true',
+        VAULT_ADDR: 'http://localhost:8200',
+        VAULT_SECRET_PATH: 'secret/data/app',
+        VAULT_ROLE_ID: 'role',
+        VAULT_SECRET_ID: 'secret',
+      };
+      expect(() => validate(config)).not.toThrow();
+    });
+  });
+
+  it('should reject invalid VAULT_ENABLED values', () => {
+    const config = {
+      NODE_ENV: 'development',
+      VAULT_ENABLED: 'yes',
+    };
+    expect(() => validate(config)).toThrow('VAULT_ENABLED');
+  });
 });
