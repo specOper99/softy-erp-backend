@@ -57,6 +57,8 @@ describe('PlatformTimeEntriesService', () => {
     const result = await service.list('tenant-1', {});
 
     expect(result).toHaveLength(1);
+    expect(repo.createQueryBuilder).toHaveBeenCalledWith('entry');
+    expect(queryBuilder.where).toHaveBeenCalledWith('entry.tenantId = :tenantId', { tenantId: 'tenant-1' });
   });
 
   it('throws when task filter is missing for tenant', async () => {
@@ -101,7 +103,10 @@ describe('PlatformTimeEntriesService', () => {
         platformUserId: 'platform-user-1',
         action: PlatformAction.TIME_ENTRY_UPDATED,
         targetTenantId: 'tenant-1',
+        targetEntityType: 'time_entry',
         targetEntityId: 'entry-1',
+        ipAddress: '127.0.0.1',
+        userAgent: 'test-agent',
       }),
     );
   });
