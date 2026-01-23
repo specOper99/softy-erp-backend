@@ -50,7 +50,38 @@ describe('vaultLoader', () => {
 
     const result = await vaultLoader();
     expect(result).toEqual({});
-    expect(vault).toHaveBeenCalled();
+    expect(vault).not.toHaveBeenCalled();
+  });
+
+  it('should throw in production if VAULT_SECRET_PATH is missing', async () => {
+    process.env.VAULT_ENABLED = 'true';
+    process.env.NODE_ENV = 'production';
+    process.env.VAULT_ADDR = 'http://localhost:8200';
+    delete process.env.VAULT_SECRET_PATH;
+
+    await expect(vaultLoader()).rejects.toThrow('VAULT_SECRET_PATH is required when VAULT_ENABLED=true');
+    expect(vault).not.toHaveBeenCalled();
+  });
+
+  it('should return empty object if VAULT_ADDR is missing (non-prod)', async () => {
+    process.env.VAULT_ENABLED = 'true';
+    process.env.NODE_ENV = 'development';
+    process.env.VAULT_SECRET_PATH = 'secret/data/app';
+    delete process.env.VAULT_ADDR;
+
+    const result = await vaultLoader();
+    expect(result).toEqual({});
+    expect(vault).not.toHaveBeenCalled();
+  });
+
+  it('should throw in production if VAULT_ADDR is missing', async () => {
+    process.env.VAULT_ENABLED = 'true';
+    process.env.NODE_ENV = 'production';
+    process.env.VAULT_SECRET_PATH = 'secret/data/app';
+    delete process.env.VAULT_ADDR;
+
+    await expect(vaultLoader()).rejects.toThrow('VAULT_ADDR is required when VAULT_ENABLED=true');
+    expect(vault).not.toHaveBeenCalled();
   });
 
   it('should fetch secrets with token auth', async () => {
@@ -75,6 +106,43 @@ describe('vaultLoader', () => {
     expect(mockClient.read).toHaveBeenCalledWith('secret/data/app');
     expect(result).toEqual({ DB_PASSWORD: 'test-db-pass' });
     expect(process.env.DB_PASSWORD).toBe('test-db-pass');
+  });
+
+  it('should map MAIL_PASSWORD to MAIL_PASS for backward compatibility', async () => {
+    process.env.VAULT_ENABLED = 'true';
+    process.env.VAULT_ADDR = 'http://localhost:8200';
+    process.env.VAULT_TOKEN = TEST_SECRETS.VAULT_TOKEN;
+    process.env.VAULT_SECRET_PATH = 'secret/data/app';
+
+    mockClient.read.mockResolvedValue({
+      data: {
+        data: { MAIL_PASSWORD: 'test-mail-pass' },
+      },
+    });
+
+    const result = await vaultLoader();
+
+    expect(result).toEqual({ MAIL_PASS: 'test-mail-pass' });
+    expect(process.env.MAIL_PASS).toBe('test-mail-pass');
+  });
+
+  it('should ignore non-string secret values', async () => {
+    process.env.VAULT_ENABLED = 'true';
+    process.env.VAULT_ADDR = 'http://localhost:8200';
+    process.env.VAULT_TOKEN = TEST_SECRETS.VAULT_TOKEN;
+    process.env.VAULT_SECRET_PATH = 'secret/data/app';
+
+    mockClient.read.mockResolvedValue({
+      data: {
+        data: { DB_PORT: 5432, DB_PASSWORD: 'test-db-pass' },
+      },
+    });
+
+    const result = await vaultLoader();
+
+    expect(result).toEqual({ DB_PASSWORD: 'test-db-pass' });
+    expect(process.env.DB_PASSWORD).toBe('test-db-pass');
+    expect(process.env.DB_PORT).toBeUndefined();
   });
 
   it('should authenticat with AppRole if configured', async () => {
@@ -104,6 +172,7 @@ describe('vaultLoader', () => {
   it('should handle vault errors gracefully in non-prod', async () => {
     process.env.VAULT_ENABLED = 'true';
     process.env.NODE_ENV = 'development';
+    process.env.VAULT_ADDR = 'http://localhost:8200';
     process.env.VAULT_SECRET_PATH = 'secret/data/app';
 
     mockClient.read.mockRejectedValue(new Error('Connection refused'));
@@ -115,6 +184,7 @@ describe('vaultLoader', () => {
   it('should throw error in production if vault fails', async () => {
     process.env.VAULT_ENABLED = 'true';
     process.env.NODE_ENV = 'production';
+    process.env.VAULT_ADDR = 'http://localhost:8200';
     process.env.VAULT_SECRET_PATH = 'secret/data/app';
 
     mockClient.read.mockRejectedValue(new Error('Critical Vault Error'));
