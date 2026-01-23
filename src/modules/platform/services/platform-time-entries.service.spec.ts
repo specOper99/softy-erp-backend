@@ -1,15 +1,18 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { createMockRepository } from '../../../../test/helpers/mock-factories';
 import { Task } from '../../tasks/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/entities/time-entry.entity';
+import { PlatformAction } from '../enums/platform-action.enum';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformTimeEntriesService } from './platform-time-entries.service';
 
 describe('PlatformTimeEntriesService', () => {
   let service: PlatformTimeEntriesService;
   let repo: jest.Mocked<Repository<TimeEntry>>;
+  let taskRepo: jest.Mocked<Repository<Task>>;
   let auditService: { log: jest.Mock };
 
   beforeEach(async () => {
@@ -35,6 +38,37 @@ describe('PlatformTimeEntriesService', () => {
 
     service = module.get(PlatformTimeEntriesService);
     repo = module.get(getRepositoryToken(TimeEntry));
+    taskRepo = module.get(getRepositoryToken(Task));
+  });
+
+  it('returns time entries for the tenant', async () => {
+    const entry = { id: 'entry-1', tenantId: 'tenant-1' } as TimeEntry;
+    const queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([entry]),
+    };
+
+    repo.createQueryBuilder.mockReturnValue(queryBuilder as unknown as SelectQueryBuilder<TimeEntry>);
+
+    const result = await service.list('tenant-1', {});
+
+    expect(result).toHaveLength(1);
+  });
+
+  it('throws when task filter is missing for tenant', async () => {
+    taskRepo.findOne.mockResolvedValue(null);
+
+    await expect(service.list('tenant-1', { taskId: 'task-1' })).rejects.toThrow(NotFoundException);
+  });
+
+  it('throws when time entry is missing for tenant', async () => {
+    repo.findOne.mockResolvedValue(null);
+
+    await expect(service.findOne('tenant-1', 'entry-1')).rejects.toThrow(NotFoundException);
   });
 
   it('updates time entry and recomputes duration for STOPPED entries', async () => {
@@ -62,5 +96,13 @@ describe('PlatformTimeEntriesService', () => {
     );
 
     expect(result.durationMinutes).toBe(120);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        platformUserId: 'platform-user-1',
+        action: PlatformAction.TIME_ENTRY_UPDATED,
+        targetTenantId: 'tenant-1',
+        targetEntityId: 'entry-1',
+      }),
+    );
   });
 });
