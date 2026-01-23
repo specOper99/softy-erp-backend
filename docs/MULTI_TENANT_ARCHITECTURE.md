@@ -15,6 +15,13 @@ We use a two-tiered isolation strategy:
 
 We have removed all dependencies on client-provided tenant headers (`X-Tenant-ID`). Tenant identification is now derived strictly from the authenticated JWT payload or identified from credentials during login.
 
+## Tenant Identification Rules
+
+- Source of truth: verified JWT `tenantId` claim from `Authorization: Bearer <JWT>`
+- Do not accept tenant identity from client-provided headers (e.g. `X-Tenant-ID`)
+- Host/subdomain resolution is allowed only when no Bearer token is present and the host is allowlisted via `TENANT_ALLOWED_DOMAINS`
+- If both JWT tenantId and allowlisted host tenant are present, the request is rejected unless they match
+
 ```
 ┌─────────────┐   1. Register     ┌─────────────┐
 │   Client    │ ─────────────────▶│  /register  │
