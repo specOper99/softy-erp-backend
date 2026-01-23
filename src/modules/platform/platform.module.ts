@@ -24,6 +24,7 @@ import { PlatformAuditService } from './services/platform-audit.service';
 import { PlatformAuthService } from './services/platform-auth.service';
 import { PlatformSecurityService } from './services/platform-security.service';
 import { PlatformTenantService } from './services/platform-tenant.service';
+import { PlatformTimeEntriesService } from './services/platform-time-entries.service';
 
 // Controllers
 import { MFAController } from './controllers/mfa.controller';
@@ -33,6 +34,7 @@ import { PlatformAuthController } from './controllers/platform-auth.controller';
 import { PlatformSecurityController } from './controllers/platform-security.controller';
 import { PlatformSupportController } from './controllers/platform-support.controller';
 import { PlatformTenantsController } from './controllers/platform-tenants.controller';
+import { PlatformTimeEntriesController } from './controllers/platform-time-entries.controller';
 
 // Guards & Strategies
 import { PlatformJwtAuthGuard } from './guards/platform-jwt-auth.guard';
@@ -76,6 +78,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
     PlatformAuthController,
     PlatformSecurityController,
     PlatformAnalyticsController,
+    PlatformTimeEntriesController,
     MFAController,
   ],
   providers: [
@@ -85,6 +88,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
     PlatformAuthService,
     PlatformSecurityService,
     PlatformAnalyticsService,
+    PlatformTimeEntriesService,
     MFAService,
     EmailNotificationService,
     PlatformJwtStrategy,
