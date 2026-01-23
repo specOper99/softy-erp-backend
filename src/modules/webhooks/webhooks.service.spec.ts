@@ -72,7 +72,6 @@ describe('WebhookService', () => {
   });
 
   describe('registerWebhook and emit', () => {
-    const _tenantId = 'tenant-1';
     const config: WebhookConfig = {
       url: 'https://example.com/webhook',
       secret: TEST_SECRETS.WEBHOOK_SECRET,
@@ -90,6 +89,66 @@ describe('WebhookService', () => {
           timestamp: new Date().toISOString(),
         }),
       ).rejects.toThrow('webhooks.not_found');
+    });
+
+    it('deliverWebhook should load full webhook record when partial is provided', async () => {
+      const event: WebhookEvent = {
+        type: 'booking.created',
+        tenantId: mockTenantId,
+        payload: { id: '123' },
+        timestamp: new Date().toISOString(),
+      };
+
+      const partial = { id: 'w-partial', tenantId: mockTenantId, resolvedIps: undefined } as unknown as Webhook;
+      const full = {
+        id: 'w-partial',
+        tenantId: mockTenantId,
+        url: 'https://example.com/webhook',
+        secret: 'encrypted:test-secret',
+        events: ['*'],
+        resolvedIps: ['93.184.216.34'],
+        isActive: true,
+      } as unknown as Webhook;
+
+      webhookRepository.findOne.mockResolvedValue(full);
+
+      await service.deliverWebhook(partial, event);
+
+      expect(webhookRepository.findOne).toHaveBeenCalledWith({ where: { id: 'w-partial' } });
+
+      const fetchMock = global.fetch as unknown as jest.Mock;
+      expect(fetchMock).toHaveBeenCalledWith(
+        full.url,
+        expect.objectContaining({
+          method: 'POST',
+          redirect: 'manual',
+        }),
+      );
+    });
+
+    it('deliverWebhook should not decrypt secret if it is not encrypted', async () => {
+      const event: WebhookEvent = {
+        type: 'booking.created',
+        tenantId: mockTenantId,
+        payload: { id: '123' },
+        timestamp: new Date().toISOString(),
+      };
+
+      const webhook = {
+        id: 'w-plain',
+        tenantId: mockTenantId,
+        url: 'https://example.com/webhook',
+        secret: 'plain-secret',
+        events: ['*'],
+        resolvedIps: ['93.184.216.34'],
+        isActive: true,
+      } as unknown as Webhook;
+
+      const decryptSpy = mockEncryptionService.decrypt as unknown as jest.Mock;
+      decryptSpy.mockClear();
+      await service.deliverWebhook(webhook, event);
+
+      expect(decryptSpy).not.toHaveBeenCalled();
     });
 
     const event: WebhookEvent = {

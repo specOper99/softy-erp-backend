@@ -1,5 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsNumber, IsOptional, IsString, Matches, MinLength, validateSync } from 'class-validator';
+import { IsEnum, IsIn, IsNumber, IsOptional, IsString, Matches, MinLength, validateSync } from 'class-validator';
 
 enum NodeEnv {
   Development = 'development',
@@ -244,6 +244,7 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  @IsIn(['true', 'false'])
   VAULT_ENABLED?: string;
 
   @IsString()
@@ -302,6 +303,32 @@ export function validate(config: Record<string, unknown>) {
       if (cursorSecretError) {
         throw new Error(cursorSecretError);
       }
+    }
+  }
+
+  // Vault enforcement (opt-in via VAULT_ENABLED=true)
+  if (validatedConfig.VAULT_ENABLED === 'true') {
+    if (!validatedConfig.VAULT_ADDR) {
+      throw new Error('SECURITY: VAULT_ADDR is required when VAULT_ENABLED=true');
+    }
+    if (!validatedConfig.VAULT_SECRET_PATH) {
+      throw new Error('SECURITY: VAULT_SECRET_PATH is required when VAULT_ENABLED=true');
+    }
+
+    const hasToken = !!validatedConfig.VAULT_TOKEN;
+    const hasRoleId = !!validatedConfig.VAULT_ROLE_ID;
+    const hasSecretId = !!validatedConfig.VAULT_SECRET_ID;
+
+    // Prevent partial AppRole config (one without the other)
+    if (hasRoleId !== hasSecretId) {
+      throw new Error('SECURITY: Vault AppRole auth requires both VAULT_ROLE_ID and VAULT_SECRET_ID');
+    }
+
+    const hasAppRole = hasRoleId && hasSecretId;
+    if (!hasToken && !hasAppRole) {
+      throw new Error(
+        'SECURITY: Vault auth must use VAULT_TOKEN or VAULT_ROLE_ID+VAULT_SECRET_ID when VAULT_ENABLED=true',
+      );
     }
   }
 

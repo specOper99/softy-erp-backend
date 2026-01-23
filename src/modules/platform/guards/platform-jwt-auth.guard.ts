@@ -2,6 +2,15 @@ import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/com
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 
+export interface PlatformJwtUser {
+  id: string;
+  email: string;
+  platformRole: string;
+  sessionId: string;
+  userId: string;
+  aud: 'platform';
+}
+
 @Injectable()
 export class PlatformJwtAuthGuard extends AuthGuard('platform-jwt') {
   constructor(private reflector: Reflector) {
@@ -14,15 +23,21 @@ export class PlatformJwtAuthGuard extends AuthGuard('platform-jwt') {
     return super.canActivate(context);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handleRequest(err: any, user: any) {
-    if (err || !user) {
-      if (err) {
-        throw err;
-      }
+  handleRequest<TUser extends PlatformJwtUser = PlatformJwtUser>(
+    err: unknown,
+    user: TUser | false,
+    _info?: unknown,
+    _context?: ExecutionContext,
+    _status?: unknown,
+  ): TUser {
+    if (err) {
+      throw err instanceof Error ? err : new UnauthorizedException('Invalid platform token');
+    }
+
+    if (!user) {
       throw new UnauthorizedException('Invalid platform token');
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+
     return user;
   }
 }

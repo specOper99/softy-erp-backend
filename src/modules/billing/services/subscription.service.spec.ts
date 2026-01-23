@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import Stripe from 'stripe';
 import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { BillingCustomer } from '../entities/billing-customer.entity';
 import { PaymentMethod } from '../entities/payment-method.entity';
 import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
@@ -152,6 +153,64 @@ describe('SubscriptionService', () => {
       subscriptionRepo.findOne.mockResolvedValue(mockExistingSub as unknown as Subscription);
 
       await expect(service.createSubscription(mockTenantId, 'price_123')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should create subscription and update tenant plan', async () => {
+      const mockCustomer = { tenantId: mockTenantId, stripeCustomerId: 'cus_123' };
+      customerRepo.findOne.mockResolvedValue(mockCustomer as unknown as BillingCustomer);
+      subscriptionRepo.findOne.mockResolvedValue(null);
+
+      const stripeSubscription = {
+        id: 'sub_stripe_123',
+        status: 'active',
+        cancel_at_period_end: false,
+        items: {
+          data: [
+            {
+              quantity: 1,
+              price: { id: 'price_pro_123', recurring: { interval: 'month' } },
+            },
+          ],
+        },
+        current_period_start: 1700000000,
+        current_period_end: 1700003600,
+      } as unknown as Stripe.Subscription;
+
+      stripeService.createSubscription.mockResolvedValue(stripeSubscription);
+
+      const created = {
+        tenantId: mockTenantId,
+        stripeSubscriptionId: 'sub_stripe_123',
+        stripeCustomerId: 'cus_123',
+        stripePriceId: 'price_pro_123',
+        status: SubscriptionStatus.ACTIVE,
+      };
+
+      subscriptionRepo.create.mockReturnValue(created as unknown as Subscription);
+      subscriptionRepo.save.mockResolvedValue(created as unknown as Subscription);
+
+      const result = await service.createSubscription(mockTenantId, 'price_pro_123');
+
+      expect(stripeService.createSubscription).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customer: 'cus_123',
+          items: [{ price: 'price_pro_123' }],
+          expand: ['latest_invoice.payment_intent'],
+        }),
+      );
+
+      expect(subscriptionRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: mockTenantId,
+          stripeSubscriptionId: 'sub_stripe_123',
+          stripeCustomerId: 'cus_123',
+          stripePriceId: 'price_pro_123',
+          status: SubscriptionStatus.ACTIVE,
+        }),
+      );
+
+      expect(tenantRepo.update).toHaveBeenCalledWith(mockTenantId, { subscriptionPlan: SubscriptionPlan.PRO });
+      expect(result).toEqual(created);
     });
   });
 

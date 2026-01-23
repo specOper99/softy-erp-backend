@@ -43,7 +43,7 @@ We implement multiple layers of security to protect tenant data:
 - **Header Hardening**: `Helmet` removes `X-Powered-By` and adds CSP, HSTS, and other security headers.
 
 ### Layer 2: Authentication & Authorization
-- **JWT-First**: Tenant scope comes from verified JWTs, with subdomain fallback for public routes (no tenant headers).
+- **JWT-First**: Tenant scope comes from verified JWTs; subdomain fallback is only for unauthenticated routes; if both are present they must match (no tenant headers).
 - **Account Lockout**: Brute-force protection on the login endpoint.
 - **RBAC**: Role-based access control enforced via high-level decorators.
 

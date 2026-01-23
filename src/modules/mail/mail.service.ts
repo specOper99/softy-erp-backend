@@ -16,6 +16,7 @@ import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 
 export type {
+  BookingCancellationJobData,
   BookingEmailData,
   CancellationEmailData,
   EmailResult,

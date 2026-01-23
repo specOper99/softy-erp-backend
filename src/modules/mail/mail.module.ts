@@ -1,4 +1,4 @@
-import { MailerModule } from '@nestjs-modules/mailer';
+import { MailerModule, type MailerOptions } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
@@ -19,43 +19,44 @@ import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 import { MailTemplateService } from './services/mail-template.service';
 
+export const createMailerOptions = (configService: ConfigService): MailerOptions => ({
+  transport: {
+    host: configService.get('MAIL_HOST', 'smtp.gmail.com'),
+    port: parseInt(configService.get('MAIL_PORT', '587')),
+    secure: false,
+    auth: {
+      user: configService.get('MAIL_USER'),
+      pass: configService.get('MAIL_PASS'),
+    },
+  },
+  defaults: {
+    from:
+      configService.get('MAIL_FROM') ||
+      `"${configService.get('MAIL_FROM_NAME', 'SaaS App')}" <${configService.get('MAIL_FROM_ADDRESS', 'noreply@example.com')}>`,
+  },
+  template: {
+    dir: join(__dirname, 'templates'),
+    adapter: new HandlebarsAdapter(),
+    options: {
+      strict: true,
+    },
+  },
+  options: {
+    partials: {
+      dir: join(__dirname, 'templates', 'partials'),
+      options: {
+        strict: true,
+      },
+    },
+  },
+});
+
 @Module({
   imports: [
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        transport: {
-          host: configService.get('MAIL_HOST', 'smtp.gmail.com'),
-          port: parseInt(configService.get('MAIL_PORT', '587')),
-          secure: false,
-          auth: {
-            user: configService.get('MAIL_USER'),
-            pass: configService.get('MAIL_PASS'),
-          },
-        },
-        defaults: {
-          from:
-            configService.get('MAIL_FROM') ||
-            `"${configService.get('MAIL_FROM_NAME', 'SaaS App')}" <${configService.get('MAIL_FROM_ADDRESS', 'noreply@example.com')}>`,
-        },
-        template: {
-          dir: join(__dirname, 'templates'),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          adapter: new HandlebarsAdapter(undefined, {
-            partials: {
-              dir: join(__dirname, 'templates', 'partials'),
-              options: {
-                strict: true,
-              },
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
-          options: {
-            strict: true,
-          },
-        },
-      }),
+      useFactory: (configService: ConfigService) => createMailerOptions(configService),
     }),
     BullModule.registerQueue({
       name: EMAIL_QUEUE,

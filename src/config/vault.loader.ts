@@ -23,6 +23,7 @@ const ALLOWED_VAULT_KEYS = new Set([
   'MAIL_HOST',
   'MAIL_PORT',
   'MAIL_USER',
+  'MAIL_PASS',
   'MAIL_PASSWORD',
   // Storage
   'MINIO_ACCESS_KEY',
@@ -106,6 +107,24 @@ export const vaultLoader = async () => {
     return {};
   }
 
+  if (!process.env.VAULT_ADDR) {
+    const message = 'VAULT_ADDR is required when VAULT_ENABLED=true';
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(message);
+    }
+    VaultLogger.warn(message);
+    return {};
+  }
+
+  if (!process.env.VAULT_SECRET_PATH) {
+    const message = 'VAULT_SECRET_PATH is required when VAULT_ENABLED=true';
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(message);
+    }
+    VaultLogger.warn(message);
+    return {};
+  }
+
   const client = createTypedVaultClient({
     apiVersion: 'v1',
     endpoint: process.env.VAULT_ADDR,
@@ -124,11 +143,6 @@ export const vaultLoader = async () => {
         throw new Error('Invalid Vault login response');
       }
       client.token = result.auth.client_token;
-    }
-
-    if (!process.env.VAULT_SECRET_PATH) {
-      VaultLogger.warn('VAULT_ENABLED is true but VAULT_SECRET_PATH is missing.');
-      return {};
     }
 
     const kvStore = await client.read<VaultReadResponse>(process.env.VAULT_SECRET_PATH);
@@ -150,13 +164,26 @@ export const vaultLoader = async () => {
     for (const key of Object.keys(secrets)) {
       if (ALLOWED_VAULT_KEYS.has(key)) {
         const value = secrets[key];
-        if (value !== undefined) {
-          filteredSecrets[key] = value;
+        if (value === undefined) {
+          continue;
         }
+        if (typeof value !== 'string') {
+          VaultLogger.warn(`Ignoring non-string Vault value for key: ${key}`);
+          continue;
+        }
+        filteredSecrets[key] = value;
       } else {
         VaultLogger.warn(`Ignoring non-whitelisted Vault key: ${key}`);
       }
     }
+
+    // Backward compatibility: some environments store the SMTP password as MAIL_PASSWORD,
+    // but the app expects MAIL_PASS.
+    if (filteredSecrets.MAIL_PASSWORD && !filteredSecrets.MAIL_PASS) {
+      filteredSecrets.MAIL_PASS = filteredSecrets.MAIL_PASSWORD;
+    }
+    delete filteredSecrets.MAIL_PASSWORD;
+
     Object.assign(process.env, filteredSecrets);
 
     return filteredSecrets;

@@ -104,5 +104,26 @@ describe('ApiVersionInterceptor', () => {
         done();
       });
     });
+
+    it('should not inject _meta into class instances (preserve prototype)', (done) => {
+      class Foo {
+        constructor(public readonly value: string) {}
+      }
+
+      const foo = new Foo('x');
+      const mockCallHandler: CallHandler = {
+        handle: () => of(foo),
+      };
+
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
+        try {
+          expect(result).toBeInstanceOf(Foo);
+          expect((result as any)._meta).toBeUndefined();
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
+    });
   });
 });

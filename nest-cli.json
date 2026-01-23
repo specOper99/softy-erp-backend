@@ -4,6 +4,7 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": ["**/*.hbs"]
+    "assets": ["**/*.hbs", "common/i18n/translations/*.json"],
+    "watchAssets": true
   }
 }
