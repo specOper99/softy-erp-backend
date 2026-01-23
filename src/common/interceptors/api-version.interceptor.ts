@@ -1,6 +1,14 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor, StreamableFile } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Observable, map } from 'rxjs';
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(value) as object | null;
+  return proto === Object.prototype || proto === null;
+};
 
 /**
  * API versioning interceptor that adds version headers to all responses.
@@ -32,13 +40,7 @@ export class ApiVersionInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map((data: unknown) => {
         // Optionally inject version info into responses
-        if (
-          data &&
-          typeof data === 'object' &&
-          !Array.isArray(data) &&
-          !(data instanceof Buffer) &&
-          !(data instanceof StreamableFile)
-        ) {
+        if (isPlainObject(data)) {
           return {
             ...data,
             _meta: {
@@ -51,6 +53,9 @@ export class ApiVersionInterceptor implements NestInterceptor {
             },
           };
         }
+
+        // Preserve prototypes for class instances (including StreamableFile) and other non-plain objects.
+        // Also return arrays, buffers, primitives, and null as-is.
         return data;
       }),
     );
