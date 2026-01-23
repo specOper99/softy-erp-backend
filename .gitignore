@@ -37,8 +37,18 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Test reports (generated)
+reports/jest-junit.xml
+
 # TypeScript cache
 *.tsbuildinfo
+
+# Script build artifacts (keep TS sources)
+scripts/**/*.d.ts
+scripts/**/*.js.map
+scripts/ci/**/*.js
+scripts/platform/**/*.js
+scripts/reset-test-db.js
 
 # NestJS
 .nest/
