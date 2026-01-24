@@ -31,11 +31,11 @@ export class EncryptionService {
     } else {
       this.currentVersion = currentVersion;
       // Use version as unique salt component for key derivation
-      const currentSalt = `chapters-erp-${currentVersion}`;
+      const currentSalt = `softy-erp-${currentVersion}`;
       this.keys.set(currentVersion, scryptSync(currentKey, currentSalt, 32));
 
       if (previousKey && previousVersion) {
-        const previousSalt = `chapters-erp-${previousVersion}`;
+        const previousSalt = `softy-erp-${previousVersion}`;
         this.keys.set(previousVersion, scryptSync(previousKey, previousSalt, 32));
       }
     }

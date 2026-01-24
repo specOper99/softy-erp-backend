@@ -44,7 +44,7 @@ describe('Bookings Search (E2E)', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     const adminEmail = seedData.admin.email;
-    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
     tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer())

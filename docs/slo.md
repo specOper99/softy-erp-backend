@@ -1,6 +1,6 @@
 # Service Level Objectives (SLOs)
 
-This document defines the SLOs for Chapters Studio ERP API services.
+This document defines the SLOs for softY ERP API services.
 
 ---
 

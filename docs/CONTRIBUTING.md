@@ -1,4 +1,4 @@
-# Contributing to Chapters Studio ERP
+# Contributing to softY ERP
 
 Guidelines for contributing to this codebase.
 

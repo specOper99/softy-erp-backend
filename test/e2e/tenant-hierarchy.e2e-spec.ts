@@ -77,7 +77,7 @@ describe('Tenant Hierarchy & Quotas (e2e)', () => {
     // Create an admin user for child tenant
     const UserRepository = dataSource.getRepository('User');
     const passwordHashService = new PasswordHashService();
-    const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const password = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
     const passwordHash = await passwordHashService.hash(password);
 
     const childAdmin = await UserRepository.save({

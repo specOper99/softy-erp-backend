@@ -2,13 +2,13 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-erp-traffic
-  namespace: chapters-studio-erp
+  namespace: softy-erp
   labels:
-    app: chapters-studio-erp
+    app: softy-erp
 spec:
   podSelector:
     matchLabels:
-      app: chapters-studio-erp
+      app: softy-erp
   policyTypes:
     - Ingress
     - Egress
@@ -33,7 +33,7 @@ spec:
     - from:
         - podSelector:
             matchLabels:
-              app: chapters-studio-erp
+              app: softy-erp
       ports:
         - protocol: TCP
           port: 3000

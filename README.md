@@ -1,4 +1,4 @@
-# 🎬 Chapters Studio ERP
+# 🎬 softY ERP
 
 A production-ready NestJS ERP backend for photography/videography studio management.
 

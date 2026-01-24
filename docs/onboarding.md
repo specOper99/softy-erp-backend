@@ -10,7 +10,7 @@ Welcome to the team! This guide will get you set up and contributing in Day 1.
 ## 2. Setup
 1. **Clone the repo**:
    ```bash
-   git clone git@github.com:chapters-studio/erp-backend.git
+   git clone git@github.com:softy/erp-backend.git
    cd erp-backend
    ```
 2. **Install Dependencies**:

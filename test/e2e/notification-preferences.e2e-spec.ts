@@ -50,7 +50,7 @@ describe('Notification Preferences Controller (e2e)', () => {
 
     const seedData = await seedTestDatabase(dataSource);
     userId = seedData.admin.id;
-    const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const password = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
     const tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer())

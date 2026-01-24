@@ -73,7 +73,7 @@ describe('Payroll Load E2E Tests', () => {
       .set('Host', tenantHost)
       .send({
         email: seedData.admin.email,
-        password: process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!',
+        password: process.env.SEED_ADMIN_PASSWORD || 'softYERP123!',
       });
 
     accessToken = loginResponse.body.data.accessToken;

@@ -210,7 +210,7 @@ describe('Race Condition Tests', () => {
 
       const users = await userRepository.save(
         Array.from({ length: 5 }).map((_, index) => ({
-          email: `race-assign-${Date.now()}-${index}@chapters.studio`,
+          email: `race-assign-${Date.now()}-${index}@erp.soft-y.org`,
           passwordHash: 'hash',
           role: Role.FIELD_STAFF,
           isActive: true,
@@ -266,7 +266,7 @@ describe('Race Condition Tests', () => {
       });
 
       const user = await userRepository.save({
-        email: `race-complete-${Date.now()}@chapters.studio`,
+        email: `race-complete-${Date.now()}@erp.soft-y.org`,
         passwordHash: 'hash',
         role: Role.FIELD_STAFF,
         isActive: true,
@@ -346,7 +346,7 @@ describe('Race Condition Tests', () => {
       // 3. First 5 should succeed, rest should fail with insufficient balance
 
       const user = await userRepository.save({
-        email: `race-wallet-${Date.now()}@chapters.studio`,
+        email: `race-wallet-${Date.now()}@erp.soft-y.org`,
         passwordHash: 'hash',
         role: Role.FIELD_STAFF,
         isActive: true,

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Database Backup Script for Chapters Studio ERP
+# Database Backup Script for softY ERP
 # This script creates a compressed PostgreSQL backup and optionally uploads to MinIO
 
 set -e
@@ -7,25 +7,25 @@ set -e
 # Configuration
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
-BACKUP_FILENAME="chapters_studio_${TIMESTAMP}.sql.gz"
+BACKUP_FILENAME="softy_${TIMESTAMP}.sql.gz"
 BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
 
 # Database config (from .env or defaults)
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5434}"
-DB_NAME="${DB_DATABASE:-chapters_studio}"
-DB_USER="${DB_USERNAME:-chapters_studio}"
-export PGPASSWORD="${DB_PASSWORD:-chapters_studio_secret}"
+DB_NAME="${DB_DATABASE:-softy}"
+DB_USER="${DB_USERNAME:-softy}"
+export PGPASSWORD="${DB_PASSWORD:-softy_secret}"
 
 # MinIO config (optional)
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://localhost:9000}"
-MINIO_BUCKET="${MINIO_BUCKET:-chapters-studio}"
+MINIO_BUCKET="${MINIO_BUCKET:-softy}"
 MINIO_BACKUP_PREFIX="backups"
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
 
-echo "=== Chapters Studio Database Backup ==="
+echo "=== softY Database Backup ==="
 echo "Timestamp: $TIMESTAMP"
 echo "Database: $DB_NAME@$DB_HOST:$DB_PORT"
 
@@ -46,6 +46,6 @@ fi
 
 # Cleanup old local backups (keep last 7)
 echo "Cleaning up old backups (keeping last 7)..."
-ls -t "${BACKUP_DIR}"/chapters_studio_*.sql.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+ls -t "${BACKUP_DIR}"/softy_*.sql.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
 
 echo "=== Backup complete ==="

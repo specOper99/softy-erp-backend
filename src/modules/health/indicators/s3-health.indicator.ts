@@ -10,7 +10,7 @@ export class S3HealthIndicator extends HealthIndicator {
 
   constructor(private readonly configService: ConfigService) {
     super();
-    this.bucketName = this.configService.get<string>('S3_BUCKET') || 'chapters-media';
+    this.bucketName = this.configService.get<string>('S3_BUCKET') || 'softy-media';
 
     const endpoint = this.configService.get<string>('S3_ENDPOINT');
     const region = this.configService.get<string>('S3_REGION') || 'us-east-1';

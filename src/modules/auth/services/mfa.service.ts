@@ -18,7 +18,7 @@ export class MfaService {
 
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
     const secret = authenticator.generateSecret();
-    const otpauthUrl = authenticator.keyuri(user.email, 'Chapters Studio ERP', secret);
+    const otpauthUrl = authenticator.keyuri(user.email, 'softY ERP', secret);
     const qrCodeUrl = await toDataURL(otpauthUrl);
 
     await this.usersService.updateMfaSecret(user.id, secret, false);

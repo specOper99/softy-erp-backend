@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: chapters-studio-erp
-  namespace: chapters-studio-erp
+  name: softy-erp
+  namespace: softy-erp
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -11,16 +11,16 @@ metadata:
 spec:
   tls:
     - hosts:
-        - api.chapters-studio.com
+        - api.erp.soft-y.org
       secretName: erp-tls
   rules:
-    - host: api.chapters-studio.com
+    - host: api.erp.soft-y.org
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: chapters-studio-erp
+                name: softy-erp
                 port:
                   number: 80

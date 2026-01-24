@@ -8,7 +8,7 @@ const PASSWORD_MESSAGE =
   'Password must be at least 8 characters with uppercase, lowercase, number, and special character (@$!%*?&)';
 
 export class LoginDto {
-  @ApiProperty({ example: 'admin@chapters.studio' })
+  @ApiProperty({ example: 'admin@erp.soft-y.org' })
   @IsEmail()
   @PII()
   email: string;
@@ -27,7 +27,7 @@ export class LoginDto {
 }
 
 export class RegisterDto {
-  @ApiProperty({ example: 'user@chapters.studio' })
+  @ApiProperty({ example: 'user@erp.soft-y.org' })
   @IsEmail()
   @PII()
   email: string;

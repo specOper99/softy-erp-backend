@@ -75,7 +75,7 @@ const correlationFormat = winston.format((info) => {
                   new LokiTransport({
                     host: configService.get<string>('LOKI_HOST') as string,
                     labels: {
-                      app: 'chapters-studio-erp',
+                      app: 'softy-erp',
                       environment: configService.get<string>('NODE_ENV') ?? 'development',
                     },
                     json: true,

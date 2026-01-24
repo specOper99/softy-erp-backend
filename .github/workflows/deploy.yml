@@ -138,13 +138,13 @@ jobs:
 
       - name: Deploy to Staging
         run: |
-          kubectl set image deployment/chapters-studio-erp \
+          kubectl set image deployment/softy-erp \
             app=${{ needs.build-and-push.outputs.image_ref }} \
             --namespace=staging
 
       - name: Wait for Rollout
         run: |
-          kubectl rollout status deployment/chapters-studio-erp \
+          kubectl rollout status deployment/softy-erp \
             --namespace=staging --timeout=300s
 
       - name: Verify Health
@@ -195,14 +195,14 @@ jobs:
       - name: Deploy Canary (Argo Rollouts)
         run: |
           # Update the rollout image
-          kubectl argo rollouts set image chapters-studio-erp \
+          kubectl argo rollouts set image softy-erp \
             app=${{ needs.build-and-push.outputs.image_ref }} \
             --namespace=production
 
       - name: Wait for Canary Analysis
         run: |
           # Wait for the first canary step (10% traffic)
-          kubectl argo rollouts status chapters-studio-erp \
+          kubectl argo rollouts status softy-erp \
             --namespace=production --watch --timeout=600s
 
   # Manual approval gate before full production
@@ -238,12 +238,12 @@ jobs:
 
       - name: Promote Canary to 100%
         run: |
-          kubectl argo rollouts promote chapters-studio-erp \
+          kubectl argo rollouts promote softy-erp \
             --namespace=production
 
       - name: Wait for Full Rollout
         run: |
-          kubectl argo rollouts status chapters-studio-erp \
+          kubectl argo rollouts status softy-erp \
             --namespace=production --watch --timeout=600s
 
       - name: Verify Production Health
@@ -285,6 +285,6 @@ jobs:
 
       - name: Rollback
         run: |
-          kubectl argo rollouts abort chapters-studio-erp --namespace=production
-          kubectl argo rollouts undo chapters-studio-erp --namespace=production
+          kubectl argo rollouts abort softy-erp --namespace=production
+          kubectl argo rollouts undo softy-erp --namespace=production
           echo "🔙 Rollback initiated"

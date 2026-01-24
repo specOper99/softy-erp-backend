@@ -23,7 +23,7 @@ describe('HR Module E2E Tests', () => {
   let testUserId: string;
 
   beforeAll(async () => {
-    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -83,7 +83,7 @@ describe('HR Module E2E Tests', () => {
         // Create a dedicated user for this test to avoid conflicts with seeded data
         const userRepo = app.get(DataSource).getRepository('User');
         const newUser = await userRepo.save({
-          email: `profile-test-${Date.now()}@chapters.studio`,
+          email: `profile-test-${Date.now()}@erp.soft-y.org`,
           passwordHash: 'hash',
           role: 'ADMIN',
           isActive: true,

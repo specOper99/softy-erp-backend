@@ -1,5 +1,5 @@
 groups:
-  - name: chapters-erp-alerts
+  - name: softy-erp-alerts
     rules:
       - alert: HighErrorRate
         expr: rate(http_request_duration_seconds_count{status=~"5.."}[1m]) / rate(http_request_duration_seconds_count[1m]) > 0.05
@@ -29,7 +29,7 @@ groups:
           description: "Webhook delivery failure rate is increasing."
 
       - alert: PayrollProcessingStuck
-        expr: chapters_erp_stuck_payouts > 0
+        expr: softy_erp_stuck_payouts > 0
         for: 1m
         labels:
           severity: critical
@@ -37,7 +37,7 @@ groups:
           summary: "Payroll Processing Stuck"
           description: "There are {{ $value }} payouts stuck in PENDING state for > 10 minutes. Money may have left without ledger record."
 
-  - name: chapters-erp-slo-alerts
+  - name: softy-erp-slo-alerts
     rules:
       # SLO Burn Rate Alerts (Multi-window, multi-burn-rate)
       - alert: SLOBurnRateCritical
@@ -53,7 +53,7 @@ groups:
         annotations:
           summary: "SLO Error Budget Burning Fast (14x)"
           description: "Error rate is consuming the monthly error budget at 14x the sustainable rate. Immediate action required."
-          runbook_url: "https://docs.chapters.studio/runbooks/slo-violation"
+          runbook_url: "https://docs.erp.soft-y.org/runbooks/slo-violation"
 
       - alert: SLOBurnRateWarning
         expr: |
@@ -79,10 +79,10 @@ groups:
           summary: "P99 Latency SLO Violation"
           description: "P99 latency is above 500ms target for 5 minutes."
 
-  - name: chapters-erp-resource-alerts
+  - name: softy-erp-resource-alerts
     rules:
       - alert: HighMemoryUsage
-        expr: container_memory_usage_bytes{container="chapters-studio-erp"} / container_spec_memory_limit_bytes{container="chapters-studio-erp"} > 0.8
+        expr: container_memory_usage_bytes{container="softy-erp"} / container_spec_memory_limit_bytes{container="softy-erp"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -91,7 +91,7 @@ groups:
           description: "Container memory usage is above 80% of limit."
 
       - alert: HighCPUUsage
-        expr: rate(container_cpu_usage_seconds_total{container="chapters-studio-erp"}[5m]) > 0.9
+        expr: rate(container_cpu_usage_seconds_total{container="softy-erp"}[5m]) > 0.9
         for: 5m
         labels:
           severity: warning
@@ -100,7 +100,7 @@ groups:
           description: "Container CPU usage is above 90%."
 
       - alert: DBConnectionPoolExhausted
-        expr: pg_stat_activity_count{datname="chapters_erp"} / pg_settings_max_connections > 0.8
+        expr: pg_stat_activity_count{datname="softy_erp"} / pg_settings_max_connections > 0.8
         for: 2m
         labels:
           severity: critical
@@ -117,10 +117,10 @@ groups:
           summary: "High Node.js Event Loop Lag"
           description: "Event loop lag is {{ $value }}s, indicating potential blocking operations."
 
-  - name: chapters-erp-synthetic-alerts
+  - name: softy-erp-synthetic-alerts
     rules:
       - alert: HealthCheckFailed
-        expr: probe_success{job="blackbox", instance=~".*chapters.*"} == 0
+        expr: probe_success{job="blackbox", instance=~".*softy.*"} == 0
         for: 1m
         labels:
           severity: critical
@@ -129,7 +129,7 @@ groups:
           description: "Health endpoint is not responding for {{ $labels.instance }}."
 
       - alert: HealthCheckSlow
-        expr: probe_duration_seconds{job="blackbox", instance=~".*chapters.*"} > 2
+        expr: probe_duration_seconds{job="blackbox", instance=~".*softy.*"} > 2
         for: 5m
         labels:
           severity: warning

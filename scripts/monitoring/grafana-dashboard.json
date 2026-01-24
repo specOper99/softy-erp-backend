@@ -1,6 +1,6 @@
 {
-    "title": "Chapters Studio ERP - Application Metrics",
-    "uid": "chapters-erp-main",
+    "title": "softY ERP - Application Metrics",
+    "uid": "softy-erp-main",
     "tags": [
         "nodejs",
         "nestjs",

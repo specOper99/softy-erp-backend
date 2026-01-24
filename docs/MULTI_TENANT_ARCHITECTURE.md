@@ -2,7 +2,7 @@
 
 ## Overview
 
-Chapters Studio ERP implements **tenant-based data isolation** using a defense-in-depth approach. We combine application-level context with database-level constraints to ensure zero cross-tenant data leakage.
+softY ERP implements **tenant-based data isolation** using a defense-in-depth approach. We combine application-level context with database-level constraints to ensure zero cross-tenant data leakage.
 
 ## Data Isolation Strategy
 

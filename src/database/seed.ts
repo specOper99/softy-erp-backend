@@ -86,16 +86,16 @@ async function seed() {
     // ============ 0. CREATE DEFAULT TENANT ============
     SeedLogger.log('Creating default tenant...');
     let mainTenant = await tenantRepo.findOne({
-      where: { slug: 'chapters-studio-hq' },
+      where: { slug: 'softy-hq' },
     });
 
     if (!mainTenant) {
       mainTenant = tenantRepo.create({
-        name: 'Chapters Studio HQ',
-        slug: 'chapters-studio-hq',
+        name: 'softY HQ',
+        slug: 'softy-hq',
       });
       mainTenant = await tenantRepo.save(mainTenant);
-      SeedLogger.log('   Tenant created: Chapters Studio HQ');
+      SeedLogger.log('   Tenant created: softY HQ');
     } else {
       SeedLogger.log('   Tenant already exists');
     }
@@ -105,21 +105,21 @@ async function seed() {
     // ============ 1. CREATE ADMIN USER ============
     SeedLogger.log('Creating admin user...');
     const existingAdmin = await userRepo.findOne({
-      where: { email: 'admin@chapters.studio' }, // Unique constraint is (email, tenantId) typically, but we check email + tenant
+      where: { email: 'admin@erp.soft-y.org' }, // Unique constraint is (email, tenantId) typically, but we check email + tenant
     });
 
     let _adminUser: User;
     if (!existingAdmin) {
       const passwordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD!, 10);
       _adminUser = userRepo.create({
-        email: 'admin@chapters.studio',
+        email: 'admin@erp.soft-y.org',
         passwordHash,
         role: Role.ADMIN,
         isActive: true,
         tenantId,
       });
       _adminUser = await userRepo.save(_adminUser);
-      SeedLogger.log('   Admin user created: admin@chapters.studio');
+      SeedLogger.log('   Admin user created: admin@erp.soft-y.org');
     } else {
       _adminUser = existingAdmin;
       SeedLogger.log('   Admin user already exists');
@@ -255,21 +255,21 @@ async function seed() {
     SeedLogger.log('\nCreating field staff users...');
     const staffData = [
       {
-        email: 'john.photographer@chapters.studio',
+        email: 'john.photographer@erp.soft-y.org',
         firstName: 'John',
         lastName: 'Smith',
         jobTitle: 'Senior Photographer',
         baseSalary: 2500,
       },
       {
-        email: 'sarah.videographer@chapters.studio',
+        email: 'sarah.videographer@erp.soft-y.org',
         firstName: 'Sarah',
         lastName: 'Johnson',
         jobTitle: 'Lead Videographer',
         baseSalary: 2800,
       },
       {
-        email: 'mike.editor@chapters.studio',
+        email: 'mike.editor@erp.soft-y.org',
         firstName: 'Mike',
         lastName: 'Williams',
         jobTitle: 'Video Editor',
@@ -318,21 +318,21 @@ async function seed() {
     // ============ 5. CREATE OPS MANAGER ============
     SeedLogger.log('\nCreating operations manager...');
     const existingOps = await userRepo.findOne({
-      where: { email: 'ops@chapters.studio' },
+      where: { email: 'ops@erp.soft-y.org' },
     });
     if (!existingOps) {
       const passwordHash = await bcrypt.hash(process.env.SEED_OPS_PASSWORD!, 10);
       const opsUser = userRepo.create({
-        email: 'ops@chapters.studio',
+        email: 'ops@erp.soft-y.org',
         passwordHash,
         role: Role.OPS_MANAGER,
         isActive: true,
         tenantId,
       });
       await userRepo.save(opsUser);
-      SeedLogger.log('   Created: ops@chapters.studio');
+      SeedLogger.log('   Created: ops@erp.soft-y.org');
     } else {
-      SeedLogger.log('   Exists: ops@chapters.studio');
+      SeedLogger.log('   Exists: ops@erp.soft-y.org');
     }
 
     // ============ 6. CREATE PLATFORM ADMIN USER ============
@@ -360,13 +360,13 @@ async function seed() {
     SeedLogger.log('\n========================================');
     SeedLogger.log('Seed completed successfully!');
     SeedLogger.log('========================================\n');
-    SeedLogger.log('Tenant: Chapters Studio HQ (chapters-studio-hq)');
+    SeedLogger.log('Tenant: softY HQ (softy-hq)');
     SeedLogger.log('Login credentials:');
-    SeedLogger.log('  Admin:    admin@chapters.studio / [SEED_ADMIN_PASSWORD]');
-    SeedLogger.log('  Ops Mgr:  ops@chapters.studio / [SEED_OPS_PASSWORD]');
-    SeedLogger.log('  Staff:    john.photographer@chapters.studio / [SEED_STAFF_PASSWORD]');
-    SeedLogger.log('            sarah.videographer@chapters.studio / [SEED_STAFF_PASSWORD]');
-    SeedLogger.log('            mike.editor@chapters.studio / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('  Admin:    admin@erp.soft-y.org / [SEED_ADMIN_PASSWORD]');
+    SeedLogger.log('  Ops Mgr:  ops@erp.soft-y.org / [SEED_OPS_PASSWORD]');
+    SeedLogger.log('  Staff:    john.photographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('            sarah.videographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('            mike.editor@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('\nPlatform:');
     SeedLogger.log('  Admin:    admin@platform.com / SecurePassword123!\n');
   } catch (error) {

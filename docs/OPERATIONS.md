@@ -1,6 +1,6 @@
 # Operations Guide
 
-Production deployment and operations guide for the Chapters Studio ERP system.
+Production deployment and operations guide for the softY ERP system.
 
 ---
 
@@ -176,14 +176,14 @@ npm run test
 npm run test:e2e
 
 # 2. Build production image
-docker build -t chapters-studio-erp:staging .
+docker build -t softy-erp:staging .
 
 # 3. Push to registry
-docker tag chapters-studio-erp:staging your-registry.com/chapters-studio-erp:staging
-docker push your-registry.com/chapters-studio-erp:staging
+docker tag softy-erp:staging your-registry.com/softy-erp:staging
+docker push your-registry.com/softy-erp:staging
 
 # 4. Deploy via Helm (Kubernetes)
-helm upgrade --install staging ./charts/chapters-erp \
+helm upgrade --install staging ./charts/softy-erp \
   --namespace staging \
   -f values.staging.yaml
 ```

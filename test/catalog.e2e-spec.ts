@@ -66,7 +66,7 @@ describe('Catalog Module E2E Tests', () => {
       .set('Host', tenantHost)
       .send({
         email: seedData.admin.email,
-        password: adminPassword || 'ChaptersERP123!',
+        password: adminPassword || 'softYERP123!',
       });
 
     accessToken = loginResponse.body.data?.accessToken;

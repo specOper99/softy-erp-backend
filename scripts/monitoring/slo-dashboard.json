@@ -1,6 +1,6 @@
 {
-    "title": "Chapters Studio ERP - SLO Dashboard",
-    "uid": "chapters-erp-slo",
+    "title": "softY ERP - SLO Dashboard",
+    "uid": "softy-erp-slo",
     "tags": [
         "slo",
         "sli",
@@ -16,7 +16,7 @@
             {
                 "name": "Deployments",
                 "datasource": "Prometheus",
-                "expr": "changes(kube_deployment_status_observed_generation{deployment=\"chapters-studio-erp\"}[5m]) > 0",
+                "expr": "changes(kube_deployment_status_observed_generation{deployment=\"softy-erp\"}[5m]) > 0",
                 "iconColor": "blue"
             }
         ]

@@ -12,7 +12,7 @@ export class FlagsService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     const unleashUrl = this.configService.get<string>('UNLEASH_URL');
     const unleashToken = this.configService.get<string>('UNLEASH_API_TOKEN');
-    const appName = this.configService.get<string>('SERVICE_NAME', 'chapters-erp');
+    const appName = this.configService.get<string>('SERVICE_NAME', 'softy-erp');
 
     if (!unleashUrl || !unleashToken) {
       this.logger.warn('Unleash URL or Token not provided. Feature flags will default to false.');

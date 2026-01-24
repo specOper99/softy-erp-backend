@@ -57,7 +57,7 @@ export class TicketingService implements TicketingProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Ticket-Source': 'chapters-studio-erp',
+          'X-Ticket-Source': 'softy-erp',
         },
         body: JSON.stringify({
           title: payload.title,

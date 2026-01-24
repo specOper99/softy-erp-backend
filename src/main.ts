@@ -190,7 +190,7 @@ Unauthenticated endpoints for registration, login, and public resources.
     .addTag('Platform - Analytics', '👑 [Superadmin] Platform-wide metrics and revenue')
     .addTag('Platform - Audit', '👑 [Superadmin] Platform audit logs')
     .addTag('Platform - MFA', '👑 [Superadmin] Multi-factor authentication setup')
-    .setLicense(`Private - ${process.env.COMPANY_NAME || 'Soft-y'}`, process.env.COMPANY_URL || 'https://soft-y.com')
+    .setLicense(`Private - ${process.env.COMPANY_NAME || 'Softy'}`, process.env.COMPANY_URL || 'https://erp.soft-y.org')
     .build();
 
   if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {

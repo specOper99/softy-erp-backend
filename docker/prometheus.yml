@@ -1,11 +1,11 @@
-# Prometheus Configuration for Chapters Studio ERP
+# Prometheus Configuration for softY ERP
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'chapters-studio-api'
+  - job_name: 'softy-api'
     static_configs:
       - targets: ['host.docker.internal:3000']
     metrics_path: '/api/v1/metrics'
@@ -23,7 +23,7 @@ scrape_configs:
 
   - job_name: 'redis'
     static_configs:
-      - targets: ['chapters_studio_redis:6379']
+      - targets: ['softy_redis:6379']
 
 alerting:
   alertmanagers:

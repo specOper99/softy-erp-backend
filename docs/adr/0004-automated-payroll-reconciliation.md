@@ -28,10 +28,10 @@ We will implement an **Automated Nightly Payroll Reconciliation Job** that:
 5. **Creates tickets automatically** for mismatches via webhook integration
 6. **Emits OpenTelemetry traces** for full observability
 7. **Exposes Prometheus metrics** for alerting:
-   - `chapters_payroll_reconciliation_runs_total{status}`
-   - `chapters_payroll_reconciliation_mismatches_total{mismatch_type}`
-   - `chapters_payroll_reconciliation_failures_total`
-   - `chapters_erp_stuck_payouts` (gauge)
+   - `softy_payroll_reconciliation_runs_total{status}`
+   - `softy_payroll_reconciliation_mismatches_total{mismatch_type}`
+   - `softy_payroll_reconciliation_failures_total`
+   - `softy_erp_stuck_payouts` (gauge)
 
 ### Mismatch Types
 

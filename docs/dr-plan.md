@@ -35,7 +35,7 @@
 5. **Resume**: Disable maintenance mode.
 
 ## 4. Communication Plan
-- **Status Page**: Update `status.chapters.studio` immediately.
+- **Status Page**: Update `status.erp.soft-y.org` immediately.
 - **Internal**: Notify `#incidents` slack channel.
 - **External**: Email impacted customers if RPO > 0 (data loss occurred).
 

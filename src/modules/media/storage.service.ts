@@ -56,7 +56,7 @@ export class StorageService implements OnModuleInit {
 
   onModuleInit() {
     this.endpoint = this.configService.get('MINIO_ENDPOINT', 'http://localhost:9000');
-    this.bucket = this.configService.get('MINIO_BUCKET', 'chapters-studio');
+    this.bucket = this.configService.get('MINIO_BUCKET', 'softy');
     this.publicUrl = this.configService.get('MINIO_PUBLIC_URL', this.endpoint);
 
     this.s3Client = new S3Client({

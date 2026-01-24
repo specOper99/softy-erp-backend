@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CONTAINER_DB="chapters-studio-erp-postgres-1"
+CONTAINER_DB="softy-erp-postgres-1"
 API_HEALTH="http://localhost:3000/health"
 
 echo "🔥 starting Chaos Experiment: Database Failure check..."

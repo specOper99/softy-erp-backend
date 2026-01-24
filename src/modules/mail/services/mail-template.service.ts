@@ -29,7 +29,7 @@ export class MailTemplateService {
     private readonly templateRepository?: Repository<EmailTemplate>,
   ) {
     this.companyName = this.configService.get('COMPANY_NAME', 'Soft-y');
-    this.companyUrl = this.configService.get('COMPANY_URL', 'https://soft-y.com');
+    this.companyUrl = this.configService.get('COMPANY_URL', 'https://erp.soft-y.org');
   }
 
   /**

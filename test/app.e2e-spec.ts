@@ -3,10 +3,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
 import { MailModule } from '../src/modules/mail/mail.module';
 import { MailService } from '../src/modules/mail/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
-import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
 
 @Module({
   providers: [
@@ -53,7 +53,7 @@ describe('AppController (e2e)', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     tenantHost = `${seedData.tenantId}.example.com`;
-    adminEmail = `admin-${seedData.tenantSlug.split('-').pop()}@chapters.studio`;
+    adminEmail = `admin-${seedData.tenantSlug.split('-').pop()}@erp.soft-y.org`;
   });
 
   afterEach(async () => {

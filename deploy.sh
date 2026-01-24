@@ -43,9 +43,9 @@ DEPLOY_MONITORING="${DEPLOY_MONITORING:-false}"
 DEPLOY_INFRA="${DEPLOY_INFRA:-false}"
 
 # Kubernetes specific
-K8S_NAMESPACE="${K8S_NAMESPACE:-chapters-studio-erp}"
+K8S_NAMESPACE="${K8S_NAMESPACE:-softy-erp}"
 K8S_CONTEXT="${K8S_CONTEXT:-}"
-DOCKER_IMAGE="${DOCKER_IMAGE:-chapters-studio-erp:latest}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-softy-erp:latest}"
 DOCKER_REGISTRY="${DOCKER_REGISTRY:-}"
 
 ################################################################################
@@ -144,16 +144,16 @@ env_wizard() {
     PORT=${PORT:-3000}
     sed -i.bak "s|^PORT=.*|PORT=${PORT}|" "${BACKEND_DIR}/.env"
     
-    read -p "Application Name [Chapters Studio ERP]: " APP_NAME
-    APP_NAME=${APP_NAME:-Chapters Studio ERP}
+    read -p "Application Name [softY ERP]: " APP_NAME
+    APP_NAME=${APP_NAME:-softY ERP}
     sed -i.bak "s|^APP_NAME=.*|APP_NAME=\"${APP_NAME}\"|" "${BACKEND_DIR}/.env"
     
-    read -p "Company Name [Chapters Studio]: " COMPANY_NAME
-    COMPANY_NAME=${COMPANY_NAME:-Chapters Studio}
+    read -p "Company Name [softY]: " COMPANY_NAME
+    COMPANY_NAME=${COMPANY_NAME:-softY}
     sed -i.bak "s|^COMPANY_NAME=.*|COMPANY_NAME=\"${COMPANY_NAME}\"|" "${BACKEND_DIR}/.env"
     
-    read -p "Company URL [https://chapters-studio.com]: " COMPANY_URL
-    COMPANY_URL=${COMPANY_URL:-https://chapters-studio.com}
+    read -p "Company URL [https://erp.soft-y.org]: " COMPANY_URL
+    COMPANY_URL=${COMPANY_URL:-https://erp.soft-y.org}
     sed -i.bak "s|^COMPANY_URL=.*|COMPANY_URL=\"${COMPANY_URL}\"|" "${BACKEND_DIR}/.env"
     
     # 2. Reverse Proxy / Ingress
@@ -172,16 +172,16 @@ env_wizard() {
     DB_PORT=${DB_PORT:-5434}
     sed -i.bak "s|^DB_PORT=.*|DB_PORT=${DB_PORT}|" "${BACKEND_DIR}/.env"
     
-    read -p "Database Username [chapters_studio]: " DB_USERNAME
-    DB_USERNAME=${DB_USERNAME:-chapters_studio}
+    read -p "Database Username [softy]: " DB_USERNAME
+    DB_USERNAME=${DB_USERNAME:-softy}
     sed -i.bak "s|^DB_USERNAME=.*|DB_USERNAME=${DB_USERNAME}|" "${BACKEND_DIR}/.env"
     
     read -sp "Database Password: " DB_PASSWORD
     echo
     sed -i.bak "s|^DB_PASSWORD=.*|DB_PASSWORD=${DB_PASSWORD}|" "${BACKEND_DIR}/.env"
     
-    read -p "Database Name [chapters_studio]: " DB_DATABASE
-    DB_DATABASE=${DB_DATABASE:-chapters_studio}
+    read -p "Database Name [softy]: " DB_DATABASE
+    DB_DATABASE=${DB_DATABASE:-softy}
     sed -i.bak "s|^DB_DATABASE=.*|DB_DATABASE=${DB_DATABASE}|" "${BACKEND_DIR}/.env"
     
     # Set DB_SYNCHRONIZE based on environment
@@ -301,8 +301,8 @@ env_wizard() {
     MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://localhost:9000}
     sed -i.bak "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=${MINIO_ENDPOINT}|" "${BACKEND_DIR}/.env"
     
-    read -p "MinIO Bucket [chapters-studio]: " MINIO_BUCKET
-    MINIO_BUCKET=${MINIO_BUCKET:-chapters-studio}
+    read -p "MinIO Bucket [softy-erp]: " MINIO_BUCKET
+    MINIO_BUCKET=${MINIO_BUCKET:-softy-erp}
     sed -i.bak "s|^MINIO_BUCKET=.*|MINIO_BUCKET=${MINIO_BUCKET}|" "${BACKEND_DIR}/.env"
     
     read -p "MinIO Region [us-east-1]: " MINIO_REGION
@@ -341,12 +341,12 @@ env_wizard() {
     echo
     sed -i.bak "s|^MAIL_PASSWORD=.*|MAIL_PASSWORD=${MAIL_PASSWORD}|" "${BACKEND_DIR}/.env"
     
-    read -p "From Address [noreply@chapters-studio.com]: " MAIL_FROM_ADDRESS
-    MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@chapters-studio.com}
+    read -p "From Address [noreply@erp.soft-y.org]: " MAIL_FROM_ADDRESS
+    MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@erp.soft-y.org}
     sed -i.bak "s|^MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=\"${MAIL_FROM_ADDRESS}\"|" "${BACKEND_DIR}/.env"
     
-    read -p "From Name [Chapters Studio]: " MAIL_FROM_NAME
-    MAIL_FROM_NAME=${MAIL_FROM_NAME:-Chapters Studio}
+    read -p "From Name [Softy ERP]: " MAIL_FROM_NAME
+    MAIL_FROM_NAME=${MAIL_FROM_NAME:-Softy ERP}
     sed -i.bak "s|^MAIL_FROM_NAME=.*|MAIL_FROM_NAME=\"${MAIL_FROM_NAME}\"|" "${BACKEND_DIR}/.env"
     
     MAIL_FROM="\"${MAIL_FROM_NAME}\" <${MAIL_FROM_ADDRESS}>"
@@ -429,8 +429,8 @@ env_wizard() {
         SEED_TENANT_SLUG=${SEED_TENANT_SLUG:-default-org}
         sed -i.bak "s|^SEED_TENANT_SLUG=.*|SEED_TENANT_SLUG=\"${SEED_TENANT_SLUG}\"|" "${BACKEND_DIR}/.env"
         
-        read -p "Seed Email Domain [chapters-studio.com]: " SEED_EMAIL_DOMAIN
-        SEED_EMAIL_DOMAIN=${SEED_EMAIL_DOMAIN:-chapters-studio.com}
+        read -p "Seed Email Domain [soft-y.org]: " SEED_EMAIL_DOMAIN
+        SEED_EMAIL_DOMAIN=${SEED_EMAIL_DOMAIN:-soft-y.org}
         sed -i.bak "s|^SEED_EMAIL_DOMAIN=.*|SEED_EMAIL_DOMAIN=\"${SEED_EMAIL_DOMAIN}\"|" "${BACKEND_DIR}/.env"
     fi
     
@@ -460,8 +460,8 @@ env_wizard() {
         read -p "Vault Secret ID: " VAULT_SECRET_ID
         sed -i.bak "s|^VAULT_SECRET_ID=.*|VAULT_SECRET_ID=${VAULT_SECRET_ID}|" "${BACKEND_DIR}/.env"
         
-        read -p "Vault Secret Path [secret/data/chapters-studio-erp]: " VAULT_SECRET_PATH
-        VAULT_SECRET_PATH=${VAULT_SECRET_PATH:-secret/data/chapters-studio-erp}
+        read -p "Vault Secret Path [secret/data/softy-erp]: " VAULT_SECRET_PATH
+        VAULT_SECRET_PATH=${VAULT_SECRET_PATH:-secret/data/softy-erp}
         sed -i.bak "s|^VAULT_SECRET_PATH=.*|VAULT_SECRET_PATH=${VAULT_SECRET_PATH}|" "${BACKEND_DIR}/.env"
     fi
     
@@ -762,10 +762,10 @@ deploy_kubernetes() {
     
     # Wait for deployment
     log "Waiting for deployment to be ready..."
-    kubectl rollout status deployment/chapters-studio-erp -n "$K8S_NAMESPACE" --timeout=300s || {
+    kubectl rollout status deployment/softy-erp -n "$K8S_NAMESPACE" --timeout=300s || {
         log_error "Deployment failed to become ready"
         kubectl get pods -n "$K8S_NAMESPACE"
-        kubectl logs -n "$K8S_NAMESPACE" -l app=chapters-studio-erp --tail=50
+        kubectl logs -n "$K8S_NAMESPACE" -l app=softy-erp --tail=50
         exit 1
     }
     
@@ -774,7 +774,7 @@ deploy_kubernetes() {
     # Show deployment info
     log ""
     log "Deployment Information:"
-    kubectl get pods -n "$K8S_NAMESPACE" -l app=chapters-studio-erp
+    kubectl get pods -n "$K8S_NAMESPACE" -l app=softy-erp
     kubectl get svc -n "$K8S_NAMESPACE"
     kubectl get ingress -n "$K8S_NAMESPACE"
 }
@@ -882,17 +882,17 @@ start_service() {
     # Check if PM2 is available
     if command -v pm2 &> /dev/null; then
         log "Starting backend with PM2..."
-        pm2 delete chapters-studio-erp 2>/dev/null || true
-        pm2 start npm --name "chapters-studio-erp" -- run start:prod
+        pm2 delete softy-erp 2>/dev/null || true
+        pm2 start npm --name "softy-erp" -- run start:prod
         pm2 save
         log_success "Backend started with PM2"
         log ""
         pm2 status
     elif command -v systemctl &> /dev/null; then
         log "Systemd detected. To run as a service:"
-        log "  1. Create service file: /etc/systemd/system/chapters-studio-erp.service"
-        log "  2. Run: sudo systemctl enable chapters-studio-erp"
-        log "  3. Run: sudo systemctl start chapters-studio-erp"
+        log "  1. Create service file: /etc/systemd/system/softy-erp.service"
+        log "  2. Run: sudo systemctl enable softy-erp"
+        log "  3. Run: sudo systemctl start softy-erp"
         log ""
         log "For now, starting in foreground mode..."
         log "Run manually: cd $BACKEND_DIR && npm run start:prod"
@@ -922,7 +922,7 @@ post_deployment_verification() {
     
     # For Kubernetes, try to get the service URL
     if [ "$DEPLOYMENT_TYPE" = "kubernetes" ]; then
-        K8S_SVC=$(kubectl get svc -n "$K8S_NAMESPACE" -l app=chapters-studio-erp -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+        K8S_SVC=$(kubectl get svc -n "$K8S_NAMESPACE" -l app=softy-erp -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
         if [ -n "$K8S_SVC" ]; then
             log "Kubernetes service: $K8S_SVC"
             log "Use port-forward to access: kubectl port-forward -n $K8S_NAMESPACE svc/$K8S_SVC 3000:3000"
@@ -941,7 +941,7 @@ post_deployment_verification() {
                 log_warning "Backend health check failed after 10 attempts"
                 if [ "$DEPLOYMENT_TYPE" = "kubernetes" ]; then
                     log "Check pods: kubectl get pods -n $K8S_NAMESPACE"
-                    log "Check logs: kubectl logs -n $K8S_NAMESPACE -l app=chapters-studio-erp"
+                    log "Check logs: kubectl logs -n $K8S_NAMESPACE -l app=softy-erp"
                 elif [ "$DEPLOYMENT_TYPE" = "docker" ]; then
                     log "Check containers: docker ps"
                     log "Check logs: docker logs <container-id>"
@@ -1011,13 +1011,13 @@ deployment_summary() {
             if [ -n "$DOCKER_REGISTRY" ]; then
                 log "  - Registry: $DOCKER_REGISTRY"
             fi
-            log "  - Run container: docker run -d -p 3000:3000 --env-file backend/.env --name chapters-studio-erp $DOCKER_IMAGE"
+            log "  - Run container: docker run -d -p 3000:3000 --env-file backend/.env --name softy-erp $DOCKER_IMAGE"
             ;;
         kubernetes)
             log "  - Namespace: $K8S_NAMESPACE"
             log "  - Check pods: kubectl get pods -n $K8S_NAMESPACE"
-            log "  - Check logs: kubectl logs -n $K8S_NAMESPACE -l app=chapters-studio-erp"
-            log "  - Port forward: kubectl port-forward -n $K8S_NAMESPACE svc/chapters-studio-erp 3000:3000"
+            log "  - Check logs: kubectl logs -n $K8S_NAMESPACE -l app=softy-erp"
+            log "  - Port forward: kubectl port-forward -n $K8S_NAMESPACE svc/softy-erp 3000:3000"
             ;;
     esac
     
@@ -1058,14 +1058,14 @@ deployment_summary() {
         bare-metal)
             log "     tail -f backend/logs/app.log"
             if command -v pm2 &> /dev/null && [ "$START_SERVICE" = "true" ]; then
-                log "     pm2 logs chapters-studio-erp"
+                log "     pm2 logs softy-erp"
             fi
             ;;
         docker)
             log "     docker logs <container-id>"
             ;;
         kubernetes)
-            log "     kubectl logs -n $K8S_NAMESPACE -l app=chapters-studio-erp -f"
+            log "     kubectl logs -n $K8S_NAMESPACE -l app=softy-erp -f"
             ;;
     esac
     
@@ -1229,11 +1229,11 @@ while [[ $# -gt 0 ]]; do
             echo "  --infra             Deploy infrastructure (PostgreSQL/Redis/MinIO)"
             echo ""
             echo "Docker Options:"
-            echo "  --image NAME        Docker image name (default: chapters-studio-erp:latest)"
+            echo "  --image NAME        Docker image name (default: softy-erp:latest)"
             echo "  --registry URL      Docker registry URL for pushing image"
             echo ""
             echo "Kubernetes Options:"
-            echo "  --namespace NAME    K8s namespace (default: chapters-studio-erp)"
+            echo "  --namespace NAME    K8s namespace (default: softy-erp)"
             echo "  --context NAME      K8s context to use"
             echo ""
             echo "Environment Variables:"

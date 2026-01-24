@@ -83,7 +83,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
 
   // Generate random suffix for isolation
   const suffix = Date.now().toString().slice(-6);
-  const tenantSlug = `chapters-studio-${suffix}`;
+  const tenantSlug = `softy-${suffix}`;
 
   // 1. Create Tenant
   let tenant = await tenantRepo.findOne({
@@ -91,7 +91,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
   });
   if (!tenant) {
     tenant = tenantRepo.create({
-      name: `Chapters Studio ${suffix}`,
+      name: `softY ${suffix}`,
       slug: tenantSlug,
       subscriptionPlan: SubscriptionPlan.PRO,
     });
@@ -101,8 +101,8 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const tenantId = tenant.id;
 
   // 2. Create/Update Admin
-  const adminEmail = `admin-${suffix}@chapters.studio`;
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+  const adminEmail = `admin-${suffix}@erp.soft-y.org`;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
   const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
 
   let admin = await userRepo.findOne({ where: { email: adminEmail } });
@@ -146,8 +146,8 @@ export async function seedTestDatabase(dataSource: DataSource) {
   }
 
   // 3. Create/Update Staff
-  const staffEmail = `staff-${suffix}@chapters.studio`;
-  const staffPassword = process.env.SEED_STAFF_PASSWORD || 'ChaptersERP123!';
+  const staffEmail = `staff-${suffix}@erp.soft-y.org`;
+  const staffPassword = process.env.SEED_STAFF_PASSWORD || 'softYERP123!';
   const staffPasswordHash = await bcrypt.hash(staffPassword, 10);
 
   let staff = await userRepo.findOne({ where: { email: staffEmail } });

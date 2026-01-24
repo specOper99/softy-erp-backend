@@ -79,7 +79,7 @@ describe('Webhooks Load E2E Tests', () => {
       .set('Host', tenantHost)
       .send({
         email: seedResult.admin.email,
-        password: process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!',
+        password: process.env.SEED_ADMIN_PASSWORD || 'softYERP123!',
       });
     _accessToken = loginRes.body.data.accessToken;
   });

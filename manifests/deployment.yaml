@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: chapters-studio-erp
-  namespace: chapters-studio-erp
+  name: softy-erp
+  namespace: softy-erp
   labels:
-    app: chapters-studio-erp
+    app: softy-erp
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: chapters-studio-erp
+      app: softy-erp
   template:
     metadata:
       labels:
-        app: chapters-studio-erp
+        app: softy-erp
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -25,8 +25,8 @@ spec:
       containers:
         - name: app
           # TODO: Replace with actual image digest after building
-          # Example: chapters-studio-erp@sha256:abcdef123456...
-          image: chapters-studio-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          # Example: softy-erp@sha256:abcdef123456...
+          image: softy-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -85,11 +85,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: chapters-studio-erp
-  namespace: chapters-studio-erp
+  name: softy-erp
+  namespace: softy-erp
 spec:
   selector:
-    app: chapters-studio-erp
+    app: softy-erp
   ports:
     - protocol: TCP
       port: 80

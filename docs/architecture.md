@@ -1,7 +1,7 @@
 # System Architecture
 
 ## Overview
-The Chapters Studio ERP is a robust NestJS application designed for high security and scalability. It follows a modular monolith approach with strict domain-driven boundaries and defense-in-depth security.
+The softY ERP is a robust NestJS application designed for high security and scalability. It follows a modular monolith approach with strict domain-driven boundaries and defense-in-depth security.
 
 ## High-Level Structure
 

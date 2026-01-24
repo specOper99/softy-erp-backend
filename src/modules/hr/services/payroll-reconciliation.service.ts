@@ -44,24 +44,24 @@ export class PayrollReconciliationService {
     metricsFactory: MetricsFactory,
   ) {
     this.reconciliationRunsTotal = metricsFactory.getOrCreateCounter({
-      name: 'chapters_payroll_reconciliation_runs_total',
+      name: 'softy_payroll_reconciliation_runs_total',
       help: 'Total number of payroll reconciliation runs',
       labelNames: ['status'],
     });
 
     this.reconciliationMismatchesTotal = metricsFactory.getOrCreateCounter({
-      name: 'chapters_payroll_reconciliation_mismatches_total',
+      name: 'softy_payroll_reconciliation_mismatches_total',
       help: 'Total number of mismatches found during reconciliation',
       labelNames: ['mismatch_type'],
     });
 
     this.reconciliationFailuresTotal = metricsFactory.getOrCreateCounter({
-      name: 'chapters_payroll_reconciliation_failures_total',
+      name: 'softy_payroll_reconciliation_failures_total',
       help: 'Total number of reconciliation job failures',
     });
 
     this.stalePayoutsGauge = metricsFactory.getOrCreateGauge({
-      name: 'chapters_erp_stuck_payouts',
+      name: 'softy_erp_stuck_payouts',
       help: 'Number of payouts stuck in PENDING state for more than 10 minutes',
     });
   }
@@ -257,7 +257,7 @@ export class PayrollReconciliationService {
 ${mismatch.mismatchType === 'PENDING_BUT_COMPLETED' ? '⚠️ **CRITICAL**: Money has left the account but the ERP ledger has not been updated!' : '⚠️ Gateway reports payment failed but our DB shows PENDING.'}
 
 ### Remediation Steps
-1. Follow the [Payroll Reconciliation Runbook](https://docs.chapters-studio.com/runbooks/payroll-reconciliation)
+1. Follow the [Payroll Reconciliation Runbook](https://docs.erp.soft-y.org/runbooks/payroll-reconciliation)
 2. Verify gateway status manually
 3. Update database and/or refund wallet as appropriate
       `.trim(),

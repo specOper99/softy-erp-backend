@@ -43,7 +43,7 @@ describe('Email Templates (E2E)', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     const email = seedData.admin.email;
-    const password = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const password = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
     const tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer())

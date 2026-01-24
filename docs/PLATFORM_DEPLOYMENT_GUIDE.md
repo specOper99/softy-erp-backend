@@ -663,7 +663,7 @@ watch -n 1 'ps aux | grep node'
 npm run backup
 
 # Manual backup
-pg_dump -h localhost -U chapters_studio -d chapters_studio > backup_$(date +%Y%m%d).sql
+pg_dump -h localhost -U softy -d softy > backup_$(date +%Y%m%d).sql
 ```
 
 #### Archive Audit Logs
@@ -709,7 +709,7 @@ docker run -d previous-version-image
 npm run migration:revert
 
 # Restore from backup
-psql -h localhost -U chapters_studio -d chapters_studio < backup_20260119.sql
+psql -h localhost -U softy -d softy < backup_20260119.sql
 ```
 
 ### Monitoring Rollback

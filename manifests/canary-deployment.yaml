@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: chapters-studio-erp
-  namespace: chapters-studio-erp
+  name: softy-erp
+  namespace: softy-erp
   labels:
-    app: chapters-studio-erp
+    app: softy-erp
 spec:
   replicas: 3
   # Use canary strategy for progressive delivery
@@ -31,15 +31,15 @@ spec:
       # Traffic management (requires Istio or nginx-ingress)
       trafficRouting:
         nginx:
-          stableIngress: chapters-studio-erp-ingress
+          stableIngress: softy-erp-ingress
 
   selector:
     matchLabels:
-      app: chapters-studio-erp
+      app: softy-erp
   template:
     metadata:
       labels:
-        app: chapters-studio-erp
+        app: softy-erp
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -51,7 +51,7 @@ spec:
       containers:
         - name: app
           # TODO: Replace with actual image digest after building
-          image: chapters-studio-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          image: softy-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -112,7 +112,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
   name: success-rate
-  namespace: chapters-studio-erp
+  namespace: softy-erp
 spec:
   metrics:
     - name: success-rate
@@ -124,8 +124,8 @@ spec:
         prometheus:
           address: http://prometheus:9090
           query: |
-            sum(rate(http_request_duration_seconds_count{status_code!~"5..",app="chapters-studio-erp-canary"}[1m])) /
-            sum(rate(http_request_duration_seconds_count{app="chapters-studio-erp-canary"}[1m]))
+            sum(rate(http_request_duration_seconds_count{status_code!~"5..",app="softy-erp-canary"}[1m])) /
+            sum(rate(http_request_duration_seconds_count{app="softy-erp-canary"}[1m]))
 
     - name: latency-p99
       interval: 30s
@@ -136,28 +136,28 @@ spec:
         prometheus:
           address: http://prometheus:9090
           query: |
-            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{app="chapters-studio-erp-canary"}[1m])) by (le))
+            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{app="softy-erp-canary"}[1m])) by (le))
 ---
 # Alternative: Native Kubernetes Blue-Green using multiple Deployments
 # For environments without Argo Rollouts
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: chapters-studio-erp-blue
-  namespace: chapters-studio-erp
+  name: softy-erp-blue
+  namespace: softy-erp
   labels:
-    app: chapters-studio-erp
+    app: softy-erp
     color: blue
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: chapters-studio-erp
+      app: softy-erp
       color: blue
   template:
     metadata:
       labels:
-        app: chapters-studio-erp
+        app: softy-erp
         color: blue
     spec:
       automountServiceAccountToken: false
@@ -170,7 +170,7 @@ spec:
       containers:
         - name: app
           # TODO: Replace with actual image digest
-          image: chapters-studio-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          image: softy-erp@sha256:0000000000000000000000000000000000000000000000000000000000000000
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -230,14 +230,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: chapters-studio-erp
-  namespace: chapters-studio-erp
+  name: softy-erp
+  namespace: softy-erp
   annotations:
     # Current active deployment
     deployment.color: blue
 spec:
   selector:
-    app: chapters-studio-erp
+    app: softy-erp
     # Toggle between blue/green during deployment
     color: blue
   ports:

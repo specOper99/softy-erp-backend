@@ -28,7 +28,7 @@ describe('Auth & Users E2E Tests', () => {
 
   beforeAll(async () => {
     // Get seeder password from environment variable (after dotenv has loaded)
-    _adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    _adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
 
     // Validate required environment variables (for tests using seeded users)
     if (!process.env.SEED_ADMIN_PASSWORD) {

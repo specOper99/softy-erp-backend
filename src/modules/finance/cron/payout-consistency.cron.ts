@@ -18,7 +18,7 @@ export class PayoutConsistencyCron {
     private readonly paymentGateway: MockPaymentGatewayService,
   ) {
     this.stuckPayoutsGauge = new Gauge({
-      name: 'chapters_erp_stuck_payouts',
+      name: 'softy_erp_stuck_payouts',
       help: 'Number of payouts stuck in pending state for more than 10 minutes',
       registers: [register],
     });

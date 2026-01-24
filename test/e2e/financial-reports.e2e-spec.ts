@@ -53,7 +53,7 @@ describe('Financial Report Controller (e2e)', () => {
     const seedData = await seedTestDatabase(dataSource);
     tenantId = seedData.tenantId;
     const adminEmail = seedData.admin.email;
-    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ChaptersERP123!';
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
     const tenantHost = `${tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer())

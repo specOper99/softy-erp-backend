@@ -37,7 +37,7 @@ describe('MetricsService', () => {
       const result = await service.getMetrics();
 
       expect(typeof result).toBe('string');
-      expect(result).toContain('chapters_'); // Custom prefix
+      expect(result).toContain('softy_'); // Custom prefix
     });
   });
 

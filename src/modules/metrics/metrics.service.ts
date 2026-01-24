@@ -4,7 +4,7 @@ import { collectDefaultMetrics, Counter, Gauge, Histogram, register } from 'prom
 import { MetricsFactory } from '../../common/services/metrics.factory';
 
 // Initialize default metrics (CPU, memory, event loop, etc.)
-collectDefaultMetrics({ prefix: 'chapters_' });
+collectDefaultMetrics({ prefix: 'softy_' });
 
 @Injectable()
 export class MetricsService {
@@ -16,25 +16,25 @@ export class MetricsService {
 
   constructor(private readonly metricsFactory: MetricsFactory) {
     this.httpRequestsTotal = metricsFactory.getOrCreateCounter({
-      name: 'chapters_http_requests_total',
+      name: 'softy_http_requests_total',
       help: 'Total number of HTTP requests',
       labelNames: ['method', 'path', 'status'],
     });
 
     this.httpRequestDuration = metricsFactory.getOrCreateHistogram({
-      name: 'chapters_http_request_duration_seconds',
+      name: 'softy_http_request_duration_seconds',
       help: 'HTTP request duration in seconds',
       labelNames: ['method', 'path'],
       buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
     });
 
     this.activeConnections = metricsFactory.getOrCreateGauge({
-      name: 'chapters_active_connections',
+      name: 'softy_active_connections',
       help: 'Number of active connections',
     });
 
     this.dbQueryDuration = metricsFactory.getOrCreateHistogram({
-      name: 'chapters_db_query_duration_seconds',
+      name: 'softy_db_query_duration_seconds',
       help: 'Database query duration in seconds',
       labelNames: ['operation'],
       buckets: [0.001, 0.01, 0.05, 0.1, 0.5, 1],
