@@ -1,7 +1,19 @@
-import { Body, Controller, Get, Param, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
@@ -62,16 +74,16 @@ export class ClientPortalController {
   @Get('bookings')
   @ApiOperation({ summary: 'Get all bookings for the authenticated client' })
   @UseGuards(ClientTokenGuard)
-  async getMyBookings(@Req() req: Request): Promise<Booking[]> {
+  async getMyBookings(@Req() req: Request, @Query() query: PaginationDto = new PaginationDto()): Promise<Booking[]> {
     const client = this.getClientFromRequest(req);
 
-    return this.clientPortalService.getMyBookings(client.id, client.tenantId);
+    return this.clientPortalService.getMyBookings(client.id, client.tenantId, query);
   }
 
   @Get('bookings/:id')
   @ApiOperation({ summary: 'Get a specific booking' })
   @UseGuards(ClientTokenGuard)
-  async getBooking(@Param('id') id: string, @Req() req: Request): Promise<Booking> {
+  async getBooking(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request): Promise<Booking> {
     const client = this.getClientFromRequest(req);
 
     const booking = await this.clientPortalService.getBooking(id, client.id, client.tenantId);

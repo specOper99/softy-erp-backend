@@ -19,16 +19,6 @@ export interface ClientTokenPayload {
   type: 'client';
 }
 
-const getAllowedJwtAlgorithms = (): Array<'HS256' | 'RS256'> => {
-  const raw = process.env.JWT_ALLOWED_ALGORITHMS || 'HS256';
-  const algorithms = raw
-    .split(',')
-    .map((a) => a.trim().toUpperCase())
-    .filter((a) => a === 'HS256' || a === 'RS256');
-
-  return algorithms.length > 0 ? algorithms : ['HS256'];
-};
-
 export class ClientAuthService {
   private readonly logger = new Logger(ClientAuthService.name);
   private readonly TOKEN_EXPIRY_HOURS = 24;
@@ -81,6 +71,20 @@ export class ClientAuthService {
     const buf2 = Buffer.from(hash2, 'hex');
     if (buf1.length !== buf2.length) return false;
     return timingSafeEqual(buf1, buf2);
+  }
+
+  private getAllowedJwtAlgorithm(): 'HS256' | 'RS256' {
+    const raw = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
+    const parsed = raw
+      .split(',')
+      .map((a) => a.trim().toUpperCase())
+      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
+
+    const unique = Array.from(new Set(parsed));
+    if (unique.length !== 1) {
+      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
+    }
+    return unique[0] ?? 'HS256';
   }
 
   async requestMagicLink(email: string): Promise<{ message: string }> {
@@ -209,9 +213,13 @@ export class ClientAuthService {
         return null; // Revoked
       }
 
+      const algorithm = this.getAllowedJwtAlgorithm();
       const payload = this.jwtService.verify<ClientTokenPayload>(token, {
-        algorithms: getAllowedJwtAlgorithms(),
-        secret: this.configService.get<string>('JWT_PUBLIC_KEY') || this.configService.get<string>('auth.jwtSecret'),
+        algorithms: [algorithm],
+        secret:
+          algorithm === 'RS256'
+            ? this.configService.getOrThrow<string>('JWT_PUBLIC_KEY')
+            : this.configService.getOrThrow<string>('auth.jwtSecret'),
       });
 
       if (payload.type !== 'client') {

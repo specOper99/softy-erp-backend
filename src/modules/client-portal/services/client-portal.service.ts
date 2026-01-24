@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
@@ -32,11 +33,17 @@ export class ClientPortalService {
     };
   }
 
-  async getMyBookings(clientId: string, tenantId: string): Promise<Booking[]> {
+  async getMyBookings(
+    clientId: string,
+    tenantId: string,
+    query: PaginationDto = new PaginationDto(),
+  ): Promise<Booking[]> {
     return this.bookingRepository.find({
       where: { clientId, tenantId },
       relations: ['servicePackage'],
       order: { eventDate: 'DESC' },
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 
