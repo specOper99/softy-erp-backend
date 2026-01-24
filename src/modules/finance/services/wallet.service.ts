@@ -48,12 +48,7 @@ export class WalletService {
         wallet = await this.walletRepository.save(wallet);
       } catch (error) {
         // Handle race condition if unique constraint exists
-        if (
-          error &&
-          typeof error === 'object' &&
-          'code' in error &&
-          (error as Record<string, unknown>).code === '23505'
-        ) {
+        if (this.isUniqueViolation(error)) {
           // Postgres unique_violation
           wallet = await this.walletRepository.findOne({
             where: { userId },
@@ -80,7 +75,21 @@ export class WalletService {
         payableBalance: 0,
         tenantId,
       });
-      wallet = await manager.save(wallet);
+      try {
+        wallet = await manager.save(wallet);
+      } catch (error) {
+        if (this.isUniqueViolation(error)) {
+          wallet = await manager.findOne(EmployeeWallet, {
+            where: { userId, tenantId },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (!wallet) {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
     return wallet;
   }
@@ -227,23 +236,27 @@ export class WalletService {
     this.assertTransactionActive(manager, methodName);
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    let wallet = await manager.findOne(EmployeeWallet, {
+    const wallet = await manager.findOne(EmployeeWallet, {
       where: { userId, tenantId },
       lock: { mode: 'pessimistic_write' },
     });
 
     if (!wallet) {
       if (createIfMissing) {
-        wallet = manager.create(EmployeeWallet, {
-          userId,
-          pendingBalance: 0,
-          payableBalance: 0,
-          tenantId,
-        });
+        return this.getOrCreateWalletWithManager(manager, userId);
       } else {
         throw new NotFoundException(`Wallet not found for user ${userId}`);
       }
     }
     return wallet;
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+
+    const record = error as Record<string, unknown>;
+    return record['code'] === '23505';
   }
 }
