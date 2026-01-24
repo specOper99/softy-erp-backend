@@ -33,6 +33,10 @@ export class AdminController {
   @ApiOperation({ summary: 'Verify audit log chain integrity' })
   async verifyAuditChain(@Query('limit') limit?: number) {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    return this.auditService.verifyChainIntegrity(tenantId, limit ?? 1000);
+    const MAX_LIMIT = 1000;
+    const parsed = limit !== undefined ? Number(limit) : undefined;
+    const effectiveLimit =
+      parsed !== undefined && Number.isFinite(parsed) ? Math.min(MAX_LIMIT, Math.max(1, Math.trunc(parsed))) : 1000;
+    return this.auditService.verifyChainIntegrity(tenantId, effectiveLimit);
   }
 }
