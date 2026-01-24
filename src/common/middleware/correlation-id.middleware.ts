@@ -2,6 +2,7 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncLocalStorage, RequestContext } from '../logger/request-context';
+import { getClientIp } from '../utils/client-ip.util';
 
 export const CORRELATION_ID_HEADER = 'X-Correlation-ID';
 
@@ -19,7 +20,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
       correlationId,
       method: req.method,
       path: req.originalUrl,
-      ip: req.ip || req.socket?.remoteAddress,
+      ip: getClientIp(req, process.env.TRUST_PROXY === 'true'),
     };
 
     // Run the rest of the request in the async local storage context

@@ -7,6 +7,7 @@ import { AuditService } from '../../modules/audit/audit.service';
 import { AUDIT_KEY, AuditOptions } from '../decorators/audit.decorator';
 import { getCorrelationId } from '../logger/request-context';
 import { TenantContextService } from '../services/tenant-context.service';
+import { getClientIp } from '../utils/client-ip.util';
 
 interface User {
   sub?: string;
@@ -109,7 +110,7 @@ export class AuditInterceptor implements NestInterceptor {
       correlationId: getCorrelationId() ?? (request.headers['x-correlation-id'] as string | undefined) ?? 'N/A',
       method: request.method,
       path: request.path,
-      ip: this.getClientIp(request),
+      ip: getClientIp(request, this.trustProxyHeaders, (message) => this.logger.warn(message)),
       userAgent: request.headers['user-agent'],
       status,
       durationMs,
@@ -176,19 +177,5 @@ export class AuditInterceptor implements NestInterceptor {
     return sanitized;
   }
 
-  private getClientIp(request: Request): string {
-    // Only trust proxy headers when explicitly configured
-    if (this.trustProxyHeaders) {
-      const forwarded = request.headers['x-forwarded-for'];
-      if (typeof forwarded === 'string') {
-        const ip = forwarded.split(',')[0]?.trim();
-        if (ip) return ip;
-      }
-      const realIp = request.headers['x-real-ip'];
-      if (typeof realIp === 'string') {
-        return realIp;
-      }
-    }
-    return request.ip || 'unknown';
-  }
+  // getClientIp implemented in common util
 }
