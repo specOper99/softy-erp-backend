@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
@@ -42,7 +41,6 @@ export class BookingsService {
     private readonly financeService: FinanceService,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
-    private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
 
     private readonly dashboardGateway: DashboardGateway,
