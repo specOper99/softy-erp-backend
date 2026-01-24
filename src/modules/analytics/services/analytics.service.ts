@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { MathUtils } from '../../../common/utils/math.utils';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { FinancialReportFilterDto } from '../../finance/dto/financial-report.dto';
@@ -22,6 +23,12 @@ export class AnalyticsService {
 
   private getReportCacheKey(tenantId: string, reportType: string, dateRange: string): string {
     return `analytics:report:${tenantId}:${reportType}:${dateRange}`;
+  }
+
+  private parseCount(value: string | number | null | undefined): number {
+    const n = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(n) || Number.isNaN(n) || n < 0) return 0;
+    return Math.min(1_000_000_000, Math.trunc(n));
   }
 
   async getRevenueByPackage(filter: FinancialReportFilterDto, nocache = false) {
@@ -54,8 +61,8 @@ export class AnalyticsService {
 
     const reportData: RevenueByPackageEntry[] = result.map((r) => ({
       packageName: r.packageName || 'Unknown',
-      bookingCount: Number(r.bookingCount),
-      totalRevenue: Number(r.totalRevenue),
+      bookingCount: this.parseCount(r.bookingCount),
+      totalRevenue: MathUtils.parseFinancialAmount(r.totalRevenue, 0),
     }));
 
     // Cache the result
@@ -81,9 +88,9 @@ export class AnalyticsService {
       .getRawOne<TaxReportRaw>();
 
     return {
-      totalTax: Number(result?.totalTax ?? 0),
-      totalSubTotal: Number(result?.totalSubTotal ?? 0),
-      totalGross: Number(result?.totalGross ?? 0),
+      totalTax: MathUtils.parseFinancialAmount(result?.totalTax, 0),
+      totalSubTotal: MathUtils.parseFinancialAmount(result?.totalSubTotal, 0),
+      totalGross: MathUtils.parseFinancialAmount(result?.totalGross, 0),
       startDate,
       endDate,
     };
