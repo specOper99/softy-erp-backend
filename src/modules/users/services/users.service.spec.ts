@@ -14,6 +14,7 @@ import { PasswordHashService } from '../../../common/services/password-hash.serv
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { User } from '../entities/user.entity';
 import { Role } from '../enums/role.enum';
+import { UserDeactivatedEvent } from '../events/user-deactivated.event';
 import { UserRepository } from '../repositories/user.repository';
 import { UsersService } from './users.service';
 
@@ -317,6 +318,7 @@ describe('UsersService - Comprehensive Tests', () => {
       } as User);
       await service.update('test-uuid-123', { isActive: false });
       expect(userRepository.save).toHaveBeenCalled();
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(UserDeactivatedEvent));
       expect(mockAuditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
           notes: 'Account deactivated',

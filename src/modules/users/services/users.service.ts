@@ -10,6 +10,7 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { CreateUserDto, UpdateUserDto } from '../dto';
 import { User } from '../entities/user.entity';
+import { UserDeactivatedEvent } from '../events/user-deactivated.event';
 import { UserDeletedEvent } from '../events/user-deleted.event';
 import { UserRepository } from '../repositories/user.repository';
 
@@ -219,6 +220,10 @@ export class UsersService {
       }
     }
     const savedUser = await this.userRepository.save(user);
+
+    if (oldValues.isActive && savedUser.isActive === false) {
+      this.eventBus.publish(new UserDeactivatedEvent(savedUser.id, savedUser.tenantId));
+    }
 
     // Log role or status changes
     if (updateUserDto.role !== undefined || updateUserDto.isActive !== undefined) {
