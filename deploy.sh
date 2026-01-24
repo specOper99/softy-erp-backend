@@ -380,14 +380,14 @@ env_wizard() {
     
     read -p "From Address [noreply@erp.soft-y.org]: " MAIL_FROM_ADDRESS
     MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@erp.soft-y.org}
-    sed -i.bak "s|^MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=\"${MAIL_FROM_ADDRESS}\"|" "${BACKEND_DIR}/.env"
+    sed -i.bak "s|^MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}|" "${BACKEND_DIR}/.env"
     
     read -p "From Name [Softy ERP]: " MAIL_FROM_NAME
     MAIL_FROM_NAME=${MAIL_FROM_NAME:-Softy ERP}
-    sed -i.bak "s|^MAIL_FROM_NAME=.*|MAIL_FROM_NAME=\"${MAIL_FROM_NAME}\"|" "${BACKEND_DIR}/.env"
+    sed -i.bak "s|^MAIL_FROM_NAME=.*|MAIL_FROM_NAME=${MAIL_FROM_NAME}|" "${BACKEND_DIR}/.env"
     
-    MAIL_FROM="\"${MAIL_FROM_NAME}\" <${MAIL_FROM_ADDRESS}>"
-    sed -i.bak "s|^MAIL_FROM=.*|MAIL_FROM=\"${MAIL_FROM}\"|" "${BACKEND_DIR}/.env"
+    MAIL_FROM="${MAIL_FROM_NAME} <${MAIL_FROM_ADDRESS}>"
+    sed -i.bak "s|^MAIL_FROM=.*|MAIL_FROM=${MAIL_FROM}|" "${BACKEND_DIR}/.env"
     
     # 10. Telemetry & Observability
     log_section "8. Telemetry & Observability"
