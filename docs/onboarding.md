@@ -26,7 +26,7 @@ Welcome to the team! This guide will get you set up and contributing in Day 1.
 ## 3. Running Locally
 1. **Start Infrastructure**:
    ```bash
-   docker-compose up -d postgres redis zipkin
+   docker compose up -d postgres redis zipkin
    ```
 2. **Migration**:
    ```bash

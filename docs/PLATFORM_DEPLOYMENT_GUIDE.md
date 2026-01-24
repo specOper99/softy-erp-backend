@@ -196,7 +196,7 @@ cd docker/monitoring
 
 #### 3.2 Start Monitoring Services
 ```bash
-docker-compose -f docker-compose.monitoring.yml up -d
+docker compose -f docker-compose.monitoring.yml up -d
 ```
 
 **Services Started:**
@@ -206,7 +206,7 @@ docker-compose -f docker-compose.monitoring.yml up -d
 
 #### 3.3 Verify Services
 ```bash
-docker-compose -f docker-compose.monitoring.yml ps
+docker compose -f docker-compose.monitoring.yml ps
 ```
 
 **Expected Output:**
@@ -566,7 +566,7 @@ npm run build
 **Solution:**
 ```bash
 # Ensure test database is running
-docker-compose up -d postgres
+docker compose up -d postgres
 npm run db:reset:test
 npm test
 ```
@@ -613,7 +613,7 @@ curl http://localhost:9090/api/v1/targets
 **Solution:**
 1. Ensure application is running
 2. Verify prometheus.yml scrape configs
-3. Restart Prometheus: `docker-compose restart prometheus`
+3. Restart Prometheus: `docker compose restart prometheus`
 
 ### Issue: High Memory Usage
 **Diagnosis:**
@@ -715,9 +715,9 @@ psql -h localhost -U softy -d softy < backup_20260119.sql
 ### Monitoring Rollback
 ```bash
 cd docker/monitoring
-docker-compose down
+docker compose down
 git checkout previous-commit
-docker-compose up -d
+docker compose up -d
 ```
 
 ---

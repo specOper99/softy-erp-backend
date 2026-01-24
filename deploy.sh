@@ -40,7 +40,13 @@ INSTALL_DEPS="${INSTALL_DEPS:-true}"
 BACKUP_DB="${BACKUP_DB:-false}"
 CREATE_ADMIN="${CREATE_ADMIN:-false}"
 DEPLOY_MONITORING="${DEPLOY_MONITORING:-false}"
-DEPLOY_INFRA="${DEPLOY_INFRA:-false}"
+
+# Track whether DEPLOY_INFRA was explicitly set (env var or flag).
+DEPLOY_INFRA_SET=false
+if [ -n "${DEPLOY_INFRA+x}" ]; then
+    DEPLOY_INFRA_SET=true
+fi
+DEPLOY_INFRA="${DEPLOY_INFRA:-}"
 
 # Kubernetes specific
 K8S_NAMESPACE="${K8S_NAMESPACE:-softy-erp}"
@@ -81,6 +87,37 @@ check_command() {
         log_error "Required command '$1' not found"
         exit 1
     fi
+}
+
+COMPOSE_STYLE=""
+detect_compose() {
+    if [ -n "$COMPOSE_STYLE" ]; then
+        return 0
+    fi
+
+    if command -v docker-compose &> /dev/null; then
+        COMPOSE_STYLE="v1"
+        return 0
+    fi
+
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        COMPOSE_STYLE="v2"
+        return 0
+    fi
+
+    log_error "Docker Compose not found. Install docker-compose or Docker Compose plugin."
+    exit 1
+}
+
+compose() {
+    detect_compose
+
+    if [ "$COMPOSE_STYLE" = "v2" ]; then
+        docker compose "$@"
+        return $?
+    fi
+
+    docker-compose "$@"
 }
 
 prompt_continue() {
@@ -656,6 +693,8 @@ deploy_docker() {
     fi
     
     log_section "DOCKER DEPLOYMENT"
+
+    check_command "docker"
     
     cd "$BACKEND_DIR"
     
@@ -684,9 +723,21 @@ deploy_docker() {
     # Run migrations in container
     if [ "$RUN_MIGRATIONS" = "true" ]; then
         log "Running migrations in Docker container..."
+        DOCKER_RUN_NETWORK_ARGS=()
+        DOCKER_RUN_ENV_OVERRIDES=()
+
+        # NOTE: --network host works on Linux but not on macOS.
+        # On macOS, use host.docker.internal to reach services on the host.
+        if [ "$(uname -s)" = "Linux" ]; then
+            DOCKER_RUN_NETWORK_ARGS+=(--network host)
+        else
+            DOCKER_RUN_ENV_OVERRIDES+=(-e DB_HOST=host.docker.internal)
+        fi
+
         docker run --rm \
             --env-file .env \
-            --network host \
+            "${DOCKER_RUN_NETWORK_ARGS[@]}" \
+            "${DOCKER_RUN_ENV_OVERRIDES[@]}" \
             "$DOCKER_IMAGE" \
             npm run migration:run || {
             log_warning "Migration failed (may already be applied)"
@@ -791,12 +842,12 @@ deploy_infrastructure() {
     log_section "DEPLOYING INFRASTRUCTURE"
     
     check_command "docker"
-    check_command "docker-compose"
+    detect_compose
     
     cd "$BACKEND_DIR"
     
     log "Starting infrastructure services (PostgreSQL, Redis, MinIO)..."
-    docker-compose up -d postgres redis minio minio-init || {
+    compose up -d postgres redis minio minio-init || {
         log_error "Infrastructure deployment failed"
         exit 1
     }
@@ -805,7 +856,7 @@ deploy_infrastructure() {
     sleep 10
     
     # Check service health
-    docker-compose ps
+    compose ps
     
     log_success "Infrastructure deployed successfully"
 }
@@ -822,7 +873,7 @@ deploy_monitoring() {
     log_section "DEPLOYING MONITORING STACK"
     
     check_command "docker"
-    check_command "docker-compose"
+    detect_compose
     
     MONITORING_DIR="$BACKEND_DIR/docker/monitoring"
     
@@ -840,7 +891,7 @@ deploy_monitoring() {
     fi
     
     log "Starting Prometheus, Grafana, and Alertmanager..."
-    docker-compose -f docker-compose.monitoring.yml up -d || {
+    compose -f docker-compose.monitoring.yml up -d || {
         log_error "Monitoring deployment failed"
         exit 1
     }
@@ -849,7 +900,7 @@ deploy_monitoring() {
     sleep 5
     
     # Check service health
-    docker-compose -f docker-compose.monitoring.yml ps
+    compose -f docker-compose.monitoring.yml ps
     
     log_success "Monitoring stack deployed"
     log ""
@@ -1162,6 +1213,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --infra)
             DEPLOY_INFRA=true
+            DEPLOY_INFRA_SET=true
             shift
             ;;
         --skip-migrations)
@@ -1278,6 +1330,17 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Default infra behavior:
+# - bare-metal: start local infrastructure by default (unless overridden)
+# - docker/kubernetes: do not start local compose services by default
+if [ "$DEPLOY_INFRA_SET" = "false" ]; then
+    if [ "$DEPLOYMENT_TYPE" = "bare-metal" ]; then
+        DEPLOY_INFRA=true
+    else
+        DEPLOY_INFRA=false
+    fi
+fi
 
 # Run main deployment
 main
