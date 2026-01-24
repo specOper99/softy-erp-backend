@@ -114,58 +114,71 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto, context?: RequestContext): Promise<AuthResponseDto> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new UnauthorizedException('tenants.tenant_id_required');
+    // CRITICAL SECURITY: equalize auth response timing to reduce user enumeration via latency.
+    // This applies to both success and failure paths.
+    const startedAtMs = Date.now();
+    const minResponseMs = 100;
+
+    try {
+      const tenantId = TenantContextService.getTenantId();
+      if (!tenantId) {
+        throw new UnauthorizedException('tenants.tenant_id_required');
+      }
+
+      const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
+      if (lockoutStatus.locked) {
+        const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
+        throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
+      }
+
+      const user = await this.usersService.findByEmailWithMfaSecret(loginDto.email, tenantId);
+      if (!user) {
+        await this.lockoutService.recordFailedAttempt(loginDto.email);
+        // Timing Attack Mitigation:
+        // Perform a dummy bcrypt comparison so the response time roughly matches valid users.
+        // This prevents attackers from easily enumerating valid email addresses by measuring response latency.
+        // The dummyPasswordHash is generated uniquely at service startup from random bytes.
+        await bcrypt.compare(loginDto.password, this.dummyPasswordHash);
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      if (!user.isActive) {
+        throw new UnauthorizedException('Account is deactivated');
+      }
+
+      const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
+      if (!isPasswordValid) {
+        await this.lockoutService.recordFailedAttempt(loginDto.email);
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      if (user.isMfaEnabled) {
+        const tempToken = await this.mfaTokenService.createTempToken({
+          userId: user.id,
+          tenantId,
+          rememberMe: !!loginDto.rememberMe,
+        });
+
+        return { requiresMfa: true, tempToken };
+      }
+
+      await this.lockoutService.clearAttempts(loginDto.email);
+
+      if (context?.ipAddress) {
+        this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress).catch((error) => {
+          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+          this.logger.error(`Suspicious activity check failed: ${message}`);
+        });
+      }
+
+      return this.generateAuthResponse(user, context, loginDto.rememberMe);
+    } finally {
+      const elapsedMs = Date.now() - startedAtMs;
+      const remainingMs = minResponseMs - elapsedMs;
+      if (remainingMs > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, remainingMs));
+      }
     }
-
-    const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
-    if (lockoutStatus.locked) {
-      const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
-      throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
-    }
-
-    const user = await this.usersService.findByEmailWithMfaSecret(loginDto.email, tenantId);
-    if (!user) {
-      await this.lockoutService.recordFailedAttempt(loginDto.email);
-      // Timing Attack Mitigation:
-      // Perform a dummy bcrypt comparison so the response time roughly matches valid users.
-      // This prevents attackers from easily enumerating valid email addresses by measuring response latency.
-      // The dummyPasswordHash is generated uniquely at service startup from random bytes.
-      await bcrypt.compare(loginDto.password, this.dummyPasswordHash);
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (!user.isActive) {
-      throw new UnauthorizedException('Account is deactivated');
-    }
-
-    const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
-    if (!isPasswordValid) {
-      await this.lockoutService.recordFailedAttempt(loginDto.email);
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (user.isMfaEnabled) {
-      const tempToken = await this.mfaTokenService.createTempToken({
-        userId: user.id,
-        tenantId,
-        rememberMe: !!loginDto.rememberMe,
-      });
-
-      return { requiresMfa: true, tempToken };
-    }
-
-    await this.lockoutService.clearAttempts(loginDto.email);
-
-    if (context?.ipAddress) {
-      this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress).catch((error) => {
-        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-        this.logger.error(`Suspicious activity check failed: ${message}`);
-      });
-    }
-
-    return this.generateAuthResponse(user, context, loginDto.rememberMe);
   }
 
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
@@ -234,14 +247,33 @@ export class AuthService {
 
       if (!storedToken.isValid()) {
         if (storedToken.isRevoked) {
-          this.logger.warn({
-            message: 'Possible token reuse detected',
-            userId: storedToken.userId,
-            tokenId: storedToken.id,
-            ipAddress: context?.ipAddress,
-            userAgent: context?.userAgent,
-          });
-          await manager.update(RefreshToken, { userId: storedToken.userId, isRevoked: false }, { isRevoked: true });
+          const now = Date.now();
+          const lastUsedAtMs = storedToken.lastUsedAt?.getTime();
+          const recentRevocationGraceMs = 5_000;
+
+          const contextUserAgent = context?.userAgent?.substring(0, 200);
+          const userAgentMatches =
+            !!contextUserAgent && !!storedToken.userAgent ? storedToken.userAgent === contextUserAgent : false;
+          const ipMatches =
+            !!context?.ipAddress && !!storedToken.ipAddress ? storedToken.ipAddress === context.ipAddress : false;
+
+          const isLikelyConcurrentRefresh =
+            typeof lastUsedAtMs === 'number' &&
+            now - lastUsedAtMs >= 0 &&
+            now - lastUsedAtMs <= recentRevocationGraceMs &&
+            userAgentMatches &&
+            ipMatches;
+
+          if (!isLikelyConcurrentRefresh) {
+            this.logger.warn({
+              message: 'Possible token reuse detected',
+              userId: storedToken.userId,
+              tokenId: storedToken.id,
+              ipAddress: context?.ipAddress,
+              userAgent: context?.userAgent,
+            });
+            await manager.update(RefreshToken, { userId: storedToken.userId, isRevoked: false }, { isRevoked: true });
+          }
         }
         throw new UnauthorizedException('Refresh token expired or revoked');
       }

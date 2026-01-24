@@ -3,17 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
+import { AuthService } from '../auth.service';
 import { TokenBlacklistService } from '../services/token-blacklist.service';
-
-interface JwtPayload {
-  sub: string;
-  email: string;
-  role: string;
-  tenantId: string;
-}
+import { TokenPayload } from '../services/token.service';
 
 interface SocketData {
-  user?: JwtPayload;
+  user?: TokenPayload;
 }
 
 @Injectable()
@@ -24,6 +19,7 @@ export class WsJwtGuard implements CanActivate {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly authService: AuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -40,10 +36,12 @@ export class WsJwtGuard implements CanActivate {
         throw new WsException('Unauthorized');
       }
 
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
         secret: this.getJwtSecretOrKey(),
-        algorithms: this.getAllowedJwtAlgorithms(),
+        algorithms: [this.getAllowedJwtAlgorithm()],
       });
+
+      await this.authService.validateUser(payload);
 
       (client.data as SocketData).user = payload;
 
@@ -56,20 +54,24 @@ export class WsJwtGuard implements CanActivate {
     }
   }
 
-  private getAllowedJwtAlgorithms(): Array<'HS256' | 'RS256'> {
+  private getAllowedJwtAlgorithm(): 'HS256' | 'RS256' {
     const raw = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
-    const allowed = raw
+    const parsed = raw
       .split(',')
       .map((a) => a.trim().toUpperCase())
       .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
 
-    return allowed.length > 0 ? allowed : ['HS256'];
+    const unique = Array.from(new Set(parsed));
+    if (unique.length !== 1) {
+      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
+    }
+    return unique[0] ?? 'HS256';
   }
 
   private getJwtSecretOrKey(): string {
-    const algorithms = this.getAllowedJwtAlgorithms();
+    const algorithm = this.getAllowedJwtAlgorithm();
 
-    if (algorithms.includes('RS256')) {
+    if (algorithm === 'RS256') {
       const publicKey = this.configService.get<string>('JWT_PUBLIC_KEY');
       if (!publicKey) {
         throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');

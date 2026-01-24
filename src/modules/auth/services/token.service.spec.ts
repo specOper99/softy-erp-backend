@@ -183,6 +183,7 @@ describe('TokenService', () => {
       expect(mockRefreshTokenRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ userId: 'user-1', isRevoked: false }),
+          take: 100,
         }),
       );
     });

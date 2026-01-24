@@ -506,6 +506,55 @@ describe('AuthService - Comprehensive Tests', () => {
     });
   });
 
+  describe('refreshTokens', () => {
+    it('should not revoke all sessions on likely concurrent refresh (revoked token used immediately)', async () => {
+      const now = Date.now();
+      mockTransactionManager.findOne.mockResolvedValue({
+        id: 'rt-1',
+        userId: mockUser.id,
+        isRevoked: true,
+        lastUsedAt: new Date(now - 1_000),
+        ipAddress: '1.2.3.4',
+        userAgent: 'ua',
+        user: mockUser,
+        isValid: () => false,
+      });
+
+      await expect(service.refreshTokens('refresh', { ipAddress: '1.2.3.4', userAgent: 'ua' })).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(mockTransactionManager.update).not.toHaveBeenCalledWith(
+        RefreshToken,
+        expect.objectContaining({ userId: mockUser.id, isRevoked: false }),
+        expect.objectContaining({ isRevoked: true }),
+      );
+    });
+
+    it('should revoke all sessions on suspected token reuse (revoked token used later)', async () => {
+      mockTransactionManager.findOne.mockResolvedValue({
+        id: 'rt-1',
+        userId: mockUser.id,
+        isRevoked: true,
+        lastUsedAt: new Date(Date.now() - 60_000),
+        ipAddress: '1.2.3.4',
+        userAgent: 'ua',
+        user: mockUser,
+        isValid: () => false,
+      });
+
+      await expect(service.refreshTokens('refresh', { ipAddress: '1.2.3.4', userAgent: 'ua' })).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(mockTransactionManager.update).toHaveBeenCalledWith(
+        RefreshToken,
+        { userId: mockUser.id, isRevoked: false },
+        { isRevoked: true },
+      );
+    });
+  });
+
   describe('getActiveSessions', () => {
     it('should return non-revoked non-expired sessions', async () => {
       const sessions = [{ id: 's1' }, { id: 's2' }];

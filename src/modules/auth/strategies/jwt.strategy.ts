@@ -15,15 +15,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly authService: AuthService,
     private readonly tokenBlacklistService: TokenBlacklistService,
   ) {
-    const allowedAlgorithms = (configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256')
+    const rawAlgorithms = configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
+    const parsed = rawAlgorithms
       .split(',')
       .map((a) => a.trim().toUpperCase())
       .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
 
-    const algorithms: Array<'HS256' | 'RS256'> = allowedAlgorithms.length > 0 ? allowedAlgorithms : ['HS256'];
+    const unique = Array.from(new Set(parsed));
+    if (unique.length !== 1) {
+      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
+    }
+
+    const algorithm = unique[0] ?? 'HS256';
 
     const secretOrKey = (() => {
-      if (algorithms.includes('RS256')) {
+      if (algorithm === 'RS256') {
         const publicKey = configService.get<string>('JWT_PUBLIC_KEY');
         if (!publicKey) {
           throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
@@ -42,7 +48,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey,
-      algorithms,
+      algorithms: [algorithm],
       passReqToCallback: true,
     });
   }
