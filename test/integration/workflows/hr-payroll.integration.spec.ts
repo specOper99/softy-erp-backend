@@ -4,6 +4,7 @@ import { DataSource, In, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 import { ExportService } from '../../../src/common/services/export.service';
+import { DistributedLockService } from '../../../src/common/services/distributed-lock.service';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 
 void globalThis.fetch;
@@ -34,11 +35,10 @@ import { UsersService } from '../../../src/modules/users/services/users.service'
 
 describe('HR Payroll Workflow Integration', () => {
   let module: TestingModule;
-  let _hrService: HrService;
-  let payrollService: PayrollService;
-  let _financeService: FinanceService;
-  void _financeService;
-  let dataSource: DataSource;
+  let _hrService!: HrService;
+  let payrollService!: PayrollService;
+  let _financeService!: FinanceService;
+  let dataSource!: DataSource;
   let userRepository: Repository<User>;
   let profileRepository: Repository<Profile>;
   let walletRepository: Repository<EmployeeWallet>;
@@ -47,9 +47,7 @@ describe('HR Payroll Workflow Integration', () => {
   let payrollRunRepository: Repository<PayrollRun>;
   let bookingRepository: Repository<Booking>;
   let budgetRepository: Repository<DepartmentBudget>;
-  let _paymentGateway: MockPaymentGatewayService;
-  void _hrService;
-  void _paymentGateway;
+  let _paymentGateway!: MockPaymentGatewayService;
 
   const usersServiceMock = {
     findOne: jest.fn(async (id: string) => {
@@ -217,6 +215,12 @@ describe('HR Payroll Workflow Integration', () => {
           provide: CacheUtilsService,
           useValue: { clearCachePattern: jest.fn() },
         },
+        {
+          provide: DistributedLockService,
+          useValue: {
+            withLock: jest.fn(async (_resource: string, fn: () => Promise<unknown>) => fn()),
+          },
+        },
       ],
     }).compile();
 
@@ -257,7 +261,7 @@ describe('HR Payroll Workflow Integration', () => {
     });
 
     // 2. Setup Profile with Base Salary
-    const _profile = await profileRepository.save({
+    await profileRepository.save({
       userId: user.id,
       firstName: 'John',
       lastName: 'Doe',
@@ -307,7 +311,9 @@ describe('HR Payroll Workflow Integration', () => {
     const tx = await transactionRepository.findOneBy({
       payoutId: payout?.id,
     });
-    expect(tx).toBeNull();
+    expect(tx).toBeDefined();
+    expect(tx?.type).toBe('PAYROLL');
+    expect(Number(tx?.amount)).toBe(3200);
   });
 
   it('should skip employees with 0 total payout', async () => {
@@ -385,6 +391,6 @@ describe('HR Payroll Workflow Integration', () => {
     const transactions = await transactionRepository.find({
       where: { tenantId },
     });
-    expect(transactions).toHaveLength(0);
+    expect(transactions).toHaveLength(1);
   });
 });

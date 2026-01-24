@@ -11,6 +11,7 @@ describe('Platform E2E Tests', () => {
   let app: INestApplication;
   let platformToken: string;
   let testTenantId: string;
+  let testTenantUserId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -20,6 +21,8 @@ describe('Platform E2E Tests', () => {
       .useValue({
         sendMagicLink: jest.fn().mockResolvedValue(undefined),
         sendPasswordReset: jest.fn().mockResolvedValue(undefined),
+        queueEmailVerification: jest.fn().mockResolvedValue(undefined),
+        queuePasswordReset: jest.fn().mockResolvedValue(undefined),
       })
       .compile();
 
@@ -41,8 +44,9 @@ describe('Platform E2E Tests', () => {
 
     // Seed test database and get tenant ID
     const dataSource = app.get(DataSource);
-    const { tenantId } = await seedTestDatabase(dataSource);
+    const { tenantId, admin } = await seedTestDatabase(dataSource);
     testTenantId = tenantId;
+    testTenantUserId = admin.id;
   });
 
   afterAll(async () => {
@@ -99,19 +103,6 @@ describe('Platform E2E Tests', () => {
           password: 'short',
         })
         .expect(400);
-    });
-  });
-
-  describe('Platform Logout (POST /platform/auth/logout)', () => {
-    it('should logout successfully with valid token', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/platform/auth/logout')
-        .set('Authorization', `Bearer ${platformToken}`)
-        .expect(204);
-    });
-
-    it('should reject logout without token', () => {
-      return request(app.getHttpServer()).post('/api/v1/platform/auth/logout').expect(401);
     });
   });
 
@@ -178,7 +169,7 @@ describe('Platform E2E Tests', () => {
   describe('Security - Force Password Reset', () => {
     it('should force password reset with reason', () => {
       return request(app.getHttpServer())
-        .post(`/api/v1/platform/security/tenants/${testTenantId}/users/user-123/force-password-reset`)
+        .post(`/api/v1/platform/security/tenants/${testTenantId}/users/${testTenantUserId}/force-password-reset`)
         .set('Authorization', `Bearer ${platformToken}`)
         .send({
           reason: 'Account compromised - security incident #1234',
@@ -188,7 +179,7 @@ describe('Platform E2E Tests', () => {
 
     it('should reject without reason', () => {
       return request(app.getHttpServer())
-        .post(`/api/v1/platform/security/tenants/${testTenantId}/users/user-123/force-password-reset`)
+        .post(`/api/v1/platform/security/tenants/${testTenantId}/users/${testTenantUserId}/force-password-reset`)
         .set('Authorization', `Bearer ${platformToken}`)
         .send({})
         .expect(400);
@@ -196,7 +187,7 @@ describe('Platform E2E Tests', () => {
 
     it('should reject reason shorter than 10 characters', () => {
       return request(app.getHttpServer())
-        .post(`/api/v1/platform/security/tenants/${testTenantId}/users/user-123/force-password-reset`)
+        .post(`/api/v1/platform/security/tenants/${testTenantId}/users/${testTenantUserId}/force-password-reset`)
         .set('Authorization', `Bearer ${platformToken}`)
         .send({
           reason: 'short',
@@ -309,6 +300,19 @@ describe('Platform E2E Tests', () => {
         .get('/api/v1/platform/analytics/metrics')
         .set('Authorization', `Bearer tenant-token`)
         .expect(401);
+    });
+  });
+
+  describe('Platform Logout (POST /platform/auth/logout)', () => {
+    it('should logout successfully with valid token', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/platform/auth/logout')
+        .set('Authorization', `Bearer ${platformToken}`)
+        .expect(204);
+    });
+
+    it('should reject logout without token', () => {
+      return request(app.getHttpServer()).post('/api/v1/platform/auth/logout').expect(401);
     });
   });
 });

@@ -6,6 +6,8 @@ import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
+import { CursorAuthService } from '../../../src/common/services/cursor-auth.service';
+import { PasswordHashService } from '../../../src/common/services/password-hash.service';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 
 void globalThis.fetch;
@@ -63,7 +65,6 @@ describe('Auth Lockout Integration', () => {
   let authService: AuthService;
   let dataSource: DataSource;
   let cacheService: MockCacheUtilsService;
-  let _usersService: UsersService;
   let userRepository: Repository<User>;
 
   beforeAll(async () => {
@@ -112,6 +113,8 @@ describe('Auth Lockout Integration', () => {
         AuthService,
         AccountLockoutService,
         UsersService,
+        PasswordHashService,
+        CursorAuthService,
         {
           provide: UserRepository,
           useValue: new UserRepository(userRepository),
@@ -213,7 +216,6 @@ describe('Auth Lockout Integration', () => {
 
     authService = module.get<AuthService>(AuthService);
     cacheService = module.get(CacheUtilsService);
-    _usersService = module.get<UsersService>(UsersService);
   });
 
   afterAll(async () => {
@@ -222,8 +224,9 @@ describe('Auth Lockout Integration', () => {
   });
 
   beforeEach(async () => {
-    await userRepository.createQueryBuilder().delete().execute();
-    await dataSource.query('DELETE FROM tenants');
+    await dataSource.query(
+      'TRUNCATE TABLE profiles, employee_wallets, refresh_tokens, users, tenants RESTART IDENTITY CASCADE',
+    );
     cacheService.clear();
   });
 

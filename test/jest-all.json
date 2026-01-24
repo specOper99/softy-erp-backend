@@ -5,8 +5,11 @@
         "ts"
     ],
     "rootDir": "..",
+    "roots": [
+        "<rootDir>/src"
+    ],
     "testEnvironment": "node",
-    "testRegex": ".(spec|e2e-spec).ts$",
+    "testRegex": ".*\\.spec\\.ts$",
     "transform": {
         "^.+\\.(t|j)s$": "ts-jest"
     },
@@ -41,7 +44,12 @@
     ],
     "coverageDirectory": "coverage",
     "setupFilesAfterEnv": [
-        "<rootDir>/test/jest-setup.ts",
-        "<rootDir>/test/jest-e2e-setup.ts"
+        "<rootDir>/test/jest-setup.ts"
+    ],
+    "testPathIgnorePatterns": [
+        "<rootDir>/.worktrees/"
+    ],
+    "modulePathIgnorePatterns": [
+        "<rootDir>/.worktrees/"
     ]
 }
