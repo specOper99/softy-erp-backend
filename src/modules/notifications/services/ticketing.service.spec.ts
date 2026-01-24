@@ -9,7 +9,6 @@ global.fetch = mockFetch;
 
 describe('TicketingService', () => {
   let service: TicketingService;
-  let _configService: ConfigService;
 
   const mockConfigService = {
     get: jest.fn((key: string, defaultValue?: any) => {
