@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class PlatformLoginDto {
   @IsEmail()
@@ -18,4 +18,10 @@ export class PlatformLoginDto {
   @IsOptional()
   @IsString()
   deviceName?: string;
+}
+
+export class PlatformRevokeAllSessionsDto {
+  @IsString()
+  @MinLength(10)
+  reason: string;
 }

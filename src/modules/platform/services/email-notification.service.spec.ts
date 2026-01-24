@@ -7,7 +7,6 @@ jest.mock('nodemailer');
 
 describe('EmailNotificationService', () => {
   let service: EmailNotificationService;
-  let _configService: ConfigService;
   let mockSendMail: jest.Mock;
 
   beforeEach(async () => {
@@ -41,7 +40,6 @@ describe('EmailNotificationService', () => {
     }).compile();
 
     service = module.get<EmailNotificationService>(EmailNotificationService);
-    _configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {

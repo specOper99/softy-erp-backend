@@ -30,6 +30,8 @@ export interface CreateAuditLogDto {
 export class PlatformAuditService {
   private readonly logger = new Logger(PlatformAuditService.name);
 
+  private readonly maxListLimit = 100;
+
   constructor(
     @InjectRepository(PlatformAuditLog)
     private readonly auditLogRepository: Repository<PlatformAuditLog>,
@@ -73,6 +75,15 @@ export class PlatformAuditService {
     limit?: number;
     offset?: number;
   }): Promise<{ logs: PlatformAuditLog[]; total: number }> {
+    const limit =
+      typeof options.limit === 'number' && Number.isFinite(options.limit)
+        ? Math.min(this.maxListLimit, Math.max(1, Math.trunc(options.limit)))
+        : 100;
+    const offset =
+      typeof options.offset === 'number' && Number.isFinite(options.offset)
+        ? Math.max(0, Math.trunc(options.offset))
+        : 0;
+
     const qb = this.auditLogRepository.createQueryBuilder('log').leftJoinAndSelect('log.platformUser', 'user');
 
     if (options.platformUserId) {
@@ -105,9 +116,7 @@ export class PlatformAuditService {
 
     const total = await qb.getCount();
 
-    qb.orderBy('log.performedAt', 'DESC')
-      .limit(options.limit || 100)
-      .offset(options.offset || 0);
+    qb.orderBy('log.performedAt', 'DESC').limit(limit).offset(offset);
 
     const logs = await qb.getMany();
 
@@ -118,11 +127,12 @@ export class PlatformAuditService {
    * Get audit trail for a specific tenant
    */
   async getTenantAuditTrail(tenantId: string, limit = 100): Promise<PlatformAuditLog[]> {
+    const effectiveLimit = Math.min(this.maxListLimit, Math.max(1, Math.trunc(limit)));
     return this.auditLogRepository.find({
       where: { targetTenantId: tenantId },
       relations: ['platformUser'],
       order: { performedAt: 'DESC' },
-      take: limit,
+      take: effectiveLimit,
     });
   }
 
@@ -130,10 +140,11 @@ export class PlatformAuditService {
    * Get recent actions by a platform user
    */
   async getUserRecentActions(platformUserId: string, limit = 50): Promise<PlatformAuditLog[]> {
+    const effectiveLimit = Math.min(this.maxListLimit, Math.max(1, Math.trunc(limit)));
     return this.auditLogRepository.find({
       where: { platformUserId },
       order: { performedAt: 'DESC' },
-      take: limit,
+      take: effectiveLimit,
     });
   }
 }

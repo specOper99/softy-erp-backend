@@ -62,7 +62,7 @@ describe('PlatformSecurityController', () => {
       await controller.forcePasswordReset(tenantId, userId, dto, mockRequest);
 
       expect(securityService.forcePasswordReset).toHaveBeenCalledWith(
-        { userId, reason: dto.reason },
+        { tenantId, userId, reason: dto.reason, notifyUser: (dto as { notifyUser?: boolean }).notifyUser },
         'admin-user-123',
         '192.168.1.1',
       );
@@ -81,7 +81,7 @@ describe('PlatformSecurityController', () => {
       await controller.forcePasswordReset(tenantId, userId, dto, mockRequest);
 
       expect(securityService.forcePasswordReset).toHaveBeenCalledWith(
-        { userId, reason: dto.reason },
+        { tenantId, userId, reason: dto.reason, notifyUser: (dto as { notifyUser?: boolean }).notifyUser },
         'admin-user-123',
         '10.0.0.1',
       );
@@ -99,7 +99,7 @@ describe('PlatformSecurityController', () => {
       await controller.forcePasswordReset(tenantId, userId, dto, mockRequest);
 
       expect(securityService.forcePasswordReset).toHaveBeenCalledWith(
-        { userId, reason: dto.reason },
+        { tenantId, userId, reason: dto.reason, notifyUser: (dto as { notifyUser?: boolean }).notifyUser },
         'admin-user-123',
         'unknown',
       );
