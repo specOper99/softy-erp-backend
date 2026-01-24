@@ -11,7 +11,6 @@ import { Queue } from 'bullmq';
 import { createHmac } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import pLimit from 'p-limit';
 import { SelectQueryBuilder } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
@@ -19,6 +18,9 @@ import { TenantContextService } from '../../common/services/tenant-context.servi
 import { Webhook } from './entities/webhook.entity';
 import { WebhookRepository } from './repositories/webhook.repository';
 import { WEBHOOK_QUEUE, WebhookConfig, WebhookEvent, WebhookJobData } from './webhooks.types';
+
+type PLimit = typeof import('p-limit').default;
+type ConcurrencyLimit = ReturnType<PLimit>;
 
 /**
  * Webhook service for sending event notifications to external systems.
@@ -32,7 +34,16 @@ export class WebhookService {
   private readonly INITIAL_RETRY_DELAY = WEBHOOK_CONSTANTS.INITIAL_RETRY_DELAY;
   private readonly WEBHOOK_TIMEOUT = WEBHOOK_CONSTANTS.TIMEOUT;
   private readonly MIN_SECRET_LENGTH = WEBHOOK_CONSTANTS.MIN_SECRET_LENGTH;
-  private readonly concurrencyLimit = pLimit(WEBHOOK_CONSTANTS.MAX_CONCURRENCY);
+  private concurrencyLimitPromise?: Promise<ConcurrencyLimit>;
+
+  private getConcurrencyLimit(): Promise<ConcurrencyLimit> {
+    if (!this.concurrencyLimitPromise) {
+      this.concurrencyLimitPromise = import('p-limit').then(({ default: pLimit }) =>
+        pLimit(WEBHOOK_CONSTANTS.MAX_CONCURRENCY),
+      );
+    }
+    return this.concurrencyLimitPromise;
+  }
 
   constructor(
     private readonly webhookRepository: WebhookRepository,
@@ -243,7 +254,8 @@ export class WebhookService {
           this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
         } else {
           // Fallback to inline delivery with concurrency limit
-          return this.concurrencyLimit(() => this.sendWebhookWithRetry(webhook, event));
+          const limit = await this.getConcurrencyLimit();
+          return limit(() => this.sendWebhookWithRetry(webhook, event));
         }
       });
 

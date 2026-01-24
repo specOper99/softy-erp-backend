@@ -431,8 +431,8 @@ env_wizard() {
     # 11. Performance & Caching
     log_section "9. Performance & Caching (Redis)"
     
-    read -p "Redis URL [redis://localhost:6379]: " REDIS_URL
-    REDIS_URL=${REDIS_URL:-redis://localhost:6379}
+    read -p "Redis URL [redis://localhost:9379]: " REDIS_URL
+    REDIS_URL=${REDIS_URL:-redis://localhost:9379}
     sed -i.bak "s|^REDIS_URL=.*|REDIS_URL=${REDIS_URL}|" "${BACKEND_DIR}/.env"
     
     # 12. Maintenance & Backups
@@ -1084,7 +1084,7 @@ deployment_summary() {
         echo ""
         log_success "Infrastructure deployed"
         log "  - PostgreSQL: localhost:5434"
-        log "  - Redis: localhost:6379"
+        log "  - Redis: localhost:9379"
         log "  - MinIO: http://localhost:9001"
     fi
     

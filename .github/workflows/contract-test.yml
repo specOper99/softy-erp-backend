@@ -25,7 +25,7 @@ jobs:
       redis:
         image: redis:7-alpine
         ports:
-          - 6379:6379
+          - 9379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -80,7 +80,7 @@ jobs:
           DB_PASSWORD: test_password
           DB_DATABASE: test_db
           REDIS_HOST: localhost
-          REDIS_PORT: 6379
+          REDIS_PORT: 9379
           JWT_SECRET: test-jwt-secret-minimum-32-chars-here
           VAULT_ENABLED: 'false'
           DISABLE_RATE_LIMITING: 'true'

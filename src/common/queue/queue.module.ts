@@ -18,7 +18,7 @@ import { ConfigService } from '@nestjs/config';
           return {
             connection: {
               host: 'localhost',
-              port: 6379,
+              port: 9379,
             },
           };
         }
@@ -27,7 +27,7 @@ import { ConfigService } from '@nestjs/config';
         return {
           connection: {
             host: url.hostname,
-            port: parseInt(url.port, 10) || 6379,
+            port: parseInt(url.port, 10) || 9379,
             password: url.password || undefined,
             username: url.username || undefined,
           },

@@ -68,7 +68,7 @@ export class DistributedLockService implements OnModuleDestroy {
   `;
 
   constructor(private readonly configService: ConfigService) {
-    const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
+    const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:9379');
     this.redis = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       lazyConnect: true,
