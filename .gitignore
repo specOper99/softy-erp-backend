@@ -44,6 +44,9 @@ report/
 # TypeScript cache
 *.tsbuildinfo
 
+# ESLint cache
+.eslintcache
+
 # Script build artifacts (keep TS sources)
 scripts/**/*.d.ts
 scripts/**/*.js.map
