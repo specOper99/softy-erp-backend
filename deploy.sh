@@ -969,14 +969,20 @@ post_deployment_verification() {
     
     log "Checking backend health..."
     
-    BACKEND_URL="${BACKEND_URL:-http://localhost:3000}"
+    # Read PORT from .env if available
+    if [ -f "$BACKEND_DIR/.env" ]; then
+        PORT=$(grep -E '^PORT=' "$BACKEND_DIR/.env" | cut -d '=' -f2 | tr -d '"' | tr -d "'" || echo "3000")
+    fi
+    PORT=${PORT:-3000}
+    
+    BACKEND_URL="${BACKEND_URL:-http://localhost:${PORT}}"
     
     # For Kubernetes, try to get the service URL
     if [ "$DEPLOYMENT_TYPE" = "kubernetes" ]; then
         K8S_SVC=$(kubectl get svc -n "$K8S_NAMESPACE" -l app=softy-erp -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
         if [ -n "$K8S_SVC" ]; then
             log "Kubernetes service: $K8S_SVC"
-            log "Use port-forward to access: kubectl port-forward -n $K8S_NAMESPACE svc/$K8S_SVC 3000:3000"
+            log "Use port-forward to access: kubectl port-forward -n $K8S_NAMESPACE svc/$K8S_SVC ${PORT}:${PORT}"
         fi
     fi
     
@@ -1050,25 +1056,31 @@ deployment_summary() {
     
     log_success "Backend deployed successfully"
     
+    # Read PORT from .env for summary
+    if [ -f "$BACKEND_DIR/.env" ]; then
+        PORT=$(grep -E '^PORT=' "$BACKEND_DIR/.env" | cut -d '=' -f2 | tr -d '"' | tr -d "'" || echo "3000")
+    fi
+    PORT=${PORT:-3000}
+    
     case "$DEPLOYMENT_TYPE" in
         bare-metal)
-            log "  - Backend URL: ${BACKEND_URL:-http://localhost:3000}"
-            log "  - API Docs: ${BACKEND_URL:-http://localhost:3000}/api/docs"
-            log "  - Health: ${BACKEND_URL:-http://localhost:3000}/api/v1/health"
-            log "  - Metrics: ${BACKEND_URL:-http://localhost:3000}/api/v1/metrics"
+            log "  - Backend URL: ${BACKEND_URL:-http://localhost:${PORT}}"
+            log "  - API Docs: ${BACKEND_URL:-http://localhost:${PORT}}/api/docs"
+            log "  - Health: ${BACKEND_URL:-http://localhost:${PORT}}/api/v1/health"
+            log "  - Metrics: ${BACKEND_URL:-http://localhost:${PORT}}/api/v1/metrics"
             ;;
         docker)
             log "  - Docker Image: $DOCKER_IMAGE"
             if [ -n "$DOCKER_REGISTRY" ]; then
                 log "  - Registry: $DOCKER_REGISTRY"
             fi
-            log "  - Run container: docker run -d -p 3000:3000 --env-file backend/.env --name softy-erp $DOCKER_IMAGE"
+            log "  - Run container: docker run -d -p ${PORT}:${PORT} --env-file backend/.env --name softy-erp $DOCKER_IMAGE"
             ;;
         kubernetes)
             log "  - Namespace: $K8S_NAMESPACE"
             log "  - Check pods: kubectl get pods -n $K8S_NAMESPACE"
             log "  - Check logs: kubectl logs -n $K8S_NAMESPACE -l app=softy-erp"
-            log "  - Port forward: kubectl port-forward -n $K8S_NAMESPACE svc/softy-erp 3000:3000"
+            log "  - Port forward: kubectl port-forward -n $K8S_NAMESPACE svc/softy-erp ${PORT}:${PORT}"
             ;;
     esac
     
