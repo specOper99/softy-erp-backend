@@ -86,6 +86,14 @@ export class PlatformTimeEntriesService {
       throw new NotFoundException('Time entry not found');
     }
 
+    const changesBefore = {
+      notes: entry.notes,
+      billable: entry.billable,
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+      durationMinutes: entry.durationMinutes,
+    };
+
     if (dto.notes !== undefined) {
       entry.notes = dto.notes;
     }
@@ -108,6 +116,14 @@ export class PlatformTimeEntriesService {
 
     const saved = await this.timeEntryRepository.save(entry);
 
+    const changesAfter = {
+      notes: saved.notes,
+      billable: saved.billable,
+      startTime: saved.startTime,
+      endTime: saved.endTime,
+      durationMinutes: saved.durationMinutes,
+    };
+
     await this.auditService.log({
       platformUserId,
       action: PlatformAction.TIME_ENTRY_UPDATED,
@@ -116,6 +132,8 @@ export class PlatformTimeEntriesService {
       targetEntityId: id,
       ipAddress,
       userAgent,
+      changesBefore,
+      changesAfter,
     });
 
     return saved;

@@ -46,7 +46,13 @@ export class PlatformTimeEntriesController {
   @Patch(':id')
   @RequirePlatformPermissions(PlatformPermission.SUPPORT_TIME_ENTRIES)
   @ApiOperation({ summary: 'Update time entry for a tenant' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PlatformTimeEntryUpdateDto, @Req() req: PlatformRequest) {
-    return this.service.update(dto.tenantId, id, dto, req.user.userId, req.ip, req.headers['user-agent']);
+  @ApiQuery({ name: 'tenantId', description: 'Tenant UUID', required: true })
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('tenantId') tenantId: string,
+    @Body() dto: PlatformTimeEntryUpdateDto,
+    @Req() req: PlatformRequest,
+  ) {
+    return this.service.update(tenantId, id, dto, req.user.userId, req.ip, req.headers['user-agent']);
   }
 }

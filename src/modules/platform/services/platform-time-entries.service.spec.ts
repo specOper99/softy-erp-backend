@@ -107,6 +107,12 @@ describe('PlatformTimeEntriesService', () => {
         targetEntityId: 'entry-1',
         ipAddress: '127.0.0.1',
         userAgent: 'test-agent',
+        changesBefore: expect.objectContaining({
+          durationMinutes: 60,
+        }),
+        changesAfter: expect.objectContaining({
+          durationMinutes: 120,
+        }),
       }),
     );
   });

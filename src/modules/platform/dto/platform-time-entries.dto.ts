@@ -35,9 +35,6 @@ export class PlatformTimeEntryQueryDto {
 }
 
 export class PlatformTimeEntryUpdateDto {
-  @IsUUID()
-  tenantId: string;
-
   @IsOptional()
   @IsString()
   notes?: string;
