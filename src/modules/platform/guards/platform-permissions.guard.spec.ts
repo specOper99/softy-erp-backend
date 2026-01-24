@@ -84,6 +84,13 @@ describe('PlatformPermissionsGuard', () => {
 
         expect(guard.canActivate(context)).toBe(true);
       });
+
+      it('should allow access to SUPPORT_TIME_ENTRIES permission', () => {
+        jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([PlatformPermission.SUPPORT_TIME_ENTRIES]);
+        const context = createMockExecutionContext({ platformRole: PlatformRole.SUPER_ADMIN });
+
+        expect(guard.canActivate(context)).toBe(true);
+      });
     });
 
     // SUPPORT_ADMIN role tests

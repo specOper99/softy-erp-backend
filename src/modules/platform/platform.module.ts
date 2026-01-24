@@ -15,6 +15,8 @@ import { PlatformAuditLog } from './entities/platform-audit-log.entity';
 import { PlatformSession } from './entities/platform-session.entity';
 import { PlatformUser } from './entities/platform-user.entity';
 import { TenantLifecycleEvent } from './entities/tenant-lifecycle-event.entity';
+import { Task } from '../tasks/entities/task.entity';
+import { TimeEntry } from '../tasks/entities/time-entry.entity';
 
 // Services
 import { EmailNotificationService } from './services/email-notification.service';
@@ -25,6 +27,7 @@ import { PlatformAuditService } from './services/platform-audit.service';
 import { PlatformAuthService } from './services/platform-auth.service';
 import { PlatformSecurityService } from './services/platform-security.service';
 import { PlatformTenantService } from './services/platform-tenant.service';
+import { PlatformTimeEntriesService } from './services/platform-time-entries.service';
 import { PlatformMfaTokenService } from './services/platform-mfa-token.service';
 
 // Controllers
@@ -36,6 +39,7 @@ import { PlatformAuthController } from './controllers/platform-auth.controller';
 import { PlatformSecurityController } from './controllers/platform-security.controller';
 import { PlatformSupportController } from './controllers/platform-support.controller';
 import { PlatformTenantsController } from './controllers/platform-tenants.controller';
+import { PlatformTimeEntriesController } from './controllers/platform-time-entries.controller';
 
 // Guards & Strategies
 import { PlatformJwtAuthGuard } from './guards/platform-jwt-auth.guard';
@@ -59,6 +63,8 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
       ImpersonationSession,
       TenantLifecycleEvent,
       Tenant,
+      Task,
+      TimeEntry,
       User,
       RefreshToken,
     ]),
@@ -80,6 +86,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
     PlatformAuthController,
     PlatformSecurityController,
     PlatformAnalyticsController,
+    PlatformTimeEntriesController,
     MFAController,
     PlatformMfaLoginController,
   ],
@@ -90,6 +97,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
     PlatformAuthService,
     PlatformSecurityService,
     PlatformAnalyticsService,
+    PlatformTimeEntriesService,
     MFAService,
     EmailNotificationService,
     PlatformMfaTokenService,
