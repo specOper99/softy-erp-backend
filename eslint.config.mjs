@@ -2,9 +2,9 @@
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';
-import tseslint from 'typescript-eslint';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import tseslint from 'typescript-eslint';
 
 const tsconfigRootDir = dirname(fileURLToPath(import.meta.url));
 
@@ -33,7 +33,7 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-unsafe-argument': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      "prettier/prettier": ["error", { endOfLine: "auto" }],
+      'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },
   // Relaxed rules for test files - mocks commonly use any types
