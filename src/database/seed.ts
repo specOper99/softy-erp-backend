@@ -339,12 +339,12 @@ async function seed() {
     SeedLogger.log('\nCreating platform admin user...');
     const platformUserRepo = AppDataSource.getRepository(PlatformUser);
     const existingPlatformAdmin = await platformUserRepo.findOne({
-      where: { email: 'admin@platform.com' },
+      where: { email: 'admin@erp.soft-y.org' },
     });
     if (!existingPlatformAdmin) {
       const passwordHash = await bcrypt.hash('SecurePassword123!', 10);
       const platformAdmin = platformUserRepo.create({
-        email: 'admin@platform.com',
+        email: 'admin@erp.soft-y.org',
         fullName: 'Platform Administrator',
         passwordHash,
         role: PlatformRole.SUPER_ADMIN,
@@ -352,9 +352,9 @@ async function seed() {
         mfaEnabled: false,
       });
       await platformUserRepo.save(platformAdmin);
-      SeedLogger.log('   Created: admin@platform.com');
+      SeedLogger.log('   Created: admin@erp.soft-y.org');
     } else {
-      SeedLogger.log('   Exists: admin@platform.com');
+      SeedLogger.log('   Exists: admin@erp.soft-y.org');
     }
 
     SeedLogger.log('\n========================================');
@@ -368,7 +368,7 @@ async function seed() {
     SeedLogger.log('            sarah.videographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('            mike.editor@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('\nPlatform:');
-    SeedLogger.log('  Admin:    admin@platform.com / SecurePassword123!\n');
+    SeedLogger.log('  Admin:    admin@erp.soft-y.org / SecurePassword123!\n');
   } catch (error) {
     SeedLogger.error('Seed failed:', error);
     process.exit(1);

@@ -325,16 +325,16 @@ env_wizard() {
     # 9. Email Service (SMTP)
     log_section "7. Email Service (SMTP)"
     
-    read -p "SMTP Host [smtp.example.com]: " MAIL_HOST
-    MAIL_HOST=${MAIL_HOST:-smtp.example.com}
+    read -p "SMTP Host [smtp.erp.soft-y.org]: " MAIL_HOST
+    MAIL_HOST=${MAIL_HOST:-smtp.erp.soft-y.org}
     sed -i.bak "s|^MAIL_HOST=.*|MAIL_HOST=${MAIL_HOST}|" "${BACKEND_DIR}/.env"
     
     read -p "SMTP Port [587]: " MAIL_PORT
     MAIL_PORT=${MAIL_PORT:-587}
     sed -i.bak "s|^MAIL_PORT=.*|MAIL_PORT=${MAIL_PORT}|" "${BACKEND_DIR}/.env"
     
-    read -p "SMTP Username [noreply@example.com]: " MAIL_USER
-    MAIL_USER=${MAIL_USER:-noreply@example.com}
+    read -p "SMTP Username [noreply@erp.soft-y.org]: " MAIL_USER
+    MAIL_USER=${MAIL_USER:-noreply@erp.soft-y.org}
     sed -i.bak "s|^MAIL_USER=.*|MAIL_USER=${MAIL_USER}|" "${BACKEND_DIR}/.env"
     
     read -sp "SMTP Password: " MAIL_PASSWORD

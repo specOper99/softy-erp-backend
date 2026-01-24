@@ -4,7 +4,7 @@ import { PII } from '../../../common/decorators';
 import { Role } from '../enums/role.enum';
 
 export class CreateUserDto {
-  @ApiProperty({ example: 'user@example.com' })
+  @ApiProperty({ example: 'user@erp.soft-y.org' })
   @IsEmail()
   @PII()
   email: string;
@@ -22,7 +22,7 @@ export class CreateUserDto {
 }
 
 export class UpdateUserDto {
-  @ApiPropertyOptional({ example: 'user@example.com' })
+  @ApiPropertyOptional({ example: 'user@erp.soft-y.org' })
   @IsEmail()
   @IsOptional()
   @PII()

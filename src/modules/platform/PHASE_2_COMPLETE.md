@@ -256,7 +256,7 @@ Successfully implemented Phase 2 of the Enterprise Superadmin Platform module, a
 curl -X POST http://localhost:3000/platform/auth/login \\
   -H "Content-Type: application/json" \\
   -d '{
-    "email": "admin@platform.com",
+    "email": "admin@erp.soft-y.org",
     "password": "SecurePassword123!",
     "deviceId": "laptop-chrome",
     "deviceName": "MacBook Pro"

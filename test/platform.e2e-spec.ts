@@ -58,7 +58,7 @@ describe('Platform E2E Tests', () => {
       return request(app.getHttpServer())
         .post('/api/v1/platform/auth/login')
         .send({
-          email: 'admin@platform.com',
+          email: 'admin@erp.soft-y.org',
           password: 'SecurePassword123!',
         })
         .expect(200)
@@ -66,7 +66,7 @@ describe('Platform E2E Tests', () => {
           expect(res.body.data).toHaveProperty('accessToken');
           expect(res.body.data).toHaveProperty('refreshToken');
           expect(res.body.data).toHaveProperty('user');
-          expect(res.body.data.user).toHaveProperty('email', 'admin@platform.com');
+          expect(res.body.data.user).toHaveProperty('email', 'admin@erp.soft-y.org');
           platformToken = res.body.data.accessToken;
         });
     });
@@ -75,7 +75,7 @@ describe('Platform E2E Tests', () => {
       return request(app.getHttpServer())
         .post('/api/v1/platform/auth/login')
         .send({
-          email: 'admin@platform.com',
+          email: 'admin@erp.soft-y.org',
           password: 'WrongPassword',
         })
         .expect(401);

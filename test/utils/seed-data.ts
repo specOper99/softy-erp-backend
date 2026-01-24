@@ -30,7 +30,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const passwordHashService = new PasswordHashService();
 
   // 0. Create Platform Users
-  const platformAdminEmail = 'admin@platform.com';
+  const platformAdminEmail = 'admin@erp.soft-y.org';
   const platformAdminPassword = 'SecurePassword123!';
   const platformAdminPasswordHash = await passwordHashService.hash(platformAdminPassword);
 

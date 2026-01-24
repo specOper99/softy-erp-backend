@@ -4,7 +4,7 @@ async function testLogin() {
   const response = await request('http://localhost:3001')
     .post('/api/v1/platform/auth/login')
     .send({
-      email: 'admin@platform.com',
+      email: 'admin@erp.soft-y.org',
       password: 'SecurePassword123!',
     });
   

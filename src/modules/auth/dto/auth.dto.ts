@@ -119,7 +119,7 @@ export class RevokeOtherSessionsDto {
 }
 
 export class ResendVerificationDto {
-  @ApiProperty({ example: 'user@example.com' })
+  @ApiProperty({ example: 'user@erp.soft-y.org' })
   @IsEmail()
   email: string;
 }

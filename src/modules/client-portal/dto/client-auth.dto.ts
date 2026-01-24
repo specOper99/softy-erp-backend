@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty } from 'class-validator';
 
 export class RequestMagicLinkDto {
-  @ApiProperty({ example: 'client@example.com' })
+  @ApiProperty({ example: 'client@erp.soft-y.org' })
   @IsEmail()
   @IsNotEmpty()
   email: string;

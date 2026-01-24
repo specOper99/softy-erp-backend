@@ -140,7 +140,7 @@ GET    /platform/audit/logs    - Query audit logs with filters
 // This would be done through a seed script or direct DB insert
 // Platform users are not created through API for security
 const platformUser = {
-  email: 'admin@platform.com',
+  email: 'admin@erp.soft-y.org',
   fullName: 'Platform Admin',
   passwordHash: await passwordHashService.hash('SecurePassword123!'),
   role: PlatformRole.SUPER_ADMIN,
