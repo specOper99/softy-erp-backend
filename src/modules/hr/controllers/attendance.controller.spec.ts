@@ -1,5 +1,6 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
@@ -12,8 +13,8 @@ describe('AttendanceController', () => {
   let service: jest.Mocked<AttendanceService>;
 
   const mockAttendance = {
-    id: 'att-1',
-    userId: 'user-1',
+    id: '11111111-1111-4111-8111-111111111111',
+    userId: '22222222-2222-4222-8222-222222222222',
     date: new Date('2024-01-15'),
     checkIn: new Date('2024-01-15T09:00:00'),
     checkOut: new Date('2024-01-15T17:00:00'),
@@ -22,15 +23,15 @@ describe('AttendanceController', () => {
   };
 
   const mockAdminUser = {
-    id: 'admin-1',
+    id: '33333333-3333-4333-8333-333333333333',
     role: Role.ADMIN,
-    tenantId: 'tenant-1',
+    tenantId: '44444444-4444-4444-8444-444444444444',
   };
 
   const mockFieldStaffUser = {
-    id: 'user-1',
+    id: '22222222-2222-4222-8222-222222222222',
     role: Role.FIELD_STAFF,
-    tenantId: 'tenant-1',
+    tenantId: '44444444-4444-4444-8444-444444444444',
   };
 
   beforeEach(async () => {
@@ -62,7 +63,7 @@ describe('AttendanceController', () => {
   describe('create', () => {
     it('should create attendance record for admin', async () => {
       const dto: CreateAttendanceDto = {
-        userId: 'user-1',
+        userId: '22222222-2222-4222-8222-222222222222',
         date: '2024-01-15',
         checkIn: '2024-01-15T09:00:00',
       };
@@ -76,7 +77,7 @@ describe('AttendanceController', () => {
 
     it('should allow field staff to create their own attendance', async () => {
       const dto: CreateAttendanceDto = {
-        userId: 'user-1',
+        userId: '22222222-2222-4222-8222-222222222222',
         date: '2024-01-15',
         checkIn: '2024-01-15T09:00:00',
       };
@@ -102,30 +103,45 @@ describe('AttendanceController', () => {
   });
 
   describe('findAll', () => {
+    class ListAttendanceQueryDto extends PaginationDto {
+      userId?: string;
+    }
+
     it('should return all attendance records for admin', async () => {
       service.findAll.mockResolvedValue([mockAttendance] as unknown as Attendance[]);
 
-      const result = await controller.findAll(undefined, mockAdminUser as User);
+      const query = new PaginationDto();
 
-      expect(service.findAll).toHaveBeenCalledWith(undefined);
+      const result = await controller.findAll(query, mockAdminUser as User);
+
+      expect(service.findAll).toHaveBeenCalledWith(query, undefined);
       expect(result).toHaveLength(1);
     });
 
     it('should filter by userId for admin', async () => {
       service.findAll.mockResolvedValue([mockAttendance] as unknown as Attendance[]);
 
-      const result = await controller.findAll('user-1', mockAdminUser as User);
+      const query = new ListAttendanceQueryDto();
+      query.limit = 10;
+      query.userId = '22222222-2222-4222-8222-222222222222';
 
-      expect(service.findAll).toHaveBeenCalledWith('user-1');
+      const result = await controller.findAll(query, mockAdminUser as User);
+
+      expect(service.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 10 }),
+        '22222222-2222-4222-8222-222222222222',
+      );
       expect(result).toHaveLength(1);
     });
 
     it('should only return own records for field staff', async () => {
       service.findAll.mockResolvedValue([mockAttendance] as unknown as Attendance[]);
 
-      const result = await controller.findAll(undefined, mockFieldStaffUser as User);
+      const query = new PaginationDto();
 
-      expect(service.findAll).toHaveBeenCalledWith('user-1');
+      const result = await controller.findAll(query, mockFieldStaffUser as User);
+
+      expect(service.findAll).toHaveBeenCalledWith(query, '22222222-2222-4222-8222-222222222222');
       expect(result).toHaveLength(1);
     });
   });
@@ -134,18 +150,18 @@ describe('AttendanceController', () => {
     it('should return attendance by id for admin', async () => {
       service.findOne.mockResolvedValue(mockAttendance as unknown as Attendance);
 
-      const result = await controller.findOne('att-1', mockAdminUser as User);
+      const result = await controller.findOne('11111111-1111-4111-8111-111111111111', mockAdminUser as User);
 
-      expect(service.findOne).toHaveBeenCalledWith('att-1');
+      expect(service.findOne).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
       expect(result).toEqual(mockAttendance);
     });
 
     it('should allow field staff to view own attendance', async () => {
       service.findOne.mockResolvedValue(mockAttendance as unknown as Attendance);
 
-      const result = await controller.findOne('att-1', mockFieldStaffUser as User);
+      const result = await controller.findOne('11111111-1111-4111-8111-111111111111', mockFieldStaffUser as User);
 
-      expect(service.findOne).toHaveBeenCalledWith('att-1');
+      expect(service.findOne).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
       expect(result).toEqual(mockAttendance);
     });
 
@@ -153,9 +169,9 @@ describe('AttendanceController', () => {
       const otherAttendance = { ...mockAttendance, userId: 'other-user' };
       service.findOne.mockResolvedValue(otherAttendance as unknown as Attendance);
 
-      await expect(controller.findOne('att-1', mockFieldStaffUser as User)).rejects.toThrow(
-        'Field staff can only view their own attendance records',
-      );
+      await expect(
+        controller.findOne('11111111-1111-4111-8111-111111111111', mockFieldStaffUser as User),
+      ).rejects.toThrow('Field staff can only view their own attendance records');
     });
   });
 
@@ -165,9 +181,9 @@ describe('AttendanceController', () => {
       const updated = { ...mockAttendance, checkOut: new Date(dto.checkOut!) };
       service.update.mockResolvedValue(updated as unknown as Attendance);
 
-      const result = await controller.update('att-1', dto);
+      const result = await controller.update('11111111-1111-4111-8111-111111111111', dto);
 
-      expect(service.update).toHaveBeenCalledWith('att-1', dto);
+      expect(service.update).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111', dto);
       expect(result).toEqual(updated);
     });
   });
@@ -176,9 +192,9 @@ describe('AttendanceController', () => {
     it('should delete attendance record', async () => {
       service.remove.mockResolvedValue(undefined);
 
-      await controller.remove('att-1');
+      await controller.remove('11111111-1111-4111-8111-111111111111');
 
-      expect(service.remove).toHaveBeenCalledWith('att-1');
+      expect(service.remove).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
     });
   });
 });
