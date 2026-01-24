@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventBus } from '@nestjs/cqrs';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { BookingRepository } from '../bookings/repositories/booking.repository';
@@ -114,6 +115,12 @@ describe('PrivacyService', () => {
         { provide: TransactionRepository, useValue: transactionRepository },
         { provide: ProfileRepository, useValue: profileRepository },
         { provide: StorageService, useValue: storageService },
+        {
+          provide: EventBus,
+          useValue: {
+            publish: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
