@@ -156,6 +156,27 @@ describe('WalletService', () => {
       });
       expect(manager.save).toHaveBeenCalledWith(createdWallet);
     });
+
+    it('should handle concurrent wallet creation (unique_violation) by reloading wallet', async () => {
+      const existingWallet = createMockEmployeeWallet({
+        userId: mockUserId,
+        tenantId: mockTenantId,
+        pendingBalance: 0,
+        payableBalance: 0,
+      }) as unknown as EmployeeWallet;
+
+      const manager = {
+        findOne: jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(existingWallet),
+        create: jest.fn().mockReturnValue(existingWallet),
+        save: jest.fn().mockRejectedValue({ code: '23505' }),
+      } as unknown as EntityManager;
+
+      const result = await service.getOrCreateWalletWithManager(manager, mockUserId);
+
+      expect(result).toEqual(existingWallet);
+      expect(manager.save).toHaveBeenCalled();
+      expect(manager.findOne).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('getAllWalletsCursor', () => {

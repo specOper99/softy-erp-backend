@@ -35,6 +35,7 @@ export class TimeEntriesController {
   }
 
   @Get('task/:taskId')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all time entries for a specific task' })
   async getTaskTimeEntries(@Param('taskId', ParseUUIDPipe) taskId: string) {
     return this.timeEntriesService.getTaskTimeEntries(taskId);
@@ -43,7 +44,7 @@ export class TimeEntriesController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update a time entry' })
   async update(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTimeEntryDto) {
-    return this.timeEntriesService.update(user.id, id, dto);
+    return this.timeEntriesService.update(user, id, dto);
   }
 
   @Delete(':id')

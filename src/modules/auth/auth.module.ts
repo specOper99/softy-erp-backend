@@ -15,6 +15,7 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { MfaRequiredGuard } from './guards/mfa-required.guard';
 import { WsJwtGuard } from './guards/ws-jwt.guard';
+import { UserDeactivatedHandler } from './handlers/user-deactivated.handler';
 import { AccountLockoutService } from './services/account-lockout.service';
 import { MfaService } from './services/mfa.service';
 import { MfaTokenService } from './services/mfa-token.service';
@@ -59,9 +60,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     GeoIpService,
     TokenBlacklistService,
     WsJwtGuard,
+    UserDeactivatedHandler,
   ],
   exports: [
     AuthService,
+    PasswordService,
     TokenService,
     TokenBlacklistService,
     MfaService,

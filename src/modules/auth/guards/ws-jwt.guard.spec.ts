@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { WsException } from '@nestjs/websockets';
+import { AuthService } from '../auth.service';
 import { TokenBlacklistService } from '../services/token-blacklist.service';
 import { WsJwtGuard } from './ws-jwt.guard';
 
@@ -10,6 +11,7 @@ describe('WsJwtGuard', () => {
   let guard: WsJwtGuard;
   let jwtService: jest.Mocked<JwtService>;
   let tokenBlacklistService: jest.Mocked<TokenBlacklistService>;
+  let authService: jest.Mocked<AuthService>;
   // let configService: jest.Mocked<ConfigService>;
 
   const createMockContext = (client: unknown) =>
@@ -23,6 +25,12 @@ describe('WsJwtGuard', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WsJwtGuard,
+        {
+          provide: AuthService,
+          useValue: {
+            validateUser: jest.fn().mockResolvedValue({ id: 'user-123', isActive: true }),
+          },
+        },
         {
           provide: JwtService,
           useValue: {
@@ -53,6 +61,7 @@ describe('WsJwtGuard', () => {
     guard = module.get<WsJwtGuard>(WsJwtGuard);
     jwtService = module.get(JwtService);
     tokenBlacklistService = module.get(TokenBlacklistService);
+    authService = module.get(AuthService);
     // configService = module.get(ConfigService);
   });
 
@@ -70,7 +79,7 @@ describe('WsJwtGuard', () => {
         data: {} as Record<string, any>,
       };
       const context = createMockContext(client);
-      const payload = { sub: 'user-123', email: 'test@example.com' };
+      const payload = { sub: 'user-123', email: 'test@example.com', role: 'ADMIN', tenantId: 'tenant-123' };
 
       tokenBlacklistService.isBlacklisted.mockResolvedValue(false);
       jwtService.verifyAsync.mockResolvedValue(payload);
@@ -79,6 +88,7 @@ describe('WsJwtGuard', () => {
 
       expect(result).toBe(true);
       expect(client.data['user']).toEqual(payload);
+      expect(authService.validateUser).toHaveBeenCalledWith(payload);
       expect(tokenBlacklistService.isBlacklisted).toHaveBeenCalledWith('valid.token');
       expect(jwtService.verifyAsync).toHaveBeenCalledWith(
         'valid.token',
@@ -98,7 +108,7 @@ describe('WsJwtGuard', () => {
         data: {} as Record<string, any>,
       };
       const context = createMockContext(client);
-      const payload = { sub: 'user-123', email: 'test@example.com' };
+      const payload = { sub: 'user-123', email: 'test@example.com', role: 'ADMIN', tenantId: 'tenant-123' };
 
       tokenBlacklistService.isBlacklisted.mockResolvedValue(false);
       jwtService.verifyAsync.mockResolvedValue(payload);
@@ -107,6 +117,24 @@ describe('WsJwtGuard', () => {
 
       expect(result).toBe(true);
       expect(client.data['user']).toEqual(payload);
+    });
+
+    it('should throw WsException when user is inactive', async () => {
+      const client = {
+        handshake: {
+          query: { token: 'valid.token' },
+          headers: {},
+        },
+        data: {} as Record<string, any>,
+      };
+      const context = createMockContext(client);
+      const payload = { sub: 'user-123', email: 'test@example.com', role: 'ADMIN', tenantId: 'tenant-123' };
+
+      tokenBlacklistService.isBlacklisted.mockResolvedValue(false);
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      authService.validateUser.mockRejectedValue(new Error('User not found or inactive'));
+
+      await expect(guard.canActivate(context)).rejects.toThrow(WsException);
     });
 
     it('should throw WsException when no token provided', async () => {

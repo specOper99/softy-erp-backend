@@ -168,6 +168,39 @@ describe('TenantMiddleware', () => {
       expect(next).not.toHaveBeenCalledWith(expect.any(Error));
     });
 
+    it('should reject request when JWT tenantId does not match hostname-derived tenantId', async () => {
+      setAuthHeader('Bearer token');
+      const hostUuid = '550e8400-e29b-41d4-a716-446655440000';
+      setHostname(`${hostUuid}.example.com`);
+
+      mockJwtService.verify.mockReturnValue({ tenantId: 'tenant-1' });
+      mockTenantsService.findOne.mockResolvedValue({ id: hostUuid });
+
+      await middleware.use(req as unknown as Request, res, next);
+
+      expect(mockTenantsService.findOne).toHaveBeenCalledWith(hostUuid);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'tenants.tenant_mismatch',
+        }),
+      );
+    });
+
+    it('should allow request when JWT tenantId matches hostname-derived tenantId', async () => {
+      setAuthHeader('Bearer token');
+      const tenantId = '550e8400-e29b-41d4-a716-446655440000';
+      setHostname(`${tenantId}.example.com`);
+
+      mockJwtService.verify.mockReturnValue({ tenantId });
+      mockTenantsService.findOne.mockResolvedValue({ id: tenantId });
+
+      await middleware.use(req as unknown as Request, res, next);
+
+      expect(mockTenantsService.findOne).toHaveBeenCalledWith(tenantId);
+      expect(next).toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalledWith(expect.any(Error));
+    });
+
     it('should handle reserved subdomains', async () => {
       const reserved = ['www', 'api', 'app'];
       for (const sub of reserved) {
@@ -199,7 +232,13 @@ describe('TenantMiddleware', () => {
     });
 
     it('should deny host-based tenant resolution when allowlist is empty in production', async () => {
-      process.env.NODE_ENV = 'production';
+      mockConfigService.get.mockImplementation((key: string, defaultValue?: any) => {
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'TENANT_ALLOWED_DOMAINS') return '';
+        if (key === 'auth.jwtSecret') return 'secret';
+        return defaultValue;
+      });
+
       setHostname('slug.example.com');
       mockTenantsService.findBySlug.mockResolvedValue({ id: 'tenant-1' });
 
@@ -207,8 +246,6 @@ describe('TenantMiddleware', () => {
 
       expect(next).toHaveBeenCalled();
       expect(mockTenantsService.findBySlug).not.toHaveBeenCalled();
-
-      delete process.env.NODE_ENV;
     });
 
     it('should allow hostname match regardless of case', async () => {
@@ -241,8 +278,12 @@ describe('TenantMiddleware', () => {
     });
 
     it('should extract RS256 token', async () => {
-      process.env.JWT_ALLOWED_ALGORITHMS = 'RS256';
-      process.env.JWT_PUBLIC_KEY = 'pubkey';
+      mockConfigService.get.mockImplementation((key: string, defaultValue?: any) => {
+        if (key === 'JWT_ALLOWED_ALGORITHMS') return 'RS256';
+        if (key === 'JWT_PUBLIC_KEY') return 'pubkey';
+        if (key === 'auth.jwtSecret') return 'secret';
+        return defaultValue;
+      });
 
       setAuthHeader('Bearer token');
       mockJwtService.verify.mockReturnValue({ tenantId: 'tenant-1' });
@@ -251,25 +292,23 @@ describe('TenantMiddleware', () => {
 
       expect(mockJwtService.verify).toHaveBeenCalledWith(
         'token',
-        expect.objectContaining({ algorithms: ['RS256'], secret: 'pubkey' }),
+        expect.objectContaining({ algorithms: ['RS256'], publicKey: 'pubkey' }),
       );
-
-      // Cleanup env
-      delete process.env.JWT_ALLOWED_ALGORITHMS;
-      delete process.env.JWT_PUBLIC_KEY;
     });
 
     it('should throw if RS256 configured but no key', async () => {
-      process.env.JWT_ALLOWED_ALGORITHMS = 'RS256';
-      delete process.env.JWT_PUBLIC_KEY;
+      mockConfigService.get.mockImplementation((key: string, defaultValue?: any) => {
+        if (key === 'JWT_ALLOWED_ALGORITHMS') return 'RS256';
+        if (key === 'JWT_PUBLIC_KEY') return undefined;
+        if (key === 'auth.jwtSecret') return 'secret';
+        return defaultValue;
+      });
 
       setAuthHeader('Bearer token');
 
       // It catches internal error inside extractTenantIdFromJwt
       await middleware.use(req as unknown as Request, res, next);
       expect(next).toHaveBeenCalled(); // Should just skip middleware login on error
-
-      delete process.env.JWT_ALLOWED_ALGORITHMS;
     });
   });
 });

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import archiver from 'archiver';
 import { createWriteStream, promises as fs } from 'node:fs';
@@ -13,6 +14,7 @@ import { TransactionRepository } from '../finance/repositories/transaction.repos
 import { Profile } from '../hr/entities/profile.entity';
 import { ProfileRepository } from '../hr/repositories/profile.repository';
 import { StorageService } from '../media/storage.service';
+import { UserDeactivatedEvent } from '../users/events/user-deactivated.event';
 import { Task } from '../tasks/entities/task.entity';
 import { TaskRepository } from '../tasks/repositories/task.repository';
 import { UserRepository } from '../users/repositories/user.repository';
@@ -50,6 +52,7 @@ export class PrivacyService {
     private readonly transactionRepository: TransactionRepository,
     private readonly profileRepository: ProfileRepository,
     private readonly storageService: StorageService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async createRequest(userId: string, dto: CreatePrivacyRequestDto): Promise<PrivacyRequest> {
@@ -341,6 +344,8 @@ export class PrivacyService {
         deletedAt: new Date(),
       },
     );
+
+    this.eventBus.publish(new UserDeactivatedEvent(userId, tenantId));
 
     await this.profileRepository.update(
       { userId, tenantId },

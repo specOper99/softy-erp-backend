@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
 import { TenantContextService } from '../services/tenant-context.service';
 import { LogSanitizer } from '../utils/log-sanitizer.util';
+import { getClientIp } from '../utils/client-ip.util';
 import { getCorrelationId } from '../logger/request-context';
 
 interface LogContext {
@@ -50,7 +51,7 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
       method: request.method,
       url: request.url,
       userAgent: request.headers['user-agent'],
-      ip: this.getClientIp(request),
+      ip: getClientIp(request, this.trustProxyHeaders, (message) => this.logger.warn(message)),
     };
 
     // Log sanitized body for non-GET requests, exclude binary (file uploads)
@@ -109,19 +110,5 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
     }
   }
 
-  private getClientIp(request: Request): string {
-    // Only trust proxy headers when explicitly configured
-    if (this.trustProxyHeaders) {
-      const forwarded = request.headers['x-forwarded-for'];
-      if (typeof forwarded === 'string') {
-        const firstIp = forwarded.split(',')[0]?.trim();
-        if (firstIp) return firstIp;
-      }
-      const realIp = request.headers['x-real-ip'];
-      if (typeof realIp === 'string') {
-        return realIp;
-      }
-    }
-    return request.ip || request.socket?.remoteAddress || 'unknown';
-  }
+  // getClientIp implemented in common util
 }

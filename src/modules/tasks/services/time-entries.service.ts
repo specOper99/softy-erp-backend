@@ -1,8 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
 import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
+import { Task } from '../entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
 
 @Injectable()
@@ -14,7 +17,7 @@ export class TimeEntriesService {
   ) {}
 
   async startTimer(userId: string, dto: StartTimeEntryDto): Promise<TimeEntry> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     // [C-05] Race Condition Fix: Use pessimistic locking to prevent concurrent timer starts
     return this.dataSource.transaction(async (manager) => {
@@ -29,6 +32,13 @@ export class TimeEntriesService {
 
       if (activeTimer) {
         throw new BadRequestException('You have an active timer. Please stop it first.');
+      }
+
+      const task = await manager.findOne(Task, {
+        where: { id: dto.taskId, tenantId },
+      });
+      if (!task) {
+        throw new NotFoundException('Task not found');
       }
 
       const timeEntry = manager.create(TimeEntry, {
@@ -46,7 +56,7 @@ export class TimeEntriesService {
   }
 
   async stopTimer(userId: string, id: string, dto?: StopTimeEntryDto): Promise<TimeEntry> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const timeEntry = await this.timeEntryRepository.findOne({
       where: { id, userId, tenantId },
     });
@@ -68,7 +78,7 @@ export class TimeEntriesService {
   }
 
   async getActiveTimer(userId: string): Promise<TimeEntry | null> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.timeEntryRepository.findOne({
       where: {
         userId,
@@ -80,7 +90,7 @@ export class TimeEntriesService {
   }
 
   async getTaskTimeEntries(taskId: string): Promise<TimeEntry[]> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.timeEntryRepository.find({
       where: { taskId, tenantId },
       order: { startTime: 'DESC' },
@@ -89,14 +99,19 @@ export class TimeEntriesService {
     });
   }
 
-  async update(userId: string, id: string, dto: UpdateTimeEntryDto): Promise<TimeEntry> {
-    const tenantId = TenantContextService.getTenantId();
+  async update(user: User, id: string, dto: UpdateTimeEntryDto): Promise<TimeEntry> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const isAdmin = user.role === Role.ADMIN || user.role === Role.OPS_MANAGER;
     const timeEntry = await this.timeEntryRepository.findOne({
       where: { id, tenantId },
     });
 
     if (!timeEntry) {
       throw new NotFoundException('Time entry not found');
+    }
+
+    if (!isAdmin && timeEntry.userId !== user.id) {
+      throw new ForbiddenException('Not allowed to update this time entry');
     }
 
     Object.assign(timeEntry, dto);
@@ -113,7 +128,7 @@ export class TimeEntriesService {
   }
 
   async delete(id: string): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const result = await this.timeEntryRepository.delete({ id, tenantId });
     if (result.affected === 0) {
       throw new NotFoundException('Time entry not found');

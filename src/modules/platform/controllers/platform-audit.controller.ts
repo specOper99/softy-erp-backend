@@ -86,14 +86,26 @@ Logs include: tenant operations, impersonation sessions, security events, config
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
+    const MAX_LIMIT = 100;
+
+    const parsedLimit = limit !== undefined ? Number(limit) : undefined;
+    const effectiveLimit =
+      parsedLimit !== undefined && Number.isFinite(parsedLimit)
+        ? Math.min(MAX_LIMIT, Math.max(1, Math.trunc(parsedLimit)))
+        : undefined;
+
+    const parsedOffset = offset !== undefined ? Number(offset) : undefined;
+    const effectiveOffset =
+      parsedOffset !== undefined && Number.isFinite(parsedOffset) ? Math.max(0, Math.trunc(parsedOffset)) : undefined;
+
     return this.auditService.findAll({
       platformUserId,
       action: action as PlatformAction | undefined,
       targetTenantId,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
+      limit: effectiveLimit,
+      offset: effectiveOffset,
     });
   }
 }

@@ -169,7 +169,7 @@ describe('BookingsService Integration Tests', () => {
       expect(result.clientId).toBe(client.id);
       expect(result.packageId).toBe(pkg.id);
       expect(result.status).toBe(BookingStatus.DRAFT);
-      expect(result.totalPrice).toBe(3000);
+      expect(result.totalPrice).toBe('3000.00');
 
       // Verify database persistence
       const persisted = await bookingRepository.findOne({

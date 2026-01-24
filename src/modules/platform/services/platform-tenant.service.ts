@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 import {
@@ -52,7 +53,12 @@ export class PlatformTenantService {
     @InjectRepository(TenantLifecycleEvent)
     private readonly lifecycleEventRepository: Repository<TenantLifecycleEvent>,
     private readonly auditService: PlatformAuditService,
+    private readonly cacheUtils: CacheUtilsService,
   ) {}
+
+  private async invalidateTenantStateCache(tenantId: string): Promise<void> {
+    await this.cacheUtils.del(`tenant:state:${tenantId}`);
+  }
 
   /**
    * List tenants with filtering and pagination
@@ -139,6 +145,7 @@ export class PlatformTenantService {
     });
 
     const saved = await this.tenantRepository.save(tenant);
+    await this.invalidateTenantStateCache(saved.id);
 
     // Log lifecycle event
     await this.lifecycleEventRepository.save({
@@ -179,6 +186,8 @@ export class PlatformTenantService {
     Object.assign(tenant, dto);
 
     const updated = await this.tenantRepository.save(tenant);
+    await this.invalidateTenantStateCache(updated.id);
+    await this.invalidateTenantStateCache(updated.id);
 
     // Log lifecycle event
     await this.lifecycleEventRepository.save({
@@ -237,6 +246,7 @@ export class PlatformTenantService {
     }
 
     const updated = await this.tenantRepository.save(tenant);
+    await this.invalidateTenantStateCache(updated.id);
 
     // Log lifecycle event
     await this.lifecycleEventRepository.save({
@@ -290,6 +300,7 @@ export class PlatformTenantService {
     tenant.lastActivityAt = new Date();
 
     const updated = await this.tenantRepository.save(tenant);
+    await this.invalidateTenantStateCache(updated.id);
 
     // Log lifecycle event
     await this.lifecycleEventRepository.save({
@@ -328,6 +339,7 @@ export class PlatformTenantService {
     tenant.status = TenantStatus.LOCKED;
 
     const updated = await this.tenantRepository.save(tenant);
+    await this.invalidateTenantStateCache(updated.id);
 
     // Log lifecycle event
     await this.lifecycleEventRepository.save({

@@ -46,6 +46,19 @@ describe('env-validation', () => {
     expect(() => validate(config)).toThrow();
   });
 
+  it('should reject placeholder secrets in production', () => {
+    const config = {
+      NODE_ENV: 'production',
+      // High-entropy-ish string (length >= 43) to pass validateSecretStrength
+      JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
+      TENANT_ALLOWED_DOMAINS: 'example.com',
+      CSRF_ENABLED: 'false',
+      DB_PASSWORD: 'change-me-local-only',
+    };
+
+    expect(() => validate(config)).toThrow('SECURITY: DB_PASSWORD appears to be a placeholder value');
+  });
+
   it('should allow short JWT_SECRET in test environment', () => {
     const config = {
       NODE_ENV: 'test',

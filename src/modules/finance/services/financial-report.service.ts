@@ -21,6 +21,8 @@ export class FinancialReportService {
   // Cache TTL: 5 minutes for financial reports (staleness allowed for performance)
   private readonly REPORT_CACHE_TTL = 5 * 60 * 1000;
 
+  private readonly MAX_BUDGET_REPORT_DEPARTMENTS = 500;
+
   private getReportCacheKey(tenantId: string, version: string, reportType: string, dateRange: string): string {
     return `finance:report:${tenantId}:v${version}:${reportType}:${dateRange}`;
   }
@@ -136,6 +138,7 @@ export class FinancialReportService {
     const budgets = await this.budgetRepository.find({
       where: { period },
       order: { department: 'ASC' },
+      take: this.MAX_BUDGET_REPORT_DEPARTMENTS,
     });
 
     if (budgets.length === 0) {

@@ -25,7 +25,7 @@
  * Alternative approaches (separate methods per entity type) would significantly
  * increase code duplication without improving runtime safety.
  */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import { ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import {
   DeepPartial,

@@ -119,7 +119,7 @@ describe('TimeEntriesController', () => {
 
       const result = await controller.update(mockUser, 'entry-123', dto);
 
-      expect(service.update).toHaveBeenCalledWith(mockUser.id, 'entry-123', dto);
+      expect(service.update).toHaveBeenCalledWith(mockUser, 'entry-123', dto);
       expect(result.notes).toBe('updated');
     });
   });

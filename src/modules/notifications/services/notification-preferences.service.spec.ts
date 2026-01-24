@@ -59,6 +59,7 @@ describe('NotificationPreferencesService', () => {
 
       expect(preferenceRepository.find).toHaveBeenCalledWith({
         where: { userId: mockUserId },
+        take: 100,
       });
       expect(result).toHaveLength(1);
       expect(result[0].notificationType).toBe(NotificationType.BOOKING_UPDATED);

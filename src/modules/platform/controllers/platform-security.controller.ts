@@ -1,6 +1,17 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
@@ -58,13 +69,17 @@ export class PlatformSecurityController {
   @ApiResponse({ status: 204, description: 'Password reset initiated' })
   @ApiResponse({ status: 404, description: 'User or tenant not found' })
   async forcePasswordReset(
-    @Param('tenantId') tenantId: string,
-    @Param('userId') userId: string,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: ForcePasswordResetDto,
     @Request() req: PlatformSecurityRequest,
   ) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
-    await this.securityService.forcePasswordReset({ userId, reason: dto.reason }, req.user.userId, ipAddress);
+    await this.securityService.forcePasswordReset(
+      { tenantId, userId, reason: dto.reason, notifyUser: dto.notifyUser },
+      req.user.userId,
+      ipAddress,
+    );
   }
 
   @Post('tenants/:tenantId/revoke-sessions')
@@ -92,7 +107,7 @@ export class PlatformSecurityController {
     },
   })
   async revokeSessions(
-    @Param('tenantId') tenantId: string,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Body() dto: RevokeSessionsDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -121,7 +136,7 @@ export class PlatformSecurityController {
   @ApiParam({ name: 'tenantId', description: 'Tenant UUID', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'IP allowlist updated' })
   async updateIpAllowlist(
-    @Param('tenantId') tenantId: string,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Body() dto: UpdateIpAllowlistDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -160,7 +175,7 @@ export class PlatformSecurityController {
     },
   })
   async initiateDataExport(
-    @Param('tenantId') tenantId: string,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Body() dto: InitiateDataExportDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -198,7 +213,7 @@ export class PlatformSecurityController {
     },
   })
   async initiateDataDeletion(
-    @Param('tenantId') tenantId: string,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Body() dto: InitiateDataDeletionDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -239,7 +254,7 @@ Risk factors include: login patterns, failed attempts, IP anomalies, configurati
       },
     },
   })
-  async getTenantRiskScore(@Param('tenantId') tenantId: string) {
+  async getTenantRiskScore(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
     const riskScore = await this.securityService.getTenantRiskScore(tenantId);
     return {
       tenantId,

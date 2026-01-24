@@ -10,6 +10,8 @@ import { PlatformUser } from '../entities/platform-user.entity';
 import { PlatformRole } from '../enums/platform-role.enum';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformAuthService } from './platform-auth.service';
+import { MFAService } from './mfa.service';
+import { PlatformMfaTokenService } from './platform-mfa-token.service';
 
 describe('PlatformAuthService', () => {
   let service: PlatformAuthService;
@@ -18,6 +20,7 @@ describe('PlatformAuthService', () => {
   let jwtService: JwtService;
   let passwordHashService: PasswordHashService;
   let auditService: PlatformAuditService;
+  let platformMfaTokenService: PlatformMfaTokenService;
 
   const mockUser: Partial<PlatformUser> = {
     id: 'user-123',
@@ -73,6 +76,7 @@ describe('PlatformAuthService', () => {
           provide: PasswordHashService,
           useValue: {
             verify: jest.fn(),
+            verifyAndUpgrade: jest.fn(),
             hash: jest.fn(),
           },
         },
@@ -80,6 +84,21 @@ describe('PlatformAuthService', () => {
           provide: PlatformAuditService,
           useValue: {
             log: jest.fn(),
+          },
+        },
+        {
+          provide: MFAService,
+          useValue: {
+            verifyToken: jest.fn(),
+            verifyBackupCode: jest.fn(),
+            removeUsedBackupCode: jest.fn(),
+          },
+        },
+        {
+          provide: PlatformMfaTokenService,
+          useValue: {
+            create: jest.fn(),
+            consume: jest.fn(),
           },
         },
       ],
@@ -91,6 +110,7 @@ describe('PlatformAuthService', () => {
     jwtService = module.get<JwtService>(JwtService);
     passwordHashService = module.get<PasswordHashService>(PasswordHashService);
     auditService = module.get<PlatformAuditService>(PlatformAuditService);
+    platformMfaTokenService = module.get<PlatformMfaTokenService>(PlatformMfaTokenService);
   });
 
   it('should be defined', () => {
@@ -107,7 +127,7 @@ describe('PlatformAuthService', () => {
 
     it('should successfully login with valid credentials', async () => {
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(mockUser as PlatformUser);
-      jest.spyOn(passwordHashService, 'verify').mockResolvedValue(true);
+      jest.spyOn(passwordHashService, 'verifyAndUpgrade').mockResolvedValue({ valid: true });
       jest.spyOn(sessionRepository, 'create').mockReturnValue(mockSession as PlatformSession);
       jest.spyOn(sessionRepository, 'save').mockResolvedValue(mockSession as PlatformSession);
       jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser as PlatformUser);
@@ -130,7 +150,7 @@ describe('PlatformAuthService', () => {
 
     it('should throw UnauthorizedException for incorrect password', async () => {
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(mockUser as PlatformUser);
-      jest.spyOn(passwordHashService, 'verify').mockResolvedValue(false);
+      jest.spyOn(passwordHashService, 'verifyAndUpgrade').mockResolvedValue({ valid: false });
       jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser as PlatformUser);
 
       await expect(service.login(loginDto, '192.168.1.1', 'Mozilla/5.0')).rejects.toThrow(UnauthorizedException);
@@ -139,7 +159,7 @@ describe('PlatformAuthService', () => {
     it('should lock account after 5 failed attempts', async () => {
       const lockedUser = { ...mockUser, failedLoginAttempts: 4 };
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(lockedUser as PlatformUser);
-      jest.spyOn(passwordHashService, 'verify').mockResolvedValue(false);
+      jest.spyOn(passwordHashService, 'verifyAndUpgrade').mockResolvedValue({ valid: false });
       jest.spyOn(userRepository, 'save').mockImplementation((user) => {
         const u = user as Partial<PlatformUser>;
         expect(u.failedLoginAttempts).toBe(5);
@@ -158,7 +178,7 @@ describe('PlatformAuthService', () => {
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(lockedUser as PlatformUser);
 
       await expect(service.login(loginDto, '192.168.1.1', 'Mozilla/5.0')).rejects.toThrow(UnauthorizedException);
-      expect(passwordHashService.verify).not.toHaveBeenCalled();
+      expect(passwordHashService.verifyAndUpgrade).not.toHaveBeenCalled();
     });
 
     it('should enforce IP allowlist when configured', async () => {
@@ -174,12 +194,17 @@ describe('PlatformAuthService', () => {
     it('should require MFA when enabled', async () => {
       const mfaUser = { ...mockUser, mfaEnabled: true };
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(mfaUser as PlatformUser);
-      jest.spyOn(passwordHashService, 'verify').mockResolvedValue(true);
+      jest.spyOn(passwordHashService, 'verifyAndUpgrade').mockResolvedValue({ valid: true });
+      jest.spyOn(sessionRepository, 'create').mockReturnValue(mockSession as PlatformSession);
+      jest.spyOn(sessionRepository, 'save').mockResolvedValue(mockSession as PlatformSession);
+      (platformMfaTokenService.create as jest.Mock).mockResolvedValue('temp-mfa-token');
 
       const result = await service.login(loginDto, '192.168.1.1', 'Mozilla/5.0');
 
       expect(result.mfaRequired).toBe(true);
       expect(result.accessToken).toBe('');
+      expect(result.tempToken).toBe('temp-mfa-token');
+      expect(result.sessionId).toBe(mockSession.id);
     });
 
     it('should reject suspended account', async () => {
@@ -192,7 +217,7 @@ describe('PlatformAuthService', () => {
     it('should reset failed login attempts on successful login', async () => {
       const userWithFailedAttempts = { ...mockUser, failedLoginAttempts: 3 };
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(userWithFailedAttempts as PlatformUser);
-      jest.spyOn(passwordHashService, 'verify').mockResolvedValue(true);
+      jest.spyOn(passwordHashService, 'verifyAndUpgrade').mockResolvedValue({ valid: true });
       jest.spyOn(sessionRepository, 'create').mockReturnValue(mockSession as PlatformSession);
       jest.spyOn(sessionRepository, 'save').mockResolvedValue(mockSession as PlatformSession);
       jest.spyOn(jwtService, 'sign').mockReturnValue('jwt_token');

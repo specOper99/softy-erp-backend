@@ -6,5 +6,7 @@ module.exports = {
     transform: {
         '^.+\\.(ts|tsx)$': 'ts-jest',
     },
+    testPathIgnorePatterns: ['<rootDir>/.worktrees/'],
+    modulePathIgnorePatterns: ['<rootDir>/.worktrees/'],
     testTimeout: 30000,
 };

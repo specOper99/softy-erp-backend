@@ -290,6 +290,7 @@ describe('ImpersonationService', () => {
           isActive: true,
         },
         order: { startedAt: 'DESC' },
+        take: 100,
       });
     });
 

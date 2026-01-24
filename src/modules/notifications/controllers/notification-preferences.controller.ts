@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, ParseArrayPipe, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -21,7 +21,17 @@ export class NotificationPreferencesController {
 
   @Put()
   @ApiOperation({ summary: 'Update notification preferences' })
-  async updatePreferences(@CurrentUser() user: User, @Body() body: UpdateNotificationPreferenceDto[]) {
+  async updatePreferences(
+    @CurrentUser() user: User,
+    @Body(
+      new ParseArrayPipe({
+        items: UpdateNotificationPreferenceDto,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    )
+    body: UpdateNotificationPreferenceDto[],
+  ) {
     return this.preferencesService.updatePreferences(user.id, body);
   }
 }

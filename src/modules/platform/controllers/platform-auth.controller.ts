@@ -4,7 +4,7 @@ import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
-import { PlatformLoginDto } from '../dto/platform-auth.dto';
+import { PlatformLoginDto, PlatformRevokeAllSessionsDto } from '../dto/platform-auth.dto';
 import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { PlatformAuthService } from '../services/platform-auth.service';
 
@@ -85,9 +85,9 @@ export class PlatformAuthController {
     description: 'Revoke all active sessions for the current platform user. Useful for security incidents.',
   })
   @ApiResponse({ status: 200, description: 'Sessions revoked' })
-  async revokeAllSessions(@Request() req: PlatformRequest, @Body() body: { reason: string }) {
+  async revokeAllSessions(@Request() req: PlatformRequest, @Body() dto: PlatformRevokeAllSessionsDto) {
     const { userId } = req.user;
-    const count = await this.authService.revokeAllSessions(userId, userId, body.reason);
+    const count = await this.authService.revokeAllSessions(userId, userId, dto.reason);
     return { revokedSessions: count };
   }
 }

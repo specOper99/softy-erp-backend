@@ -105,8 +105,20 @@ export class RecurringTransactionService {
 
       this.logger.log(`Processed ${dueTransactions.length} recurring transactions`);
     } finally {
-      // Always release the lock
-      await this.dataSource.query('SELECT pg_advisory_unlock($1)', [lockId]);
+      try {
+        const unlockResult = await this.dataSource.query<{ unlocked: boolean }[]>(
+          'SELECT pg_advisory_unlock($1) as unlocked',
+          [lockId],
+        );
+        const unlocked = unlockResult[0]?.unlocked;
+        if (!unlocked) {
+          this.logger.error(`Failed to release recurring transactions advisory lock (lockId=${lockId})`);
+        }
+      } catch (unlockError) {
+        this.logger.error(
+          `Failed to release recurring transactions advisory lock (lockId=${lockId}): ${unlockError instanceof Error ? unlockError.message : String(unlockError)}`,
+        );
+      }
     }
   }
 

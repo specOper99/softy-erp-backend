@@ -47,6 +47,9 @@ export class CursorPaginationHelper {
   ): Promise<CursorPaginationResult<T>> {
     const { cursor, limit = 20, alias, filters } = options;
 
+    const rawLimit = Number.isFinite(limit) ? Math.trunc(limit) : 20;
+    const effectiveLimit = Math.max(1, Math.min(100, rawLimit));
+
     CursorPaginationHelper.assertSafeIdentifier(alias, 'alias');
     CursorPaginationHelper.assertSafeIdentifier(dateField, 'dateField');
 
@@ -56,7 +59,7 @@ export class CursorPaginationHelper {
 
     qb.orderBy(`${alias}.${dateField}`, 'DESC')
       .addOrderBy(`${alias}.id`, 'DESC')
-      .take(limit + 1);
+      .take(effectiveLimit + 1);
 
     if (cursor) {
       const { date, id } = decodeCursor(cursor);
@@ -71,7 +74,7 @@ export class CursorPaginationHelper {
 
     let nextCursor: string | null = null;
 
-    if (items.length > limit) {
+    if (items.length > effectiveLimit) {
       items.pop();
       const lastItem = items[items.length - 1];
       if (lastItem) {

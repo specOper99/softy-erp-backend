@@ -6,14 +6,17 @@ import {
   Get,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Handlebars from 'handlebars';
 import { Repository } from 'typeorm';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -21,7 +24,6 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
 import { CreateEmailTemplateDto, PreviewEmailTemplateDto, UpdateEmailTemplateDto } from '../dto/email-template.dto';
 import { EmailTemplate } from '../entities/email-template.entity';
-import { MailService } from '../mail.service';
 
 @ApiTags('Email Templates')
 @ApiBearerAuth()
@@ -31,24 +33,25 @@ export class EmailTemplatesController {
   constructor(
     @InjectRepository(EmailTemplate)
     private readonly templateRepository: Repository<EmailTemplate>,
-    private readonly mailService: MailService,
   ) {}
 
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'List all email templates' })
-  async findAll() {
+  async findAll(@Query() query: PaginationDto = new PaginationDto()) {
     const tenantId = TenantContextService.getTenantId();
     return this.templateRepository.find({
       where: { tenantId },
       order: { name: 'ASC' },
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get template by ID' })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
     const tenantId = TenantContextService.getTenantId();
     return this.findTemplateOrThrow(id, tenantId);
   }
@@ -78,7 +81,7 @@ export class EmailTemplatesController {
   @Put(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update an email template' })
-  async update(@Param('id') id: string, @Body() dto: UpdateEmailTemplateDto) {
+  async update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateEmailTemplateDto) {
     const tenantId = TenantContextService.getTenantId();
     const template = await this.findTemplateOrThrow(id, tenantId);
 
@@ -89,7 +92,7 @@ export class EmailTemplatesController {
   @Delete(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete an email template' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
     const tenantId = TenantContextService.getTenantId();
     const template = await this.findTemplateOrThrow(id, tenantId);
 

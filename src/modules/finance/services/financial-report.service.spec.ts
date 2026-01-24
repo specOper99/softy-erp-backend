@@ -171,6 +171,7 @@ describe('FinancialReportService', () => {
       expect(budgetRepo.find).toHaveBeenCalledWith({
         where: { period: '2024-01' },
         order: { department: 'ASC' },
+        take: 500,
       });
       expect(result).toHaveLength(1);
       expect(result[0].actualSpent).toBe(500);

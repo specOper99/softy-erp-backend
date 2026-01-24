@@ -102,23 +102,30 @@ describe('SessionService', () => {
 
   describe('checkNewDevice', () => {
     it('should detect new device and send email', async () => {
+      const longUserAgent = 'a'.repeat(250);
       mockTokenService.findPreviousLoginByUserAgent.mockResolvedValue(null);
       mockUsersService.findOne.mockResolvedValue({ id: 'u1', email: 'test@example.com' });
       mockGeoIpService.getLocation.mockReturnValue({ city: 'City', country: 'Country' });
 
-      await service.checkNewDevice('u1', 'new-agent', '1.2.3.4');
+      await service.checkNewDevice('u1', longUserAgent, '1.2.3.4');
+
+      expect(mockTokenService.findPreviousLoginByUserAgent).toHaveBeenCalledWith('u1', longUserAgent.substring(0, 200));
 
       expect(mockMailService.queueNewDeviceLogin).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'test@example.com',
+          device: longUserAgent.substring(0, 200),
           location: 'City, Country',
         }),
       );
     });
 
     it('should not email if previous login exists', async () => {
+      const longUserAgent = 'a'.repeat(250);
       mockTokenService.findPreviousLoginByUserAgent.mockResolvedValue({ id: 's1' });
-      await service.checkNewDevice('u1', 'known-agent', '1.2.3.4');
+      await service.checkNewDevice('u1', longUserAgent, '1.2.3.4');
+
+      expect(mockTokenService.findPreviousLoginByUserAgent).toHaveBeenCalledWith('u1', longUserAgent.substring(0, 200));
       expect(mockMailService.queueNewDeviceLogin).not.toHaveBeenCalled();
     });
   });

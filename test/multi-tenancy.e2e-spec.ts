@@ -40,6 +40,8 @@ describe('Multi-Tenancy Isolation E2E Tests', () => {
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+        queueEmailVerification: jest.fn().mockResolvedValue(undefined),
+        queuePasswordReset: jest.fn().mockResolvedValue(undefined),
       })
       .compile();
 

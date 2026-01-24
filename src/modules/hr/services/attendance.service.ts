@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TENANT_REPO_ATTENDANCE } from '../../../common/constants/tenant-repo.tokens';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
 import { Attendance } from '../entities/attendance.entity';
@@ -53,13 +54,15 @@ export class AttendanceService {
     }
   }
 
-  async findAll(userId?: string): Promise<Attendance[]> {
+  async findAll(query: PaginationDto = new PaginationDto(), userId?: string): Promise<Attendance[]> {
     const where: { userId?: string } = {};
     if (userId) where.userId = userId;
 
     return this.attendanceRepository.find({
       where,
       order: { date: 'DESC' },
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
   }
 

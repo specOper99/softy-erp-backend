@@ -165,7 +165,7 @@ describe('PlatformAuditController', () => {
 
       expect(auditService.findAll).toHaveBeenCalledWith(
         expect.objectContaining({
-          limit: 200,
+          limit: 100,
           offset: 100,
         }),
       );

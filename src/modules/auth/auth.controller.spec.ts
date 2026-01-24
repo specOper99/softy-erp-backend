@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { Request } from 'express';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
@@ -28,6 +29,15 @@ describe('AuthController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot([
+          {
+            name: 'default',
+            ttl: 60_000,
+            limit: 1_000,
+          },
+        ]),
+      ],
       controllers: [AuthController],
       providers: [
         {

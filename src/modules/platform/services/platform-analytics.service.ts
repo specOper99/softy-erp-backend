@@ -1,6 +1,6 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 
@@ -69,33 +69,46 @@ export interface UsageTrends {
  */
 @Injectable()
 export class PlatformAnalyticsService {
-  private readonly logger = new Logger(PlatformAnalyticsService.name);
-
   constructor(
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
+  private parseDbNumber(value: unknown): number {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  }
+
   async getPlatformMetrics(): Promise<PlatformMetrics> {
-    const allTenants = await this.tenantRepository.find({
-      select: ['id', 'status', 'totalUsers', 'totalRevenue', 'mrr', 'subscriptionStartedAt'],
-    });
+    const [totalTenants, activeTenants, suspendedTenants] = await Promise.all([
+      this.tenantRepository.count(),
+      this.tenantRepository.count({ where: { status: TenantStatus.ACTIVE } }),
+      this.tenantRepository.count({ where: { status: TenantStatus.SUSPENDED } }),
+    ]);
 
-    const totalTenants = allTenants.length;
-    const activeTenants = allTenants.filter((t) => t.status === TenantStatus.ACTIVE).length;
-    const suspendedTenants = allTenants.filter((t) => t.status === TenantStatus.SUSPENDED).length;
+    const sums = await this.tenantRepository
+      .createQueryBuilder('tenant')
+      .select('COALESCE(SUM(tenant.totalUsers), 0)', 'totalUsers')
+      .addSelect('COALESCE(SUM(tenant.totalRevenue), 0)', 'totalRevenue')
+      .addSelect('COALESCE(SUM(tenant.mrr), 0)', 'mrr')
+      .getRawOne<{ totalUsers: string; totalRevenue: string; mrr: string }>();
 
-    const totalUsers = allTenants.reduce((sum, t) => sum + (t.totalUsers || 0), 0);
-    const totalRevenue = allTenants.reduce((sum, t) => sum + (t.totalRevenue || 0), 0);
-    const mrr = allTenants.reduce((sum, t) => sum + (t.mrr || 0), 0);
+    const totalUsers = this.parseDbNumber(sums?.totalUsers);
+    const totalRevenue = this.parseDbNumber(sums?.totalRevenue);
+    const mrr = this.parseDbNumber(sums?.mrr);
     const arr = mrr * 12;
 
     // Calculate growth rate (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const newTenants = allTenants.filter(
-      (t) => t.subscriptionStartedAt && t.subscriptionStartedAt > thirtyDaysAgo,
-    ).length;
+
+    const newTenants = await this.tenantRepository.count({
+      where: { subscriptionStartedAt: MoreThan(thirtyDaysAgo) },
+    });
     const growthRate = totalTenants > 0 ? (newTenants / totalTenants) * 100 : 0;
 
     const averageRevenuePerTenant = activeTenants > 0 ? totalRevenue / activeTenants : 0;
@@ -162,35 +175,50 @@ export class PlatformAnalyticsService {
   }
 
   async getRevenueAnalytics(): Promise<RevenueAnalytics> {
-    const tenants = await this.tenantRepository.find({
-      where: { status: TenantStatus.ACTIVE },
-      select: ['id', 'name', 'totalRevenue', 'mrr', 'subscriptionTier', 'subscriptionStartedAt'],
-    });
+    const totals = await this.tenantRepository
+      .createQueryBuilder('tenant')
+      .select('COALESCE(SUM(tenant.totalRevenue), 0)', 'totalRevenue')
+      .addSelect('COALESCE(SUM(tenant.mrr), 0)', 'mrr')
+      .where('tenant.status = :status', { status: TenantStatus.ACTIVE })
+      .getRawOne<{ totalRevenue: string; mrr: string }>();
 
-    const totalRevenue = tenants.reduce((sum, t) => sum + (t.totalRevenue || 0), 0);
-    const mrr = tenants.reduce((sum, t) => sum + (t.mrr || 0), 0);
+    const totalRevenue = this.parseDbNumber(totals?.totalRevenue);
+    const mrr = this.parseDbNumber(totals?.mrr);
     const arr = mrr * 12;
 
-    // Group by plan
-    const byPlan: Record<string, { count: number; revenue: number }> = {};
-    tenants.forEach((tenant) => {
-      const plan = tenant.subscriptionTier || 'free';
-      if (!byPlan[plan]) {
-        byPlan[plan] = { count: 0, revenue: 0 };
-      }
-      byPlan[plan].count += 1;
-      byPlan[plan].revenue += tenant.totalRevenue || 0;
-    });
+    const byPlanRows = await this.tenantRepository
+      .createQueryBuilder('tenant')
+      .select('tenant.subscriptionTier', 'plan')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(tenant.totalRevenue), 0)', 'revenue')
+      .where('tenant.status = :status', { status: TenantStatus.ACTIVE })
+      .groupBy('tenant.subscriptionTier')
+      .getRawMany<{ plan: string | null; count: string; revenue: string }>();
 
-    // Top tenants by revenue
-    const topTenants = tenants
-      .sort((a, b) => (b.totalRevenue || 0) - (a.totalRevenue || 0))
-      .slice(0, 10)
-      .map((t) => ({
-        tenantId: t.id,
-        name: t.name,
-        revenue: t.totalRevenue || 0,
-      }));
+    const byPlan: Record<string, { count: number; revenue: number }> = {};
+    for (const row of byPlanRows) {
+      const planKey = row.plan ?? 'free';
+      byPlan[planKey] = {
+        count: this.parseDbNumber(row.count),
+        revenue: this.parseDbNumber(row.revenue),
+      };
+    }
+
+    const topTenantsRows = await this.tenantRepository
+      .createQueryBuilder('tenant')
+      .select('tenant.id', 'tenantId')
+      .addSelect('tenant.name', 'name')
+      .addSelect('COALESCE(tenant.totalRevenue, 0)', 'revenue')
+      .where('tenant.status = :status', { status: TenantStatus.ACTIVE })
+      .orderBy('COALESCE(tenant.totalRevenue, 0)', 'DESC')
+      .take(10)
+      .getRawMany<{ tenantId: string; name: string; revenue: string }>();
+
+    const topTenants = topTenantsRows.map((row) => ({
+      tenantId: row.tenantId,
+      name: row.name,
+      revenue: this.parseDbNumber(row.revenue),
+    }));
 
     return {
       totalRevenue,

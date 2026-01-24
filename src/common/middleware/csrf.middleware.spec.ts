@@ -176,6 +176,24 @@ describe('CsrfMiddleware', () => {
         middleware.use(mockRequest, mockResponse, mockNext);
       }).toThrow(ForbiddenException);
     });
+
+    it('should reject cross-site state-changing requests via Fetch Metadata', () => {
+      const mockRequest = {
+        path: '/api/v1/form-submit',
+        method: 'POST',
+        headers: {
+          'sec-fetch-site': 'cross-site',
+          origin: 'https://attacker.example',
+        },
+        cookies: {},
+        body: {},
+      } as unknown as Request;
+      const mockResponse = {} as Response;
+      const mockNext = jest.fn();
+
+      expect(() => middleware.use(mockRequest, mockResponse, mockNext)).toThrow(ForbiddenException);
+      expect(mockNext).not.toHaveBeenCalled();
+    });
     it('logs when CSRF token generation throws', () => {
       const mockRequest = {
         path: '/api/v1/form',
@@ -192,12 +210,42 @@ describe('CsrfMiddleware', () => {
         throw new Error('Token generation error');
       });
 
-      const loggerSpy = jest.spyOn((middleware as any).logger, 'debug');
+      const loggerSpy = jest.spyOn((middleware as any).logger, 'warn');
 
       middleware.use(mockRequest, mockResponse, mockNext);
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('CSRF token generation skipped'));
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('CSRF token generation failed'));
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('CSRF token generation retry failed'));
       expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('fails closed in production if CSRF token cannot be generated', () => {
+      configService.get.mockImplementation((key: string, defaultValue?: any) => {
+        if (key === 'CSRF_ENABLED') return true;
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'CSRF_SECRET') return 'a'.repeat(32);
+        return defaultValue;
+      });
+
+      const prodMiddleware = new CsrfMiddleware(configService);
+
+      const mockRequest = {
+        path: '/api/v1/form',
+        method: 'GET',
+        headers: {},
+        cookies: {},
+      } as unknown as Request;
+      const mockResponse = {
+        cookie: jest.fn(),
+      } as unknown as Response;
+      const mockNext = jest.fn();
+
+      (prodMiddleware as any).generateCsrfToken = jest.fn(() => {
+        throw new Error('Token generation error');
+      });
+
+      expect(() => prodMiddleware.use(mockRequest, mockResponse, mockNext)).toThrow('CSRF token unavailable');
+      expect(mockNext).not.toHaveBeenCalled();
     });
   });
 });

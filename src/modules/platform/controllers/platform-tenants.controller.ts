@@ -1,6 +1,18 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
@@ -72,7 +84,7 @@ export class PlatformTenantsController {
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant details' })
   @ApiResponse({ status: 404, description: 'Tenant not found' })
-  async getTenant(@Param('id') id: string) {
+  async getTenant(@Param('id', ParseUUIDPipe) id: string) {
     return this.tenantService.getTenant(id);
   }
 
@@ -106,7 +118,11 @@ export class PlatformTenantsController {
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant updated' })
   @ApiResponse({ status: 400, description: 'Reason required' })
-  async updateTenant(@Param('id') id: string, @Body() dto: UpdateTenantDto, @Req() req: PlatformTenantRequest) {
+  async updateTenant(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTenantDto,
+    @Req() req: PlatformTenantRequest,
+  ) {
     return this.tenantService.updateTenant(id, dto, req.user.userId, req.ip, req.validatedReason ?? '');
   }
 
@@ -122,7 +138,11 @@ export class PlatformTenantsController {
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant suspended' })
   @ApiResponse({ status: 409, description: 'Already suspended' })
-  async suspendTenant(@Param('id') id: string, @Body() dto: SuspendTenantDto, @Req() req: PlatformTenantRequest) {
+  async suspendTenant(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SuspendTenantDto,
+    @Req() req: PlatformTenantRequest,
+  ) {
     return this.tenantService.suspendTenant(id, dto, req.user.userId, req.ip);
   }
 
@@ -138,7 +158,11 @@ export class PlatformTenantsController {
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant reactivated' })
   @ApiResponse({ status: 409, description: 'Already active' })
-  async reactivateTenant(@Param('id') id: string, @Body() dto: ReactivateTenantDto, @Req() req: PlatformTenantRequest) {
+  async reactivateTenant(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReactivateTenantDto,
+    @Req() req: PlatformTenantRequest,
+  ) {
     return this.tenantService.reactivateTenant(id, dto, req.user.userId, req.ip);
   }
 
@@ -156,7 +180,7 @@ export class PlatformTenantsController {
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant locked' })
-  async lockTenant(@Param('id') id: string, @Req() req: PlatformTenantRequest) {
+  async lockTenant(@Param('id', ParseUUIDPipe) id: string, @Req() req: PlatformTenantRequest) {
     return this.tenantService.lockTenant(id, req.validatedReason ?? '', req.user.userId, req.ip);
   }
 
@@ -172,7 +196,11 @@ export class PlatformTenantsController {
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Deletion scheduled' })
-  async deleteTenant(@Param('id') id: string, @Body() dto: DeleteTenantDto, @Req() req: PlatformTenantRequest) {
+  async deleteTenant(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeleteTenantDto,
+    @Req() req: PlatformTenantRequest,
+  ) {
     return this.tenantService.deleteTenant(id, dto, req.user.userId, req.ip);
   }
 
@@ -186,7 +214,7 @@ export class PlatformTenantsController {
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant metrics' })
-  async getTenantMetrics(@Param('id') id: string) {
+  async getTenantMetrics(@Param('id', ParseUUIDPipe) id: string) {
     return this.tenantService.getTenantMetrics(id);
   }
 
@@ -200,7 +228,7 @@ export class PlatformTenantsController {
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Lifecycle events' })
-  async getTenantTimeline(@Param('id') id: string) {
+  async getTenantTimeline(@Param('id', ParseUUIDPipe) id: string) {
     return this.tenantService.getTenantTimeline(id);
   }
 }

@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -33,7 +44,7 @@ export class TenantsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId || id !== tenantId) {
       throw new ForbiddenException('Cross-tenant access is forbidden');
@@ -43,7 +54,7 @@ export class TenantsController {
 
   @Patch(':id')
   @MfaRequired()
-  update(@Param('id') id: string, @Body() updateTenantDto: UpdateTenantDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTenantDto: UpdateTenantDto) {
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId || id !== tenantId) {
       throw new ForbiddenException('Cross-tenant access is forbidden');
@@ -52,7 +63,7 @@ export class TenantsController {
   }
 
   @Delete(':id')
-  remove(@Param('id') _id: string) {
+  remove(@Param('id', ParseUUIDPipe) _id: string) {
     throw new ForbiddenException('Tenant deletion is not supported via API');
   }
 }
