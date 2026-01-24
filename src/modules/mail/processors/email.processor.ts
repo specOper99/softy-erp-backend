@@ -20,8 +20,18 @@ export class EmailProcessor extends WorkerHost {
   async process(job: Job<EmailJobData>): Promise<void> {
     this.logger.log(`Processing email job ${job.id}: ${job.data.type} `);
 
-    // Extract tenantId from job data if available, otherwise use fallback
-    const tenantId = (job.data as EmailJobData & { tenantId?: string }).tenantId ?? 'system';
+    // Extract tenantId from job payload (new format: job.data.data.tenantId).
+    // Keep a backwards-compatible fallback for legacy payloads that placed tenantId at job.data.tenantId.
+    let tenantId = 'system';
+    const tenantIdFromData = (job.data.data as unknown as { tenantId?: unknown }).tenantId;
+    if (typeof tenantIdFromData === 'string' && tenantIdFromData.trim() !== '') {
+      tenantId = tenantIdFromData;
+    } else {
+      const tenantIdFromEnvelope = (job.data as unknown as { tenantId?: unknown }).tenantId;
+      if (typeof tenantIdFromEnvelope === 'string' && tenantIdFromEnvelope.trim() !== '') {
+        tenantId = tenantIdFromEnvelope;
+      }
+    }
 
     await TenantContextService.run(tenantId, async () => {
       try {

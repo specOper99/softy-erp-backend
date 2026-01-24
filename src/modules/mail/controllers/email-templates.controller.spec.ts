@@ -6,7 +6,6 @@ import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreateEmailTemplateDto, PreviewEmailTemplateDto, UpdateEmailTemplateDto } from '../dto/email-template.dto';
 import { EmailTemplate } from '../entities/email-template.entity';
-import { MailService } from '../mail.service';
 import { EmailTemplatesController } from './email-templates.controller';
 
 describe('EmailTemplatesController', () => {
@@ -37,10 +36,6 @@ describe('EmailTemplatesController', () => {
             remove: jest.fn(),
           },
         },
-        {
-          provide: MailService,
-          useValue: {},
-        },
         Reflector,
       ],
     }).compile();
@@ -68,6 +63,8 @@ describe('EmailTemplatesController', () => {
       expect(templateRepo.find).toHaveBeenCalledWith({
         where: { tenantId: mockTenantId },
         order: { name: 'ASC' },
+        skip: 0,
+        take: 20,
       });
       expect(result).toHaveLength(1);
     });
