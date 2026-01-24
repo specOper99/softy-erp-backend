@@ -1,5 +1,6 @@
 import { PartialType } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AttendanceStatus, LeaveType } from '../entities/attendance.entity';
 
 export class BaseAttendanceDto {
@@ -42,4 +43,10 @@ export class UpdateAttendanceDto extends PartialType(BaseAttendanceDto) {
   @IsOptional()
   @IsDateString()
   approvedAt?: string;
+}
+
+export class ListAttendanceDto extends PaginationDto {
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
 }

@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
 import * as path from 'node:path';
 import { DataSource } from 'typeorm';
+import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
 const jestE2eGlobalSetup = async () => {
   // 1. Load base .env file
@@ -25,8 +26,10 @@ const jestE2eGlobalSetup = async () => {
     throw new Error(`Refusing to run e2e migrations against non-test database: ${databaseName}.`);
   }
 
+  const allowDestructive = process.env.E2E_ALLOW_DESTRUCTIVE_DB === 'true';
+
   const adminDatabase = process.env.DB_ADMIN_DATABASE || 'postgres';
-  const adminDataSource = new DataSource({
+  const adminOptions = {
     type: 'postgres',
     host: process.env.DB_HOST,
     port: Number.parseInt(process.env.DB_PORT || '5432', 10),
@@ -36,7 +39,8 @@ const jestE2eGlobalSetup = async () => {
     entities: [],
     migrations: [],
     logging: false,
-  });
+  } satisfies PostgresConnectionOptions;
+  const adminDataSource = new DataSource(adminOptions);
 
   try {
     await adminDataSource.initialize();
@@ -45,16 +49,28 @@ const jestE2eGlobalSetup = async () => {
       await adminDataSource.query(`CREATE DATABASE "${databaseName}"`);
     }
 
-    // Connect to test database for extension and reset
-    const adminOptions = adminDataSource.options;
-    const testDbDataSource = new DataSource({
-      ...adminOptions,
+    // Connect to test database for extension and reset.
+    // (Avoid spreading DataSource.options since it is a wide union type.)
+    const testDbOptions = {
+      type: 'postgres',
+      host: process.env.DB_HOST,
+      port: Number.parseInt(process.env.DB_PORT || '5432', 10),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
       database: databaseName,
-    });
+      entities: [],
+      migrations: [],
+      logging: false,
+    } satisfies PostgresConnectionOptions;
+
+    const testDbDataSource = new DataSource(testDbOptions);
     try {
       await testDbDataSource.initialize();
 
       if (process.env.E2E_DB_RESET === 'true') {
+        if (!allowDestructive) {
+          throw new Error('Refusing to reset schema without E2E_ALLOW_DESTRUCTIVE_DB=true');
+        }
         await testDbDataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
         await testDbDataSource.query('CREATE SCHEMA public');
       }
@@ -74,7 +90,7 @@ const jestE2eGlobalSetup = async () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const migrationDataSource = require('../src/database/data-source').default;
 
-  const registeredEntities = migrationDataSource.options.entities.map((entity) =>
+  const registeredEntities = (migrationDataSource.options.entities as unknown[]).map((entity) =>
     typeof entity === 'function' ? entity.name : entity,
   );
   console.log('E2E Migration DataSource Entities:', registeredEntities);
@@ -84,15 +100,16 @@ const jestE2eGlobalSetup = async () => {
       await migrationDataSource.initialize();
     }
 
-    if (process.env.E2E_DB_RESET !== 'true') {
-      // Don't run migrations, just use synchronize to update schema
-      // await migrationDataSource.runMigrations();
+    if (process.env.E2E_DB_RESET === 'true') {
+      if (!allowDestructive) {
+        throw new Error('Refusing to reset schema without E2E_ALLOW_DESTRUCTIVE_DB=true');
+      }
+      // E2E-only: reset schema from entity metadata for a clean slate.
+      await migrationDataSource.synchronize(true);
     } else {
-      // For full reset, drop and recreate schema
+      // If not resetting, apply any pending migrations.
+      await migrationDataSource.runMigrations();
     }
-
-    // Synchronize schema - drop and recreate for clean state
-    await migrationDataSource.synchronize(true);
 
     // 4. Seed base data
     // eslint-disable-next-line @typescript-eslint/no-require-imports

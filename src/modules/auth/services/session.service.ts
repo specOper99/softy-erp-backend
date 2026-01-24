@@ -38,7 +38,7 @@ export class SessionService {
 
   async checkNewDevice(userId: string, userAgent: string, ipAddress?: string): Promise<void> {
     try {
-      const ua = userAgent.substring(0, 500);
+      const ua = userAgent.substring(0, 200);
       const previousLogin = await this.tokenService.findPreviousLoginByUserAgent(userId, ua);
 
       if (!previousLogin) {

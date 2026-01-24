@@ -92,7 +92,7 @@ export class TokenService {
       tokenHash,
       userId,
       expiresAt,
-      userAgent: context?.userAgent?.substring(0, 500) || null,
+      userAgent: context?.userAgent?.substring(0, 200) || null,
       ipAddress: context?.ipAddress || null,
     });
 
@@ -146,6 +146,7 @@ export class TokenService {
         expiresAt: MoreThan(new Date()),
       },
       order: { createdAt: 'DESC' },
+      take: 100,
     });
   }
 

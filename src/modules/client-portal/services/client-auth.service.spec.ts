@@ -16,9 +16,6 @@ const TENANT_REPO_CLIENT = 'TENANT_REPO_CLIENT';
 
 describe('ClientAuthService', () => {
   let service: ClientAuthService;
-  let _clientRepository: ReturnType<typeof jest.fn>;
-  let _mailService: jest.Mocked<MailService>;
-  let _jwtService: jest.Mocked<JwtService>;
 
   const mockTenantId = 'tenant-123';
 
@@ -54,6 +51,11 @@ describe('ClientAuthService', () => {
     get: jest.fn().mockImplementation((key: string, defaultValue: unknown) => {
       if (key === 'auth.clientSessionExpires') return 3600;
       return defaultValue;
+    }),
+    getOrThrow: jest.fn().mockImplementation((key: string) => {
+      if (key === 'auth.jwtSecret') return 'secret';
+      if (key === 'JWT_PUBLIC_KEY') return 'pubkey';
+      throw new Error(`Missing config: ${key}`);
     }),
   };
 
@@ -96,9 +98,6 @@ describe('ClientAuthService', () => {
     }).compile();
 
     service = module.get<ClientAuthService>(ClientAuthService);
-    _clientRepository = module.get(TENANT_REPO_CLIENT);
-    _mailService = module.get(MailService);
-    _jwtService = module.get(JwtService);
 
     // Mock tenant context
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(mockTenantId);

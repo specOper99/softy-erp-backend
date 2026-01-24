@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -6,6 +6,8 @@ import { PasswordHashService } from '../../../common/services/password-hash.serv
 import { PlatformSession } from '../entities/platform-session.entity';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
+import { MFAService } from './mfa.service';
+import { PlatformMfaTokenService } from './platform-mfa-token.service';
 import { PlatformAuditService } from './platform-audit.service';
 
 export interface PlatformLoginInput {
@@ -28,6 +30,8 @@ export interface PlatformLoginResponse {
   };
   mfaRequired: boolean;
   sessionId: string;
+  tempToken?: string;
+  backupCodesRemaining?: number;
 }
 
 /**
@@ -35,7 +39,6 @@ export interface PlatformLoginResponse {
  */
 @Injectable()
 export class PlatformAuthService {
-  private readonly logger = new Logger(PlatformAuthService.name);
   private readonly SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours
 
   constructor(
@@ -46,6 +49,8 @@ export class PlatformAuthService {
     private readonly jwtService: JwtService,
     private readonly passwordHashService: PasswordHashService,
     private readonly auditService: PlatformAuditService,
+    private readonly mfaService: MFAService,
+    private readonly platformMfaTokenService: PlatformMfaTokenService,
   ) {}
 
   async login(dto: PlatformLoginInput, ipAddress: string, userAgent: string): Promise<PlatformLoginResponse> {
@@ -83,14 +88,33 @@ export class PlatformAuthService {
       }
     }
 
-    const isPasswordValid = await this.passwordHashService.verify(user.passwordHash, dto.password);
+    const passwordCheck = await this.passwordHashService.verifyAndUpgrade(user.passwordHash, dto.password);
 
-    if (!isPasswordValid) {
+    if (!passwordCheck.valid) {
       await this.handleFailedLogin(user);
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.mfaEnabled && !dto.mfaCode) {
+    // Backward-compat: upgrade legacy hashes (eg bcrypt) to Argon2id.
+    if (passwordCheck.upgraded && passwordCheck.newHash) {
+      user.passwordHash = passwordCheck.newHash;
+    }
+
+    if (user.failedLoginAttempts > 0 || (passwordCheck.upgraded && passwordCheck.newHash)) {
+      user.failedLoginAttempts = 0;
+      user.lockedUntil = null;
+      await this.userRepository.save(user);
+    }
+
+    if (user.mfaEnabled) {
+      const session = await this.createSession(user, ipAddress, userAgent, dto.deviceId, dto.deviceName);
+      const tempToken = await this.platformMfaTokenService.create({
+        platformUserId: user.id,
+        sessionId: session.id,
+        ipHash: PlatformMfaTokenService.hashIp(ipAddress),
+        userAgentHash: PlatformMfaTokenService.hashUserAgent(userAgent),
+      });
+
       return {
         accessToken: '',
         refreshToken: '',
@@ -102,14 +126,9 @@ export class PlatformAuthService {
           role: user.role,
         },
         mfaRequired: true,
-        sessionId: '',
+        sessionId: session.id,
+        tempToken,
       };
-    }
-
-    if (user.failedLoginAttempts > 0) {
-      user.failedLoginAttempts = 0;
-      user.lockedUntil = null;
-      await this.userRepository.save(user);
     }
 
     const session = await this.createSession(user, ipAddress, userAgent, dto.deviceId, dto.deviceName);
@@ -146,6 +165,85 @@ export class PlatformAuthService {
       mfaRequired: false,
       sessionId: session.id,
     };
+  }
+
+  async verifyLoginMfa(
+    tempToken: string,
+    code: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<PlatformLoginResponse> {
+    const payload = await this.platformMfaTokenService.consume(tempToken);
+    if (!payload) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    if (payload.ipHash !== PlatformMfaTokenService.hashIp(ipAddress)) {
+      throw new UnauthorizedException('Invalid session');
+    }
+    if (payload.userAgentHash !== PlatformMfaTokenService.hashUserAgent(userAgent)) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    const session = await this.sessionRepository.findOne({
+      where: { id: payload.sessionId, userId: payload.platformUserId },
+    });
+
+    if (!session || session.isRevoked || session.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: payload.platformUserId },
+      select: ['id', 'email', 'fullName', 'role', 'status', 'mfaEnabled', 'mfaSecret', 'mfaRecoveryCodes'],
+    });
+
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    if (!user.mfaEnabled) {
+      throw new UnauthorizedException('MFA not enabled');
+    }
+
+    const isTotpValid = this.mfaService.verifyToken(user.mfaSecret || '', code);
+    let backupCodesRemaining: number | undefined;
+
+    if (!isTotpValid) {
+      const isBackupValid = this.mfaService.verifyBackupCode(code, user.mfaRecoveryCodes || []);
+      if (!isBackupValid) {
+        throw new UnauthorizedException('Invalid MFA code');
+      }
+
+      user.mfaRecoveryCodes = this.mfaService.removeUsedBackupCode(code, user.mfaRecoveryCodes || []);
+      await this.userRepository.save(user);
+      backupCodesRemaining = user.mfaRecoveryCodes.length;
+    }
+
+    session.mfaVerified = true;
+    session.mfaVerifiedAt = new Date();
+    session.lastActivityAt = new Date();
+
+    const accessToken = this.generateAccessToken(user, session.id);
+    const refreshToken = this.generateRefreshToken(user, session.id);
+    session.sessionToken = accessToken;
+    session.refreshToken = refreshToken;
+    await this.sessionRepository.save(session);
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: this.SESSION_DURATION / 1000,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
+      mfaRequired: false,
+      sessionId: session.id,
+      ...(backupCodesRemaining !== undefined ? { backupCodesRemaining } : {}),
+    } as PlatformLoginResponse;
   }
 
   async logout(sessionId: string, platformUserId: string): Promise<void> {
@@ -187,8 +285,8 @@ export class PlatformAuthService {
       userAgent,
       deviceId: deviceId || null,
       deviceName: deviceName || null,
-      mfaVerified: user.mfaEnabled,
-      mfaVerifiedAt: user.mfaEnabled ? new Date() : null,
+      mfaVerified: !user.mfaEnabled,
+      mfaVerifiedAt: !user.mfaEnabled ? new Date() : null,
       expiresAt: new Date(Date.now() + this.SESSION_DURATION),
       lastActivityAt: new Date(),
       sessionToken: '',

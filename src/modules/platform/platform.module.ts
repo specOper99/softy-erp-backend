@@ -4,9 +4,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from '../../common/common.module';
+import { AuthModule } from '../auth/auth.module';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 
 // Entities
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { User } from '../users/entities/user.entity';
 import { ImpersonationSession } from './entities/impersonation-session.entity';
 import { PlatformAuditLog } from './entities/platform-audit-log.entity';
 import { PlatformSession } from './entities/platform-session.entity';
@@ -22,9 +25,11 @@ import { PlatformAuditService } from './services/platform-audit.service';
 import { PlatformAuthService } from './services/platform-auth.service';
 import { PlatformSecurityService } from './services/platform-security.service';
 import { PlatformTenantService } from './services/platform-tenant.service';
+import { PlatformMfaTokenService } from './services/platform-mfa-token.service';
 
 // Controllers
 import { MFAController } from './controllers/mfa.controller';
+import { PlatformMfaLoginController } from './controllers/mfa-login.controller';
 import { PlatformAnalyticsController } from './controllers/platform-analytics.controller';
 import { PlatformAuditController } from './controllers/platform-audit.controller';
 import { PlatformAuthController } from './controllers/platform-auth.controller';
@@ -45,6 +50,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
 @Module({
   imports: [
     CommonModule,
+    AuthModule,
     PassportModule,
     TypeOrmModule.forFeature([
       PlatformUser,
@@ -53,6 +59,8 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
       ImpersonationSession,
       TenantLifecycleEvent,
       Tenant,
+      User,
+      RefreshToken,
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -73,6 +81,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
     PlatformSecurityController,
     PlatformAnalyticsController,
     MFAController,
+    PlatformMfaLoginController,
   ],
   providers: [
     PlatformAuditService,
@@ -83,6 +92,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
     PlatformAnalyticsService,
     MFAService,
     EmailNotificationService,
+    PlatformMfaTokenService,
     PlatformJwtStrategy,
     PlatformJwtAuthGuard,
     PlatformPermissionsGuard,

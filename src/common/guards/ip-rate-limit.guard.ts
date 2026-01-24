@@ -2,9 +2,9 @@ import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable, L
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
-import { isIP } from 'net';
 import { CacheUtilsService } from '../cache/cache-utils.service';
 import { SKIP_IP_RATE_LIMIT_KEY } from '../decorators/skip-ip-rate-limit.decorator';
+import { getClientIp } from '../utils/client-ip.util';
 
 interface IpRateLimitInfo {
   count: number;
@@ -48,7 +48,6 @@ export class IpRateLimitGuard implements CanActivate {
     const blockSeconds = this.configService.get<number>('RATE_LIMIT_BLOCK_SECONDS') || 900;
     this.blockDurationMs = blockSeconds * 1000;
 
-    // Only trust proxy headers when explicitly enabled
     this.trustProxyHeaders = this.configService.get<string>('TRUST_PROXY') === 'true';
   }
 
@@ -73,7 +72,7 @@ export class IpRateLimitGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
-    const ip = this.getClientIp(request);
+    const ip = getClientIp(request, this.trustProxyHeaders, (message) => this.logger.warn(message));
     const key = `ip_rate:${ip}`;
 
     // Get current rate limit info
@@ -143,25 +142,5 @@ export class IpRateLimitGuard implements CanActivate {
     return true;
   }
 
-  private getClientIp(request: Request): string {
-    if (this.trustProxyHeaders) {
-      const forwarded = request.headers['x-forwarded-for'];
-      if (typeof forwarded === 'string') {
-        const ip = forwarded.split(',')[0]?.trim();
-        if (ip && isIP(ip)) return ip;
-        if (ip) this.logger.warn(`Invalid IP in X-Forwarded-For header: ${ip}`);
-      }
-      const realIp = request.headers['x-real-ip'];
-      if (typeof realIp === 'string') {
-        if (isIP(realIp)) return realIp;
-        this.logger.warn(`Invalid IP in X-Real-IP header: ${realIp}`);
-      }
-    }
-    const ip = request.ip || request.socket?.remoteAddress || 'unknown';
-    if (ip !== 'unknown' && !isIP(ip)) {
-      this.logger.warn(`Invalid IP address from request: ${ip}`);
-      return 'unknown';
-    }
-    return ip;
-  }
+  // getClientIp implemented in common util
 }

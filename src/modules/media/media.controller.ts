@@ -6,6 +6,7 @@ import {
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
+  ParseUUIDPipe,
   Post,
   Query,
   UploadedFile,
@@ -92,7 +93,7 @@ export class MediaController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Attachment not found' })
-  async confirmUpload(@Param('id') id: string, @Body() dto: ConfirmUploadDto): Promise<Attachment> {
+  async confirmUpload(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ConfirmUploadDto): Promise<Attachment> {
     return this.mediaService.confirmUpload(id, dto.size);
   }
 
@@ -134,7 +135,7 @@ export class MediaController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Attachment not found' })
-  async findOne(@Param('id') id: string): Promise<Attachment> {
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Attachment> {
     return this.mediaService.findOne(id);
   }
 
@@ -144,7 +145,7 @@ export class MediaController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Attachment not found' })
-  async getDownloadUrl(@Param('id') id: string): Promise<{ url: string }> {
+  async getDownloadUrl(@Param('id', ParseUUIDPipe) id: string): Promise<{ url: string }> {
     const url = await this.mediaService.getDownloadUrl(id);
     return { url };
   }
@@ -155,7 +156,7 @@ export class MediaController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Booking not found' })
-  async findByBooking(@Param('id') id: string): Promise<Attachment[]> {
+  async findByBooking(@Param('id', ParseUUIDPipe) id: string): Promise<Attachment[]> {
     return this.mediaService.findByBooking(id);
   }
 
@@ -165,7 +166,7 @@ export class MediaController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  async findByTask(@Param('id') id: string): Promise<Attachment[]> {
+  async findByTask(@Param('id', ParseUUIDPipe) id: string): Promise<Attachment[]> {
     return this.mediaService.findByTask(id);
   }
 
@@ -175,7 +176,7 @@ export class MediaController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Attachment not found' })
-  async remove(@Param('id') id: string): Promise<void> {
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.mediaService.remove(id);
   }
 }

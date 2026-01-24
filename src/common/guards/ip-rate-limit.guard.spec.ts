@@ -24,7 +24,7 @@ describe('IpRateLimitGuard', () => {
         default:
           return null;
       }
-    }),
+    }) as unknown as jest.Mock<any, any>,
   };
 
   const mockCacheService = {
@@ -61,6 +61,24 @@ describe('IpRateLimitGuard', () => {
           ip,
           headers: {},
           socket: { remoteAddress: ip },
+        }),
+        getResponse: () => ({
+          setHeader,
+        }),
+      }),
+    } as unknown as ExecutionContext;
+  };
+
+  const createMockContextWithHeaders = (remoteAddress: string, headers: Record<string, string>, ip?: string) => {
+    const setHeader = jest.fn();
+    return {
+      getHandler: () => createMockContextWithHeaders,
+      getClass: () => IpRateLimitGuard,
+      switchToHttp: () => ({
+        getRequest: () => ({
+          ip: ip ?? remoteAddress,
+          headers,
+          socket: { remoteAddress },
         }),
         getResponse: () => ({
           setHeader,
@@ -106,6 +124,50 @@ describe('IpRateLimitGuard', () => {
 
     expect(result).toBe(true);
     expect(mockCacheService.set).toHaveBeenCalled();
+  });
+
+  it('should use X-Forwarded-For when TRUST_PROXY is enabled (uses last entry)', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        IpRateLimitGuard,
+        { provide: CacheUtilsService, useValue: mockCacheService },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              switch (key) {
+                case 'RATE_LIMIT_SOFT':
+                  return 50;
+                case 'RATE_LIMIT_HARD':
+                  return 100;
+                case 'RATE_LIMIT_WINDOW_SECONDS':
+                  return 60;
+                case 'RATE_LIMIT_BLOCK_SECONDS':
+                  return 900;
+                case 'RATE_LIMIT_DELAY_MS':
+                  return 500;
+                case 'TRUST_PROXY':
+                  return 'true';
+                default:
+                  return null;
+              }
+            }),
+          },
+        },
+        Reflector,
+      ],
+    }).compile();
+
+    const trustedGuard = module.get<IpRateLimitGuard>(IpRateLimitGuard);
+    mockCacheService.get.mockResolvedValue(null);
+
+    const context = createMockContextWithHeaders('10.0.0.2', {
+      'x-forwarded-for': '8.8.8.8, 203.0.113.5',
+    });
+
+    await trustedGuard.canActivate(context);
+
+    expect(mockCacheService.get).toHaveBeenCalledWith('ip_rate:203.0.113.5');
   });
 
   it('should block request if hard limit exceeded', async () => {

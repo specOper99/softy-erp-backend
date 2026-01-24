@@ -79,10 +79,12 @@ export class AuditService implements AuditPublisher {
   }
 
   async verifyChainIntegrity(tenantId: string, limit = 1000): Promise<ChainVerificationResult> {
+    const MAX_LIMIT = 1000;
+    const effectiveLimit = Number.isFinite(limit) ? Math.min(MAX_LIMIT, Math.max(1, Math.trunc(limit))) : 1000;
     const logs = await this.auditRepository.find({
       where: { tenantId },
       order: { sequenceNumber: 'ASC' },
-      take: limit,
+      take: effectiveLimit,
     });
 
     if (logs.length === 0) {

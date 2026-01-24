@@ -61,6 +61,8 @@ describe('PlatformAnalyticsService', () => {
         {
           provide: getRepositoryToken(Tenant),
           useValue: {
+            count: jest.fn(),
+            createQueryBuilder: jest.fn(),
             find: jest.fn(),
             findOne: jest.fn(),
           },
@@ -78,7 +80,24 @@ describe('PlatformAnalyticsService', () => {
 
   describe('getPlatformMetrics', () => {
     it('should calculate platform metrics correctly', async () => {
-      jest.spyOn(tenantRepository, 'find').mockResolvedValue(mockTenants as Tenant[]);
+      jest.spyOn(tenantRepository, 'count').mockImplementation(async (options?: any) => {
+        if (!options) return 3;
+        if (options?.where?.status === TenantStatus.ACTIVE) return 2;
+        if (options?.where?.status === TenantStatus.SUSPENDED) return 1;
+        if (options?.where?.subscriptionStartedAt) return 0;
+        return 0;
+      });
+
+      const qbMock = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          totalUsers: '23',
+          totalRevenue: '2700',
+          mrr: '270',
+        }),
+      };
+      jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
 
       const result = await service.getPlatformMetrics();
 
@@ -93,7 +112,18 @@ describe('PlatformAnalyticsService', () => {
     });
 
     it('should handle empty tenant list', async () => {
-      jest.spyOn(tenantRepository, 'find').mockResolvedValue([]);
+      jest.spyOn(tenantRepository, 'count').mockResolvedValue(0);
+
+      const qbMock = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          totalUsers: '0',
+          totalRevenue: '0',
+          mrr: '0',
+        }),
+      };
+      jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
 
       const result = await service.getPlatformMetrics();
 
@@ -106,16 +136,24 @@ describe('PlatformAnalyticsService', () => {
     });
 
     it('should calculate growth rate based on 30-day window', async () => {
-      const recentTenant = {
-        ...mockTenants[0],
-        subscriptionStartedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      };
-      const oldTenant = {
-        ...mockTenants[1],
-        subscriptionStartedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
-      };
+      jest.spyOn(tenantRepository, 'count').mockImplementation(async (options?: any) => {
+        if (!options) return 2;
+        if (options?.where?.status === TenantStatus.ACTIVE) return 2;
+        if (options?.where?.status === TenantStatus.SUSPENDED) return 0;
+        if (options?.where?.subscriptionStartedAt) return 1;
+        return 0;
+      });
 
-      jest.spyOn(tenantRepository, 'find').mockResolvedValue([recentTenant, oldTenant] as Tenant[]);
+      const qbMock = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          totalUsers: '20',
+          totalRevenue: '2500',
+          mrr: '250',
+        }),
+      };
+      jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
 
       const result = await service.getPlatformMetrics();
 
@@ -224,37 +262,133 @@ describe('PlatformAnalyticsService', () => {
 
   describe('getRevenueAnalytics', () => {
     it('should calculate revenue analytics by plan', async () => {
-      jest.spyOn(tenantRepository, 'find').mockResolvedValue(mockTenants as Tenant[]);
+      const totalsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          totalRevenue: '2500',
+          mrr: '250',
+        }),
+      };
+      const byPlanQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { plan: 'pro', count: '1', revenue: '2000' },
+          { plan: 'starter', count: '1', revenue: '500' },
+        ]),
+      };
+      const topTenantsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { tenantId: 'tenant-1', name: 'Active Tenant 1', revenue: '2000' },
+          { tenantId: 'tenant-2', name: 'Active Tenant 2', revenue: '500' },
+        ]),
+      };
+
+      jest
+        .spyOn(tenantRepository, 'createQueryBuilder')
+        .mockReturnValueOnce(totalsQb as any)
+        .mockReturnValueOnce(byPlanQb as any)
+        .mockReturnValueOnce(topTenantsQb as any);
 
       const result = await service.getRevenueAnalytics();
 
-      expect(result.totalRevenue).toBe(2700); // All tenants: 2000 + 500 + 200
-      expect(result.mrr).toBe(270); // All tenants: 200 + 50 + 20
-      expect(result.arr).toBe(3240); // MRR * 12
+      expect(result.totalRevenue).toBe(2500);
+      expect(result.mrr).toBe(250);
+      expect(result.arr).toBe(3000); // MRR * 12
       expect(result.byPlan).toHaveProperty('pro');
       expect(result.byPlan).toHaveProperty('starter');
       expect(result.byPlan.pro.count).toBe(1);
-      expect(result.byPlan.starter.count).toBe(2); // tenant-2 and tenant-3
+      expect(result.byPlan.starter.count).toBe(1);
     });
 
     it('should list top tenants by revenue', async () => {
-      jest.spyOn(tenantRepository, 'find').mockResolvedValue(mockTenants as Tenant[]);
+      const totalsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          totalRevenue: '2500',
+          mrr: '250',
+        }),
+      };
+      const byPlanQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([]),
+      };
+      const topTenantsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { tenantId: 'tenant-1', name: 'Active Tenant 1', revenue: '2000' },
+          { tenantId: 'tenant-2', name: 'Active Tenant 2', revenue: '500' },
+        ]),
+      };
+
+      jest
+        .spyOn(tenantRepository, 'createQueryBuilder')
+        .mockReturnValueOnce(totalsQb as any)
+        .mockReturnValueOnce(byPlanQb as any)
+        .mockReturnValueOnce(topTenantsQb as any);
 
       const result = await service.getRevenueAnalytics();
 
-      expect(result.topTenants).toHaveLength(3);
+      expect(result.topTenants).toHaveLength(2);
       expect(result.topTenants[0].revenue).toBeGreaterThanOrEqual(result.topTenants[1].revenue);
       expect(result.topTenants[0].tenantId).toBe('tenant-1');
     });
 
     it('should limit top tenants to 10', async () => {
-      const manyTenants = Array.from({ length: 15 }, (_, i) => ({
-        ...mockTenants[0],
-        id: `tenant-${i}`,
-        name: `Tenant ${i}`,
-        totalRevenue: 1000 - i * 10,
-      }));
-      jest.spyOn(tenantRepository, 'find').mockResolvedValue(manyTenants as Tenant[]);
+      const totalsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          totalRevenue: '10000',
+          mrr: '1000',
+        }),
+      };
+      const byPlanQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([]),
+      };
+      const topTenantsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue(
+          Array.from({ length: 10 }, (_, i) => ({
+            tenantId: `tenant-${i}`,
+            name: `Tenant ${i}`,
+            revenue: `${1000 - i * 10}`,
+          })),
+        ),
+      };
+
+      jest
+        .spyOn(tenantRepository, 'createQueryBuilder')
+        .mockReturnValueOnce(totalsQb as any)
+        .mockReturnValueOnce(byPlanQb as any)
+        .mockReturnValueOnce(topTenantsQb as any);
 
       const result = await service.getRevenueAnalytics();
 
@@ -262,11 +396,36 @@ describe('PlatformAnalyticsService', () => {
     });
 
     it('should group free-tier tenants correctly', async () => {
-      const freeTenants = [
-        { ...mockTenants[0], subscriptionTier: null },
-        { ...mockTenants[1], subscriptionTier: undefined },
-      ];
-      jest.spyOn(tenantRepository, 'find').mockResolvedValue(freeTenants as Tenant[]);
+      const totalsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          totalRevenue: '2500',
+          mrr: '250',
+        }),
+      };
+      const byPlanQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([{ plan: null, count: '2', revenue: '2500' }]),
+      };
+      const topTenantsQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([]),
+      };
+
+      jest
+        .spyOn(tenantRepository, 'createQueryBuilder')
+        .mockReturnValueOnce(totalsQb as any)
+        .mockReturnValueOnce(byPlanQb as any)
+        .mockReturnValueOnce(topTenantsQb as any);
 
       const result = await service.getRevenueAnalytics();
 

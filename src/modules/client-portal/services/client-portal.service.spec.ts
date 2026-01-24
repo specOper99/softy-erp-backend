@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
 import { ClientPortalService } from './client-portal.service';
@@ -93,14 +94,33 @@ describe('ClientPortalService', () => {
     it('should return bookings for the client', async () => {
       bookingRepository.find.mockResolvedValue([mockBooking]);
 
-      const result = await service.getMyBookings('client-1', 'tenant-1');
+      const query = new PaginationDto();
+
+      const result = await service.getMyBookings('client-1', 'tenant-1', query);
 
       expect(bookingRepository.find).toHaveBeenCalledWith({
         where: { clientId: 'client-1', tenantId: 'tenant-1' },
         relations: ['servicePackage'],
         order: { eventDate: 'DESC' },
+        skip: query.getSkip(),
+        take: query.getTake(),
       });
       expect(result).toEqual([mockBooking]);
+    });
+
+    it('should clamp bookings list limit to <= 100', async () => {
+      bookingRepository.find.mockResolvedValue([mockBooking]);
+
+      const query = new PaginationDto();
+      query.limit = 1000;
+
+      await service.getMyBookings('client-1', 'tenant-1', query);
+
+      expect(bookingRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100,
+        }),
+      );
     });
   });
 

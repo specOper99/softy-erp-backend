@@ -20,7 +20,9 @@ export class TenantMiddleware implements NestMiddleware {
   private readonly logger = new Logger(TenantMiddleware.name);
   private readonly tenantSlugCacheTtlMs = 5 * 60 * 1000;
   private readonly tenantSlugCacheMaxEntries = 10000;
-  private readonly tenantSlugCacheNegativeUuidTtlMs = 60 * 1000;
+  // Cache negative UUID resolutions briefly to reduce DB load from random UUID hostnames.
+  // Keep this short to avoid delaying newly-created tenants.
+  private readonly tenantSlugCacheNegativeUuidTtlMs = 5 * 1000;
   private readonly tenantSlugCachePurgeIntervalMs = 60 * 1000;
   private tenantSlugCacheLastPurgeAtMs = 0;
 
@@ -90,7 +92,7 @@ export class TenantMiddleware implements NestMiddleware {
       return false;
     }
     if (allowedDomains.length === 0) {
-      return process.env.NODE_ENV !== 'production';
+      return this.configService.get<string>('NODE_ENV') !== 'production';
     }
     return allowedDomains.some((domain) => normalizedHost === domain || normalizedHost.endsWith(`.${domain}`));
   }
@@ -232,24 +234,29 @@ export class TenantMiddleware implements NestMiddleware {
       // Verify JWT signature to prevent spoofing
       // Note: We don't check expiration here necessarily, but verify() usually does by default.
       // If it's expired, verify() throws, so we won't extract tenantId, which is safer.
-      const allowedAlgorithms = (process.env.JWT_ALLOWED_ALGORITHMS || 'HS256')
+      const rawAlgorithms = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
+      const parsed = rawAlgorithms
         .split(',')
         .map((a) => a.trim().toUpperCase())
         .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
 
-      const secretOrKey = (() => {
-        if (allowedAlgorithms.includes('RS256')) {
-          const publicKey = process.env.JWT_PUBLIC_KEY;
-          if (!publicKey) {
-            throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
-          }
-          return publicKey;
+      const unique = Array.from(new Set(parsed));
+      if (unique.length !== 1) {
+        throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
+      }
+      const algorithm = unique[0] ?? 'HS256';
+
+      if (algorithm === 'RS256') {
+        const publicKey = this.configService.get<string>('JWT_PUBLIC_KEY');
+        if (!publicKey) {
+          throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
         }
+        const payload = this.jwtService.verify<JwtPayload>(token, { algorithms: [algorithm], publicKey });
+        return payload.tenantId;
+      }
 
-        return this.configService.getOrThrow<string>('auth.jwtSecret');
-      })();
-
-      const payload = this.jwtService.verify<JwtPayload>(token, { algorithms: allowedAlgorithms, secret: secretOrKey });
+      const secret = this.configService.getOrThrow<string>('auth.jwtSecret');
+      const payload = this.jwtService.verify<JwtPayload>(token, { algorithms: [algorithm], secret });
 
       return payload.tenantId;
     } catch (error) {

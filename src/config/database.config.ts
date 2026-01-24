@@ -12,13 +12,18 @@ export default registerAs('database', () => {
   const replicaHosts = parseReplicaHosts(process.env.DB_REPLICA_HOSTS);
   const hasReplicas = replicaHosts.length > 0;
   const isProd = process.env.NODE_ENV === 'production';
+  const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
   // PERFORMANCE: Increased pool size from 50 to 150 for production
   // to prevent connection pool exhaustion under high concurrent load
   const defaultPoolSize = isProd ? 150 : 10;
 
+  // CRITICAL SECURITY: auto-synchronize is allowed only in local development.
+  const syncRequested = process.env.DB_SYNCHRONIZE === 'true';
+  const synchronize = isDev ? syncRequested : false;
+
   const baseConfig = {
     type: 'postgres' as const,
-    synchronize: process.env.DB_SYNCHRONIZE === 'true',
+    synchronize,
     autoLoadEntities: true,
     logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
     extra: {

@@ -217,6 +217,7 @@ describe('AuditInterceptor', () => {
           ...mockRequest.headers,
           'x-forwarded-for': '192.168.1.1, 10.0.0.1',
         },
+        socket: { remoteAddress: '10.0.0.2' },
       };
 
       const contextWithForwarded = {
@@ -241,7 +242,7 @@ describe('AuditInterceptor', () => {
           complete: () => {
             expect(trustedAuditService.log).toHaveBeenCalledWith(
               expect.objectContaining({
-                ipAddress: '192.168.1.1',
+                ipAddress: '10.0.0.1',
               }),
             );
             resolve();

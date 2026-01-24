@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -93,6 +93,20 @@ describe('MediaService', () => {
       expect(result.url).toBe('http://mock-url');
       expect(result.bookingId).toBe('booking-id');
     });
+
+    it('should reject files larger than 10MB', async () => {
+      const tooLarge = 10 * 1024 * 1024 + 1;
+      const params = {
+        buffer: Buffer.alloc(tooLarge, 0),
+        originalName: 'too-large.png',
+        mimeType: 'image/png',
+        size: tooLarge,
+      };
+
+      await expect(service.uploadFile(params as any)).rejects.toThrow(BadRequestException);
+      await expect(service.uploadFile(params as any)).rejects.toThrow('media.file_too_large');
+      expect(storageService.uploadFile).not.toHaveBeenCalled();
+    });
   });
 
   describe('getPresignedUploadUrl', () => {
@@ -122,6 +136,18 @@ describe('MediaService', () => {
       jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(null);
 
       await expect(service.confirmUpload('invalid', 1024)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should reject confirmed uploads larger than 10MB', async () => {
+      const mockAttachment = { id: 'uuid', name: 'test.png', url: 'mock-key', mimeType: 'image/png' } as Attachment;
+      jest.spyOn(attachmentRepository, 'findOne').mockResolvedValue(mockAttachment);
+      (storageService.getFileMetadata as jest.Mock).mockResolvedValue({
+        size: 10 * 1024 * 1024 + 1,
+        contentType: 'image/png',
+      });
+
+      await expect(service.confirmUpload('uuid', 0)).rejects.toThrow(BadRequestException);
+      await expect(service.confirmUpload('uuid', 0)).rejects.toThrow('media.file_too_large');
     });
   });
 

@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
@@ -15,6 +16,7 @@ describe('PlatformTenantService', () => {
   let tenantRepository: jest.Mocked<Repository<Tenant>>;
   let lifecycleEventRepository: jest.Mocked<Repository<TenantLifecycleEvent>>;
   let auditService: jest.Mocked<PlatformAuditService>;
+  let cacheUtils: jest.Mocked<CacheUtilsService>;
 
   const platformUserId = 'platform-user-123';
   const ipAddress = '192.168.1.100';
@@ -62,6 +64,10 @@ describe('PlatformTenantService', () => {
       log: jest.fn().mockResolvedValue(undefined),
     };
 
+    const mockCacheUtilsService = {
+      del: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PlatformTenantService,
@@ -77,6 +83,10 @@ describe('PlatformTenantService', () => {
           provide: PlatformAuditService,
           useValue: mockAuditService,
         },
+        {
+          provide: CacheUtilsService,
+          useValue: mockCacheUtilsService,
+        },
       ],
     }).compile();
 
@@ -84,6 +94,7 @@ describe('PlatformTenantService', () => {
     tenantRepository = module.get(getRepositoryToken(Tenant));
     lifecycleEventRepository = module.get(getRepositoryToken(TenantLifecycleEvent));
     auditService = module.get(PlatformAuditService);
+    cacheUtils = module.get(CacheUtilsService);
   });
 
   it('should be defined', () => {
@@ -259,6 +270,7 @@ describe('PlatformTenantService', () => {
 
       expect(result.name).toBe(updateDto.name);
       expect(tenantRepository.save).toHaveBeenCalled();
+      expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
 
     it('should throw NotFoundException for non-existent tenant', async () => {
@@ -283,6 +295,7 @@ describe('PlatformTenantService', () => {
           reason: 'Update reason',
         }),
       );
+      expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
   });
 
@@ -302,6 +315,7 @@ describe('PlatformTenantService', () => {
       expect(result.suspendedBy).toBe(platformUserId);
       expect(result.suspensionReason).toBe(suspendDto.reason);
       expect(result.gracePeriodEndsAt).toBeDefined();
+      expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
 
     it('should suspend immediately without grace period', async () => {
@@ -316,6 +330,7 @@ describe('PlatformTenantService', () => {
       );
 
       expect(result.status).toBe(TenantStatus.SUSPENDED);
+      expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
 
     it('should throw ConflictException if already suspended', async () => {
@@ -341,6 +356,7 @@ describe('PlatformTenantService', () => {
           reason: suspendDto.reason,
         }),
       );
+      expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
   });
 
@@ -366,6 +382,7 @@ describe('PlatformTenantService', () => {
       expect(result.suspendedAt).toBeNull();
       expect(result.suspendedBy).toBeNull();
       expect(result.suspensionReason).toBeNull();
+      expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
 
     it('should throw ConflictException if already active', async () => {
@@ -391,6 +408,7 @@ describe('PlatformTenantService', () => {
           reason: reactivateDto.reason,
         }),
       );
+      expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
   });
 });

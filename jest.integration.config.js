@@ -30,6 +30,8 @@ module.exports = {
     maxWorkers: 1, // Run integration tests sequentially
     globalSetup: '<rootDir>/test/integration/setup.ts',
     globalTeardown: '<rootDir>/test/integration/teardown.ts',
+    testPathIgnorePatterns: ['<rootDir>/.worktrees/'],
+    modulePathIgnorePatterns: ['<rootDir>/.worktrees/'],
     coverageThreshold: {
         global: {
             branches: 70,

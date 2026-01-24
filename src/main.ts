@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters';
 import { initTracing } from './common/telemetry/tracing';
+import { corsOriginDelegate, getCorsOriginAllowlist } from './common/utils/cors-origins.util';
 
 // Initialize OpenTelemetry tracing
 initTracing();
@@ -16,7 +17,7 @@ initTracing();
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   const isProd = process.env.NODE_ENV === 'production';
 
@@ -44,7 +45,7 @@ async function bootstrap() {
               baseUri: ["'self'"],
               formAction: ["'self'"],
               frameAncestors: ["'none'"],
-              reportUri: process.env.CSP_REPORT_URI || 'https://csp-report.example.com/csp-violation',
+              ...(process.env.CSP_REPORT_URI ? { reportUri: process.env.CSP_REPORT_URI } : {}),
             },
             reportOnly: false,
           }
@@ -109,21 +110,14 @@ async function bootstrap() {
   // Global interceptors (sanitize inputs, transform outputs)
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  // CORS - Environment-based configuration
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim());
-
-  // Security: Harden CORS in production
-  if (isProd && (!corsOrigins || corsOrigins.length === 0 || !corsOrigins[0])) {
-    throw new Error(
-      'SECURITY: CORS_ORIGINS must be configured in production environments to prevent permissive access.',
-    );
-  }
+  const allowlist = getCorsOriginAllowlist({
+    raw: process.env.CORS_ORIGINS,
+    isProd,
+    devFallback: ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
+  });
 
   app.enableCors({
-    origin:
-      corsOrigins && corsOrigins.length > 0
-        ? corsOrigins
-        : ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
+    origin: corsOriginDelegate(allowlist),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-XSRF-Token'],

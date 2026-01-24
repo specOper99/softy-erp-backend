@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Ip,
   Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UseGuards,
@@ -22,7 +23,7 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { minutes, Throttle } from '@nestjs/throttler';
+import { minutes, Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser } from '../../common/decorators';
 import { SkipTenant } from '../tenants/decorators/skip-tenant.decorator';
@@ -51,6 +52,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 @ApiTags('Auth')
 @ApiExtraModels(AuthResponseDto, TokensDto)
 @Controller('auth')
+@UseGuards(ThrottlerGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -304,7 +306,7 @@ export class AuthController {
   @ApiResponse({ status: 204, description: 'Session revoked' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Session not found' })
-  async revokeSession(@CurrentUser() user: User, @Param('id') sessionId: string): Promise<void> {
+  async revokeSession(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) sessionId: string): Promise<void> {
     await this.authService.revokeSession(user.id, sessionId);
   }
 

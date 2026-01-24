@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { ClientPortalController } from './client-portal.controller';
@@ -118,7 +119,7 @@ describe('ClientPortalController', () => {
 
       const result = await controller.getMyBookings(req);
 
-      expect(clientPortalService.getMyBookings).toHaveBeenCalledWith('client-1', 'tenant-1');
+      expect(clientPortalService.getMyBookings).toHaveBeenCalledWith('client-1', 'tenant-1', expect.any(PaginationDto));
       expect(result).toEqual([mockBooking]);
     });
 

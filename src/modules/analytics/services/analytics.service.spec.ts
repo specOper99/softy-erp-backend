@@ -149,5 +149,28 @@ describe('AnalyticsService', () => {
       expect(result.totalSubTotal).toBe(0);
       expect(result.totalGross).toBe(0);
     });
+
+    it('should sanitize invalid aggregate values', async () => {
+      const mockRawResult = {
+        totalTax: 'Infinity',
+        totalSubTotal: 'NaN',
+        totalGross: '1e309',
+      };
+
+      const mockQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue(mockRawResult),
+      };
+      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
+
+      const result = await service.getTaxReport('2024-01-01', '2024-12-31');
+
+      expect(result.totalTax).toBe(0);
+      expect(result.totalSubTotal).toBe(0);
+      expect(result.totalGross).toBe(0);
+    });
   });
 });

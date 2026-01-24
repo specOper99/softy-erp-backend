@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { doubleCsrf } from 'csrf-csrf';
 import { NextFunction, Request, Response } from 'express';
 import { createHash } from 'node:crypto';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { TenantContextService } from '../services/tenant-context.service';
 
 @Injectable()
@@ -102,13 +103,37 @@ export class CsrfMiddleware implements NestMiddleware {
           path: '/',
         });
       } catch (tokenError) {
-        // Log warning but continue - first request may not have session
-        // This is expected behavior for initial requests
-        this.logger.debug(
-          `CSRF token generation skipped for ${req.path}: ${tokenError instanceof Error ? tokenError.message : 'no session'}`,
+        this.logger.warn(
+          `CSRF token generation failed for ${req.path}: ${tokenError instanceof Error ? tokenError.message : 'no session'}`,
         );
+
+        try {
+          const token = this.generateCsrfToken(req, res, { overwrite: true });
+          res.cookie('XSRF-TOKEN', token, {
+            httpOnly: false,
+            sameSite: 'strict',
+            secure: this.configService.get('NODE_ENV') === 'production',
+            path: '/',
+          });
+        } catch (retryError) {
+          this.logger.warn(
+            `CSRF token generation retry failed for ${req.path}: ${retryError instanceof Error ? retryError.message : 'unknown'}`,
+          );
+
+          if (this.configService.get('NODE_ENV') === 'production') {
+            throw new ServiceUnavailableException('CSRF token unavailable');
+          }
+        }
       }
       return next();
+    }
+
+    // Defense-in-depth: block cross-site browser requests using Fetch Metadata.
+    // This does not replace CSRF token validation; it reduces exposure for browsers that support it.
+    const fetchSiteHeader = req.headers['sec-fetch-site'];
+    const fetchSite = Array.isArray(fetchSiteHeader) ? fetchSiteHeader[0] : fetchSiteHeader;
+    if (fetchSite === 'cross-site') {
+      throw new ForbiddenException('Invalid CSRF token');
     }
 
     try {

@@ -23,6 +23,7 @@ export class MediaService {
 
   private static readonly MAX_LIST_LIMIT = 100;
   private static readonly DEFAULT_LIST_LIMIT = 100;
+  private static readonly MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
   constructor(
     @InjectRepository(Attachment)
@@ -63,6 +64,14 @@ export class MediaService {
       throw new BadRequestException('common.tenant_missing');
     }
 
+    const effectiveSize = Number.isFinite(size) ? size : buffer.length;
+    if (effectiveSize <= 0) {
+      throw new BadRequestException('media.upload_not_found');
+    }
+    if (effectiveSize > MediaService.MAX_UPLOAD_SIZE_BYTES || buffer.length > MediaService.MAX_UPLOAD_SIZE_BYTES) {
+      throw new BadRequestException('media.file_too_large');
+    }
+
     // Validate bookingId/taskId belong to tenant
     await this.validateReferences(tenantId, bookingId, taskId);
 
@@ -94,7 +103,7 @@ export class MediaService {
       name: originalName,
       url: uploadResult.url,
       mimeType,
-      size,
+      size: effectiveSize,
       bookingId: bookingId || null,
       taskId: taskId || null,
       tenantId,

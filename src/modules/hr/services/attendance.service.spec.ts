@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeleteResult } from 'typeorm';
 import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
 import { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from './attendance.service';
@@ -120,11 +121,14 @@ describe('AttendanceService', () => {
     it('should return all attendance records', async () => {
       attendanceRepo.find.mockResolvedValue([mockAttendance] as unknown as Attendance[]);
 
-      const result = await service.findAll();
+      const query = new PaginationDto();
+      const result = await service.findAll(query);
 
       expect(attendanceRepo.find).toHaveBeenCalledWith({
         where: {},
         order: { date: 'DESC' },
+        skip: query.getSkip(),
+        take: query.getTake(),
       });
       expect(result).toHaveLength(1);
     });
@@ -132,11 +136,16 @@ describe('AttendanceService', () => {
     it('should filter by userId', async () => {
       attendanceRepo.find.mockResolvedValue([mockAttendance] as unknown as Attendance[]);
 
-      const result = await service.findAll('user-1');
+      const query = new PaginationDto();
+      query.take = 10;
+
+      const result = await service.findAll(query, 'user-1');
 
       expect(attendanceRepo.find).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
         order: { date: 'DESC' },
+        skip: query.getSkip(),
+        take: query.getTake(),
       });
       expect(result).toHaveLength(1);
     });
@@ -146,7 +155,8 @@ describe('AttendanceService', () => {
         throw new BadRequestException('Tenant context missing');
       });
 
-      await expect(service.findAll()).rejects.toThrow(BadRequestException);
+      const query = new PaginationDto();
+      await expect(service.findAll(query)).rejects.toThrow(BadRequestException);
     });
   });
 

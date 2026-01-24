@@ -3,7 +3,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
+import { RefreshToken } from '../../auth/entities/refresh-token.entity';
+import { PasswordService } from '../../auth/services/password.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { User } from '../../users/entities/user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformSecurityService } from './platform-security.service';
@@ -11,8 +14,11 @@ import { PlatformSecurityService } from './platform-security.service';
 describe('PlatformSecurityService', () => {
   let service: PlatformSecurityService;
   let tenantRepository: Repository<Tenant>;
+  let userRepository: Repository<User>;
+  let refreshTokenRepository: Repository<RefreshToken>;
   let auditService: PlatformAuditService;
   let _passwordHashService: PasswordHashService;
+  let passwordService: PasswordService;
 
   const mockTenant: Partial<Tenant> = {
     id: 'tenant-123',
@@ -34,9 +40,31 @@ describe('PlatformSecurityService', () => {
           },
         },
         {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            createQueryBuilder: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(RefreshToken),
+          useValue: {
+            update: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
           provide: PlatformAuditService,
           useValue: {
             log: jest.fn(),
+          },
+        },
+        {
+          provide: PasswordService,
+          useValue: {
+            forgotPassword: jest.fn(),
           },
         },
         {
@@ -51,8 +79,11 @@ describe('PlatformSecurityService', () => {
 
     service = module.get<PlatformSecurityService>(PlatformSecurityService);
     tenantRepository = module.get(getRepositoryToken(Tenant));
+    userRepository = module.get(getRepositoryToken(User));
+    refreshTokenRepository = module.get(getRepositoryToken(RefreshToken));
     auditService = module.get<PlatformAuditService>(PlatformAuditService);
     _passwordHashService = module.get<PasswordHashService>(PasswordHashService);
+    passwordService = module.get<PasswordService>(PasswordService);
   });
 
   it('should be defined', () => {
@@ -60,16 +91,40 @@ describe('PlatformSecurityService', () => {
   });
 
   describe('forcePasswordReset', () => {
-    it('should log password reset action', async () => {
-      const dto = { userId: 'user-123', reason: 'Account compromised' };
+    it('should throw NotFoundException if user not found in tenant', async () => {
+      jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
+
+      const dto = { tenantId: 'tenant-123', userId: 'user-123', reason: 'Account compromised' };
+
+      await expect(service.forcePasswordReset(dto, 'admin-123', '192.168.1.1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update password, revoke sessions, optionally notify, and audit', async () => {
+      const user = { id: 'user-123', tenantId: 'tenant-123', email: 'user@example.com' } as User;
+      jest.spyOn(userRepository, 'findOne').mockResolvedValue(user);
+
+      const hashSpy = jest.spyOn(_passwordHashService, 'hash').mockResolvedValue('hashed-password');
+      const userUpdateSpy = jest.spyOn(userRepository, 'update').mockResolvedValue({ affected: 1 } as never);
+      const tokenUpdateSpy = jest.spyOn(refreshTokenRepository, 'update').mockResolvedValue({ affected: 2 } as never);
+      const notifySpy = jest.spyOn(passwordService, 'forgotPassword').mockResolvedValue(undefined);
       const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
 
+      const dto = { tenantId: 'tenant-123', userId: 'user-123', reason: 'Account compromised', notifyUser: true };
       await service.forcePasswordReset(dto, 'admin-123', '192.168.1.1');
 
+      expect(hashSpy).toHaveBeenCalled();
+      expect(userUpdateSpy).toHaveBeenCalledWith(
+        { id: 'user-123', tenantId: 'tenant-123' },
+        { passwordHash: 'hashed-password' },
+      );
+      expect(tokenUpdateSpy).toHaveBeenCalledWith({ userId: 'user-123', isRevoked: false }, { isRevoked: true });
+      expect(notifySpy).toHaveBeenCalledWith('user@example.com');
       expect(logSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           action: PlatformAction.FORCE_PASSWORD_RESET,
-          reason: dto.reason,
+          targetTenantId: 'tenant-123',
+          targetEntityId: 'user-123',
+          reason: 'Account compromised',
         }),
       );
     });
@@ -86,11 +141,35 @@ describe('PlatformSecurityService', () => {
 
     it('should log session revocation for valid tenant', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
+
+      const userQb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getQuery: jest.fn().mockReturnValue('SELECT u.id FROM users u WHERE u.tenant_id = :tenantId'),
+      };
+      jest.spyOn(userRepository, 'createQueryBuilder').mockReturnValue(userQb as never);
+
+      const qb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 3 }),
+      };
+      jest.spyOn(refreshTokenRepository, 'createQueryBuilder').mockReturnValue(qb as never);
+
       const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
 
       const dto = { tenantId: 'tenant-123', reason: 'Security incident' };
-      await service.revokeAllSessions(dto, 'admin-123', '192.168.1.1');
+      const result = await service.revokeAllSessions(dto, 'admin-123', '192.168.1.1');
 
+      expect(result).toBe(3);
+
+      expect(userRepository.find).not.toHaveBeenCalled();
+      expect(qb.where).toHaveBeenCalledWith(
+        expect.stringContaining('user_id IN (SELECT u.id FROM users u WHERE u.tenant_id = :tenantId)'),
+        { tenantId: 'tenant-123' },
+      );
       expect(logSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           action: PlatformAction.SESSIONS_REVOKED,

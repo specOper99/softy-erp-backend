@@ -35,6 +35,8 @@ describe('Media Module E2E Tests', () => {
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+        queueEmailVerification: jest.fn().mockResolvedValue(undefined),
+        queuePasswordReset: jest.fn().mockResolvedValue(undefined),
       })
       .compile();
 
@@ -77,7 +79,7 @@ describe('Media Module E2E Tests', () => {
           .send({
             name: 'test-document.pdf',
             mimeType: 'application/pdf',
-            url: 'http://localhost/test-document.pdf',
+            url: 'https://example.com/test-document.pdf',
             size: 1024,
           });
 

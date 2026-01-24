@@ -46,6 +46,12 @@ export async function seedTestDatabase(dataSource: DataSource) {
       status: 'active',
     });
     platformAdmin = await platformUserRepo.save(platformAdmin);
+  } else {
+    // Ensure deterministic credentials for repeatable E2E runs.
+    platformAdmin.passwordHash = platformAdminPasswordHash;
+    platformAdmin.status = 'active';
+    platformAdmin.role = PlatformRole.SUPER_ADMIN;
+    platformAdmin = await platformUserRepo.save(platformAdmin);
   }
 
   // Create MFA platform user
@@ -65,6 +71,13 @@ export async function seedTestDatabase(dataSource: DataSource) {
       status: 'active',
       mfaEnabled: true,
     });
+    mfaUser = await platformUserRepo.save(mfaUser);
+  } else {
+    // Ensure deterministic credentials + MFA flag for repeatable E2E runs.
+    mfaUser.passwordHash = mfaUserPasswordHash;
+    mfaUser.status = 'active';
+    mfaUser.role = PlatformRole.ADMIN;
+    mfaUser.mfaEnabled = true;
     mfaUser = await platformUserRepo.save(mfaUser);
   }
 

@@ -110,6 +110,25 @@ class EnvironmentVariables {
   @IsOptional()
   DB_SYNCHRONIZE?: string;
 
+  // Tenant routing
+  @IsString()
+  @IsOptional()
+  TENANT_ALLOWED_DOMAINS?: string;
+
+  // JWT verification
+  @IsString()
+  @IsOptional()
+  JWT_ALLOWED_ALGORITHMS?: string;
+
+  @IsString()
+  @IsOptional()
+  JWT_PUBLIC_KEY?: string;
+
+  // CSP reporting
+  @IsString()
+  @IsOptional()
+  CSP_REPORT_URI?: string;
+
   /**
    * JWT signing secret - MUST be cryptographically strong in production.
    * Recommended: 256 bits (43+ base64 characters) with high entropy.
@@ -150,6 +169,16 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   TRUST_PROXY?: string;
+
+  // CSRF
+  @IsString()
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  CSRF_ENABLED?: string;
+
+  @IsString()
+  @IsOptional()
+  CSRF_SECRET?: string;
 
   @IsString()
   @IsOptional()
@@ -212,6 +241,12 @@ class EnvironmentVariables {
   @IsOptional()
   RATE_LIMIT_DELAY_MS: number = 500;
 
+  // Kill switch (tests only)
+  @IsString()
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  DISABLE_RATE_LIMITING?: string;
+
   // Auth Extras
   @IsNumber()
   @IsOptional()
@@ -246,14 +281,11 @@ class EnvironmentVariables {
   @IsOptional()
   @IsIn(['true', 'false'])
   VAULT_ENABLED?: string;
-
-  @IsString()
-  @IsOptional()
-  TENANT_ALLOWED_DOMAINS?: string;
 }
 
 export function validate(config: Record<string, unknown>) {
   const isProd = config.NODE_ENV === 'production';
+  const isTestEnv = config.NODE_ENV === 'test';
 
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
@@ -266,7 +298,6 @@ export function validate(config: Record<string, unknown>) {
   if (errors.length > 0) {
     // Only bypass JWT_SECRET and CURSOR_SECRET validation in explicit test environment
     // This prevents accidental deployment with weak secrets in development/staging
-    const isTestEnv = config.NODE_ENV === 'test';
     const secretProperties = ['JWT_SECRET', 'CURSOR_SECRET'];
     const filteredErrors = errors.filter((e) => {
       if (isTestEnv && secretProperties.includes(e.property)) return false;
@@ -287,6 +318,49 @@ export function validate(config: Record<string, unknown>) {
 
   // Enhanced security enforcement for production
   if (isProd) {
+    // Never allow disabling global rate limiting in production.
+    if (validatedConfig.DISABLE_RATE_LIMITING === 'true') {
+      throw new Error('SECURITY: DISABLE_RATE_LIMITING is forbidden in production environments.');
+    }
+
+    // Never allow TypeORM schema synchronization in production.
+    if (validatedConfig.DB_SYNCHRONIZE === 'true') {
+      throw new Error('SECURITY: DB_SYNCHRONIZE=true is forbidden in production environments. Use migrations only.');
+    }
+
+    // Tenant allowlist must be configured in production (fail-closed).
+    if (!validatedConfig.TENANT_ALLOWED_DOMAINS || validatedConfig.TENANT_ALLOWED_DOMAINS.trim().length === 0) {
+      throw new Error('SECURITY: TENANT_ALLOWED_DOMAINS must be configured in production environments.');
+    }
+
+    // JWT algorithm must be a single mode (HS256 OR RS256) to prevent alg confusion.
+    const rawAlgs = (validatedConfig.JWT_ALLOWED_ALGORITHMS ?? 'HS256')
+      .split(',')
+      .map((a) => a.trim().toUpperCase())
+      .filter(Boolean);
+    const uniqueAlgs = Array.from(new Set(rawAlgs));
+    if (uniqueAlgs.length !== 1 || (uniqueAlgs[0] !== 'HS256' && uniqueAlgs[0] !== 'RS256')) {
+      throw new Error(
+        'SECURITY: JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256 (no comma-separated lists).',
+      );
+    }
+    if (uniqueAlgs[0] === 'RS256' && !validatedConfig.JWT_PUBLIC_KEY) {
+      throw new Error('SECURITY: JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
+    }
+
+    // CSRF secret must be strong when enabled.
+    if (validatedConfig.CSRF_ENABLED !== 'false') {
+      const csrfSecret = validatedConfig.CSRF_SECRET;
+      if (!csrfSecret || csrfSecret.length < 32) {
+        throw new Error(
+          'SECURITY: CSRF_SECRET must be set and at least 32 characters in production when CSRF is enabled.',
+        );
+      }
+      if (csrfSecret === 'csrf-secret-change-in-production') {
+        throw new Error('SECURITY: CSRF_SECRET must be changed from the default value in production.');
+      }
+    }
+
     // JWT_SECRET validation with entropy checking
     if (!validatedConfig.JWT_SECRET) {
       throw new Error('SECURITY: JWT_SECRET is required in production environments.');
@@ -304,6 +378,23 @@ export function validate(config: Record<string, unknown>) {
         throw new Error(cursorSecretError);
       }
     }
+
+    // Fail fast if placeholder secrets are present in production.
+    // This is an operational safety rail to prevent deploying `.env` placeholders.
+    const placeholderRe = /change-me/i;
+    const secretKeyRe = /(PASSWORD|SECRET|KEY|TOKEN)/;
+    for (const [key, value] of Object.entries(validatedConfig)) {
+      if (!secretKeyRe.test(key)) continue;
+      if (typeof value !== 'string') continue;
+      if (!placeholderRe.test(value)) continue;
+
+      throw new Error(`SECURITY: ${key} appears to be a placeholder value and must be set in production.`);
+    }
+  }
+
+  // Allow DISABLE_RATE_LIMITING only in explicit test environment.
+  if (!isTestEnv && validatedConfig.DISABLE_RATE_LIMITING === 'true') {
+    throw new Error('SECURITY: DISABLE_RATE_LIMITING may only be used when NODE_ENV=test.');
   }
 
   // Vault enforcement (opt-in via VAULT_ENABLED=true)

@@ -7,12 +7,12 @@ import {
   Optional,
   RequestTimeoutException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { createHmac } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import pLimit from 'p-limit';
+import { SelectQueryBuilder } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -36,7 +36,6 @@ export class WebhookService {
 
   constructor(
     private readonly webhookRepository: WebhookRepository,
-    private readonly configService: ConfigService,
     private readonly encryptionService: EncryptionService,
     @Optional()
     @InjectQueue(WEBHOOK_QUEUE)
@@ -207,9 +206,9 @@ export class WebhookService {
     }
 
     await TenantContextService.run(tenantId, async () => {
-      const webhooks = await this.webhookRepository.find({
-        where: { isActive: true },
-      });
+      const qb = this.webhookRepository.createQueryBuilder('webhook');
+      this.applyActiveEventFilter(qb, event.type);
+      const webhooks = await qb.getMany();
 
       const deliveries = webhooks.map(async (webhook) => {
         // Safety check for malformed webhooks
@@ -250,6 +249,38 @@ export class WebhookService {
 
       await Promise.allSettled(deliveries);
     });
+  }
+
+  private applyActiveEventFilter(qb: SelectQueryBuilder<Webhook>, eventType: string): void {
+    qb.andWhere('webhook.isActive = :isActive', { isActive: true });
+
+    // Webhook.events is a TypeORM simple-array (comma-separated string). Filter in DB to avoid
+    // scanning all active webhooks in memory.
+    const ev = eventType;
+    const wc = '*';
+
+    qb.andWhere(
+      `(
+        webhook.events = :evExact OR
+        webhook.events LIKE :evPrefix OR
+        webhook.events LIKE :evSuffix OR
+        webhook.events LIKE :evMiddle OR
+        webhook.events = :wcExact OR
+        webhook.events LIKE :wcPrefix OR
+        webhook.events LIKE :wcSuffix OR
+        webhook.events LIKE :wcMiddle
+      )`,
+      {
+        evExact: ev,
+        evPrefix: `${ev},%`,
+        evSuffix: `%,${ev}`,
+        evMiddle: `%,${ev},%`,
+        wcExact: wc,
+        wcPrefix: `${wc},%`,
+        wcSuffix: `%,${wc}`,
+        wcMiddle: `%,${wc},%`,
+      },
+    );
   }
 
   /**
