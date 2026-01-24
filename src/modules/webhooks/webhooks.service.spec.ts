@@ -19,6 +19,7 @@ import { lookup } from 'node:dns/promises';
 describe('WebhookService', () => {
   let service: WebhookService;
   let webhookRepository: jest.Mocked<WebhookRepository>;
+  let qb: { andWhere: jest.Mock; getMany: jest.Mock };
 
   const mockTenantId = 'tenant-1';
   const mockConfigService = {
@@ -47,6 +48,12 @@ describe('WebhookService', () => {
 
     service = module.get<WebhookService>(WebhookService);
     webhookRepository = module.get(WebhookRepository);
+
+    qb = {
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn(),
+    };
+    webhookRepository.createQueryBuilder = jest.fn().mockReturnValue(qb as any);
 
     // Mock TenantContext
     mockTenantContext(mockTenantId);
@@ -159,7 +166,7 @@ describe('WebhookService', () => {
     };
 
     it('should send webhook if event type matches', async () => {
-      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -178,7 +185,7 @@ describe('WebhookService', () => {
 
     it('should send webhook if wildcard event is registered', async () => {
       const wildcardConfig = { ...config, events: ['*'] };
-      webhookRepository.find.mockResolvedValue([wildcardConfig] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([wildcardConfig] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalled();
@@ -186,7 +193,7 @@ describe('WebhookService', () => {
 
     it('should not send webhook if event type does not match', async () => {
       const unmatchedEvent: WebhookEvent = { ...event, type: 'task.created' };
-      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([]);
       await service.emit(unmatchedEvent);
 
       expect(global.fetch).not.toHaveBeenCalled();
@@ -200,7 +207,7 @@ describe('WebhookService', () => {
         statusText: 'Internal Server Error',
       } as Response);
 
-      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(loggerErrorSpy).toHaveBeenCalled();
@@ -354,7 +361,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([config] as unknown as Webhook[]);
 
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
@@ -372,7 +379,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([config] as unknown as Webhook[]);
 
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
@@ -395,7 +402,7 @@ describe('WebhookService', () => {
         events: ['booking.created'],
         isActive: true,
       };
-      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([config] as unknown as Webhook[]);
 
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
@@ -419,7 +426,7 @@ describe('WebhookService', () => {
         timestamp: new Date().toISOString(),
       };
 
-      webhookRepository.find.mockResolvedValue([config] as unknown as Webhook[]);
+      qb.getMany.mockResolvedValue([config] as unknown as Webhook[]);
       await service.emit(event);
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -461,7 +468,7 @@ describe('WebhookService', () => {
 
       // We need to use deliverWebhook to reach check logic or rely on sendWebhookOnce being called
       // emit calls concurrencyLimit -> sendWebhookWithRetry -> sendWebhookOnce
-      webhookRepository.find.mockResolvedValue([webhook]);
+      qb.getMany.mockResolvedValue([webhook]);
 
       await service.emit({ type: 'booking.created', tenantId: mockTenantId, payload: {}, timestamp: '' });
 
@@ -483,7 +490,7 @@ describe('WebhookService', () => {
         isActive: true,
       } as unknown as Webhook;
 
-      webhookRepository.find.mockResolvedValue([webhook]);
+      qb.getMany.mockResolvedValue([webhook]);
 
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
@@ -501,7 +508,7 @@ describe('WebhookService', () => {
         providers: [
           WebhookService,
           { provide: ConfigService, useValue: mockConfigService },
-          { provide: WebhookRepository, useValue: { find: jest.fn(), findOne: jest.fn() } }, // minimal repo
+          { provide: WebhookRepository, useValue: { createQueryBuilder: jest.fn(), findOne: jest.fn() } }, // minimal repo
           { provide: EncryptionService, useValue: mockEncryptionService },
           { provide: 'BullQueue_webhook', useValue: mockQueue }, // Correct BullQueue token
         ],
@@ -510,7 +517,8 @@ describe('WebhookService', () => {
       const repo = module.get(WebhookRepository);
 
       const webhook = { id: 'w1', tenantId: 't1', url: 'https://queue.com', events: ['*'], isActive: true } as any;
-      (repo.find as jest.Mock).mockResolvedValue([webhook]);
+      const qbWithQueue = { andWhere: jest.fn().mockReturnThis(), getMany: jest.fn().mockResolvedValue([webhook]) };
+      (repo.createQueryBuilder as jest.Mock).mockReturnValue(qbWithQueue);
 
       await serviceWithQueue.emit({
         type: 'booking.created',
@@ -543,7 +551,7 @@ describe('WebhookService', () => {
       } as any;
       (lookup as jest.Mock).mockResolvedValue([{ address: '1.1.1.1', family: 4 }]);
 
-      webhookRepository.find.mockResolvedValue([webhook]);
+      qb.getMany.mockResolvedValue([webhook]);
 
       await service.emit({
         type: 'booking.created',
@@ -567,7 +575,7 @@ describe('WebhookService', () => {
         events: ['*'],
         isActive: true,
       } as any;
-      webhookRepository.find.mockResolvedValue([webhook]);
+      qb.getMany.mockResolvedValue([webhook]);
 
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
@@ -589,7 +597,7 @@ describe('WebhookService', () => {
 
     it('should skip invalid webhooks (no events)', async () => {
       const webhook = { id: 'w1', events: null, isActive: true } as any;
-      webhookRepository.find.mockResolvedValue([webhook]);
+      qb.getMany.mockResolvedValue([webhook]);
 
       const loggerWarnSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'warn');
 
