@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, IsUrl, Max, Min } from 'class-validator';
 
 export class CreateAttachmentDto {
   @ApiPropertyOptional({ description: 'ID of the booking to attach to' })
@@ -45,7 +45,7 @@ export class ConfirmUploadDto {
 
 export class LinkAttachmentDto {
   @ApiProperty({ description: 'External URL to link as attachment' })
-  @IsString()
+  @IsUrl({ require_protocol: true })
   url: string;
 
   @ApiPropertyOptional({ description: 'Display name of the file' })
@@ -60,6 +60,10 @@ export class LinkAttachmentDto {
 
   @ApiPropertyOptional({ description: 'Size of the file in bytes' })
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10 * 1024 * 1024)
   size?: number;
 
   @ApiPropertyOptional({ description: 'Associated booking ID' })
