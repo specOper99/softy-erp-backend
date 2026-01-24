@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { MathUtils } from '../../common/utils/math.utils';
 import { DailyMetrics } from '../analytics/entities/daily-metrics.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
@@ -128,10 +129,10 @@ export class DashboardService {
       this.profileRepository.count({ where: { tenantId } }),
     ]);
 
-    const totalRevenue = Number(metricsResult?.revenue) || 0;
-    const totalBookings = Number(metricsResult?.bookings) || 0;
-    const totalTasks = Number(tasksResult?.total) || 0;
-    const completedTasks = Number(tasksResult?.completed) || 0;
+    const totalRevenue = MathUtils.parseFinancialAmount(metricsResult?.revenue, 0);
+    const totalBookings = MathUtils.parseFinancialAmount(metricsResult?.bookings, 0);
+    const totalTasks = MathUtils.parseFinancialAmount(tasksResult?.total, 0);
+    const completedTasks = MathUtils.parseFinancialAmount(tasksResult?.completed, 0);
 
     const result: DashboardKpiDto = {
       totalRevenue,
@@ -198,9 +199,9 @@ export class DashboardService {
 
     const revenueByMonth = await this.getRevenueSummary(query);
 
-    const totalRevenue = Number(totals?.revenue) || 0;
-    const totalExpenses = Number(totals?.expenses) || 0;
-    const totalPayroll = Number(totals?.payroll) || 0;
+    const totalRevenue = MathUtils.parseFinancialAmount(totals?.revenue, 0);
+    const totalExpenses = MathUtils.parseFinancialAmount(totals?.expenses, 0);
+    const totalPayroll = MathUtils.parseFinancialAmount(totals?.payroll, 0);
 
     return {
       totalRevenue,

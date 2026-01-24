@@ -1,12 +1,18 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuthService } from '../auth/auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
 import { DashboardGateway } from './dashboard.gateway';
+import { GATEWAY_OPTIONS } from '@nestjs/websockets/constants';
+import type { Server } from 'socket.io';
 
 describe('DashboardGateway', () => {
   let gateway: DashboardGateway;
+  let emitMock: jest.Mock;
+  let roomJoined: string | string[] | undefined;
+  let mockNamespaceEmit: jest.Mock;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,7 +33,15 @@ describe('DashboardGateway', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn(),
+            get: jest.fn((key: string) => {
+              if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
+              return undefined;
+            }),
+            getOrThrow: jest.fn((key: string) => {
+              if (key === 'auth.jwtSecret') return 'test-jwt-secret';
+              if (key === 'JWT_PUBLIC_KEY') return 'test-jwt-public-key';
+              throw new Error(`Missing config key: ${key}`);
+            }),
           },
         },
         {
@@ -36,22 +50,55 @@ describe('DashboardGateway', () => {
             isBlacklisted: jest.fn().mockResolvedValue(false),
           },
         },
+        {
+          provide: AuthService,
+          useValue: {
+            validateUser: jest.fn().mockResolvedValue({ id: 'user-123', isActive: true }),
+          },
+        },
       ],
     }).compile();
 
     gateway = module.get<DashboardGateway>(DashboardGateway);
 
     // Mock the server with .to() method
-    const mockEmit = jest.fn();
-    const mockTo = jest.fn().mockReturnValue({ emit: mockEmit });
+    emitMock = jest.fn();
+    roomJoined = undefined;
+    mockNamespaceEmit = jest.fn();
+
+    const to: Server['to'] = ((room: string | string[]) => {
+      roomJoined = room;
+      return { emit: mockNamespaceEmit } as unknown as ReturnType<Server['to']>;
+    }) as Server['to'];
+
     gateway.server = {
-      emit: jest.fn(),
-      to: mockTo,
-    } as any;
+      emit: emitMock as unknown as Server['emit'],
+      to,
+    } as unknown as Server;
   });
 
   it('should be defined', () => {
     expect(gateway).toBeDefined();
+  });
+
+  it('should reject handshake when Origin is not allowlisted', async () => {
+    const options = Reflect.getMetadata(GATEWAY_OPTIONS, DashboardGateway) as { allowRequest?: any } | undefined;
+    const allowRequest = options?.allowRequest;
+    expect(typeof allowRequest).toBe('function');
+
+    const req = {
+      headers: {
+        origin: 'https://evil.example',
+        host: 'evil.example',
+      },
+    } as any;
+
+    const result = await new Promise<{ err: string | null | undefined; ok: boolean }>((resolve) => {
+      allowRequest(req, (err: string | null | undefined, ok: boolean) => resolve({ err, ok }));
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.err).toBeDefined();
   });
 
   it('handleConnection() joins tenant room when token is valid', async () => {
@@ -66,6 +113,10 @@ describe('DashboardGateway', () => {
 
     await gateway.handleConnection(mockClient);
 
+    expect(jwtService.verifyAsync).toHaveBeenCalledWith(
+      'valid-token',
+      expect.objectContaining({ algorithms: ['HS256'], secret: 'test-jwt-secret' }),
+    );
     expect(mockClient.join).toHaveBeenCalledWith('tenant:tenant-123');
   });
 
@@ -98,8 +149,8 @@ describe('DashboardGateway', () => {
 
     gateway.broadcastMetricsUpdate(tenantId, type, data);
 
-    expect(gateway.server.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
-    expect(gateway.server.emit).not.toHaveBeenCalled();
+    expect(roomJoined).toBe(`tenant:${tenantId}`);
+    expect(emitMock).not.toHaveBeenCalled();
   });
 
   it('should broadcast metrics update', () => {
@@ -110,10 +161,8 @@ describe('DashboardGateway', () => {
     gateway.broadcastMetricsUpdate(tenantId, type, data);
 
     // Check that .to() was called with the correct room
-    expect(gateway.server.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
+    expect(roomJoined).toBe(`tenant:${tenantId}`);
 
-    // Check that emit was called on the namespace returned by .to()
-    const mockNamespace = gateway.server.to.mock.results[0].value;
-    expect(mockNamespace.emit).toHaveBeenCalledWith('metrics:update', { type, data });
+    expect(mockNamespaceEmit).toHaveBeenCalledWith('metrics:update', { type, data });
   });
 });

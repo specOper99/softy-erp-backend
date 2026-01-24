@@ -5,6 +5,13 @@ import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway, WebSocketSe
 import { Server, Socket } from 'socket.io';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
+import { corsOriginDelegate, getCorsOriginAllowlist } from '../../common/utils/cors-origins.util';
+
+const corsAllowlist = getCorsOriginAllowlist({
+  raw: process.env.CORS_ORIGINS,
+  isProd: process.env.NODE_ENV === 'production',
+  devFallback: ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
+});
 
 interface MetricsUpdateData {
   [key: string]: unknown;
@@ -27,7 +34,26 @@ interface JwtPayload {
 @WebSocketGateway({
   namespace: 'dashboard',
   cors: {
-    origin: process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || ['http://localhost:3000'],
+    origin: corsOriginDelegate(corsAllowlist),
+  },
+  allowRequest: (req, callback) => {
+    const originHeader = req.headers.origin;
+    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+    if (origin === undefined) {
+      return callback(null, true);
+    }
+
+    if (typeof origin !== 'string') {
+      return callback('Origin not allowed', false);
+    }
+
+    try {
+      const normalized = new URL(origin).origin;
+      const ok = corsAllowlist.has(normalized);
+      return callback(ok ? null : 'Origin not allowed', ok);
+    } catch {
+      return callback('Origin not allowed', false);
+    }
   },
 })
 @UseGuards(WsJwtGuard)
@@ -53,9 +79,17 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
       const isBlacklisted = await this.tokenBlacklistService.isBlacklisted(token);
       if (isBlacklisted) return;
 
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.configService.get<string>('auth.jwtSecret'),
-      });
+      const algorithm = this.getAllowedJwtAlgorithm();
+      const payload =
+        algorithm === 'RS256'
+          ? await this.jwtService.verifyAsync<JwtPayload>(token, {
+              algorithms: [algorithm],
+              publicKey: this.configService.getOrThrow<string>('JWT_PUBLIC_KEY'),
+            })
+          : await this.jwtService.verifyAsync<JwtPayload>(token, {
+              algorithms: [algorithm],
+              secret: this.configService.getOrThrow<string>('auth.jwtSecret'),
+            });
 
       const tenantId = payload.tenantId;
       if (tenantId) {
@@ -64,6 +98,20 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
     } catch (error) {
       this.logger.debug(`Connection rejected: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  private getAllowedJwtAlgorithm(): 'HS256' | 'RS256' {
+    const raw = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
+    const parsed = raw
+      .split(',')
+      .map((a) => a.trim().toUpperCase())
+      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
+
+    const unique = Array.from(new Set(parsed));
+    if (unique.length !== 1) {
+      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
+    }
+    return unique[0] ?? 'HS256';
   }
 
   private extractToken(client: AuthenticatedSocket): string | undefined {
