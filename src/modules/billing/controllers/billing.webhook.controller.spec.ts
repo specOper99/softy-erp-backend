@@ -1,4 +1,4 @@
-import { BadRequestException, RawBodyRequest } from '@nestjs/common';
+import { BadRequestException, Logger, RawBodyRequest } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
@@ -68,6 +68,17 @@ describe('BillingWebhookController', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('should throw BadRequestException if stripe-signature header is missing', async () => {
+      configService.get.mockReturnValue('whsec_test');
+
+      await expect(
+        controller.handleStripeWebhook(
+          { rawBody: Buffer.from('{"id":"evt_123"}') } as unknown as RawBodyRequest<Request> & { rawBody?: Buffer },
+          '' as unknown as string,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('should construct event and delegate to SubscriptionService', async () => {
       configService.get.mockReturnValue('whsec_test');
 
@@ -86,6 +97,24 @@ describe('BillingWebhookController', () => {
       expect(stripeService.constructWebhookEvent).toHaveBeenCalledWith(expect.any(Buffer), 'sig', 'whsec_test');
       expect(subscriptionService.handleWebhookEvent).toHaveBeenCalledWith(event);
       expect(result).toEqual({ received: true });
+    });
+
+    it('should throw BadRequestException when Stripe signature verification fails', async () => {
+      configService.get.mockReturnValue('whsec_test');
+      stripeService.constructWebhookEvent.mockImplementation(() => {
+        throw new Error('Invalid signature');
+      });
+
+      const loggerSpy = jest.spyOn((controller as unknown as { logger: Logger }).logger, 'warn');
+
+      await expect(
+        controller.handleStripeWebhook(
+          { rawBody: Buffer.from('{"id":"evt_123"}') } as unknown as RawBodyRequest<Request> & { rawBody?: Buffer },
+          'sig',
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Stripe webhook signature verification failed'));
     });
   });
 });

@@ -7,6 +7,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   RawBodyRequest,
   Req,
@@ -15,9 +16,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { createHash } from 'node:crypto';
+import Stripe from 'stripe';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
 import {
@@ -37,7 +41,6 @@ export class BillingController {
   constructor(
     private readonly subscriptionService: SubscriptionService,
     private readonly stripeService: StripeService,
-    private readonly configService: ConfigService,
   ) {}
 
   private getTenantIdOrThrow(): string {
@@ -138,8 +141,11 @@ export class BillingController {
   }
 }
 
+@SkipTenant()
 @Controller('billing/webhooks')
 export class BillingWebhookController {
+  private readonly logger = new Logger(BillingWebhookController.name);
+
   constructor(
     private readonly subscriptionService: SubscriptionService,
     private readonly stripeService: StripeService,
@@ -163,7 +169,25 @@ export class BillingWebhookController {
       throw new BadRequestException('billing.raw_body_error');
     }
 
-    const event = this.stripeService.constructWebhookEvent(rawBody, signature, webhookSecret);
+    if (typeof signature !== 'string' || signature.length === 0) {
+      throw new BadRequestException('billing.missing_stripe_signature');
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = this.stripeService.constructWebhookEvent(rawBody, signature, webhookSecret);
+    } catch (error) {
+      const bodyHash = createHash('sha256').update(rawBody).digest('hex');
+      const sigParts = signature.split(',').map((p) => p.trim());
+      const t = sigParts.find((p) => p.startsWith('t='))?.slice('t='.length);
+      const v1 = sigParts.find((p) => p.startsWith('v1='))?.slice('v1='.length);
+      const v1Prefix = typeof v1 === 'string' ? v1.slice(0, 12) : undefined;
+
+      this.logger.warn(
+        `Stripe webhook signature verification failed (len=${rawBody.length}, sha256=${bodyHash.slice(0, 12)}, sigLen=${signature.length}, t=${t ?? 'n/a'}, v1=${v1Prefix ?? 'n/a'}): ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new BadRequestException('billing.invalid_webhook_signature');
+    }
 
     await this.subscriptionService.handleWebhookEvent(event);
 
