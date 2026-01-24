@@ -5,12 +5,15 @@ import { DataSource, Repository } from 'typeorm';
 import {
   createMockDataSource,
   createMockRepository,
+  createMockTask,
   createMockTimeEntry,
+  createMockUser,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
 import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
 import { TimeEntriesService } from './time-entries.service';
+import { User } from '../../users/entities/user.entity';
 
 describe('TimeEntriesService', () => {
   let service: TimeEntriesService;
@@ -19,6 +22,8 @@ describe('TimeEntriesService', () => {
 
   const mockTenantId = 'tenant-123';
   const mockUserId = 'user-123';
+  const mockUser = createMockUser({ id: mockUserId, tenantId: mockTenantId }) as unknown as User;
+  const mockTask = createMockTask({ id: 'task-123' });
   const mockTimeEntry = createMockTimeEntry({
     id: 'entry-123',
     tenantId: mockTenantId,
@@ -40,6 +45,7 @@ describe('TimeEntriesService', () => {
     mockDataSource.transaction = jest.fn().mockImplementation((cb) => {
       const mockManager = {
         createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+        findOne: jest.fn().mockResolvedValue(mockTask),
         create: jest.fn().mockImplementation((_Entity, dto) => ({ ...mockTimeEntry, ...dto })),
         save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
       };
@@ -216,7 +222,7 @@ describe('TimeEntriesService', () => {
         }) as unknown as TimeEntry,
       );
 
-      const result = await service.update(mockUserId, 'entry-123', {
+      const result = await service.update(mockUser, 'entry-123', {
         notes: 'Updated notes',
       } as UpdateTimeEntryDto);
 
@@ -226,7 +232,7 @@ describe('TimeEntriesService', () => {
     it('should throw NotFoundException if not found', async () => {
       timeEntryRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.update(mockUserId, 'non-existent', {} as UpdateTimeEntryDto)).rejects.toThrow(
+      await expect(service.update(mockUser, 'non-existent', {} as UpdateTimeEntryDto)).rejects.toThrow(
         NotFoundException,
       );
     });
