@@ -16,8 +16,8 @@ import { EmailVerificationToken } from './entities/email-verification-token.enti
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { AccountLockoutService } from './services/account-lockout.service';
-import { MfaService } from './services/mfa.service';
 import { MfaTokenService } from './services/mfa-token.service';
+import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
@@ -336,7 +336,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
   describe('login', () => {
     it('should return auth response for valid credentials', async () => {
-      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
 
       const dto = { email: 'test@example.com', password: TEST_PASSWORD };
@@ -348,7 +348,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should not fail login if suspicious activity check fails', async () => {
-      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
       mockSessionService.checkSuspiciousActivity.mockRejectedValue(new Error('suspicious check failed'));
 
@@ -368,7 +368,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should not fail login if new device check fails', async () => {
-      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
       mockSessionService.checkNewDevice.mockRejectedValue(new Error('new device check failed'));
 
@@ -403,14 +403,14 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw UnauthorizedException for non-existent email', async () => {
-      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(null);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(null);
 
       const dto = { email: 'notfound@example.com', password: TEST_PASSWORD };
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException for incorrect password', async () => {
-      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(false);
 
       const dto = { email: 'test@example.com', password: TEST_WRONG_PASSWORD };
@@ -418,7 +418,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw UnauthorizedException for inactive user', async () => {
-      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue({
+      mockUsersService.findByEmailGlobal.mockResolvedValue({
         ...mockUser,
         isActive: false,
       });
@@ -428,7 +428,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should return requiresMfa challenge if MFA is enabled but no code provided', async () => {
-      mockUsersService.findByEmailWithMfaSecret.mockResolvedValue({
+      mockUsersService.findByEmailGlobal.mockResolvedValue({
         ...mockUser,
         isMfaEnabled: true,
       });

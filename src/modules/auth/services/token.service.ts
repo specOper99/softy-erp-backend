@@ -40,7 +40,7 @@ export class TokenService {
     user: User,
     context?: RequestContext,
     rememberMe?: boolean,
-    onNewDevice?: (userId: string, userAgent: string, ipAddress?: string) => void,
+    onNewDevice?: (userId: string, userAgent: string, ipAddress?: string, userEmail?: string) => void,
   ): Promise<TokensDto> {
     const payload: TokenPayload = {
       sub: user.id,
@@ -55,7 +55,7 @@ export class TokenService {
 
     const refreshToken = this.generateRefreshToken();
 
-    await this.storeRefreshToken(user.id, refreshToken, context, rememberMe, onNewDevice);
+    await this.storeRefreshToken(user.id, refreshToken, context, rememberMe, onNewDevice, user.email);
 
     return {
       accessToken,
@@ -77,7 +77,8 @@ export class TokenService {
     token: string,
     context?: RequestContext,
     rememberMe?: boolean,
-    onNewDevice?: (userId: string, userAgent: string, ipAddress?: string) => void,
+    onNewDevice?: (userId: string, userAgent: string, ipAddress?: string, userEmail?: string) => void,
+    userEmail?: string,
   ): Promise<RefreshToken> {
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date();
@@ -85,7 +86,7 @@ export class TokenService {
     expiresAt.setDate(expiresAt.getDate() + durationDays);
 
     if (context?.userAgent && onNewDevice) {
-      onNewDevice(userId, context.userAgent, context.ipAddress);
+      onNewDevice(userId, context.userAgent, context.ipAddress, userEmail);
     }
 
     const refreshToken = this.refreshTokenRepository.create({

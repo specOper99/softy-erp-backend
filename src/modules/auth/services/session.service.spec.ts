@@ -2,7 +2,6 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { GeoIpService } from '../../../common/services/geoip.service';
 import { MailService } from '../../mail/mail.service';
-import { UsersService } from '../../users/services/users.service';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
@@ -10,7 +9,6 @@ import { TokenService } from './token.service';
 describe('SessionService', () => {
   let service: SessionService;
   let _tokenService: TokenService;
-  let _usersService: UsersService;
   let _mailService: MailService;
   let _geoIpService: GeoIpService;
 
@@ -22,10 +20,6 @@ describe('SessionService', () => {
     revokeAllUserTokens: jest.fn(),
     findPreviousLoginByUserAgent: jest.fn(),
     getRecentSessions: jest.fn(),
-  };
-
-  const mockUsersService = {
-    findOne: jest.fn(),
   };
 
   const mockMailService = {
@@ -44,7 +38,6 @@ describe('SessionService', () => {
       providers: [
         SessionService,
         { provide: TokenService, useValue: mockTokenService },
-        { provide: UsersService, useValue: mockUsersService },
         { provide: MailService, useValue: mockMailService },
         { provide: GeoIpService, useValue: mockGeoIpService },
       ],
@@ -52,7 +45,6 @@ describe('SessionService', () => {
 
     service = module.get<SessionService>(SessionService);
     _tokenService = module.get<TokenService>(TokenService);
-    _usersService = module.get<UsersService>(UsersService);
     _mailService = module.get<MailService>(MailService);
     _geoIpService = module.get<GeoIpService>(GeoIpService);
   });
@@ -104,10 +96,9 @@ describe('SessionService', () => {
     it('should detect new device and send email', async () => {
       const longUserAgent = 'a'.repeat(250);
       mockTokenService.findPreviousLoginByUserAgent.mockResolvedValue(null);
-      mockUsersService.findOne.mockResolvedValue({ id: 'u1', email: 'test@example.com' });
       mockGeoIpService.getLocation.mockReturnValue({ city: 'City', country: 'Country' });
 
-      await service.checkNewDevice('u1', longUserAgent, '1.2.3.4');
+      await service.checkNewDevice('u1', longUserAgent, '1.2.3.4', 'test@example.com');
 
       expect(mockTokenService.findPreviousLoginByUserAgent).toHaveBeenCalledWith('u1', longUserAgent.substring(0, 200));
 
@@ -139,9 +130,8 @@ describe('SessionService', () => {
       });
 
       mockTokenService.getRecentSessions.mockResolvedValue([{ ipAddress: '2.2.2.2' } as RefreshToken]);
-      mockUsersService.findOne.mockResolvedValue({ id: 'u1', email: 'test@example.com' });
 
-      await service.checkSuspiciousActivity('u1', '1.1.1.1');
+      await service.checkSuspiciousActivity('u1', '1.1.1.1', 'test@example.com');
 
       expect(mockMailService.queueSuspiciousActivity).toHaveBeenCalledWith(
         expect.objectContaining({

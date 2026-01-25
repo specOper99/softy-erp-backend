@@ -4,7 +4,6 @@ import './instrument';
 import { ClassSerializerInterceptor, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters';
@@ -49,23 +48,14 @@ async function bootstrap() {
             },
             reportOnly: false,
           }
-        : {
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Required for Swagger UI
-              styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-              fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-              imgSrc: ["'self'", 'data:', 'https://validator.swagger.io'],
-              connectSrc: ["'self'"],
-            },
-          },
+        : false, // Disable CSP in development for Swagger UI compatibility
       // HTTP Strict Transport Security - enable with preload for production
       hsts: isProd
         ? { maxAge: 31536000, includeSubDomains: true, preload: true }
         : { maxAge: 86400, includeSubDomains: false },
-      // Cross-Origin policies for enhanced security
-      crossOriginResourcePolicy: { policy: 'same-site' },
-      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      // Cross-Origin policies - relaxed for development to allow Swagger UI
+      crossOriginResourcePolicy: isProd ? { policy: 'same-site' } : false,
+      crossOriginOpenerPolicy: isProd ? { policy: 'same-origin' } : false,
       crossOriginEmbedderPolicy: false, // Disabled to allow Swagger UI to load external resources
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
       // Additional security headers
@@ -76,9 +66,6 @@ async function bootstrap() {
       xXssProtection: false, // Deprecated in modern browsers, Content-Security-Policy is preferred
     }),
   );
-
-  // Cookie parser for CSRF token handling
-  app.use(cookieParser());
 
   // Enable graceful shutdown hooks (SIGTERM, SIGINT)
   app.enableShutdownHooks();
@@ -120,7 +107,7 @@ async function bootstrap() {
     origin: corsOriginDelegate(allowlist),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-XSRF-Token'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Swagger documentation

@@ -23,6 +23,13 @@
 - **Lockout Policy**: Accounts are locked for 15 minutes after 5 failed login attempts.
 - **Password Policy**: Minimum 10 characters, mixed case, numbers, and symbols. Users are forced to reset passwords seeded by admins.
 
+### 1.4 CSRF Protection
+- **Not implemented**: This API uses JWT Bearer token authentication exclusively. CSRF protection is not needed because:
+  - Bearer tokens must be explicitly added to request headers (not automatically sent by browsers like cookies)
+  - The primary security concern for JWT-based APIs is XSS (Cross-Site Scripting), not CSRF
+  - All authentication is stateless via `Authorization: Bearer <token>` headers
+- **Security focus**: Protection against XSS through Content-Security-Policy headers and proper token storage practices
+
 ---
 
 ## 2. Authorization & Access Control

@@ -49,7 +49,6 @@ describe('env-validation', () => {
   it('should not require TENANT_ALLOWED_DOMAINS in production', () => {
     const config = {
       NODE_ENV: 'production',
-      CSRF_ENABLED: 'false',
       // High-entropy-ish string (length >= 43) to pass validateSecretStrength
       JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
     };
@@ -62,7 +61,6 @@ describe('env-validation', () => {
       NODE_ENV: 'production',
       // High-entropy-ish string (length >= 43) to pass validateSecretStrength
       JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
-      CSRF_ENABLED: 'false',
       DB_PASSWORD: 'change-me-local-only',
     };
 

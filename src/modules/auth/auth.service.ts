@@ -120,18 +120,14 @@ export class AuthService {
     const minResponseMs = 100;
 
     try {
-      const tenantId = TenantContextService.getTenantId();
-      if (!tenantId) {
-        throw new UnauthorizedException('tenants.tenant_id_required');
-      }
-
       const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
       if (lockoutStatus.locked) {
         const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
         throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
       }
 
-      const user = await this.usersService.findByEmailWithMfaSecret(loginDto.email, tenantId);
+      // Find user globally by email to determine tenant
+      const user = await this.usersService.findByEmailGlobal(loginDto.email);
       if (!user) {
         await this.lockoutService.recordFailedAttempt(loginDto.email);
         // Timing Attack Mitigation:
@@ -141,6 +137,8 @@ export class AuthService {
         await bcrypt.compare(loginDto.password, this.dummyPasswordHash);
         throw new UnauthorizedException('Invalid credentials');
       }
+
+      const tenantId = user.tenantId;
 
       if (!user.isActive) {
         throw new UnauthorizedException('Account is deactivated');
@@ -165,7 +163,7 @@ export class AuthService {
       await this.lockoutService.clearAttempts(loginDto.email);
 
       if (context?.ipAddress) {
-        this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress).catch((error) => {
+        this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress, user.email).catch((error) => {
           const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
           this.logger.error(`Suspicious activity check failed: ${message}`);
         });
@@ -287,8 +285,8 @@ export class AuthService {
       storedToken.lastUsedAt = new Date();
       await manager.save(storedToken);
 
-      return this.tokenService.generateTokens(user, context, false, (userId, userAgent, ipAddress) => {
-        this.sessionService.checkNewDevice(userId, userAgent, ipAddress).catch((error) => {
+      return this.tokenService.generateTokens(user, context, false, (userId, userAgent, ipAddress, userEmail) => {
+        this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail).catch((error) => {
           const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
           this.logger.error(`New device check failed: ${message}`);
         });
@@ -398,12 +396,17 @@ export class AuthService {
     context?: RequestContext,
     rememberMe?: boolean,
   ): Promise<AuthResponseDto> {
-    const tokens = await this.tokenService.generateTokens(user, context, rememberMe, (userId, userAgent, ipAddress) => {
-      this.sessionService.checkNewDevice(userId, userAgent, ipAddress).catch((error) => {
-        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-        this.logger.error(`New device check failed: ${message}`);
-      });
-    });
+    const tokens = await this.tokenService.generateTokens(
+      user,
+      context,
+      rememberMe,
+      (userId, userAgent, ipAddress, userEmail) => {
+        this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail).catch((error) => {
+          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+          this.logger.error(`New device check failed: ${message}`);
+        });
+      },
+    );
 
     return {
       ...tokens,
@@ -476,7 +479,7 @@ export class AuthService {
     await this.lockoutService.clearAttempts(user.email);
 
     if (context?.ipAddress) {
-      this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress).catch((error) => {
+      this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress, user.email).catch((error) => {
         const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
         this.logger.error(`Suspicious activity check failed: ${message}`);
       });

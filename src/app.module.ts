@@ -21,7 +21,6 @@ import { MessagePackInterceptor } from './common/interceptors/message-pack.inter
 import { StructuredLoggingInterceptor } from './common/interceptors/structured-logging.interceptor';
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
-import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { QueueModule } from './common/queue/queue.module';
 import { TenantGuard } from './modules/tenants/guards/tenant.guard';
 import { TenantMiddleware } from './modules/tenants/middleware/tenant.middleware';
@@ -201,7 +200,6 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     // Middleware providers for DI
     CorrelationIdMiddleware,
     TenantMiddleware,
-    CsrfMiddleware,
     // Apply rate limiting globally
     // Use explicit DISABLE_RATE_LIMITING env var for test environments
     // to prevent accidental disabling if NODE_ENV=test leaks to production
@@ -227,6 +225,5 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(CorrelationIdMiddleware).forRoutes('*');
     consumer.apply(TenantMiddleware).forRoutes('*');
-    consumer.apply(CsrfMiddleware).forRoutes('*');
   }
 }

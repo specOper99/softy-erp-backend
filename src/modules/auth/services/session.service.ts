@@ -1,7 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { GeoIpService } from '../../../common/services/geoip.service';
 import { MailService } from '../../mail/mail.service';
-import { UsersService } from '../../users/services/users.service';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { TokenService } from './token.service';
 
@@ -11,7 +10,6 @@ export class SessionService {
 
   constructor(
     private readonly tokenService: TokenService,
-    private readonly usersService: UsersService,
     private readonly mailService: MailService,
     private readonly geoIpService: GeoIpService,
   ) {}
@@ -36,7 +34,7 @@ export class SessionService {
     return this.tokenService.revokeAllUserTokens(userId);
   }
 
-  async checkNewDevice(userId: string, userAgent: string, ipAddress?: string): Promise<void> {
+  async checkNewDevice(userId: string, userAgent: string, ipAddress?: string, userEmail?: string): Promise<void> {
     try {
       const ua = userAgent.substring(0, 200);
       const previousLogin = await this.tokenService.findPreviousLoginByUserAgent(userId, ua);
@@ -49,22 +47,19 @@ export class SessionService {
           ipAddress,
         });
 
-        if (ipAddress) {
-          const user = await this.usersService.findOne(userId);
+        if (ipAddress && userEmail) {
           const location = this.geoIpService.getLocation(ipAddress);
           const locationStr =
             location.country !== 'Unknown' ? `${location.city}, ${location.country}` : 'Unknown Location';
 
-          if (user) {
-            await this.mailService.queueNewDeviceLogin({
-              email: user.email,
-              name: user.email,
-              device: ua,
-              ipAddress,
-              time: new Date(),
-              location: locationStr,
-            });
-          }
+          await this.mailService.queueNewDeviceLogin({
+            email: userEmail,
+            name: userEmail,
+            device: ua,
+            ipAddress,
+            time: new Date(),
+            location: locationStr,
+          });
         }
       }
     } catch (error) {
@@ -72,7 +67,7 @@ export class SessionService {
     }
   }
 
-  async checkSuspiciousActivity(userId: string, currentIp: string): Promise<void> {
+  async checkSuspiciousActivity(userId: string, currentIp: string, userEmail?: string): Promise<void> {
     try {
       const currentLocation = this.geoIpService.getLocation(currentIp);
       if (currentLocation.country === 'Unknown' || currentLocation.country === 'Localhost') {
@@ -92,30 +87,27 @@ export class SessionService {
           continue;
         }
 
-        if (sessionLocation.country !== currentLocation.country) {
-          const user = await this.usersService.findOne(userId);
-          if (user) {
-            await this.mailService.queueSuspiciousActivity({
-              email: user.email,
-              name: user.email,
-              activityType: 'IMPOSSIBLE_TRAVEL',
-              details: `Login from ${currentLocation.country} after login from ${sessionLocation.country} within 1 hour.`,
-              ipAddress: currentIp,
-              time: new Date(),
-              location: `${currentLocation.city}, ${currentLocation.country}`,
-            });
+        if (sessionLocation.country !== currentLocation.country && userEmail) {
+          await this.mailService.queueSuspiciousActivity({
+            email: userEmail,
+            name: userEmail,
+            activityType: 'IMPOSSIBLE_TRAVEL',
+            details: `Login from ${currentLocation.country} after login from ${sessionLocation.country} within 1 hour.`,
+            ipAddress: currentIp,
+            time: new Date(),
+            location: `${currentLocation.city}, ${currentLocation.country}`,
+          });
 
-            this.logger.warn({
-              message: 'Suspicious activity detected: Impossible travel',
-              userId,
-              ip1: currentIp,
-              location1: currentLocation.country,
-              ip2: session.ipAddress,
-              location2: sessionLocation.country,
-            });
+          this.logger.warn({
+            message: 'Suspicious activity detected: Impossible travel',
+            userId,
+            ip1: currentIp,
+            location1: currentLocation.country,
+            ip2: session.ipAddress,
+            location2: sessionLocation.country,
+          });
 
-            break;
-          }
+          break;
         }
       }
     } catch (error) {

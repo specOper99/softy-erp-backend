@@ -165,16 +165,6 @@ class EnvironmentVariables {
   @IsOptional()
   TRUST_PROXY?: string;
 
-  // CSRF
-  @IsString()
-  @IsOptional()
-  @IsIn(['true', 'false'])
-  CSRF_ENABLED?: string;
-
-  @IsString()
-  @IsOptional()
-  CSRF_SECRET?: string;
-
   @IsString()
   @IsOptional()
   AWS_S3_REGION?: string;
@@ -336,19 +326,6 @@ export function validate(config: Record<string, unknown>) {
     }
     if (uniqueAlgs[0] === 'RS256' && !validatedConfig.JWT_PUBLIC_KEY) {
       throw new Error('SECURITY: JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
-    }
-
-    // CSRF secret must be strong when enabled.
-    if (validatedConfig.CSRF_ENABLED !== 'false') {
-      const csrfSecret = validatedConfig.CSRF_SECRET;
-      if (!csrfSecret || csrfSecret.length < 32) {
-        throw new Error(
-          'SECURITY: CSRF_SECRET must be set and at least 32 characters in production when CSRF is enabled.',
-        );
-      }
-      if (csrfSecret === 'csrf-secret-change-in-production') {
-        throw new Error('SECURITY: CSRF_SECRET must be changed from the default value in production.');
-      }
     }
 
     // JWT_SECRET validation with entropy checking
