@@ -223,6 +223,14 @@ describe('ClientAuthService', () => {
       );
     });
 
+    it('should throw UnauthorizedException when JWT verification fails', async () => {
+      mockJwtService.verify.mockImplementation(() => {
+        throw new Error('Invalid token');
+      });
+
+      await expect(service.verifyMagicLink('magic-jwt')).rejects.toThrow(UnauthorizedException);
+    });
+
     it('should throw NotFoundException for non-existent token', async () => {
       mockJwtService.verify.mockReturnValue({
         sub: 'client-uuid-123',

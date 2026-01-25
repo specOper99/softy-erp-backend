@@ -149,13 +149,22 @@ export class ClientAuthService {
 
   async verifyMagicLink(token: string): Promise<{ accessToken: string; expiresIn: number; client: Client }> {
     const algorithm = this.getAllowedJwtAlgorithm();
-    const payload = this.jwtService.verify<ClientMagicLinkPayload>(token, {
-      algorithms: [algorithm],
-      secret:
-        algorithm === 'RS256'
-          ? this.configService.getOrThrow<string>('JWT_PUBLIC_KEY')
-          : this.configService.getOrThrow<string>('auth.jwtSecret'),
-    });
+    let payload: ClientMagicLinkPayload;
+    try {
+      payload = this.jwtService.verify<ClientMagicLinkPayload>(token, {
+        algorithms: [algorithm],
+        secret:
+          algorithm === 'RS256'
+            ? this.configService.getOrThrow<string>('JWT_PUBLIC_KEY')
+            : this.configService.getOrThrow<string>('auth.jwtSecret'),
+      });
+    } catch {
+      this.magicLinkVerifiedCounter.inc({
+        tenant_id: 'unknown',
+        status: 'invalid_token',
+      });
+      throw new UnauthorizedException('Invalid or expired token');
+    }
 
     if (payload.type !== 'client_magic' || !payload.jti) {
       throw new UnauthorizedException('Invalid or expired token');
