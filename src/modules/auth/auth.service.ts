@@ -120,18 +120,13 @@ export class AuthService {
     const minResponseMs = 100;
 
     try {
-      const tenantId = TenantContextService.getTenantId();
-      if (!tenantId) {
-        throw new UnauthorizedException('tenants.tenant_id_required');
-      }
-
       const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
       if (lockoutStatus.locked) {
         const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
         throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
       }
 
-      const user = await this.usersService.findByEmailWithMfaSecret(loginDto.email, tenantId);
+      const user = await this.usersService.findByEmailWithMfaSecretGlobal(loginDto.email);
       if (!user) {
         await this.lockoutService.recordFailedAttempt(loginDto.email);
         // Timing Attack Mitigation:
@@ -142,6 +137,7 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
+      const tenantId = user.tenantId;
       if (!user.isActive) {
         throw new UnauthorizedException('Account is deactivated');
       }
