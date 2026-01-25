@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import pLimit from 'p-limit';
 import { DataSource, Repository } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -62,8 +63,6 @@ export class PayrollService {
         const tenants = await this.tenantsService.findAll();
 
         // PERFORMANCE FIX: Use bounded concurrency instead of sequential processing
-        // Dynamic import for ESM-only p-limit package
-        const { default: pLimit } = await import('p-limit');
         const limit = pLimit(5); // Max 5 concurrent tenant payroll runs
 
         const processPayrollForTenant = async (tenant: { id: string; slug: string }) => {

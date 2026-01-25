@@ -11,10 +11,7 @@ import { TenantsService } from '../../tenants/tenants.service';
 import { PayrollRun, Profile } from '../entities';
 import { PayrollService } from './payroll.service';
 
-// Mock p-limit dynamic import for ESM module
-jest.mock('p-limit', () => ({
-  default: jest.fn(() => (fn: () => Promise<unknown>) => fn()),
-}));
+jest.mock('p-limit'); // Use the manual mock in __mocks__/p-limit.ts
 
 describe('PayrollService', () => {
   let service: PayrollService;
