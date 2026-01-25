@@ -15,11 +15,12 @@ describe('User Entity', () => {
     expect(user.tenantId).toBe('tenant-456');
   });
 
-  it('should declare a unique index on email', () => {
+  it('should declare a unique partial index on active email', () => {
     const idx = getMetadataArgsStorage().indices.find(
-      (i) => i.target === User && i.columns?.length === 1 && i.columns.includes('email'),
+      (i) => i.target === User && i.name === 'IDX_users_email_unique_active',
     );
     expect(idx?.unique).toBe(true);
+    expect(idx?.where).toBe('"deleted_at" IS NULL');
   });
 
   it('should handle password hashing', () => {
