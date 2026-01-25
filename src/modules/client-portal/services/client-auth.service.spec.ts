@@ -9,6 +9,7 @@ import { createMockMetricsFactory } from '../../../../test/helpers/mock-factorie
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MailService } from '../../mail/mail.service';
+import { TenantsService } from '../../tenants/tenants.service';
 import { ClientAuthService } from './client-auth.service';
 
 // Use string literal directly to avoid circular import from client-portal.module
@@ -65,6 +66,9 @@ describe('ClientAuthService', () => {
   };
 
   const mockMetricsFactory = createMockMetricsFactory();
+  const mockTenantsService = {
+    findBySlug: jest.fn().mockResolvedValue({ id: mockTenantId, slug: 'acme' }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -94,6 +98,10 @@ describe('ClientAuthService', () => {
           provide: MetricsFactory,
           useValue: mockMetricsFactory,
         },
+        {
+          provide: TenantsService,
+          useValue: mockTenantsService,
+        },
       ],
     }).compile();
 
@@ -117,18 +125,25 @@ describe('ClientAuthService', () => {
   describe('requestMagicLink', () => {
     it('should return message when client exists', async () => {
       mockClientRepository.findOne.mockResolvedValue(createMockClient());
+      mockJwtService.sign.mockReturnValueOnce('magic-jwt');
 
-      const result = await service.requestMagicLink('test@example.com');
+      const result = await service.requestMagicLink('acme', 'test@example.com');
 
       expect(result.message).toBe('If an account exists, a magic link has been sent.');
       expect(mockClientRepository.save).toHaveBeenCalled();
-      expect(mockMailService.sendMagicLink).toHaveBeenCalled();
+      expect(mockMailService.sendMagicLink).toHaveBeenCalledWith(expect.objectContaining({ token: 'magic-jwt' }));
+      expect(mockClientRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accessTokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          accessTokenExpiry: expect.any(Date),
+        }),
+      );
     });
 
     it('should return same message when client does not exist (security)', async () => {
       mockClientRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.requestMagicLink('nonexistent@example.com');
+      const result = await service.requestMagicLink('acme', 'nonexistent@example.com');
 
       expect(result.message).toBe('If an account exists, a magic link has been sent.');
       expect(mockClientRepository.save).not.toHaveBeenCalled();
@@ -139,7 +154,7 @@ describe('ClientAuthService', () => {
       const clientCopy = createMockClient();
       mockClientRepository.findOne.mockResolvedValue(clientCopy);
 
-      await service.requestMagicLink('test@example.com');
+      await service.requestMagicLink('acme', 'test@example.com');
 
       expect(mockClientRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -152,7 +167,7 @@ describe('ClientAuthService', () => {
     it('should include tenant scoping in lookup', async () => {
       mockClientRepository.findOne.mockResolvedValue(null);
 
-      await service.requestMagicLink('test@example.com');
+      await service.requestMagicLink('acme', 'test@example.com');
 
       // Note: TenantAwareRepository adds tenantId internally, service just passes the where clause
       expect(mockClientRepository.findOne).toHaveBeenCalledWith({
@@ -160,16 +175,17 @@ describe('ClientAuthService', () => {
       });
     });
 
-    it('should send magic link email with raw token', async () => {
+    it('should send magic link email with JWT token', async () => {
       mockClientRepository.findOne.mockResolvedValue(createMockClient());
+      mockJwtService.sign.mockReturnValueOnce('magic-jwt');
 
-      await service.requestMagicLink('test@example.com');
+      await service.requestMagicLink('acme', 'test@example.com');
 
       expect(mockMailService.sendMagicLink).toHaveBeenCalledWith(
         expect.objectContaining({
           clientEmail: 'test@example.com',
           clientName: 'Test Client',
-          token: expect.stringMatching(/^[a-f0-9]{64}$/), // Raw hex token
+          token: 'magic-jwt',
           expiresInHours: 24,
         }),
       );
@@ -178,15 +194,21 @@ describe('ClientAuthService', () => {
 
   describe('verifyMagicLink', () => {
     it('should return JWT session token for valid magic link', async () => {
-      const token = 'a'.repeat(64);
-      const tokenHash = createHash('sha256').update(token).digest('hex');
+      mockJwtService.verify.mockReturnValue({
+        sub: 'client-uuid-123',
+        email: 'test@example.com',
+        tenantId: mockTenantId,
+        type: 'client_magic',
+        jti: 'magic-jti-123',
+      });
+      const tokenHash = createHash('sha256').update('magic-jti-123').digest('hex');
       const mockClient = createMockClient({
         accessTokenHash: tokenHash,
         accessTokenExpiry: new Date(Date.now() + 86400000),
       });
       mockClientRepository.findOne.mockResolvedValue(mockClient);
 
-      const result = await service.verifyMagicLink(token);
+      const result = await service.verifyMagicLink('magic-jwt');
 
       expect(result.accessToken).toBe('mock-jwt-token');
       expect(result.expiresIn).toBe(3600);
@@ -202,33 +224,52 @@ describe('ClientAuthService', () => {
     });
 
     it('should throw NotFoundException for non-existent token', async () => {
+      mockJwtService.verify.mockReturnValue({
+        sub: 'client-uuid-123',
+        email: 'test@example.com',
+        tenantId: mockTenantId,
+        type: 'client_magic',
+        jti: 'magic-jti-123',
+      });
       mockClientRepository.findOne.mockResolvedValue(null);
 
       await expect(service.verifyMagicLink('invalid-token')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw UnauthorizedException for expired token', async () => {
-      const token = 'a'.repeat(64);
-      const tokenHash = createHash('sha256').update(token).digest('hex');
+      mockJwtService.verify.mockReturnValue({
+        sub: 'client-uuid-123',
+        email: 'test@example.com',
+        tenantId: mockTenantId,
+        type: 'client_magic',
+        jti: 'magic-jti-123',
+      });
+      const tokenHash = createHash('sha256').update('magic-jti-123').digest('hex');
       const expiredClient = createMockClient({
         accessTokenHash: tokenHash,
         isAccessTokenValid: jest.fn().mockReturnValue(false),
       });
       mockClientRepository.findOne.mockResolvedValue(expiredClient);
 
-      await expect(service.verifyMagicLink(token)).rejects.toThrow(UnauthorizedException);
+      await expect(service.verifyMagicLink('magic-jwt')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should clear token after verification (single-use)', async () => {
-      const token = 'a'.repeat(64);
-      const tokenHash = createHash('sha256').update(token).digest('hex');
+      mockJwtService.verify.mockReturnValue({
+        sub: 'client-uuid-123',
+        email: 'test@example.com',
+        tenantId: mockTenantId,
+        type: 'client_magic',
+        jti: 'magic-jti-123',
+      });
+      const tokenHash = createHash('sha256').update('magic-jti-123').digest('hex');
       const mockClient = createMockClient({
         accessTokenHash: tokenHash,
         accessTokenExpiry: new Date(Date.now() + 86400000),
       });
       mockClientRepository.findOne.mockResolvedValue(mockClient);
 
-      await service.verifyMagicLink(token);
+      await service.verifyMagicLink('magic-jwt');
 
       expect(mockClientRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -239,15 +280,20 @@ describe('ClientAuthService', () => {
     });
 
     it('should include tenant scoping in lookup', async () => {
-      const token = 'a'.repeat(64);
-      const tokenHash = createHash('sha256').update(token).digest('hex');
+      mockJwtService.verify.mockReturnValue({
+        sub: 'client-uuid-123',
+        email: 'test@example.com',
+        tenantId: mockTenantId,
+        type: 'client_magic',
+        jti: 'magic-jti-123',
+      });
       mockClientRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.verifyMagicLink(token)).rejects.toThrow();
+      await expect(service.verifyMagicLink('magic-jwt')).rejects.toThrow();
 
       // Note: TenantAwareRepository adds tenantId internally
       expect(mockClientRepository.findOne).toHaveBeenCalledWith({
-        where: { accessTokenHash: tokenHash },
+        where: { id: 'client-uuid-123' },
       });
     });
   });

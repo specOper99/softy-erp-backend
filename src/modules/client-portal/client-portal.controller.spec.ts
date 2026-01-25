@@ -65,11 +65,11 @@ describe('ClientPortalController', () => {
         message: 'Magic link sent',
       });
 
-      const result = await controller.requestMagicLink({
+      const result = await controller.requestMagicLink('acme', {
         email: 'test@example.com',
       });
 
-      expect(clientAuthService.requestMagicLink).toHaveBeenCalledWith('test@example.com');
+      expect(clientAuthService.requestMagicLink).toHaveBeenCalledWith('acme', 'test@example.com');
       expect(result).toEqual({ message: 'Magic link sent' });
     });
   });

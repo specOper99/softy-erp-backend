@@ -9,6 +9,7 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
+import { TenantsModule } from '../tenants/tenants.module';
 import { ClientPortalController } from './client-portal.controller';
 import { ClientTokenGuard } from './guards/client-token.guard';
 import { ClientAuthService } from './services/client-auth.service';
@@ -20,6 +21,7 @@ import { ClientPortalService } from './services/client-portal.service';
     MailModule,
     MetricsModule,
     ConfigModule,
+    TenantsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
