@@ -115,7 +115,7 @@ describe('TokenService', () => {
 
       await service.storeRefreshToken('user-1', 'token', { userAgent: 'ua', ipAddress: 'ip' }, false, onNewDeviceBy);
 
-      expect(onNewDeviceBy).toHaveBeenCalledWith('user-1', 'ua', 'ip');
+      expect(onNewDeviceBy).toHaveBeenCalledWith('user-1', 'ua', 'ip', undefined);
     });
   });
 
