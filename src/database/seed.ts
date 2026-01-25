@@ -14,6 +14,19 @@ class SeedLogger {
   static error(message: string, error?: unknown): void {
     process.stderr.write(`${message}\n`);
     if (error) {
+      if (error instanceof AggregateError) {
+        for (const inner of error.errors) {
+          const innerMessage =
+            inner instanceof Error
+              ? (inner.stack ?? inner.message)
+              : typeof inner === 'string'
+                ? inner
+                : JSON.stringify(inner);
+          process.stderr.write(`${innerMessage}\n`);
+        }
+        return;
+      }
+
       const errorMessage =
         error instanceof Error
           ? (error.stack ?? error.message)
@@ -93,6 +106,9 @@ const AppDataSource = new DataSource({
 
 async function seed() {
   SeedLogger.log('Starting database seed...\n');
+  SeedLogger.log(
+    `DB: ${process.env.DB_HOST ?? '<missing>'}:${process.env.DB_PORT ?? '<missing>'} / ${process.env.DB_DATABASE ?? '<missing>'}`,
+  );
 
   try {
     await AppDataSource.initialize();
@@ -323,6 +339,7 @@ async function seed() {
           jobTitle: data.jobTitle,
           baseSalary: data.baseSalary,
           hireDate: new Date(),
+          tenantId,
         });
         await profileRepo.save(profile);
 
