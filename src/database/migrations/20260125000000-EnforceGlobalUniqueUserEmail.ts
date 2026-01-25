@@ -32,7 +32,12 @@ export class EnforceGlobalUniqueUserEmail20260125000000 implements MigrationInte
           WHERE schemaname = 'public'
             AND tablename = 'users'
             AND indexdef ILIKE '%UNIQUE%'
-            AND indexdef ILIKE '%(tenant_id, email)%'
+            AND (
+              indexdef ILIKE '%(tenant_id, email)%'
+              OR indexdef ILIKE '%(email, tenant_id)%'
+              OR indexdef ILIKE '%("tenant_id", "email")%'
+              OR indexdef ILIKE '%("email", "tenant_id")%'
+            )
         ) LOOP
           EXECUTE format('DROP INDEX IF EXISTS %I', r.indexname);
         END LOOP;
@@ -68,5 +73,7 @@ export class EnforceGlobalUniqueUserEmail20260125000000 implements MigrationInte
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_users_email_unique_active"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_users_tenant_email`);
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email)`);
   }
 }
