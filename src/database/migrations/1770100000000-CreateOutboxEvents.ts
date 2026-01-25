@@ -5,11 +5,15 @@ export class CreateOutboxEvents1770100000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE "public"."outbox_events_status_enum" AS ENUM('PENDING', 'PUBLISHED', 'FAILED')
+      DO $$ BEGIN
+        CREATE TYPE "public"."outbox_events_status_enum" AS ENUM('PENDING', 'PUBLISHED', 'FAILED');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TABLE "outbox_events" (
+      CREATE TABLE IF NOT EXISTS "outbox_events" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "aggregateId" character varying NOT NULL,
         "type" character varying NOT NULL,

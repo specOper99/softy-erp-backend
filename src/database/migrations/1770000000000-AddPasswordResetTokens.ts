@@ -5,7 +5,7 @@ export class AddPasswordResetTokens1770000000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "password_reset_tokens" (
+      CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "email" character varying NOT NULL,
         "token_hash" character varying NOT NULL,

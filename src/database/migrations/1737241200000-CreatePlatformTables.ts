@@ -3,121 +3,123 @@ import { MigrationInterface, QueryRunner, Table, TableForeignKey, TableIndex } f
 export class CreatePlatformTables1737241200000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create platform_users table
-    await queryRunner.createTable(
-      new Table({
-        name: 'platform_users',
-        columns: [
-          {
-            name: 'id',
-            type: 'uuid',
-            isPrimary: true,
-            generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
-          },
-          {
-            name: 'email',
-            type: 'varchar',
-            length: '255',
-            isUnique: true,
-          },
-          {
-            name: 'full_name',
-            type: 'varchar',
-            length: '255',
-          },
-          {
-            name: 'password_hash',
-            type: 'varchar',
-            length: '255',
-          },
-          {
-            name: 'role',
-            type: 'varchar',
-            length: '50',
-            default: "'ANALYTICS_VIEWER'",
-          },
-          {
-            name: 'status',
-            type: 'varchar',
-            length: '20',
-            default: "'active'",
-          },
-          {
-            name: 'mfa_enabled',
-            type: 'boolean',
-            default: false,
-          },
-          {
-            name: 'mfa_secret',
-            type: 'varchar',
-            length: '255',
-            isNullable: true,
-          },
-          {
-            name: 'mfa_recovery_codes',
-            type: 'json',
-            isNullable: true,
-          },
-          {
-            name: 'last_login_at',
-            type: 'timestamp',
-            isNullable: true,
-          },
-          {
-            name: 'last_login_ip',
-            type: 'varchar',
-            length: '45',
-            isNullable: true,
-          },
-          {
-            name: 'ip_allowlist',
-            type: 'json',
-            isNullable: true,
-          },
-          {
-            name: 'trusted_devices',
-            type: 'json',
-            isNullable: true,
-          },
-          {
-            name: 'failed_login_attempts',
-            type: 'int',
-            default: 0,
-          },
-          {
-            name: 'locked_until',
-            type: 'timestamp',
-            isNullable: true,
-          },
-          {
-            name: 'must_change_password',
-            type: 'boolean',
-            default: false,
-          },
-          {
-            name: 'password_changed_at',
-            type: 'timestamp',
-            isNullable: true,
-          },
-          {
-            name: 'created_at',
-            type: 'timestamp',
-            default: 'now()',
-          },
-          {
-            name: 'updated_at',
-            type: 'timestamp',
-            default: 'now()',
-          },
-          {
-            name: 'deleted_at',
-            type: 'timestamp',
-            isNullable: true,
-          },
-        ],
-      }),
-      true,
-    );
+    if (!(await queryRunner.hasTable('platform_users'))) {
+      await queryRunner.createTable(
+        new Table({
+          name: 'platform_users',
+          columns: [
+            {
+              name: 'id',
+              type: 'uuid',
+              isPrimary: true,
+              generationStrategy: 'uuid',
+              default: 'uuid_generate_v4()',
+            },
+            {
+              name: 'email',
+              type: 'varchar',
+              length: '255',
+              isUnique: true,
+            },
+            {
+              name: 'full_name',
+              type: 'varchar',
+              length: '255',
+            },
+            {
+              name: 'password_hash',
+              type: 'varchar',
+              length: '255',
+            },
+            {
+              name: 'role',
+              type: 'varchar',
+              length: '50',
+              default: "'ANALYTICS_VIEWER'",
+            },
+            {
+              name: 'status',
+              type: 'varchar',
+              length: '20',
+              default: "'active'",
+            },
+            {
+              name: 'mfa_enabled',
+              type: 'boolean',
+              default: false,
+            },
+            {
+              name: 'mfa_secret',
+              type: 'varchar',
+              length: '255',
+              isNullable: true,
+            },
+            {
+              name: 'mfa_recovery_codes',
+              type: 'json',
+              isNullable: true,
+            },
+            {
+              name: 'last_login_at',
+              type: 'timestamp',
+              isNullable: true,
+            },
+            {
+              name: 'last_login_ip',
+              type: 'varchar',
+              length: '45',
+              isNullable: true,
+            },
+            {
+              name: 'ip_allowlist',
+              type: 'json',
+              isNullable: true,
+            },
+            {
+              name: 'trusted_devices',
+              type: 'json',
+              isNullable: true,
+            },
+            {
+              name: 'failed_login_attempts',
+              type: 'int',
+              default: 0,
+            },
+            {
+              name: 'locked_until',
+              type: 'timestamp',
+              isNullable: true,
+            },
+            {
+              name: 'must_change_password',
+              type: 'boolean',
+              default: false,
+            },
+            {
+              name: 'password_changed_at',
+              type: 'timestamp',
+              isNullable: true,
+            },
+            {
+              name: 'created_at',
+              type: 'timestamp',
+              default: 'now()',
+            },
+            {
+              name: 'updated_at',
+              type: 'timestamp',
+              default: 'now()',
+            },
+            {
+              name: 'deleted_at',
+              type: 'timestamp',
+              isNullable: true,
+            },
+          ],
+        }),
+        true,
+      );
+    }
 
     await queryRunner.createIndex(
       'platform_users',
@@ -138,102 +140,104 @@ export class CreatePlatformTables1737241200000 implements MigrationInterface {
     );
 
     // Create platform_sessions table
-    await queryRunner.createTable(
-      new Table({
-        name: 'platform_sessions',
-        columns: [
-          {
-            name: 'id',
-            type: 'uuid',
-            isPrimary: true,
-            generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
-          },
-          {
-            name: 'user_id',
-            type: 'uuid',
-          },
-          {
-            name: 'session_token',
-            type: 'varchar',
-            length: '255',
-            isUnique: true,
-          },
-          {
-            name: 'refresh_token',
-            type: 'varchar',
-            length: '255',
-            isNullable: true,
-          },
-          {
-            name: 'ip_address',
-            type: 'varchar',
-            length: '45',
-          },
-          {
-            name: 'user_agent',
-            type: 'text',
-          },
-          {
-            name: 'device_id',
-            type: 'varchar',
-            length: '255',
-            isNullable: true,
-          },
-          {
-            name: 'device_name',
-            type: 'varchar',
-            length: '255',
-            isNullable: true,
-          },
-          {
-            name: 'mfa_verified',
-            type: 'boolean',
-            default: false,
-          },
-          {
-            name: 'mfa_verified_at',
-            type: 'timestamp',
-            isNullable: true,
-          },
-          {
-            name: 'created_at',
-            type: 'timestamp',
-            default: 'now()',
-          },
-          {
-            name: 'expires_at',
-            type: 'timestamp',
-          },
-          {
-            name: 'last_activity_at',
-            type: 'timestamp',
-          },
-          {
-            name: 'is_revoked',
-            type: 'boolean',
-            default: false,
-          },
-          {
-            name: 'revoked_at',
-            type: 'timestamp',
-            isNullable: true,
-          },
-          {
-            name: 'revoked_by',
-            type: 'uuid',
-            isNullable: true,
-          },
-          {
-            name: 'revoked_reason',
-            type: 'varchar',
-            length: '500',
-            isNullable: true,
-          },
-        ],
-      }),
-      true,
-    );
+    if (!(await queryRunner.hasTable('platform_sessions'))) {
+      await queryRunner.createTable(
+        new Table({
+          name: 'platform_sessions',
+          columns: [
+            {
+              name: 'id',
+              type: 'uuid',
+              isPrimary: true,
+              generationStrategy: 'uuid',
+              default: 'uuid_generate_v4()',
+            },
+            {
+              name: 'user_id',
+              type: 'uuid',
+            },
+            {
+              name: 'session_token',
+              type: 'varchar',
+              length: '255',
+              isUnique: true,
+            },
+            {
+              name: 'refresh_token',
+              type: 'varchar',
+              length: '255',
+              isNullable: true,
+            },
+            {
+              name: 'ip_address',
+              type: 'varchar',
+              length: '45',
+            },
+            {
+              name: 'user_agent',
+              type: 'text',
+            },
+            {
+              name: 'device_id',
+              type: 'varchar',
+              length: '255',
+              isNullable: true,
+            },
+            {
+              name: 'device_name',
+              type: 'varchar',
+              length: '255',
+              isNullable: true,
+            },
+            {
+              name: 'mfa_verified',
+              type: 'boolean',
+              default: false,
+            },
+            {
+              name: 'mfa_verified_at',
+              type: 'timestamp',
+              isNullable: true,
+            },
+            {
+              name: 'created_at',
+              type: 'timestamp',
+              default: 'now()',
+            },
+            {
+              name: 'expires_at',
+              type: 'timestamp',
+            },
+            {
+              name: 'last_activity_at',
+              type: 'timestamp',
+            },
+            {
+              name: 'is_revoked',
+              type: 'boolean',
+              default: false,
+            },
+            {
+              name: 'revoked_at',
+              type: 'timestamp',
+              isNullable: true,
+            },
+            {
+              name: 'revoked_by',
+              type: 'uuid',
+              isNullable: true,
+            },
+            {
+              name: 'revoked_reason',
+              type: 'varchar',
+              length: '500',
+              isNullable: true,
+            },
+          ],
+        }),
+        true,
+      );
+    }
 
     await queryRunner.createForeignKey(
       'platform_sessions',

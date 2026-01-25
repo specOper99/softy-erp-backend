@@ -13,30 +13,58 @@ export class InitialSchema1703850000000 implements MigrationInterface {
 
     // ==== ENUMS ====
     await queryRunner.query(`
-      CREATE TYPE "tenants_subscriptionplan_enum" AS ENUM ('FREE', 'PRO', 'ENTERPRISE')
+      DO $$ BEGIN
+        CREATE TYPE "tenants_subscriptionplan_enum" AS ENUM ('FREE', 'PRO', 'ENTERPRISE');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "tenants_status_enum" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED')
+      DO $$ BEGIN
+        CREATE TYPE "tenants_status_enum" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "users_role_enum" AS ENUM ('ADMIN', 'OPS_MANAGER', 'FIELD_STAFF')
+      DO $$ BEGIN
+        CREATE TYPE "users_role_enum" AS ENUM ('ADMIN', 'OPS_MANAGER', 'FIELD_STAFF');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "bookings_status_enum" AS ENUM ('DRAFT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')
+      DO $$ BEGIN
+        CREATE TYPE "bookings_status_enum" AS ENUM ('DRAFT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "tasks_status_enum" AS ENUM ('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')
+      DO $$ BEGIN
+        CREATE TYPE "tasks_status_enum" AS ENUM ('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "transactions_type_enum" AS ENUM ('INCOME', 'EXPENSE', 'PAYROLL')
+      DO $$ BEGIN
+        CREATE TYPE "transactions_type_enum" AS ENUM ('INCOME', 'EXPENSE', 'PAYROLL');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "transactions_reference_type_enum" AS ENUM ('BOOKING', 'TASK', 'PAYROLL', 'OTHER')
+      DO $$ BEGIN
+        CREATE TYPE "transactions_reference_type_enum" AS ENUM ('BOOKING', 'TASK', 'PAYROLL', 'OTHER');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // ==== TENANTS (no dependencies) ====
     await queryRunner.query(`
-      CREATE TABLE "tenants" (
+      CREATE TABLE IF NOT EXISTS "tenants" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "name" character varying NOT NULL,
         "slug" character varying NOT NULL,
@@ -51,7 +79,7 @@ export class InitialSchema1703850000000 implements MigrationInterface {
 
     // ==== USERS (depends on tenants) ====
     await queryRunner.query(`
-      CREATE TABLE "users" (
+      CREATE TABLE IF NOT EXISTS "users" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "email" character varying NOT NULL,
         "tenant_id" uuid,
@@ -65,15 +93,15 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "IDX_users_email_tenant" ON "users" ("email", "tenant_id")
+      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_email_tenant" ON "users" ("email", "tenant_id")
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_users_tenant" ON "users" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_users_tenant" ON "users" ("tenant_id")
     `);
 
     // ==== PROFILES (depends on users) ====
     await queryRunner.query(`
-      CREATE TABLE "profiles" (
+      CREATE TABLE IF NOT EXISTS "profiles" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "user_id" uuid NOT NULL,
         "first_name" character varying,
@@ -93,7 +121,7 @@ export class InitialSchema1703850000000 implements MigrationInterface {
 
     // ==== EMPLOYEE WALLETS (depends on users) ====
     await queryRunner.query(`
-      CREATE TABLE "employee_wallets" (
+      CREATE TABLE IF NOT EXISTS "employee_wallets" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id" uuid NOT NULL,
         "user_id" uuid NOT NULL,
@@ -106,12 +134,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_employee_wallets_tenant" ON "employee_wallets" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_employee_wallets_tenant" ON "employee_wallets" ("tenant_id")
     `);
 
     // ==== TASK TYPES (no dependencies except tenant) ====
     await queryRunner.query(`
-      CREATE TABLE "task_types" (
+      CREATE TABLE IF NOT EXISTS "task_types" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id" uuid NOT NULL,
         "name" character varying NOT NULL,
@@ -124,12 +152,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_task_types_tenant" ON "task_types" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_task_types_tenant" ON "task_types" ("tenant_id")
     `);
 
     // ==== SERVICE PACKAGES (no dependencies except tenant) ====
     await queryRunner.query(`
-      CREATE TABLE "service_packages" (
+      CREATE TABLE IF NOT EXISTS "service_packages" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id" uuid NOT NULL,
         "name" character varying NOT NULL,
@@ -142,12 +170,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_service_packages_tenant" ON "service_packages" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_service_packages_tenant" ON "service_packages" ("tenant_id")
     `);
 
     // ==== PACKAGE ITEMS (depends on service_packages, task_types) ====
     await queryRunner.query(`
-      CREATE TABLE "package_items" (
+      CREATE TABLE IF NOT EXISTS "package_items" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
@@ -159,12 +187,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_package_items_tenant" ON "package_items" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_package_items_tenant" ON "package_items" ("tenant_id")
     `);
 
     // ==== BOOKINGS (depends on service_packages) ====
     await queryRunner.query(`
-      CREATE TABLE "bookings" (
+      CREATE TABLE IF NOT EXISTS "bookings" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id" uuid NOT NULL,
         "client_name" character varying NOT NULL,
@@ -182,12 +210,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_bookings_tenant" ON "bookings" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_bookings_tenant" ON "bookings" ("tenant_id")
     `);
 
     // ==== TASKS (depends on bookings, task_types, users) ====
     await queryRunner.query(`
-      CREATE TABLE "tasks" (
+      CREATE TABLE IF NOT EXISTS "tasks" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id" uuid NOT NULL,
         "booking_id" uuid NOT NULL,
@@ -205,12 +233,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_tasks_tenant" ON "tasks" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_tasks_tenant" ON "tasks" ("tenant_id")
     `);
 
     // ==== TRANSACTIONS (no dependencies except tenant) ====
     await queryRunner.query(`
-      CREATE TABLE "transactions" (
+      CREATE TABLE IF NOT EXISTS "transactions" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id" uuid NOT NULL,
         "type" "transactions_type_enum" NOT NULL,
@@ -226,12 +254,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_transactions_tenant" ON "transactions" ("tenant_id")
+      CREATE INDEX IF NOT EXISTS "IDX_transactions_tenant" ON "transactions" ("tenant_id")
     `);
 
     // ==== AUDIT LOGS (no dependencies) ====
     await queryRunner.query(`
-      CREATE TABLE "audit_logs" (
+      CREATE TABLE IF NOT EXISTS "audit_logs" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "user_id" character varying,
         "action" character varying NOT NULL,
@@ -247,7 +275,7 @@ export class InitialSchema1703850000000 implements MigrationInterface {
 
     // ==== REFRESH TOKENS (depends on users) ====
     await queryRunner.query(`
-      CREATE TABLE "refresh_tokens" (
+      CREATE TABLE IF NOT EXISTS "refresh_tokens" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "token_hash" character varying NOT NULL,
         "user_id" uuid NOT NULL,
@@ -262,12 +290,12 @@ export class InitialSchema1703850000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(`
-      CREATE INDEX "IDX_refresh_tokens_hash" ON "refresh_tokens" ("token_hash")
+      CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_hash" ON "refresh_tokens" ("token_hash")
     `);
 
     // ==== ATTACHMENTS (depends on bookings, tasks) ====
     await queryRunner.query(`
-      CREATE TABLE "attachments" (
+      CREATE TABLE IF NOT EXISTS "attachments" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "name" character varying NOT NULL,
         "url" character varying NOT NULL,
@@ -284,68 +312,112 @@ export class InitialSchema1703850000000 implements MigrationInterface {
     // ==== FOREIGN KEYS ====
     // profiles -> users
     await queryRunner.query(`
-      ALTER TABLE "profiles" ADD CONSTRAINT "FK_profiles_user" 
-      FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "profiles" ADD CONSTRAINT "FK_profiles_user" 
+        FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // employee_wallets -> users
     await queryRunner.query(`
-      ALTER TABLE "employee_wallets" ADD CONSTRAINT "FK_employee_wallets_user" 
-      FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "employee_wallets" ADD CONSTRAINT "FK_employee_wallets_user" 
+        FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // package_items -> service_packages
     await queryRunner.query(`
-      ALTER TABLE "package_items" ADD CONSTRAINT "FK_package_items_package" 
-      FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "package_items" ADD CONSTRAINT "FK_package_items_package" 
+        FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // package_items -> task_types
     await queryRunner.query(`
-      ALTER TABLE "package_items" ADD CONSTRAINT "FK_package_items_task_type" 
-      FOREIGN KEY ("task_type_id") REFERENCES "task_types"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "package_items" ADD CONSTRAINT "FK_package_items_task_type" 
+        FOREIGN KEY ("task_type_id") REFERENCES "task_types"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // bookings -> service_packages
     await queryRunner.query(`
-      ALTER TABLE "bookings" ADD CONSTRAINT "FK_bookings_package" 
-      FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "bookings" ADD CONSTRAINT "FK_bookings_package" 
+        FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // tasks -> bookings
     await queryRunner.query(`
-      ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_booking" 
-      FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_booking" 
+        FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // tasks -> task_types
     await queryRunner.query(`
-      ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_task_type" 
-      FOREIGN KEY ("task_type_id") REFERENCES "task_types"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_task_type" 
+        FOREIGN KEY ("task_type_id") REFERENCES "task_types"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // tasks -> users (assigned)
     await queryRunner.query(`
-      ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_user" 
-      FOREIGN KEY ("assigned_user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_user" 
+        FOREIGN KEY ("assigned_user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // refresh_tokens -> users
     await queryRunner.query(`
-      ALTER TABLE "refresh_tokens" ADD CONSTRAINT "FK_refresh_tokens_user" 
-      FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "refresh_tokens" ADD CONSTRAINT "FK_refresh_tokens_user" 
+        FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // attachments -> bookings
     await queryRunner.query(`
-      ALTER TABLE "attachments" ADD CONSTRAINT "FK_attachments_booking" 
-      FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "attachments" ADD CONSTRAINT "FK_attachments_booking" 
+        FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // attachments -> tasks
     await queryRunner.query(`
-      ALTER TABLE "attachments" ADD CONSTRAINT "FK_attachments_task" 
-      FOREIGN KEY ("task_id") REFERENCES "tasks"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+      DO $$ BEGIN
+        ALTER TABLE "attachments" ADD CONSTRAINT "FK_attachments_task" 
+        FOREIGN KEY ("task_id") REFERENCES "tasks"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
   }
 

@@ -5,26 +5,42 @@ export class AddBillingTables1767800000001 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE "public"."subscriptions_status_enum" AS ENUM(
-        'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID', 
-        'INCOMPLETE', 'INCOMPLETE_EXPIRED', 'PAUSED'
-      )
+      DO $$ BEGIN
+        CREATE TYPE "public"."subscriptions_status_enum" AS ENUM(
+          'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID', 
+          'INCOMPLETE', 'INCOMPLETE_EXPIRED', 'PAUSED'
+        );
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TYPE "public"."subscriptions_billing_interval_enum" AS ENUM('MONTH', 'YEAR')
+      DO $$ BEGIN
+        CREATE TYPE "public"."subscriptions_billing_interval_enum" AS ENUM('MONTH', 'YEAR');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TYPE "public"."payment_methods_type_enum" AS ENUM('CARD', 'BANK_ACCOUNT', 'SEPA_DEBIT')
+      DO $$ BEGIN
+        CREATE TYPE "public"."payment_methods_type_enum" AS ENUM('CARD', 'BANK_ACCOUNT', 'SEPA_DEBIT');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TYPE "public"."usage_records_metric_enum" AS ENUM('USERS', 'BOOKINGS', 'STORAGE_GB', 'API_CALLS')
+      DO $$ BEGIN
+        CREATE TYPE "public"."usage_records_metric_enum" AS ENUM('USERS', 'BOOKINGS', 'STORAGE_GB', 'API_CALLS');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TABLE "billing_customers" (
+      CREATE TABLE IF NOT EXISTS "billing_customers" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -50,7 +66,7 @@ export class AddBillingTables1767800000001 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE TABLE "subscriptions" (
+      CREATE TABLE IF NOT EXISTS "subscriptions" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -81,7 +97,7 @@ export class AddBillingTables1767800000001 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE TABLE "payment_methods" (
+      CREATE TABLE IF NOT EXISTS "payment_methods" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -108,7 +124,7 @@ export class AddBillingTables1767800000001 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE TABLE "usage_records" (
+      CREATE TABLE IF NOT EXISTS "usage_records" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
