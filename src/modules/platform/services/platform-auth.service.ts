@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -289,7 +290,8 @@ export class PlatformAuthService {
       mfaVerifiedAt: !user.mfaEnabled ? new Date() : null,
       expiresAt: new Date(Date.now() + this.SESSION_DURATION),
       lastActivityAt: new Date(),
-      sessionToken: '',
+      // Ensure unique placeholder to avoid UNIQUE constraint collision before token is assigned
+      sessionToken: randomUUID(),
     });
 
     return this.sessionRepository.save(session);

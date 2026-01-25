@@ -31,10 +31,10 @@ export class PlatformSession {
   @Column({ name: 'user_agent', type: 'text' })
   userAgent: string;
 
-  @Column({ name: 'device_id', type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'device_id', type: 'text', nullable: true })
   deviceId: string | null;
 
-  @Column({ name: 'device_name', type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'device_name', type: 'text', nullable: true })
   deviceName: string | null;
 
   @Column({ name: 'mfa_verified', type: 'boolean', default: false })

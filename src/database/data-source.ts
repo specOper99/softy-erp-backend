@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { getDatabaseConnectionConfig } from './db-config';
 // Import all entities
