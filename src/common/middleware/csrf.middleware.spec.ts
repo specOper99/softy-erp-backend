@@ -76,6 +76,16 @@ describe('CsrfMiddleware', () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
+    it('should skip auth endpoints', () => {
+      const mockRequest = { path: '/api/v1/auth/login', method: 'POST' } as unknown as Request;
+      const mockResponse = {} as Response;
+      const mockNext = jest.fn();
+
+      middleware.use(mockRequest, mockResponse, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+
     it('should skip health endpoint', () => {
       const mockRequest = { path: '/api/v1/health' } as Request;
       const mockResponse = {} as Response;
@@ -146,7 +156,7 @@ describe('CsrfMiddleware', () => {
       const mockRequest = {
         path: '/api/v1/form-submit',
         method: 'POST',
-        headers: {},
+        headers: { cookie: 'XSRF-TOKEN=mock' },
         cookies: {},
         body: {},
       } as unknown as Request;
@@ -164,7 +174,7 @@ describe('CsrfMiddleware', () => {
       const mockRequest = {
         path: '/api/v1/form-submit',
         method: 'POST',
-        headers: {},
+        headers: { cookie: 'XSRF-TOKEN=mock' },
         cookies: {},
         body: {},
         mockCsrfError: true,
@@ -184,6 +194,7 @@ describe('CsrfMiddleware', () => {
         headers: {
           'sec-fetch-site': 'cross-site',
           origin: 'https://attacker.example',
+          cookie: 'XSRF-TOKEN=mock',
         },
         cookies: {},
         body: {},
@@ -246,6 +257,22 @@ describe('CsrfMiddleware', () => {
 
       expect(() => prodMiddleware.use(mockRequest, mockResponse, mockNext)).toThrow('CSRF token unavailable');
       expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should skip CSRF for Bearer requests even when cookies are present', () => {
+      const mockRequest = {
+        path: '/api/v1/users',
+        method: 'POST',
+        headers: { authorization: 'Bearer token123', cookie: 'XSRF-TOKEN=mock' },
+        cookies: {},
+        body: {},
+      } as unknown as Request;
+      const mockResponse = {} as unknown as Response;
+      const mockNext = jest.fn();
+
+      middleware.use(mockRequest, mockResponse, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
     });
   });
 });

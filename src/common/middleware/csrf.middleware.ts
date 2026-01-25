@@ -17,7 +17,17 @@ export class CsrfMiddleware implements NestMiddleware {
   constructor(private readonly configService: ConfigService) {
     const enabled = this.configService.get<boolean>('CSRF_ENABLED', true);
     this.enabled = String(enabled) !== 'false';
-    this.excludedPaths = ['/api/v1/webhooks', '/api/v1/billing/webhooks', '/api/v1/health', '/api/v1/metrics'];
+    // CSRF is only meaningful for cookie-authenticated flows.
+    // This service primarily uses Bearer tokens; exclude auth endpoints to avoid coupling login/refresh to CSRF.
+    this.excludedPaths = [
+      '/api/v1/webhooks',
+      '/api/v1/billing/webhooks',
+      '/api/v1/health',
+      '/api/v1/metrics',
+      '/api/v1/auth',
+      '/api/v1/platform/auth',
+      '/api/v1/platform/mfa',
+    ];
 
     const isProd = this.configService.get('NODE_ENV') === 'production';
     const secret = this.configService.get<string>('CSRF_SECRET');
@@ -128,6 +138,12 @@ export class CsrfMiddleware implements NestMiddleware {
       return next();
     }
 
+    // CSRF is a cookie problem. If the request is not carrying cookies, there's nothing for CSRF to protect.
+    // This keeps public endpoints (and bearer-only setups) working without requiring CSRF coordination.
+    if (!req.headers.cookie) {
+      return next();
+    }
+
     // Defense-in-depth: block cross-site browser requests using Fetch Metadata.
     // This does not replace CSRF token validation; it reduces exposure for browsers that support it.
     const fetchSiteHeader = req.headers['sec-fetch-site'];
@@ -165,16 +181,6 @@ export class CsrfMiddleware implements NestMiddleware {
     const apiKeyHeader = req.headers['x-api-key'];
     const clientTokenHeader = req.headers['x-client-token'];
 
-    const hasAuthHeader = !!(authHeader?.startsWith('Bearer ') || apiKeyHeader || clientTokenHeader);
-    if (!hasAuthHeader) {
-      return false;
-    }
-
-    const cookieHeader = req.headers.cookie;
-    if (typeof cookieHeader === 'string' && cookieHeader.length > 0) {
-      return false;
-    }
-
-    return true;
+    return !!(authHeader?.startsWith('Bearer ') || apiKeyHeader || clientTokenHeader);
   }
 }
