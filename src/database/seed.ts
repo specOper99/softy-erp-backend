@@ -15,7 +15,11 @@ class SeedLogger {
     process.stderr.write(`${message}\n`);
     if (error) {
       const errorMessage =
-        error instanceof Error ? error.message : typeof error === 'string' ? error : JSON.stringify(error);
+        error instanceof Error
+          ? (error.stack ?? error.message)
+          : typeof error === 'string'
+            ? error
+            : JSON.stringify(error);
       process.stderr.write(`${errorMessage}\n`);
     }
   }
@@ -52,6 +56,17 @@ import { User } from '../modules/users/entities/user.entity';
 import { Role } from '../modules/users/enums/role.enum';
 
 // Create data source
+const shouldDropSchema = (process.env.SEED_DROP_SCHEMA ?? 'true') === 'true';
+const nodeEnv = process.env.NODE_ENV ?? 'development';
+
+if (shouldDropSchema && nodeEnv === 'production') {
+  SeedLogger.error(
+    'Refusing to run seeder with SEED_DROP_SCHEMA enabled in production. ' +
+      'Set SEED_DROP_SCHEMA=false or use a non-production environment.',
+  );
+  process.exit(1);
+}
+
 const AppDataSource = new DataSource({
   type: 'postgres',
   ...getDatabaseConnectionConfig(),
@@ -72,6 +87,7 @@ const AppDataSource = new DataSource({
     Task,
     PlatformUser,
   ],
+  dropSchema: shouldDropSchema,
   synchronize: true, // Only for seeding - creates tables
 });
 
