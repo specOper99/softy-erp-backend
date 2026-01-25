@@ -331,6 +331,33 @@ env_wizard() {
     CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
     sed -i.bak "s|^CORS_ORIGINS=.*|CORS_ORIGINS=${CORS_ORIGINS}|" "${BACKEND_DIR}/.env"
     
+    # CSRF Protection
+    log_section "7a. CSRF Protection"
+    
+    read -p "Enable CSRF Protection? [true]: " CSRF_ENABLED
+    CSRF_ENABLED=${CSRF_ENABLED:-true}
+    sed -i.bak "s|^CSRF_ENABLED=.*|CSRF_ENABLED=${CSRF_ENABLED}|" "${BACKEND_DIR}/.env"
+    
+    if [ "$CSRF_ENABLED" = "true" ]; then
+        log "Generating CSRF secret..."
+        CSRF_SECRET=$(generate_random_secret)
+        sed -i.bak "s|^CSRF_SECRET=.*|CSRF_SECRET=${CSRF_SECRET}|" "${BACKEND_DIR}/.env"
+        log_success "CSRF secret generated"
+    fi
+    
+    # Data Encryption
+    log_section "7b. Data Encryption"
+    
+    log "Generating encryption key..."
+    ENCRYPTION_KEY=$(generate_random_secret)
+    sed -i.bak "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=${ENCRYPTION_KEY}|" "${BACKEND_DIR}/.env"
+    log_success "Encryption key generated: ${ENCRYPTION_KEY}"
+    log_warning "Save this key securely - it's required to decrypt sensitive data"
+    
+    read -p "Encryption Key Version [v1]: " ENCRYPTION_KEY_VERSION
+    ENCRYPTION_KEY_VERSION=${ENCRYPTION_KEY_VERSION:-v1}
+    sed -i.bak "s|^ENCRYPTION_KEY_VERSION=.*|ENCRYPTION_KEY_VERSION=${ENCRYPTION_KEY_VERSION}|" "${BACKEND_DIR}/.env"
+    
     # 8. Object Storage (MinIO / S3)
     log_section "6. Object Storage (MinIO/S3)"
     
