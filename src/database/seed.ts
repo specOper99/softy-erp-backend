@@ -34,10 +34,14 @@ if (missingEnvVars.length > 0) {
 
 // Import entities
 import { Booking } from '../modules/bookings/entities/booking.entity';
+import { Client } from '../modules/bookings/entities/client.entity';
 import { PackageItem } from '../modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
 import { TaskType } from '../modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
+import { Invoice } from '../modules/finance/entities/invoice.entity';
+import { Payout } from '../modules/finance/entities/payout.entity';
+import { TransactionCategory } from '../modules/finance/entities/transaction-category.entity';
 import { Transaction } from '../modules/finance/entities/transaction.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
 import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
@@ -57,10 +61,14 @@ const AppDataSource = new DataSource({
     Profile,
     EmployeeWallet,
     Transaction,
+    TransactionCategory,
+    Payout,
     ServicePackage,
     TaskType,
     PackageItem,
     Booking,
+    Client,
+    Invoice,
     Task,
     PlatformUser,
   ],
