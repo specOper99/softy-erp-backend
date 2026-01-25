@@ -69,7 +69,7 @@ import { User } from '../modules/users/entities/user.entity';
 import { Role } from '../modules/users/enums/role.enum';
 
 // Create data source
-const shouldDropSchema = (process.env.SEED_DROP_SCHEMA ?? 'true') === 'true';
+const shouldDropSchema = (process.env.SEED_DROP_SCHEMA ?? 'false') === 'true';
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 
 if (shouldDropSchema && nodeEnv === 'production') {
@@ -100,8 +100,10 @@ const AppDataSource = new DataSource({
     Task,
     PlatformUser,
   ],
+  migrations: ['src/database/migrations/*.{ts,js}'],
   dropSchema: shouldDropSchema,
-  synchronize: false, // Only for seeding - creates tables
+  migrationsRun: true,
+  synchronize: false, // Use migrations instead of synchronize during seeding
 });
 
 async function seed() {
