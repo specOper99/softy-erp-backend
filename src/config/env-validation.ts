@@ -110,11 +110,6 @@ class EnvironmentVariables {
   @IsOptional()
   DB_SYNCHRONIZE?: string;
 
-  // Tenant routing
-  @IsString()
-  @IsOptional()
-  TENANT_ALLOWED_DOMAINS?: string;
-
   // JWT verification
   @IsString()
   @IsOptional()
@@ -326,11 +321,6 @@ export function validate(config: Record<string, unknown>) {
     // Never allow TypeORM schema synchronization in production.
     if (validatedConfig.DB_SYNCHRONIZE === 'true') {
       throw new Error('SECURITY: DB_SYNCHRONIZE=true is forbidden in production environments. Use migrations only.');
-    }
-
-    // Tenant allowlist must be configured in production (fail-closed).
-    if (!validatedConfig.TENANT_ALLOWED_DOMAINS || validatedConfig.TENANT_ALLOWED_DOMAINS.trim().length === 0) {
-      throw new Error('SECURITY: TENANT_ALLOWED_DOMAINS must be configured in production environments.');
     }
 
     // JWT algorithm must be a single mode (HS256 OR RS256) to prevent alg confusion.

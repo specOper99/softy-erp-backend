@@ -40,8 +40,6 @@ Supported Roles:
   - **ALL** database queries must inject `where: { tenantId }`.
   - Composite Foreign Keys (e.g., `(tenantId, userId)`) are used to prevent cross-tenant references at the database level.
   - **NEVER** trust `tenantId` from request bodies or client-provided headers; always source it from the authenticated token.
-  - Host/subdomain fallback is allowed only for unauthenticated flows and must be allowlisted via `TENANT_ALLOWED_DOMAINS`.
-  - If both an authenticated JWT tenantId and an allowlisted host tenant are present, the request is rejected unless they match.
 
 ---
 
