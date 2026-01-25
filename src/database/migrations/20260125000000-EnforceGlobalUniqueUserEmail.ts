@@ -27,6 +27,23 @@ export class EnforceGlobalUniqueUserEmail20260125000000 implements MigrationInte
       DECLARE r record;
       BEGIN
         FOR r IN (
+          SELECT indexname
+          FROM pg_indexes
+          WHERE schemaname = 'public'
+            AND tablename = 'users'
+            AND indexdef ILIKE '%UNIQUE%'
+            AND indexdef ILIKE '%(tenant_id, email)%'
+        ) LOOP
+          EXECUTE format('DROP INDEX IF EXISTS %I', r.indexname);
+        END LOOP;
+      END $$;
+    `);
+
+    await queryRunner.query(`
+      DO $$
+      DECLARE r record;
+      BEGIN
+        FOR r IN (
           SELECT i.relname AS indexname
           FROM pg_class i
           JOIN pg_index ix ON ix.indexrelid = i.oid
@@ -45,6 +62,8 @@ export class EnforceGlobalUniqueUserEmail20260125000000 implements MigrationInte
     await queryRunner.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_email_unique_active" ON "users" ("email") WHERE deleted_at IS NULL`,
     );
+
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email)`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
