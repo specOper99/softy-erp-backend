@@ -62,6 +62,7 @@ export class PayrollService {
         const tenants = await this.tenantsService.findAll();
 
         // PERFORMANCE FIX: Use bounded concurrency instead of sequential processing
+        // Dynamic import for ESM-only p-limit package
         const { default: pLimit } = await import('p-limit');
         const limit = pLimit(5); // Max 5 concurrent tenant payroll runs
 
