@@ -101,7 +101,7 @@ const AppDataSource = new DataSource({
     PlatformUser,
   ],
   dropSchema: shouldDropSchema,
-  synchronize: true, // Only for seeding - creates tables
+  synchronize: false, // Only for seeding - creates tables
 });
 
 async function seed() {
