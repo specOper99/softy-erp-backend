@@ -9,6 +9,7 @@ import { Client } from '../modules/bookings/entities/client.entity';
 import { PackageItem } from '../modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
 import { TaskType } from '../modules/catalog/entities/task-type.entity';
+import { OutboxEvent } from '../common/entities/outbox-event.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
 import { Invoice } from '../modules/finance/entities/invoice.entity';
 import { Payout } from '../modules/finance/entities/payout.entity';
@@ -62,6 +63,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Client,
     Task,
     TimeEntry,
+    OutboxEvent,
     Transaction,
     TransactionCategory,
     RecurringTransaction,
