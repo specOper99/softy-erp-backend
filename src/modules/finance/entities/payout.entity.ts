@@ -1,4 +1,5 @@
 import { Column, Entity, Index, OneToMany } from 'typeorm';
+import { MoneyColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Currency } from '../enums/currency.enum';
 import { PayoutStatus } from '../enums/payout-status.enum';
@@ -8,10 +9,18 @@ import { Transaction } from './transaction.entity';
 @Index(['tenantId', 'id'], { unique: true })
 @Index(['tenantId', 'idempotencyKey'], { unique: true })
 export class Payout extends BaseTenantEntity {
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  /**
+   * Total payout amount.
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @MoneyColumn('amount', { nullable: false })
   amount: number;
 
-  @Column({ name: 'commission_amount', type: 'decimal', precision: 12, scale: 2, default: 0 })
+  /**
+   * Commission portion of the payout.
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @MoneyColumn('commission_amount')
   commissionAmount: number;
 
   @Column({ name: 'idempotency_key', type: 'text', nullable: true })

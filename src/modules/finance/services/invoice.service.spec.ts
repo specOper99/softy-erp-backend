@@ -1,6 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import {
   createMockBooking,
   createMockInvoice,
@@ -9,6 +8,7 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { InvoiceRepository } from '../repositories/invoice.repository';
 import { InvoiceService } from './invoice.service';
@@ -65,7 +65,7 @@ describe('InvoiceService', () => {
           useValue: mockInvoiceRepo,
         },
         {
-          provide: getRepositoryToken(Booking),
+          provide: BookingRepository,
           useValue: mockBookingRepo,
         },
       ],
@@ -73,7 +73,7 @@ describe('InvoiceService', () => {
 
     service = module.get<InvoiceService>(InvoiceService);
     invoiceRepo = module.get(InvoiceRepository);
-    bookingRepo = module.get(getRepositoryToken(Booking));
+    bookingRepo = module.get(BookingRepository);
 
     mockTenantContext(mockTenantId);
   });
@@ -97,7 +97,7 @@ describe('InvoiceService', () => {
 
       expect(bookingRepo.findOne).toHaveBeenCalledWith({
         relations: ['client', 'servicePackage'],
-        where: { id: 'booking-123', tenantId: mockTenantId },
+        where: { id: 'booking-123' },
       });
       expect(invoiceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -1,4 +1,5 @@
 import { Column, Entity, Index } from 'typeorm';
+import { MoneyColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 
 @Entity('department_budgets')
@@ -7,13 +8,11 @@ export class DepartmentBudget extends BaseTenantEntity {
   @Column()
   department: string;
 
-  @Column({
-    name: 'budget_amount',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  /**
+   * Budget allocation for this department/period.
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @MoneyColumn('budget_amount')
   budgetAmount: number;
 
   @Column()

@@ -2,7 +2,8 @@ import { Controller, Get, Param, ParseUUIDPipe, Post, Res, UseGuards } from '@ne
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../../common/guards/roles.guard';
+import { ResourceOwnership, ResourceOwnershipGuard, RolesGuard } from '../../../common/guards';
+import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
 import { InvoiceService } from '../services/invoice.service';
@@ -11,6 +12,7 @@ import { InvoiceService } from '../services/invoice.service';
 @ApiBearerAuth()
 @Controller('invoices')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@MfaRequired()
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
@@ -27,11 +29,20 @@ export class InvoiceController {
   }
 
   @Get(':id/pdf')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.CLIENT) // Clients can download their own? Security check is tenant for now.
+  @UseGuards(ResourceOwnershipGuard)
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.CLIENT)
+  @ResourceOwnership({
+    resourceType: 'Invoice',
+    paramName: 'id',
+    ownerField: 'clientId',
+    userField: 'clientId',
+    allowRoles: [Role.ADMIN, Role.OPS_MANAGER],
+    errorMessage: 'You can only download your own invoices',
+  })
   @ApiOperation({ summary: 'Download invoice PDF' })
   @ApiResponse({ status: 200, description: 'PDF file download' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 403, description: 'Forbidden - You can only download your own invoices' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadPdf(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
     const pdfBuffer = await this.invoiceService.getInvoicePdf(id);

@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Gauge, register } from 'prom-client';
-import { LessThan, Repository } from 'typeorm';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
+import { TenantsService } from '../../tenants/tenants.service';
 import { Payout } from '../entities/payout.entity';
-import { PayoutStatus } from '../enums/payout-status.enum';
+import { PayoutRepository } from '../repositories/payout.repository';
 
 @Injectable()
 export class PayoutConsistencyCron {
@@ -13,9 +14,10 @@ export class PayoutConsistencyCron {
   private readonly stuckPayoutsGauge: Gauge;
 
   constructor(
-    @InjectRepository(Payout)
-    private readonly payoutRepository: Repository<Payout>,
+    private readonly payoutRepository: PayoutRepository,
     private readonly paymentGateway: MockPaymentGatewayService,
+    private readonly tenantsService: TenantsService,
+    private readonly distributedLockService: DistributedLockService,
   ) {
     this.stuckPayoutsGauge = new Gauge({
       name: 'softy_erp_stuck_payouts',
@@ -26,36 +28,49 @@ export class PayoutConsistencyCron {
 
   /**
    * Monitor for stuck payouts (PENDING for > 10 minutes).
-   * Runs every 10 minutes.
+   * Runs every 10 minutes with tenant isolation.
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async monitorStuckPayouts(): Promise<void> {
-    const stuckPayouts = await this.findStuckPayouts();
+    // Use distributed lock to prevent concurrent runs across instances
+    const result = await this.distributedLockService.withLock(
+      'payout:consistency-check',
+      async () => {
+        const tenants = await this.tenantsService.findAll();
+        let totalStuck = 0;
 
-    // Update Prometheus metric
-    this.stuckPayoutsGauge.set(stuckPayouts.length);
+        for (const tenant of tenants) {
+          await TenantContextService.run(tenant.id, async () => {
+            const stuckPayouts = await this.findStuckPayouts();
+            totalStuck += stuckPayouts.length;
 
-    if (stuckPayouts.length === 0) {
-      return;
-    }
+            if (stuckPayouts.length > 0) {
+              this.logger.warn(
+                `Tenant ${tenant.id}: Found ${stuckPayouts.length} stuck payouts. Checking status with gateway...`,
+              );
 
-    this.logger.warn(`Found ${stuckPayouts.length} stuck payouts. Checking status with gateway...`);
+              for (const payout of stuckPayouts) {
+                await this.handleStuckPayout(payout);
+              }
+            }
+          });
+        }
 
-    for (const payout of stuckPayouts) {
-      await this.handleStuckPayout(payout);
+        // Update Prometheus metric with total across all tenants
+        this.stuckPayoutsGauge.set(totalStuck);
+        return { totalStuck };
+      },
+      { ttl: 60000 }, // 1 minute TTL
+    );
+
+    if (!result) {
+      this.logger.debug('Skipping payout consistency check: another instance is running');
     }
   }
 
   private async findStuckPayouts(): Promise<Payout[]> {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-
-    return this.payoutRepository.find({
-      where: {
-        status: PayoutStatus.PENDING,
-        payoutDate: LessThan(tenMinutesAgo),
-      },
-      take: 100, // Limit alerts
-    });
+    // Use tenant-scoped repository method
+    return this.payoutRepository.findStuckPayouts(10, 100);
   }
 
   private async handleStuckPayout(payout: Payout): Promise<void> {

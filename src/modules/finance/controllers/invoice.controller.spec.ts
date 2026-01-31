@@ -1,6 +1,7 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
+import { DataSource } from 'typeorm';
 import { createMockInvoice } from '../../../../test/helpers/mock-factories';
 import { Invoice } from '../entities/invoice.entity';
 import { InvoiceService } from '../services/invoice.service';
@@ -26,6 +27,14 @@ describe('InvoiceController', () => {
           useValue: {
             createInvoice: jest.fn(),
             getInvoicePdf: jest.fn(),
+          },
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            getRepository: jest.fn().mockReturnValue({
+              findOne: jest.fn(),
+            }),
           },
         },
         Reflector,

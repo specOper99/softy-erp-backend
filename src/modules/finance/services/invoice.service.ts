@@ -1,10 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { Repository } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { Booking } from '../../bookings/entities/booking.entity';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 
 import { InvoiceRepository } from '../repositories/invoice.repository';
@@ -16,9 +13,7 @@ const INVOICE_NUMBER_PREFIX = 'INV';
 export class InvoiceService {
   constructor(
     private readonly invoiceRepository: InvoiceRepository,
-
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: BookingRepository,
   ) {}
 
   /**
@@ -33,10 +28,8 @@ export class InvoiceService {
   }
 
   async createInvoice(bookingId: string): Promise<Invoice> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId, tenantId },
+      where: { id: bookingId },
       relations: ['client', 'servicePackage'],
     });
 

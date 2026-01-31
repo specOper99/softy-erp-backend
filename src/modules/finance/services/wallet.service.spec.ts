@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { EntityManager } from 'typeorm';
 import {
   createMockEmployeeWallet,
   createMockTenantAwareRepository,
@@ -8,7 +9,6 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
-import { EntityManager } from 'typeorm';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 import { WalletRepository } from '../repositories/wallet.repository';
 import { WalletService } from './wallet.service';
@@ -277,7 +277,7 @@ describe('WalletService', () => {
       expect(result.pendingBalance).toBe(6);
     });
 
-    it('should clamp pending balance to 0 and warn when subtraction goes negative', async () => {
+    it('should throw BadRequestException when subtraction exceeds pending balance', async () => {
       const existing = createMockEmployeeWallet({
         userId: mockUserId,
         tenantId: mockTenantId,
@@ -291,12 +291,7 @@ describe('WalletService', () => {
         save: jest.fn().mockImplementation((wallet) => Promise.resolve(wallet)),
       } as unknown as EntityManager;
 
-      const loggerSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'warn');
-
-      const result = await service.subtractPendingCommission(manager, mockUserId, 10);
-
-      expect(result.pendingBalance).toBe(0);
-      expect(loggerSpy).toHaveBeenCalled();
+      await expect(service.subtractPendingCommission(manager, mockUserId, 10)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException when wallet missing', async () => {

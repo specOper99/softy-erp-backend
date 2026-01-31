@@ -1,4 +1,5 @@
 import { Column, Entity, Index } from 'typeorm';
+import { MoneyColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
@@ -34,7 +35,11 @@ export class RecurringTransaction extends BaseTenantEntity {
   })
   type: TransactionType;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  /**
+   * Recurring transaction amount.
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @MoneyColumn('amount', { nullable: false })
   amount: number;
 
   @Column({

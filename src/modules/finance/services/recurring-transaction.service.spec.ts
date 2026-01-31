@@ -8,6 +8,7 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringFrequency, RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
 import { Transaction } from '../entities/transaction.entity';
@@ -71,6 +72,14 @@ describe('RecurringTransactionService', () => {
               manager: {
                 save: jest.fn(),
               },
+            }),
+          },
+        },
+        {
+          provide: DistributedLockService,
+          useValue: {
+            withLock: jest.fn().mockImplementation(async (_key: string, callback: () => Promise<unknown>) => {
+              return callback();
             }),
           },
         },

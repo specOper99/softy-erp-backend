@@ -1,5 +1,7 @@
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMockTransaction } from '../../../../test/helpers/mock-factories';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CreateTransactionDto, TransactionFilterDto } from '../dto';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from '../services/finance.service';
@@ -37,6 +39,15 @@ describe('TransactionsController', () => {
             invalidateReportCaches: jest.fn().mockResolvedValue({}),
           },
         },
+        {
+          provide: CacheUtilsService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+          },
+        },
+        Reflector,
       ],
     }).compile();
 

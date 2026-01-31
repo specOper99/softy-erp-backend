@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
 import { Payout } from '../entities/payout.entity';
@@ -60,6 +61,12 @@ describe('PayoutRelayService', () => {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
   };
 
+  const mockDistributedLockService = {
+    withLock: jest.fn().mockImplementation(async (_key: string, callback: () => Promise<unknown>) => {
+      return callback();
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -72,6 +79,7 @@ describe('PayoutRelayService', () => {
         { provide: WalletService, useValue: mockWalletService },
         { provide: FinanceService, useValue: mockFinanceService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: DistributedLockService, useValue: mockDistributedLockService },
       ],
     }).compile();
 
