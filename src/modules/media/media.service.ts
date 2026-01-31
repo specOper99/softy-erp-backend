@@ -1,11 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { FileTypeUtil } from '../../common/utils/file-type.util';
 import { Attachment } from './entities/attachment.entity';
+import { AttachmentRepository } from './repositories/attachment.repository';
 import { StorageService } from './storage.service';
 
 export interface UploadFileParams {
@@ -26,8 +26,7 @@ export class MediaService {
   private static readonly MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
   constructor(
-    @InjectRepository(Attachment)
-    private readonly attachmentRepository: Repository<Attachment>,
+    private readonly attachmentRepository: AttachmentRepository,
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
   ) {}
@@ -59,10 +58,7 @@ export class MediaService {
    */
   async uploadFile(params: UploadFileParams): Promise<Attachment> {
     const { buffer, originalName, mimeType, size, bookingId, taskId } = params;
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const effectiveSize = Number.isFinite(size) ? size : buffer.length;
     if (effectiveSize <= 0) {
@@ -124,10 +120,7 @@ export class MediaService {
     bookingId?: string,
     taskId?: string,
   ): Promise<{ uploadUrl: string; attachment: Attachment }> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     // Validate bookingId/taskId belong to tenant
     await this.validateReferences(tenantId, bookingId, taskId);
@@ -166,12 +159,8 @@ export class MediaService {
    * Confirm upload and update attachment with final URL
    */
   async confirmUpload(attachmentId: string, _clientReportedSize: number): Promise<Attachment> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
     const attachment = await this.attachmentRepository.findOne({
-      where: { id: attachmentId, tenantId },
+      where: { id: attachmentId },
     });
 
     if (!attachment) {
@@ -208,10 +197,7 @@ export class MediaService {
    * Create attachment record with external URL (for legacy support)
    */
   async create(data: Partial<Attachment>): Promise<Attachment> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     await this.validateReferences(tenantId, data.bookingId ?? undefined, data.taskId ?? undefined);
 
@@ -224,12 +210,7 @@ export class MediaService {
   }
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<Attachment[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
     return this.attachmentRepository.find({
-      where: { tenantId },
       relations: ['booking', 'task'],
       order: { createdAt: 'DESC' },
       skip: query.getSkip(),
@@ -238,17 +219,12 @@ export class MediaService {
   }
 
   async findAllCursor(query: CursorPaginationDto): Promise<{ data: Attachment[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
     const limit = query.limit || 20;
 
     const qb = this.attachmentRepository.createQueryBuilder('attachment');
 
     qb.leftJoinAndSelect('attachment.booking', 'booking')
       .leftJoinAndSelect('attachment.task', 'task')
-      .where('attachment.tenantId = :tenantId', { tenantId })
       .orderBy('attachment.createdAt', 'DESC')
       .addOrderBy('attachment.id', 'DESC')
       .take(limit + 1);
@@ -283,12 +259,8 @@ export class MediaService {
   }
 
   async findOne(id: string): Promise<Attachment> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
     const attachment = await this.attachmentRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: ['booking', 'task'],
     });
     if (!attachment) {
@@ -298,28 +270,18 @@ export class MediaService {
   }
 
   async findByBooking(bookingId: string, limit = MediaService.DEFAULT_LIST_LIMIT): Promise<Attachment[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
-
     const take = this.normalizeListLimit(limit);
     return this.attachmentRepository.find({
-      where: { bookingId, tenantId },
+      where: { bookingId },
       order: { createdAt: 'DESC' },
       take,
     });
   }
 
   async findByTask(taskId: string, limit = MediaService.DEFAULT_LIST_LIMIT): Promise<Attachment[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
-
     const take = this.normalizeListLimit(limit);
     return this.attachmentRepository.find({
-      where: { taskId, tenantId },
+      where: { taskId },
       order: { createdAt: 'DESC' },
       take,
     });
@@ -350,12 +312,8 @@ export class MediaService {
    * Delete attachment and its file from storage
    */
   async remove(id: string): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
     const attachment = await this.attachmentRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
     });
     if (!attachment) {
       throw new NotFoundException(`Attachment with ID ${id} not found`);
