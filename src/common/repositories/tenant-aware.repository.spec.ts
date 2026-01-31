@@ -37,6 +37,7 @@ describe('TenantAwareRepository', () => {
       createQueryBuilder: jest.fn(),
       remove: jest.fn(),
       softRemove: jest.fn(),
+      metadata: { name: 'TestEntity' },
     } as unknown as Repository<TestEntity>;
 
     repository = new TestRepository(mockTypeOrmRepository);

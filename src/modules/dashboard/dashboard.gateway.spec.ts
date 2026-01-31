@@ -1,12 +1,12 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { GATEWAY_OPTIONS } from '@nestjs/websockets/constants';
+import type { Server } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
 import { DashboardGateway } from './dashboard.gateway';
-import { GATEWAY_OPTIONS } from '@nestjs/websockets/constants';
-import type { Server } from 'socket.io';
 
 describe('DashboardGateway', () => {
   let gateway: DashboardGateway;

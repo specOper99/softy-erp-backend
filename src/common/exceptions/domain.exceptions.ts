@@ -99,6 +99,52 @@ export class CrossTenantAccessError extends ForbiddenException {
   }
 }
 
+/**
+ * Thrown when an operation attempts to access or modify data belonging to a different tenant.
+ * This is a security-critical exception that should trigger alerts in production.
+ */
+export class TenantMismatchException extends ForbiddenException {
+  /** The tenant ID from the current context */
+  readonly contextTenantId: string;
+  /** The tenant ID of the entity being accessed (if known) */
+  readonly entityTenantId?: string;
+  /** The type of operation that was attempted */
+  readonly operation: TenantMismatchOperation;
+
+  constructor(options: {
+    contextTenantId: string;
+    entityTenantId?: string;
+    operation: TenantMismatchOperation;
+    entityType?: string;
+    entityId?: string;
+  }) {
+    const entityInfo = options.entityType
+      ? ` on ${options.entityType}${options.entityId ? ` (${options.entityId})` : ''}`
+      : '';
+
+    super({
+      code: 'common.tenant_mismatch',
+      message: `Tenant mismatch: ${options.operation} operation${entityInfo} denied`,
+      contextTenantId: options.contextTenantId,
+      entityTenantId: options.entityTenantId,
+      operation: options.operation,
+    });
+
+    this.contextTenantId = options.contextTenantId;
+    this.entityTenantId = options.entityTenantId;
+    this.operation = options.operation;
+  }
+}
+
+export enum TenantMismatchOperation {
+  READ = 'READ',
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  EXPORT = 'EXPORT',
+  STREAM = 'STREAM',
+}
+
 export class InsufficientPermissionsError extends ForbiddenException {
   constructor(action: string) {
     super({
