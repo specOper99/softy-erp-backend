@@ -9,6 +9,7 @@ import { DistributedLockService } from '../../../common/services/distributed-loc
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
+import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { Payout } from '../../finance/entities/payout.entity';
 import { Transaction } from '../../finance/entities/transaction.entity';
@@ -27,6 +28,8 @@ export class PayrollService {
   private readonly logger = new Logger(PayrollService.name);
   private readonly PAYROLL_BATCH_SIZE = 100;
 
+  private readonly tenantTx: TenantScopedManager;
+
   constructor(
     @InjectRepository(Profile)
     private readonly profileRepository: Repository<Profile>,
@@ -39,7 +42,9 @@ export class PayrollService {
     private readonly dataSource: DataSource,
     private readonly tenantsService: TenantsService,
     private readonly distributedLockService: DistributedLockService,
-  ) {}
+  ) {
+    this.tenantTx = new TenantScopedManager(dataSource);
+  }
 
   /**
    * WORKFLOW 3: Payroll Run (Cron Job)
@@ -246,83 +251,79 @@ export class PayrollService {
       const referenceId = `${tenantId}-${profile.id}-${payrollMonth}`;
       const idempotencyKey = `payroll:${tenantId}:${profile.id}:${payrollMonth}`;
 
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-
       try {
-        const wallet = await this.walletService.getOrCreateWalletWithManager(queryRunner.manager, profile.userId);
+        const result = await this.tenantTx.run(async (manager) => {
+          const wallet = await this.walletService.getOrCreateWalletWithManager(manager, profile.userId);
 
-        const commissionPayable = wallet ? Number(wallet.payableBalance) || 0 : 0;
-        const totalAmount = MathUtils.add(baseSalary, commissionPayable);
+          const commissionPayable = wallet ? Number(wallet.payableBalance) || 0 : 0;
+          const totalAmount = MathUtils.add(baseSalary, commissionPayable);
 
-        if (totalAmount <= 0) {
-          await queryRunner.rollbackTransaction();
-          continue;
-        }
+          if (totalAmount <= 0) {
+            return null; // Skip this employee
+          }
 
-        const existingPayout = await queryRunner.manager.findOne(Payout, {
-          where: {
+          const existingPayout = await manager.findOne(Payout, {
+            where: {
+              tenantId,
+              idempotencyKey,
+            },
+          });
+
+          if (existingPayout) {
+            this.logger.log(`Skipping already existing payout for ${idempotencyKey}`);
+            return null; // Skip this employee
+          }
+
+          const payout = manager.create(Payout, {
             tenantId,
             idempotencyKey,
-          },
+            amount: totalAmount,
+            commissionAmount: commissionPayable,
+            payoutDate: new Date(),
+            status: PayoutStatus.PENDING,
+            notes: `Pending payroll for ${referenceId}`,
+            currency: Currency.USD,
+            metadata: {
+              userId: profile.userId,
+              employeeName: `${profile.firstName || ''} ${profile.lastName || ''}`,
+              bankAccount: profile.bankAccount || 'NO_BANK_ACCOUNT',
+              referenceId,
+            },
+          });
+
+          await manager.save(payout);
+
+          // Create corresponding transaction record for the payout
+          const transaction = manager.create(Transaction, {
+            tenantId,
+            type: TransactionType.PAYROLL,
+            currency: Currency.USD,
+            exchangeRate: 1.0,
+            amount: totalAmount,
+            category: 'Payroll',
+            department: profile.department || 'Operations',
+            payoutId: payout.id,
+            description: `Payroll payout for ${profile.firstName || ''} ${profile.lastName || ''}`,
+            transactionDate: new Date(),
+          });
+
+          await manager.save(transaction);
+
+          if (wallet && commissionPayable > 0) {
+            await this.walletService.resetPayableBalance(manager, profile.userId);
+          }
+
+          return { transaction, totalAmount };
         });
 
-        if (existingPayout) {
-          this.logger.log(`Skipping already existing payout for ${idempotencyKey}`);
-          await queryRunner.rollbackTransaction();
-          continue;
+        if (result) {
+          transactionIds.push(result.transaction.id);
+          totalPayout = MathUtils.add(totalPayout, result.totalAmount);
+          employeesProcessed++;
         }
-
-        const payout = queryRunner.manager.create(Payout, {
-          tenantId,
-          idempotencyKey,
-          amount: totalAmount,
-          commissionAmount: commissionPayable,
-          payoutDate: new Date(),
-          status: PayoutStatus.PENDING,
-          notes: `Pending payroll for ${referenceId}`,
-          currency: Currency.USD,
-          metadata: {
-            userId: profile.userId,
-            employeeName: `${profile.firstName || ''} ${profile.lastName || ''}`,
-            bankAccount: profile.bankAccount || 'NO_BANK_ACCOUNT',
-            referenceId,
-          },
-        });
-
-        await queryRunner.manager.save(payout);
-
-        // Create corresponding transaction record for the payout
-        const transaction = queryRunner.manager.create(Transaction, {
-          tenantId,
-          type: TransactionType.PAYROLL,
-          currency: Currency.USD,
-          exchangeRate: 1.0,
-          amount: totalAmount,
-          category: 'Payroll',
-          department: profile.department || 'Operations',
-          payoutId: payout.id,
-          description: `Payroll payout for ${profile.firstName || ''} ${profile.lastName || ''}`,
-          transactionDate: new Date(),
-        });
-
-        await queryRunner.manager.save(transaction);
-
-        if (wallet && commissionPayable > 0) {
-          await this.walletService.resetPayableBalance(queryRunner.manager, profile.userId);
-        }
-
-        await queryRunner.commitTransaction();
-
-        transactionIds.push(transaction.id);
-        totalPayout = MathUtils.add(totalPayout, totalAmount);
-        employeesProcessed++;
       } catch (error) {
-        await queryRunner.rollbackTransaction();
         this.logger.error(`Payroll processing failed for ${profile.firstName} ${profile.lastName}`, error);
-      } finally {
-        await queryRunner.release();
+        // Continue with next employee - partial payroll is better than none
       }
     }
 
