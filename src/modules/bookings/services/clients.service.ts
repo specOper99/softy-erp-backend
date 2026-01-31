@@ -1,10 +1,13 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { Readable } from 'stream';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { CreateClientDto, UpdateClientDto } from '../dto';
 import { Client } from '../entities/client.entity';
+import { ClientCreatedEvent, ClientDeletedEvent, ClientUpdatedEvent } from '../events/client.events';
 import type { StreamableResponse } from '../types/export.types';
 
 /**
@@ -23,13 +26,31 @@ export class ClientsService {
     private readonly bookingRepository: BookingRepository,
     private readonly auditService: AuditService,
     private readonly exportService: ExportService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async create(dto: CreateClientDto): Promise<Client> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const client = this.clientRepository.create({
       ...dto,
     });
-    return this.clientRepository.save(client);
+    const savedClient = await this.clientRepository.save(client);
+
+    // Publish domain event
+    this.eventBus.publish(
+      new ClientCreatedEvent(
+        savedClient.id,
+        tenantId,
+        savedClient.email,
+        savedClient.name.split(' ')[0] || savedClient.name,
+        savedClient.name.split(' ').slice(1).join(' ') || '',
+        savedClient.phone,
+        savedClient.tags || [],
+        savedClient.createdAt,
+      ),
+    );
+
+    return savedClient;
   }
 
   async findAll(query: PaginationDto = new PaginationDto(), tags?: string[]): Promise<Client[]> {
@@ -67,21 +88,46 @@ export class ClientsService {
   }
 
   async update(id: string, dto: UpdateClientDto): Promise<Client> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const client = await this.findById(id);
+    const oldValues: Record<string, unknown> = {};
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
 
-    if (dto.name !== undefined) client.name = dto.name;
-    if (dto.email !== undefined) client.email = dto.email;
-    if (dto.phone !== undefined) client.phone = dto.phone;
-    if (dto.notes !== undefined) client.notes = dto.notes;
-    if (dto.tags !== undefined) client.tags = dto.tags;
+    if (dto.name !== undefined && dto.name !== client.name) {
+      changes['name'] = { old: client.name, new: dto.name };
+      oldValues.name = client.name;
+      client.name = dto.name;
+    }
+    if (dto.email !== undefined && dto.email !== client.email) {
+      changes['email'] = { old: client.email, new: dto.email };
+      oldValues.email = client.email;
+      client.email = dto.email;
+    }
+    if (dto.phone !== undefined && dto.phone !== client.phone) {
+      changes['phone'] = { old: client.phone, new: dto.phone };
+      client.phone = dto.phone;
+    }
+    if (dto.notes !== undefined && dto.notes !== client.notes) {
+      changes['notes'] = { old: client.notes, new: dto.notes };
+      client.notes = dto.notes;
+    }
+    if (dto.tags !== undefined) {
+      changes['tags'] = { old: client.tags, new: dto.tags };
+      client.tags = dto.tags;
+    }
 
     const savedClient = await this.clientRepository.save(client);
+
+    // Publish domain event if there were changes
+    if (Object.keys(changes).length > 0) {
+      this.eventBus.publish(new ClientUpdatedEvent(savedClient.id, tenantId, changes, new Date()));
+    }
 
     await this.auditService.log({
       action: 'UPDATE',
       entityName: 'Client',
       entityId: client.id,
-      oldValues: { name: client.name, email: client.email },
+      oldValues,
       newValues: dto as Record<string, unknown>,
     });
 
@@ -89,6 +135,7 @@ export class ClientsService {
   }
 
   async delete(id: string): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const client = await this.findById(id);
 
     const bookingsCount = await this.bookingRepository.count({
@@ -102,6 +149,9 @@ export class ClientsService {
     }
 
     await this.clientRepository.softRemove(client);
+
+    // Publish domain event
+    this.eventBus.publish(new ClientDeletedEvent(client.id, tenantId, client.email, new Date()));
 
     await this.auditService.log({
       action: 'DELETE',

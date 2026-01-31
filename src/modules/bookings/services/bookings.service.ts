@@ -25,6 +25,7 @@ import {
 import { Booking } from '../entities/booking.entity';
 
 import { BookingStatus } from '../enums/booking-status.enum';
+import { BookingCreatedEvent } from '../events/booking-created.event';
 import { BookingUpdatedEvent } from '../events/booking-updated.event';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
@@ -96,6 +97,23 @@ export class BookingsService {
     });
 
     const savedBooking = await this.bookingRepository.save(booking);
+
+    // Publish domain event for cross-module reactions
+    this.eventBus.publish(
+      new BookingCreatedEvent(
+        savedBooking.id,
+        tenantId,
+        savedBooking.clientId,
+        '', // clientEmail - will be populated by handler if needed
+        '', // clientName - will be populated by handler if needed
+        savedBooking.packageId,
+        pkg.name,
+        savedBooking.totalPrice,
+        null, // assignedUserId - no assignment at creation
+        savedBooking.eventDate,
+        savedBooking.createdAt,
+      ),
+    );
 
     // Notify dashboard for real-time update
     this.dashboardGateway.broadcastMetricsUpdate(tenantId, 'BOOKING', {
