@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { PII } from '../../../common/decorators';
 import { Role } from '../enums/role.enum';
 
@@ -34,10 +34,12 @@ export class UpdateUserDto {
   role?: Role;
 
   @ApiPropertyOptional()
+  @IsBoolean()
   @IsOptional()
   isActive?: boolean;
 
   @ApiPropertyOptional()
+  @IsBoolean()
   @IsOptional()
   emailVerified?: boolean;
 }

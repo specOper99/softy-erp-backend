@@ -88,7 +88,6 @@ export class UsersService {
     const qb = this.userRepository.createQueryBuilder('user');
 
     qb.leftJoinAndSelect('user.wallet', 'wallet')
-      .where('user.tenantId = :tenantId', { tenantId: TenantContextService.getTenantIdOrThrow() })
       .orderBy('user.createdAt', 'DESC')
       .addOrderBy('user.id', 'DESC')
       .take(limit + 1);
@@ -153,11 +152,11 @@ export class UsersService {
   }
 
   async findByEmailWithMfaSecret(email: string, tenantId?: string): Promise<User | null> {
-    const qb = this.userRepository.createQueryBuilder('user').andWhere('user.email = :email', { email });
-
-    if (tenantId) {
-      qb.andWhere('user.tenantId = :tenantId', { tenantId });
-    }
+    const resolvedTenantId = tenantId || TenantContextService.getTenantIdOrThrow();
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .andWhere('user.email = :email', { email })
+      .andWhere('user.tenantId = :tenantId', { tenantId: resolvedTenantId });
 
     return qb.addSelect('user.mfaSecret').getOne();
   }
@@ -177,13 +176,7 @@ export class UsersService {
   }
 
   async findByIdWithRecoveryCodes(userId: string): Promise<User | null> {
-    const qb = this.userRepository.createQueryBuilder('user');
-    const tenantId = TenantContextService.getTenantId();
-
-    qb.where('user.id = :userId', { userId });
-    if (tenantId) {
-      qb.andWhere('user.tenantId = :tenantId', { tenantId });
-    }
+    const qb = this.userRepository.createQueryBuilder('user').andWhere('user.id = :userId', { userId });
 
     return qb.addSelect('user.mfaRecoveryCodes').getOne();
   }
