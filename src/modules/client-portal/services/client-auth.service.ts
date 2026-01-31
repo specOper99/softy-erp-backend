@@ -10,8 +10,8 @@ import { TenantAwareRepository } from '../../../common/repositories/tenant-aware
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Client } from '../../bookings/entities/client.entity';
-import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
+import { MailService } from '../../mail/mail.service';
 
 export interface ClientTokenPayload {
   sub: string; // client ID
@@ -43,9 +43,9 @@ export class ClientAuthService {
     private readonly mailService: MailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly tenantsService: TenantsService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly metricsFactory: MetricsFactory,
-    private readonly tenantsService: TenantsService,
   ) {
     this.SESSION_EXPIRY_SECONDS = this.configService.get<number>(
       'auth.clientSessionExpires',
@@ -130,6 +130,7 @@ export class ClientAuthService {
           clientName: client.name,
           token,
           expiresInHours: this.TOKEN_EXPIRY_HOURS,
+          tenantSlug: slug,
         });
 
         this.magicLinkRequestedCounter.inc({
@@ -253,11 +254,6 @@ export class ClientAuthService {
       });
 
       if (payload.type !== 'client') {
-        return null;
-      }
-
-      const tenantId = TenantContextService.getTenantId();
-      if (tenantId && payload.tenantId !== tenantId) {
         return null;
       }
 

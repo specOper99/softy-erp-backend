@@ -362,6 +362,7 @@ describe('ClientAuthService', () => {
         type: 'client',
       });
 
+      mockClientRepository.findOne.mockResolvedValue(null); // Client not found in current tenant
       const result = await service.validateClientToken('cross-tenant-jwt');
 
       expect(result).toBeNull();
