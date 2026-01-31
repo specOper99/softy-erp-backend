@@ -1,10 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { ClientPortalService } from './client-portal.service';
 
 describe('ClientPortalService', () => {
@@ -46,7 +46,7 @@ describe('ClientPortalService', () => {
       providers: [
         ClientPortalService,
         { provide: TENANT_REPO_CLIENT, useValue: clientRepository },
-        { provide: getRepositoryToken(Booking), useValue: bookingRepository },
+        { provide: BookingRepository, useValue: bookingRepository },
       ],
     }).compile();
 
@@ -99,7 +99,7 @@ describe('ClientPortalService', () => {
       const result = await service.getMyBookings('client-1', 'tenant-1', query);
 
       expect(bookingRepository.find).toHaveBeenCalledWith({
-        where: { clientId: 'client-1', tenantId: 'tenant-1' },
+        where: { clientId: 'client-1' },
         relations: ['servicePackage'],
         order: { eventDate: 'DESC' },
         skip: query.getSkip(),
@@ -131,7 +131,7 @@ describe('ClientPortalService', () => {
       const result = await service.getBooking('booking-1', 'client-1', 'tenant-1');
 
       expect(bookingRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'booking-1', clientId: 'client-1', tenantId: 'tenant-1' },
+        where: { id: 'booking-1', clientId: 'client-1' },
         relations: ['servicePackage', 'tasks'],
       });
       expect(result).toEqual(mockBooking);

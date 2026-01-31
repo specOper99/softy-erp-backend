@@ -1,19 +1,17 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 
 @Injectable()
 export class ClientPortalService {
   constructor(
     @Inject(TENANT_REPO_CLIENT)
     private readonly clientRepository: TenantAwareRepository<Client>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: BookingRepository,
   ) {}
 
   async getClientProfile(clientId: string, tenantId: string): Promise<Partial<Client>> {
@@ -35,11 +33,11 @@ export class ClientPortalService {
 
   async getMyBookings(
     clientId: string,
-    tenantId: string,
+    _tenantId: string, // Kept for API compatibility; TenantAwareRepository handles scoping
     query: PaginationDto = new PaginationDto(),
   ): Promise<Booking[]> {
     return this.bookingRepository.find({
-      where: { clientId, tenantId },
+      where: { clientId },
       relations: ['servicePackage'],
       order: { eventDate: 'DESC' },
       skip: query.getSkip(),
@@ -47,9 +45,9 @@ export class ClientPortalService {
     });
   }
 
-  async getBooking(bookingId: string, clientId: string, tenantId: string): Promise<Booking> {
+  async getBooking(bookingId: string, clientId: string, _tenantId: string): Promise<Booking> {
     const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId, clientId, tenantId },
+      where: { id: bookingId, clientId },
       relations: ['servicePackage', 'tasks'],
     });
 

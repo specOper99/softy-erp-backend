@@ -10,8 +10,8 @@ import { TenantAwareRepository } from '../../../common/repositories/tenant-aware
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Client } from '../../bookings/entities/client.entity';
-import { TenantsService } from '../../tenants/tenants.service';
 import { MailService } from '../../mail/mail.service';
+import { TenantsService } from '../../tenants/tenants.service';
 
 export interface ClientTokenPayload {
   sub: string; // client ID
