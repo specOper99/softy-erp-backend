@@ -30,6 +30,7 @@ export interface MagicLinkEmailData {
   clientName: string;
   token: string;
   expiresInHours: number;
+  tenantSlug: string;
 }
 
 export interface PasswordResetEmailData {

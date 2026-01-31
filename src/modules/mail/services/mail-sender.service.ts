@@ -166,7 +166,7 @@ export class MailSenderService {
 
   async sendMagicLink(data: MagicLinkEmailData, locale = 'en'): Promise<EmailResult> {
     const portalUrl = this.configService.get<string>('CLIENT_PORTAL_URL', 'https://portal.example.com');
-    const magicLinkUrl = `${portalUrl}/auth/verify?token=${data.token}`;
+    const magicLinkUrl = `${portalUrl}/auth/verify?token=${data.token}&tenant=${encodeURIComponent(data.tenantSlug)}`;
 
     return this.sendEmail({
       to: data.clientEmail,

@@ -1,6 +1,7 @@
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
+import { mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { EMAIL_QUEUE } from '../mail.types';
 import { MailQueueService } from './mail-queue.service';
 import { MailSenderService } from './mail-sender.service';
@@ -26,6 +27,7 @@ describe('MailQueueService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockTenantContext('test-tenant-123');
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MailQueueService,
@@ -72,6 +74,7 @@ describe('MailQueueService', () => {
     let serviceNoQueue: MailQueueService;
 
     beforeEach(async () => {
+      mockTenantContext('test-tenant-123');
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           MailQueueService,
