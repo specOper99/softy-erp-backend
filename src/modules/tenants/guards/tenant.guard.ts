@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
@@ -32,11 +32,7 @@ export class TenantGuard implements CanActivate {
       return true;
     }
 
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new UnauthorizedException('tenants.tenant_id_required');
-    }
-
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.assertTenantActiveOrAllowed(tenantId);
   }
 
