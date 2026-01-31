@@ -57,6 +57,7 @@ describe('AuthService - Comprehensive Tests', () => {
     findByEmail: jest.fn(),
     findByEmailGlobal: jest.fn(),
     findByEmailWithMfaSecret: jest.fn(),
+    findByEmailWithMfaSecretGlobal: jest.fn(),
     findByIdWithMfaSecret: jest.fn(),
     findByIdWithRecoveryCodes: jest.fn(),
     findByIdWithRecoveryCodesGlobal: jest.fn(),
@@ -242,7 +243,7 @@ describe('AuthService - Comprehensive Tests', () => {
 
     jest.clearAllMocks();
 
-    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
+    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -335,8 +336,19 @@ describe('AuthService - Comprehensive Tests', () => {
   });
 
   describe('login', () => {
+    it('should allow login without tenant context', async () => {
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue(mockUser);
+      mockUsersService.validatePassword.mockResolvedValue(true);
+
+      const dto = { email: 'test@example.com', password: TEST_PASSWORD };
+      const result = await service.login(dto);
+
+      expect(mockUsersService.findByEmailWithMfaSecretGlobal).toHaveBeenCalledWith('test@example.com');
+      expect(result).toHaveProperty('accessToken', 'mock-jwt-token');
+    });
+
     it('should return auth response for valid credentials', async () => {
-      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
 
       const dto = { email: 'test@example.com', password: TEST_PASSWORD };
@@ -348,7 +360,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should not fail login if suspicious activity check fails', async () => {
-      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
       mockSessionService.checkSuspiciousActivity.mockRejectedValue(new Error('suspicious check failed'));
 
@@ -368,7 +380,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should not fail login if new device check fails', async () => {
-      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(true);
       mockSessionService.checkNewDevice.mockRejectedValue(new Error('new device check failed'));
 
@@ -403,14 +415,14 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw UnauthorizedException for non-existent email', async () => {
-      mockUsersService.findByEmailGlobal.mockResolvedValue(null);
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue(null);
 
       const dto = { email: 'notfound@example.com', password: TEST_PASSWORD };
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException for incorrect password', async () => {
-      mockUsersService.findByEmailGlobal.mockResolvedValue(mockUser);
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue(mockUser);
       mockUsersService.validatePassword.mockResolvedValue(false);
 
       const dto = { email: 'test@example.com', password: TEST_WRONG_PASSWORD };
@@ -418,7 +430,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw UnauthorizedException for inactive user', async () => {
-      mockUsersService.findByEmailGlobal.mockResolvedValue({
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue({
         ...mockUser,
         isActive: false,
       });
@@ -428,7 +440,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should return requiresMfa challenge if MFA is enabled but no code provided', async () => {
-      mockUsersService.findByEmailGlobal.mockResolvedValue({
+      mockUsersService.findByEmailWithMfaSecretGlobal.mockResolvedValue({
         ...mockUser,
         isMfaEnabled: true,
       });

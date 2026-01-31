@@ -38,11 +38,11 @@ export class ClientPortalController {
 
   // ============ AUTHENTICATION ============
 
-  @Post('auth/request-magic-link')
+  @Post(':slug/auth/request-magic-link')
   @ApiOperation({ summary: 'Request a magic link login email' })
   @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 requests per minute
-  async requestMagicLink(@Body() dto: RequestMagicLinkDto): Promise<{ message: string }> {
-    return this.clientAuthService.requestMagicLink(dto.email);
+  async requestMagicLink(@Param('slug') slug: string, @Body() dto: RequestMagicLinkDto): Promise<{ message: string }> {
+    return this.clientAuthService.requestMagicLink(slug, dto.email);
   }
 
   @Post('auth/verify')

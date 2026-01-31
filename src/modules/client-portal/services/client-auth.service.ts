@@ -11,12 +11,21 @@ import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Client } from '../../bookings/entities/client.entity';
 import { MailService } from '../../mail/mail.service';
+import { TenantsService } from '../../tenants/tenants.service';
 
 export interface ClientTokenPayload {
   sub: string; // client ID
   email: string;
   tenantId: string;
   type: 'client';
+}
+
+interface ClientMagicLinkPayload {
+  sub: string;
+  email: string;
+  tenantId: string;
+  type: 'client_magic';
+  jti: string;
 }
 
 export class ClientAuthService {
@@ -36,6 +45,7 @@ export class ClientAuthService {
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly metricsFactory: MetricsFactory,
+    private readonly tenantsService: TenantsService,
   ) {
     this.SESSION_EXPIRY_SECONDS = this.configService.get<number>(
       'auth.clientSessionExpires',
@@ -87,121 +97,141 @@ export class ClientAuthService {
     return unique[0] ?? 'HS256';
   }
 
-  async requestMagicLink(email: string): Promise<{ message: string }> {
-    // SECURITY: Tenant context is enforced by TenantAwareRepository
-    const tenantId = TenantContextService.getTenantId();
+  async requestMagicLink(slug: string, email: string): Promise<{ message: string }> {
+    const tenant = await this.tenantsService.findBySlug(slug);
+    const tenantId = tenant.id;
 
-    try {
-      const client = await this.clientRepository.findOne({
-        where: { email },
-      });
+    return TenantContextService.run(tenantId, async () => {
+      try {
+        const client = await this.clientRepository.findOne({
+          where: { email },
+        });
 
-      if (!client) {
+        if (!client) {
+          this.magicLinkRequestedCounter.inc({
+            tenant_id: tenantId,
+            status: 'not_found',
+          });
+          return { message: 'If an account exists, a magic link has been sent.' };
+        }
+
+        const jti = randomBytes(16).toString('hex');
+        const token = this.jwtService.sign(
+          { sub: client.id, email: client.email, tenantId, type: 'client_magic', jti },
+          { expiresIn: `${this.TOKEN_EXPIRY_HOURS}h` },
+        );
+
+        client.accessTokenHash = this.hashToken(jti);
+        client.accessTokenExpiry = new Date(Date.now() + this.TOKEN_EXPIRY_HOURS * 3600 * 1000);
+        await this.clientRepository.save(client);
+
+        await this.mailService.sendMagicLink({
+          clientEmail: client.email,
+          clientName: client.name,
+          token,
+          expiresInHours: this.TOKEN_EXPIRY_HOURS,
+        });
+
         this.magicLinkRequestedCounter.inc({
           tenant_id: tenantId,
-          status: 'not_found',
+          status: 'success',
         });
         return { message: 'If an account exists, a magic link has been sent.' };
-      }
-
-      // Generate secure token
-      const token = randomBytes(32).toString('hex');
-      const tokenHash = this.hashToken(token);
-      const expiry = new Date();
-      expiry.setHours(expiry.getHours() + this.TOKEN_EXPIRY_HOURS);
-
-      client.accessTokenHash = tokenHash;
-      client.accessTokenExpiry = expiry;
-      await this.clientRepository.save(client);
-
-      await this.mailService.sendMagicLink({
-        clientEmail: client.email,
-        clientName: client.name,
-        token,
-        expiresInHours: this.TOKEN_EXPIRY_HOURS,
-      });
-
-      this.magicLinkRequestedCounter.inc({
-        tenant_id: tenantId,
-        status: 'success',
-      });
-      return { message: 'If an account exists, a magic link has been sent.' };
-    } catch (error) {
-      this.magicLinkRequestedCounter.inc({
-        tenant_id: tenantId,
-        status: 'error',
-      });
-      throw error;
-    }
-  }
-
-  async verifyMagicLink(token: string): Promise<{ accessToken: string; expiresIn: number; client: Client }> {
-    const tenantId = TenantContextService.getTenantId();
-    const tokenHash = this.hashToken(token);
-
-    try {
-      const client = await this.clientRepository.findOne({
-        where: { accessTokenHash: tokenHash },
-      });
-
-      if (!client) {
-        this.magicLinkVerifiedCounter.inc({
-          tenant_id: tenantId,
-          status: 'invalid_token',
-        });
-        throw new NotFoundException('Invalid or expired token');
-      }
-
-      if (!client.isAccessTokenValid()) {
-        this.magicLinkVerifiedCounter.inc({
-          tenant_id: tenantId,
-          status: 'expired',
-        });
-        throw new UnauthorizedException('Token has expired');
-      }
-
-      if (!this.compareHashes(tokenHash, client.accessTokenHash!)) {
-        this.magicLinkVerifiedCounter.inc({
-          tenant_id: tenantId,
-          status: 'hash_mismatch',
-        });
-        throw new UnauthorizedException('Invalid token');
-      }
-
-      client.accessTokenHash = null;
-      client.accessTokenExpiry = null;
-      await this.clientRepository.save(client);
-
-      const payload: ClientTokenPayload = {
-        sub: client.id,
-        email: client.email,
-        tenantId: client.tenantId,
-        type: 'client',
-      };
-
-      const accessToken = this.jwtService.sign(payload, {
-        expiresIn: this.SESSION_EXPIRY_SECONDS,
-      });
-
-      this.magicLinkVerifiedCounter.inc({
-        tenant_id: tenantId,
-        status: 'success',
-      });
-
-      return {
-        accessToken,
-        expiresIn: this.SESSION_EXPIRY_SECONDS,
-        client,
-      };
-    } catch (error) {
-      if (!(error instanceof NotFoundException) && !(error instanceof UnauthorizedException)) {
-        this.magicLinkVerifiedCounter.inc({
+      } catch (error) {
+        this.magicLinkRequestedCounter.inc({
           tenant_id: tenantId,
           status: 'error',
         });
+        throw error;
       }
-      throw error;
+    });
+  }
+
+  async verifyMagicLink(token: string): Promise<{ accessToken: string; expiresIn: number; client: Client }> {
+    const algorithm = this.getAllowedJwtAlgorithm();
+    let payload: ClientMagicLinkPayload;
+    try {
+      payload = this.jwtService.verify<ClientMagicLinkPayload>(token, {
+        algorithms: [algorithm],
+        secret:
+          algorithm === 'RS256'
+            ? this.configService.getOrThrow<string>('JWT_PUBLIC_KEY')
+            : this.configService.getOrThrow<string>('auth.jwtSecret'),
+      });
+    } catch {
+      this.magicLinkVerifiedCounter.inc({
+        tenant_id: 'unknown',
+        status: 'invalid_token',
+      });
+      throw new UnauthorizedException('Invalid or expired token');
     }
+
+    if (payload.type !== 'client_magic' || !payload.jti) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    return TenantContextService.run(payload.tenantId, async () => {
+      const tenantId = payload.tenantId;
+      const tokenHash = this.hashToken(payload.jti);
+
+      try {
+        const client = await this.clientRepository.findOne({
+          where: { id: payload.sub },
+        });
+
+        if (!client) {
+          this.magicLinkVerifiedCounter.inc({
+            tenant_id: tenantId,
+            status: 'invalid_token',
+          });
+          throw new NotFoundException('Invalid or expired token');
+        }
+
+        if (!client.isAccessTokenValid()) {
+          this.magicLinkVerifiedCounter.inc({
+            tenant_id: tenantId,
+            status: 'expired',
+          });
+          throw new UnauthorizedException('Token has expired');
+        }
+
+        if (!client.accessTokenHash || !this.compareHashes(tokenHash, client.accessTokenHash)) {
+          this.magicLinkVerifiedCounter.inc({
+            tenant_id: tenantId,
+            status: 'hash_mismatch',
+          });
+          throw new UnauthorizedException('Invalid token');
+        }
+
+        client.accessTokenHash = null;
+        client.accessTokenExpiry = null;
+        await this.clientRepository.save(client);
+
+        const accessToken = this.jwtService.sign(
+          { sub: client.id, email: client.email, tenantId: client.tenantId, type: 'client' },
+          { expiresIn: this.SESSION_EXPIRY_SECONDS },
+        );
+
+        this.magicLinkVerifiedCounter.inc({
+          tenant_id: tenantId,
+          status: 'success',
+        });
+
+        return {
+          accessToken,
+          expiresIn: this.SESSION_EXPIRY_SECONDS,
+          client,
+        };
+      } catch (error) {
+        if (!(error instanceof NotFoundException) && !(error instanceof UnauthorizedException)) {
+          this.magicLinkVerifiedCounter.inc({
+            tenant_id: tenantId,
+            status: 'error',
+          });
+        }
+        throw error;
+      }
+    });
   }
 
   async validateClientToken(token: string): Promise<Client | null> {

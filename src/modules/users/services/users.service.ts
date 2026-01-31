@@ -162,6 +162,14 @@ export class UsersService {
     return qb.addSelect('user.mfaSecret').getOne();
   }
 
+  async findByEmailWithMfaSecretGlobal(email: string): Promise<User | null> {
+    return this.rawUserRepository
+      .createQueryBuilder('user')
+      .addSelect('user.mfaSecret')
+      .where('user.email = :email', { email })
+      .getOne();
+  }
+
   async findByIdWithMfaSecret(userId: string): Promise<User | null> {
     const qb = this.userRepository.createQueryBuilder('user').andWhere('user.id = :userId', { userId });
 

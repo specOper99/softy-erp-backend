@@ -126,8 +126,8 @@ export class AuthService {
         throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
       }
 
+      const user = await this.usersService.findByEmailWithMfaSecretGlobal(loginDto.email);
       // Find user globally by email to determine tenant
-      const user = await this.usersService.findByEmailGlobal(loginDto.email);
       if (!user) {
         await this.lockoutService.recordFailedAttempt(loginDto.email);
         // Timing Attack Mitigation:
@@ -139,7 +139,6 @@ export class AuthService {
       }
 
       const tenantId = user.tenantId;
-
       if (!user.isActive) {
         throw new UnauthorizedException('Account is deactivated');
       }

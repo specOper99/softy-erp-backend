@@ -1,3 +1,5 @@
+import { getMetadataArgsStorage } from 'typeorm';
+
 import { Role } from '../enums/role.enum';
 import { User } from './user.entity';
 
@@ -11,6 +13,14 @@ describe('User Entity', () => {
     expect(user.id).toBe('user-123');
     expect(user.email).toBe('user@example.com');
     expect(user.tenantId).toBe('tenant-456');
+  });
+
+  it('should declare a unique partial index on active email', () => {
+    const idx = getMetadataArgsStorage().indices.find(
+      (i) => i.target === User && i.name === 'IDX_users_email_unique_active',
+    );
+    expect(idx?.unique).toBe(true);
+    expect(idx?.where).toBe('"deleted_at" IS NULL');
   });
 
   it('should handle password hashing', () => {
