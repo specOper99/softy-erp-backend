@@ -1,11 +1,11 @@
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { createMockQueue, createMockRepository } from '../../../test/helpers/mock-factories';
 import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
+import { AuditLogRepository } from './repositories/audit-log.repository';
 
 describe('AuditService', () => {
   let service: AuditService;
@@ -27,7 +27,7 @@ describe('AuditService', () => {
       providers: [
         AuditService,
         {
-          provide: getRepositoryToken(AuditLog),
+          provide: AuditLogRepository,
           useValue: mockRepository,
         },
         {

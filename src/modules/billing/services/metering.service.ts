@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { UsageMetric, UsageRecord } from '../entities/usage-record.entity';
+import { UsageRecordRepository } from '../repositories/usage-record.repository';
 import { StripeService } from './stripe.service';
 import { SubscriptionService } from './subscription.service';
 
@@ -10,8 +9,7 @@ export class MeteringService {
   private readonly logger = new Logger(MeteringService.name);
 
   constructor(
-    @InjectRepository(UsageRecord)
-    private readonly usageRecordRepo: Repository<UsageRecord>,
+    private readonly usageRecordRepo: UsageRecordRepository,
     private readonly stripeService: StripeService,
     private readonly subscriptionService: SubscriptionService,
   ) {}
@@ -55,8 +53,7 @@ export class MeteringService {
       .createQueryBuilder('record')
       .select('record.metric', 'metric')
       .addSelect('SUM(record.quantity)', 'total')
-      .where('record.tenantId = :tenantId', { tenantId })
-      .andWhere('record.periodStart >= :periodStart', { periodStart })
+      .where('record.periodStart >= :periodStart', { periodStart })
       .andWhere('record.periodEnd <= :periodEnd', { periodEnd })
       .groupBy('record.metric')
       .getRawMany<{ metric: UsageMetric; total: string }>();

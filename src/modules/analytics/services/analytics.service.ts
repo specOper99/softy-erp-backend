@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
-import { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { FinancialReportFilterDto } from '../../finance/dto/financial-report.dto';
 import { RevenueByPackageEntry, RevenueByPackageRaw, TaxReportRaw } from '../../finance/types/report.types';
 
@@ -16,8 +14,7 @@ export class AnalyticsService {
   private readonly REPORT_CACHE_TTL = 60 * 60 * 1000;
 
   constructor(
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: BookingRepository,
     private readonly cacheUtils: CacheUtilsService,
   ) {}
 
@@ -46,8 +43,7 @@ export class AnalyticsService {
     const result = await this.bookingRepository
       .createQueryBuilder('b')
       .leftJoin('b.servicePackage', 'pkg')
-      .where('b.tenantId = :tenantId', { tenantId })
-      .andWhere('b.eventDate >= :startDate', { startDate: filter.startDate })
+      .where('b.eventDate >= :startDate', { startDate: filter.startDate })
       .andWhere('b.eventDate <= :endDate', { endDate: filter.endDate })
       .andWhere('b.status IN (:...statuses)', {
         statuses: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED],
@@ -72,12 +68,9 @@ export class AnalyticsService {
   }
 
   async getTaxReport(startDate: string, endDate: string) {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const result = await this.bookingRepository
       .createQueryBuilder('b')
-      .where('b.tenantId = :tenantId', { tenantId })
-      .andWhere('b.eventDate >= :startDate', { startDate })
+      .where('b.eventDate >= :startDate', { startDate })
       .andWhere('b.eventDate <= :endDate', { endDate })
       .andWhere('b.status IN (:...statuses)', {
         statuses: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED],

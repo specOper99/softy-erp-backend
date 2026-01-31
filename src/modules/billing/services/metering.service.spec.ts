@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Subscription } from '../entities/subscription.entity';
 import { UsageMetric, UsageRecord } from '../entities/usage-record.entity';
+import { UsageRecordRepository } from '../repositories/usage-record.repository';
 import { MeteringService } from './metering.service';
 import { StripeService } from './stripe.service';
 import { SubscriptionService } from './subscription.service';
@@ -28,7 +28,7 @@ describe('MeteringService', () => {
       providers: [
         MeteringService,
         {
-          provide: getRepositoryToken(UsageRecord),
+          provide: UsageRecordRepository,
           useValue: {
             create: jest.fn(),
             save: jest.fn(),
@@ -51,7 +51,7 @@ describe('MeteringService', () => {
     }).compile();
 
     service = module.get<MeteringService>(MeteringService);
-    usageRecordRepo = module.get(getRepositoryToken(UsageRecord));
+    usageRecordRepo = module.get(UsageRecordRepository);
     stripeService = module.get(StripeService);
     subscriptionService = module.get(SubscriptionService);
   });

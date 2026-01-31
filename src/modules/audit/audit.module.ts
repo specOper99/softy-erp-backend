@@ -7,6 +7,7 @@ import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
 
 import { AuditPublisher } from './audit.publisher';
+import { AuditLogRepository } from './repositories/audit-log.repository';
 
 @Global()
 @Module({
@@ -28,6 +29,7 @@ import { AuditPublisher } from './audit.publisher';
   controllers: [AuditController],
   providers: [
     AuditService,
+    AuditLogRepository,
     {
       provide: AuditPublisher,
       useExisting: AuditService,
