@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { TenantScopedManager } from '../../common/utils/tenant-scoped-manager';
 import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
@@ -31,6 +32,7 @@ export class AuthService {
    * consistent response times regardless of user existence.
    */
   private readonly dummyPasswordHash: string;
+  private readonly tenantTx: TenantScopedManager;
 
   constructor(
     private readonly usersService: UsersService,
@@ -47,6 +49,9 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly tokenBlacklistService: TokenBlacklistService,
   ) {
+    // Initialize TenantScopedManager
+    this.tenantTx = new TenantScopedManager(dataSource);
+
     // Generate a unique dummy hash at startup using cryptographically secure random bytes
     // This is never stored or exposed - it's solely for timing attack mitigation
     const randomPassword = crypto.randomBytes(32).toString('hex');
@@ -60,56 +65,46 @@ export class AuthService {
       .replaceAll(/[^a-z0-9]+/g, '-')
       .replaceAll(/(^-)|(-$)/g, '');
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    // Check for existing user before starting transaction (better performance)
+    const existingUser = await this.usersService.findByEmailGlobal(registerDto.email);
+    if (existingUser) {
+      throw new ConflictException('auth.email_already_registered');
+    }
 
     try {
-      let tenant;
-      try {
-        tenant = await this.tenantsService.createWithManager(queryRunner.manager, {
-          name: registerDto.companyName,
-          slug,
-        });
-      } catch (error: unknown) {
-        if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
-          throw new ConflictException('Tenant with this name or slug already exists');
+      const user = await this.dataSource.transaction(async (manager) => {
+        let tenant;
+        try {
+          tenant = await this.tenantsService.createWithManager(manager, {
+            name: registerDto.companyName,
+            slug,
+          });
+        } catch (error: unknown) {
+          if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+            throw new ConflictException('Tenant with this name or slug already exists');
+          }
+          throw error;
         }
-        throw error;
-      }
 
-      const tenantId = tenant.id;
+        const user = await this.usersService.createWithManager(manager, {
+          email: registerDto.email,
+          password: registerDto.password,
+          role: Role.ADMIN,
+          tenantId: tenant.id,
+        });
 
-      const existingUser = await this.usersService.findByEmailGlobal(registerDto.email);
-      if (existingUser) {
-        throw new ConflictException('auth.email_already_registered');
-      }
-
-      const user = await this.usersService.createWithManager(queryRunner.manager, {
-        email: registerDto.email,
-        password: registerDto.password,
-        role: Role.ADMIN,
-        tenantId: tenantId,
+        return user;
       });
 
+      // Send verification email AFTER transaction commits (external service call)
       await this.sendVerificationEmail(user);
-
-      await queryRunner.commitTransaction();
 
       return this.generateAuthResponse(user, context);
     } catch (error: unknown) {
-      if (queryRunner.isTransactionActive) {
-        await queryRunner.rollbackTransaction();
-      }
-
       if (error instanceof Error && 'code' in error && (error as { code: string }).code === '23505') {
         throw new BadRequestException('auth.email_already_registered');
       }
       throw error;
-    } finally {
-      if (!queryRunner.isReleased) {
-        await queryRunner.release();
-      }
     }
   }
 
@@ -451,11 +446,7 @@ export class AuthService {
       throw new UnauthorizedException('MFA session expired or invalid. Please login again.');
     }
 
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new UnauthorizedException('tenants.tenant_id_required');
-    }
-
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     if (tempPayload.tenantId !== tenantId) {
       throw new UnauthorizedException('Invalid MFA session tenant');
     }

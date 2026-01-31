@@ -305,7 +305,8 @@ describe('AuthService - Comprehensive Tests', () => {
       };
 
       await expect(service.register(dto)).rejects.toThrow('Mail error');
-      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      // Transaction commits before email sending, so no rollback expected
+      expect(mockQueryRunner.rollbackTransaction).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException if user already exists', async () => {
@@ -322,6 +323,7 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should throw ConflictException if tenant/slug already exists', async () => {
+      mockUsersService.findByEmailGlobal.mockResolvedValue(null);
       const error = new Error('Constraint violation') as Error & { code: string };
       error.code = '23505';
       mockTenantsService.createWithManager.mockRejectedValue(error);
