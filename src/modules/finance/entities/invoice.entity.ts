@@ -1,4 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
+import Decimal from 'decimal.js';
 import { MoneyColumn, PercentColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
@@ -95,16 +96,35 @@ export class Invoice extends BaseTenantEntity {
   @Column({ name: 'sent_at', type: 'timestamptz', nullable: true })
   sentAt: Date | null;
 
+  /**
+   * Recalculates all invoice totals using precise decimal arithmetic.
+   * Prevents floating-point precision errors in financial calculations.
+   */
   calculateTotals(): void {
-    this.subTotal = this.items.reduce((sum, item) => sum + item.amount, 0);
-    this.taxTotal = this.subTotal * (this.taxRate / 100);
-    this.totalAmount = this.subTotal + this.taxTotal;
-    this.balanceDue = this.totalAmount - this.amountPaid;
+    // Use Decimal.js for precise financial calculations
+    const subtotal = this.items.reduce((sum, item) => sum.plus(new Decimal(item.amount)), new Decimal(0));
+
+    this.subTotal = subtotal.toDecimalPlaces(2).toNumber();
+    this.taxTotal = subtotal.times(new Decimal(this.taxRate).dividedBy(100)).toDecimalPlaces(2).toNumber();
+    this.totalAmount = new Decimal(this.subTotal).plus(this.taxTotal).toDecimalPlaces(2).toNumber();
+    this.balanceDue = new Decimal(this.totalAmount).minus(this.amountPaid).toDecimalPlaces(2).toNumber();
   }
 
+  /**
+   * Records a payment against this invoice using precise arithmetic.
+   * Automatically updates status based on remaining balance.
+   */
   recordPayment(amount: number): void {
-    this.amountPaid += amount;
-    this.balanceDue = this.totalAmount - this.amountPaid;
+    if (amount <= 0) {
+      throw new Error('Payment amount must be positive');
+    }
+
+    const amountDecimal = new Decimal(amount);
+    const currentPaid = new Decimal(this.amountPaid);
+    const total = new Decimal(this.totalAmount);
+
+    this.amountPaid = currentPaid.plus(amountDecimal).toDecimalPlaces(2).toNumber();
+    this.balanceDue = total.minus(this.amountPaid).toDecimalPlaces(2).toNumber();
 
     if (this.balanceDue <= 0) {
       this.status = InvoiceStatus.PAID;

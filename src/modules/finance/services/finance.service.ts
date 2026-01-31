@@ -1,13 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import Decimal from 'decimal.js';
 import type { Response } from 'express';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
-import Decimal from 'decimal.js';
 
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TenantsService } from '../../tenants/tenants.service';
@@ -15,6 +14,7 @@ import { CreateTransactionDto, TransactionFilterDto } from '../dto';
 import { Transaction } from '../entities/transaction.entity';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
+import { TransactionRepository } from '../repositories/transaction.repository';
 import { CurrencyService } from './currency.service';
 import { FinancialReportService } from './financial-report.service';
 import { WalletService } from './wallet.service';
@@ -22,8 +22,7 @@ import { WalletService } from './wallet.service';
 @Injectable()
 export class FinanceService {
   constructor(
-    @InjectRepository(Transaction)
-    private readonly transactionRepository: Repository<Transaction>,
+    private readonly transactionRepository: TransactionRepository,
     private readonly dataSource: DataSource,
     private readonly currencyService: CurrencyService,
     private readonly tenantsService: TenantsService,
@@ -44,28 +43,19 @@ export class FinanceService {
   }
 
   private async createTransactionInternal(tenantId: string, dto: CreateTransactionDto): Promise<Transaction> {
-    // Validate transaction amount with comprehensive checks
-    this.validateTransactionAmount(dto.amount, dto.currency);
-
-    const tenant = await this.tenantsService.findOne(tenantId);
-    if (!tenant) {
-      throw new NotFoundException(`Tenant ${tenantId} not found`);
-    }
-
-    const currency = dto.currency || tenant.baseCurrency;
-    const exchangeRate = this.currencyService.getExchangeRate(currency, tenant.baseCurrency);
-
-    // Round amount to 2 decimal places for precision using safe math
-    const roundedAmount = MathUtils.round(dto.amount, 2);
-
-    const transaction = this.transactionRepository.create({
-      ...dto,
-      amount: roundedAmount,
-      currency,
-      exchangeRate,
+    const preparedData = await this.validateAndPrepareTransactionData(tenantId, {
+      type: dto.type,
+      amount: dto.amount,
+      currency: dto.currency,
+      category: dto.category,
+      bookingId: dto.bookingId,
+      taskId: dto.taskId,
+      payoutId: dto.payoutId,
+      description: dto.description,
       transactionDate: new Date(dto.transactionDate),
-      tenantId,
     });
+
+    const transaction = this.transactionRepository.create(preparedData);
     const savedTransaction = await this.transactionRepository.save(transaction);
 
     // Notify dashboard
@@ -80,6 +70,66 @@ export class FinanceService {
     await this.financialReportService.invalidateReportCaches(tenantId);
 
     return savedTransaction;
+  }
+
+  /**
+   * Validates and prepares transaction data with comprehensive checks.
+   * This method is used by all transaction creation paths to ensure consistency.
+   * @private
+   */
+  private async validateAndPrepareTransactionData(
+    tenantId: string,
+    data: {
+      type: TransactionType;
+      amount: number;
+      currency?: Currency;
+      category?: string;
+      bookingId?: string;
+      taskId?: string;
+      payoutId?: string;
+      description?: string;
+      transactionDate: Date;
+    },
+  ): Promise<{
+    type: TransactionType;
+    amount: number;
+    currency: Currency;
+    exchangeRate: number;
+    category?: string;
+    bookingId?: string;
+    taskId?: string;
+    payoutId?: string;
+    description?: string;
+    transactionDate: Date;
+    tenantId: string;
+  }> {
+    // Validate transaction amount with comprehensive checks
+    this.validateTransactionAmount(data.amount, data.currency);
+
+    const tenant = await this.tenantsService.findOne(tenantId);
+    if (!tenant) {
+      throw new NotFoundException(`Tenant ${tenantId} not found`);
+    }
+
+    const currency = data.currency || tenant.baseCurrency;
+    const exchangeRate = this.currencyService.getExchangeRate(currency, tenant.baseCurrency);
+
+    // Round amount to 2 decimal places for precision using safe math
+    const roundedAmount = MathUtils.round(data.amount, 2);
+
+    return {
+      type: data.type,
+      amount: roundedAmount,
+      currency,
+      exchangeRate,
+      category: data.category,
+      bookingId: data.bookingId,
+      taskId: data.taskId,
+      payoutId: data.payoutId,
+      description: data.description,
+      transactionDate: data.transactionDate,
+      tenantId,
+    };
   }
 
   /**
@@ -135,8 +185,19 @@ export class FinanceService {
     },
   ): Promise<Transaction> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    const transaction = manager.create(Transaction, { ...data, tenantId });
-    return manager.save(transaction);
+
+    // SECURITY FIX: Enforce validation for all transaction creation paths
+    // This prevents invalid transactions (negative amounts, invalid currencies, etc.)
+    const preparedData = await this.validateAndPrepareTransactionData(tenantId, data);
+
+    const transaction = manager.create(Transaction, preparedData);
+    const savedTransaction = await manager.save(transaction);
+
+    // Invalidate financial report caches (data has changed)
+    // This ensures reports are recalculated after transaction commits
+    await this.financialReportService.invalidateReportCaches(tenantId);
+
+    return savedTransaction;
   }
 
   /**
@@ -183,10 +244,7 @@ export class FinanceService {
   }
 
   async findAllTransactions(filter?: TransactionFilterDto): Promise<Transaction[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const queryBuilder = this.transactionRepository.createQueryBuilder('t');
-
-    queryBuilder.where('t.tenantId = :tenantId', { tenantId });
 
     if (filter?.type) {
       queryBuilder.andWhere('t.type = :type', { type: filter.type });
@@ -205,11 +263,7 @@ export class FinanceService {
   async findAllTransactionsCursor(
     query: CursorPaginationDto,
   ): Promise<{ data: Transaction[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const qb = this.transactionRepository.createQueryBuilder('t');
-
-    qb.where('t.tenantId = :tenantId', { tenantId });
 
     return CursorPaginationHelper.paginateWithCustomDateField(
       qb,
@@ -223,9 +277,8 @@ export class FinanceService {
   }
 
   async findTransactionById(id: string): Promise<Transaction> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const transaction = await this.transactionRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
     });
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
@@ -234,11 +287,8 @@ export class FinanceService {
   }
 
   async exportTransactionsToCSV(res: Response): Promise<void> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const queryStream = await this.transactionRepository
       .createQueryBuilder('t')
-      .where('t.tenantId = :tenantId', { tenantId })
       .orderBy('t.transactionDate', 'DESC')
       .stream();
 
@@ -312,7 +362,6 @@ export class FinanceService {
     const tenant = await this.tenantsService.findOne(tenantId);
     const result = await this.transactionRepository
       .createQueryBuilder('t')
-      .where('t.tenantId = :tenantId', { tenantId })
       .select('t.type', 'type')
       .addSelect('SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))', 'total')
       .groupBy('t.type')

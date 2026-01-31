@@ -16,6 +16,7 @@ import { TransactionFilterDto } from '../dto';
 import { Transaction } from '../entities/transaction.entity';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
+import { TransactionRepository } from '../repositories/transaction.repository';
 import { CurrencyService } from './currency.service';
 import { FinanceService } from './finance.service';
 import { FinancialReportService } from './financial-report.service';
@@ -133,7 +134,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       providers: [
         FinanceService,
         {
-          provide: getRepositoryToken(Transaction),
+          provide: TransactionRepository,
           useValue: mockTransactionRepository,
         },
         // {
