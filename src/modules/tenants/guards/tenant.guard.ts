@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { SKIP_TENANT_KEY } from '../decorators/skip-tenant.decorator';
-import { TenantsService } from '../tenants.service';
 import { TenantStatus } from '../enums/tenant-status.enum';
+import { TenantsService } from '../tenants.service';
 
 /**
  * Global guard that ensures a tenant context is present for protected routes.

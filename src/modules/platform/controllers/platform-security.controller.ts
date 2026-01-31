@@ -1,5 +1,5 @@
-import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { TargetTenant } from '../../../common/decorators/target-tenant.decorator';
+import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { PlatformAdmin } from '../decorators/platform-admin.decorator';
 
 import {
