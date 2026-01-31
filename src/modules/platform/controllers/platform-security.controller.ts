@@ -1,4 +1,6 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
+import { TargetTenant } from '../../../common/decorators/target-tenant.decorator';
+import { PlatformAdmin } from '../decorators/platform-admin.decorator';
 
 import {
   Body,
@@ -52,6 +54,7 @@ export class PlatformSecurityController {
   constructor(private readonly securityService: PlatformSecurityService) {}
 
   @Post('tenants/:tenantId/users/:userId/force-password-reset')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.SECURITY_FORCE_PASSWORD_RESET)
   @RequireReason()
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -69,7 +72,7 @@ export class PlatformSecurityController {
   @ApiResponse({ status: 204, description: 'Password reset initiated' })
   @ApiResponse({ status: 404, description: 'User or tenant not found' })
   async forcePasswordReset(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @TargetTenant() tenantId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: ForcePasswordResetDto,
     @Request() req: PlatformSecurityRequest,
@@ -83,6 +86,7 @@ export class PlatformSecurityController {
   }
 
   @Post('tenants/:tenantId/revoke-sessions')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.SECURITY_REVOKE_SESSIONS)
   @RequireReason()
   @HttpCode(HttpStatus.OK)
@@ -107,7 +111,7 @@ export class PlatformSecurityController {
     },
   })
   async revokeSessions(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @TargetTenant() tenantId: string,
     @Body() dto: RevokeSessionsDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -121,6 +125,7 @@ export class PlatformSecurityController {
   }
 
   @Post('tenants/:tenantId/ip-allowlist')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.SECURITY_UPDATE_IP_ALLOWLIST)
   @RequireReason()
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -136,7 +141,7 @@ export class PlatformSecurityController {
   @ApiParam({ name: 'tenantId', description: 'Tenant UUID', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'IP allowlist updated' })
   async updateIpAllowlist(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @TargetTenant() tenantId: string,
     @Body() dto: UpdateIpAllowlistDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -149,6 +154,7 @@ export class PlatformSecurityController {
   }
 
   @Post('tenants/:tenantId/data-export')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.DATA_EXPORT)
   @RequireReason()
   @HttpCode(HttpStatus.ACCEPTED)
@@ -175,7 +181,7 @@ export class PlatformSecurityController {
     },
   })
   async initiateDataExport(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @TargetTenant() tenantId: string,
     @Body() dto: InitiateDataExportDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -188,6 +194,7 @@ export class PlatformSecurityController {
   }
 
   @Post('tenants/:tenantId/data-deletion')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.DATA_DELETE)
   @RequireReason()
   @HttpCode(HttpStatus.ACCEPTED)
@@ -213,7 +220,7 @@ export class PlatformSecurityController {
     },
   })
   async initiateDataDeletion(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @TargetTenant() tenantId: string,
     @Body() dto: InitiateDataDeletionDto,
     @Request() req: PlatformSecurityRequest,
   ) {
@@ -226,6 +233,7 @@ export class PlatformSecurityController {
   }
 
   @Get('tenants/:tenantId/risk-score')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.SECURITY_VIEW_RISK_SCORES)
   @ApiOperation({
     summary: 'Get tenant security risk score',
@@ -254,7 +262,7 @@ Risk factors include: login patterns, failed attempts, IP anomalies, configurati
       },
     },
   })
-  async getTenantRiskScore(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
+  async getTenantRiskScore(@TargetTenant() tenantId: string) {
     const riskScore = await this.securityService.getTenantRiskScore(tenantId);
     return {
       tenantId,

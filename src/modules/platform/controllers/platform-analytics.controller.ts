@@ -1,6 +1,8 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
+import { TargetTenant } from '../../../common/decorators/target-tenant.decorator';
+import { PlatformAdmin } from '../decorators/platform-admin.decorator';
 
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
@@ -54,6 +56,7 @@ Includes: total tenants, active users, storage usage, API request volumes`,
   }
 
   @Get('tenant/:tenantId/health')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.ANALYTICS_VIEW_TENANT_HEALTH)
   @ApiOperation({
     summary: 'Get tenant health status',
@@ -79,7 +82,7 @@ Health factors: API response times, error rates, resource utilization`,
       },
     },
   })
-  async getTenantHealth(@Param('tenantId') tenantId: string) {
+  async getTenantHealth(@TargetTenant() tenantId: string) {
     return this.analyticsService.getTenantHealth(tenantId);
   }
 

@@ -1,4 +1,6 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
+import { TargetTenant } from '../../../common/decorators/target-tenant.decorator';
+import { PlatformAdmin } from '../decorators/platform-admin.decorator';
 
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
@@ -28,10 +30,11 @@ export class PlatformTimeEntriesController {
   constructor(private readonly service: PlatformTimeEntriesService) {}
 
   @Get('tenant/:tenantId')
+  @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.SUPPORT_TIME_ENTRIES)
   @ApiOperation({ summary: 'List time entries for a tenant' })
   @ApiParam({ name: 'tenantId', description: 'Tenant UUID', format: 'uuid' })
-  list(@Param('tenantId', ParseUUIDPipe) tenantId: string, @Query() query: PlatformTimeEntryQueryDto) {
+  list(@TargetTenant() tenantId: string, @Query() query: PlatformTimeEntryQueryDto) {
     return this.service.list(tenantId, query);
   }
 

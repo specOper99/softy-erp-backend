@@ -289,7 +289,7 @@ export class PlatformAuthService {
       mfaVerifiedAt: !user.mfaEnabled ? new Date() : null,
       expiresAt: new Date(Date.now() + this.SESSION_DURATION),
       lastActivityAt: new Date(),
-      sessionToken: '',
+      sessionToken: null,
     });
 
     return this.sessionRepository.save(session);

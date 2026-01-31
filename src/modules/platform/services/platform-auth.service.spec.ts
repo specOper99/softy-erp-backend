@@ -207,6 +207,30 @@ describe('PlatformAuthService', () => {
       expect(result.sessionId).toBe(mockSession.id);
     });
 
+    it('should persist MFA session with null session token', async () => {
+      const mfaUser = { ...mockUser, mfaEnabled: true };
+      jest.spyOn(userRepository, 'findOne').mockResolvedValue(mfaUser as PlatformUser);
+      jest.spyOn(passwordHashService, 'verifyAndUpgrade').mockResolvedValue({ valid: true });
+
+      jest.spyOn(sessionRepository, 'create').mockImplementation((data) => ({
+        ...(data as PlatformSession),
+        id: 'session-456',
+      }));
+      const saveSpy = jest
+        .spyOn(sessionRepository, 'save')
+        .mockImplementation(async (session) => session as PlatformSession);
+      (platformMfaTokenService.create as jest.Mock).mockResolvedValue('temp-mfa-token');
+
+      await service.login(loginDto, '192.168.1.1', 'Mozilla/5.0');
+
+      expect(platformMfaTokenService.create).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalledTimes(1);
+
+      const savedSession = saveSpy.mock.lastCall?.[0] as PlatformSession | undefined;
+      expect(savedSession).toBeDefined();
+      expect(savedSession?.sessionToken).toBeNull();
+    });
+
     it('should reject suspended account', async () => {
       const suspendedUser = { ...mockUser, status: 'suspended' };
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(suspendedUser as PlatformUser);
