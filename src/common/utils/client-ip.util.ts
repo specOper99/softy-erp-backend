@@ -46,7 +46,11 @@ function parseXForwardedFor(forwarded: string): string | undefined {
   return undefined;
 }
 
-export function getClientIp(request: Request, trustProxyHeaders: boolean, warn?: (message: string) => void): string {
+export function getClientIp(
+  request: Request,
+  trustProxyHeaders: boolean,
+  warn?: (message: string) => void,
+): string | null {
   if (trustProxyHeaders) {
     const remote = getTrustedProxyRemoteAddress(request);
 
@@ -75,11 +79,16 @@ export function getClientIp(request: Request, trustProxyHeaders: boolean, warn?:
     }
   }
 
-  const rawIp = request.ip || request.socket?.remoteAddress || 'unknown';
-  const ip = rawIp === 'unknown' ? rawIp : normalizeIp(rawIp);
-  if (ip !== 'unknown' && !isIP(ip)) {
+  const rawIp = request.ip || request.socket?.remoteAddress;
+  if (!rawIp) {
+    warn?.('No IP address available from request');
+    return null;
+  }
+
+  const ip = normalizeIp(rawIp);
+  if (!isIP(ip)) {
     warn?.(`Invalid IP address from request: ${ip}`);
-    return 'unknown';
+    return null;
   }
   return ip;
 }
