@@ -20,7 +20,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
       correlationId,
       method: req.method,
       path: req.originalUrl,
-      ip: getClientIp(req, process.env.TRUST_PROXY === 'true'),
+      ip: getClientIp(req, process.env.TRUST_PROXY === 'true') ?? undefined,
     };
 
     // Run the rest of the request in the async local storage context

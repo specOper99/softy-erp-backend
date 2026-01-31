@@ -23,7 +23,7 @@ interface AuditLogData {
   correlationId: string;
   method: string;
   path: string;
-  ip: string;
+  ip: string | null;
   userAgent?: string;
   status: 'SUCCESS' | 'FAILURE';
   durationMs: number;
@@ -106,7 +106,7 @@ export class AuditInterceptor implements NestInterceptor {
       action: options.action,
       resource: options.resource,
       userId: user?.sub || 'anonymous',
-      tenantId: TenantContextService.getTenantId() || 'N/A',
+      tenantId: TenantContextService.getTenantIdOrThrow(),
       correlationId: getCorrelationId() ?? (request.headers['x-correlation-id'] as string | undefined) ?? 'N/A',
       method: request.method,
       path: request.path,
@@ -133,7 +133,7 @@ export class AuditInterceptor implements NestInterceptor {
         entityName: options.resource,
         entityId,
         notes: error || undefined,
-        ipAddress: auditData.ip,
+        ipAddress: auditData.ip ?? 'unknown',
         userAgent: auditData.userAgent,
         method: auditData.method,
         path: auditData.path,
