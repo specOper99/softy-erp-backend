@@ -1,11 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { createMockMetricsFactory } from '../../../../test/helpers/mock-factories';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { Payout } from '../../finance/entities/payout.entity';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
+import { PayoutRepository } from '../../finance/repositories/payout.repository';
 import { TicketingService } from '../../notifications/services/ticketing.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { MockPaymentGatewayService } from '../services/payment-gateway.service';
@@ -13,7 +12,7 @@ import { PayrollReconciliationService } from './payroll-reconciliation.service';
 
 describe('PayrollReconciliationService', () => {
   let service: PayrollReconciliationService;
-  let payoutRepository: jest.Mocked<Repository<Payout>>;
+  let payoutRepository: jest.Mocked<PayoutRepository>;
   let _paymentGatewayService: jest.Mocked<MockPaymentGatewayService>;
   let ticketingService: jest.Mocked<TicketingService>;
   let tenantsService: jest.Mocked<TenantsService>;
@@ -22,6 +21,8 @@ describe('PayrollReconciliationService', () => {
   const mockPayoutRepository = {
     find: jest.fn(),
     count: jest.fn(),
+    findStalePayouts: jest.fn(),
+    countStuckPayouts: jest.fn(),
   };
 
   const mockPaymentGatewayService = {
@@ -42,7 +43,9 @@ describe('PayrollReconciliationService', () => {
     acquire: jest.fn(),
     release: jest.fn(),
     acquireWithRetry: jest.fn(),
-    withLock: jest.fn(),
+    withLock: jest.fn().mockImplementation(async (_key: string, callback: () => Promise<unknown>) => {
+      return callback();
+    }),
     isLocked: jest.fn(),
   };
 
@@ -52,7 +55,7 @@ describe('PayrollReconciliationService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayrollReconciliationService,
-        { provide: getRepositoryToken(Payout), useValue: mockPayoutRepository },
+        { provide: PayoutRepository, useValue: mockPayoutRepository },
         { provide: MockPaymentGatewayService, useValue: mockPaymentGatewayService },
         { provide: TicketingService, useValue: mockTicketingService },
         { provide: TenantsService, useValue: mockTenantsService },
@@ -62,7 +65,7 @@ describe('PayrollReconciliationService', () => {
     }).compile();
 
     service = module.get<PayrollReconciliationService>(PayrollReconciliationService);
-    payoutRepository = module.get(getRepositoryToken(Payout));
+    payoutRepository = module.get(PayoutRepository);
     _paymentGatewayService = module.get(MockPaymentGatewayService);
     ticketingService = module.get(TicketingService);
     tenantsService = module.get(TenantsService);
@@ -77,13 +80,13 @@ describe('PayrollReconciliationService', () => {
     const tenantId = 'tenant-123';
 
     it('should return empty array when no stale payouts found', async () => {
-      mockPayoutRepository.find.mockResolvedValue([]);
-      mockPayoutRepository.count.mockResolvedValue(0);
+      mockPayoutRepository.findStalePayouts.mockResolvedValue([]);
+      mockPayoutRepository.countStuckPayouts.mockResolvedValue(0);
 
       const result = await service.reconcileTenant(tenantId);
 
       expect(result).toEqual([]);
-      expect(payoutRepository.find).toHaveBeenCalled();
+      expect(payoutRepository.findStalePayouts).toHaveBeenCalled();
     });
 
     it('should detect PENDING_BUT_COMPLETED mismatch', async () => {
@@ -95,8 +98,8 @@ describe('PayrollReconciliationService', () => {
         metadata: { referenceId: 'REF-123', userId: 'user-1' },
       };
 
-      mockPayoutRepository.find.mockResolvedValue([stalePayout as Payout]);
-      mockPayoutRepository.count.mockResolvedValue(1);
+      mockPayoutRepository.findStalePayouts.mockResolvedValue([stalePayout as Payout]);
+      mockPayoutRepository.countStuckPayouts.mockResolvedValue(1);
       mockPaymentGatewayService.checkPayoutStatus.mockResolvedValue({
         status: 'COMPLETED',
         transactionReference: 'TXN-ABC',
@@ -122,8 +125,8 @@ describe('PayrollReconciliationService', () => {
         metadata: { referenceId: 'REF-FAIL', userId: 'user-2' },
       };
 
-      mockPayoutRepository.find.mockResolvedValue([stalePayout as Payout]);
-      mockPayoutRepository.count.mockResolvedValue(1);
+      mockPayoutRepository.findStalePayouts.mockResolvedValue([stalePayout as Payout]);
+      mockPayoutRepository.countStuckPayouts.mockResolvedValue(1);
       mockPaymentGatewayService.checkPayoutStatus.mockResolvedValue({
         status: 'FAILED',
       });
@@ -143,8 +146,8 @@ describe('PayrollReconciliationService', () => {
         metadata: { referenceId: 'REF-PENDING', userId: 'user-3' },
       };
 
-      mockPayoutRepository.find.mockResolvedValue([stalePayout as Payout]);
-      mockPayoutRepository.count.mockResolvedValue(1);
+      mockPayoutRepository.findStalePayouts.mockResolvedValue([stalePayout as Payout]);
+      mockPayoutRepository.countStuckPayouts.mockResolvedValue(1);
       mockPaymentGatewayService.checkPayoutStatus.mockResolvedValue({
         status: 'PENDING',
       });
@@ -177,8 +180,8 @@ describe('PayrollReconciliationService', () => {
         { id: 'tenant-2', slug: 'tenant-2' },
       ]);
 
-      mockPayoutRepository.find.mockResolvedValue([]);
-      mockPayoutRepository.count.mockResolvedValue(0);
+      mockPayoutRepository.findStalePayouts.mockResolvedValue([]);
+      mockPayoutRepository.countStuckPayouts.mockResolvedValue(0);
 
       await service.runNightlyReconciliation();
 
@@ -200,8 +203,8 @@ describe('PayrollReconciliationService', () => {
         metadata: { referenceId: 'REF-CRITICAL', userId: 'user-1' },
       };
 
-      mockPayoutRepository.find.mockResolvedValue([stalePayout as Payout]);
-      mockPayoutRepository.count.mockResolvedValue(1);
+      mockPayoutRepository.findStalePayouts.mockResolvedValue([stalePayout as Payout]);
+      mockPayoutRepository.countStuckPayouts.mockResolvedValue(1);
       mockPaymentGatewayService.checkPayoutStatus.mockResolvedValue({
         status: 'COMPLETED',
       });
