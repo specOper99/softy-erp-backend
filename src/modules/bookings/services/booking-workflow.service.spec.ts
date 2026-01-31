@@ -7,6 +7,7 @@ import {
   createMockConfigService,
   createMockDataSource,
   createMockQueryRunner,
+  mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
@@ -33,6 +34,8 @@ describe('BookingWorkflowService', () => {
   };
 
   beforeEach(async () => {
+    mockTenantContext('tenant-1');
+
     mockBooking = {
       id: 'booking-1',
       tenantId: 'tenant-1',

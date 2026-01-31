@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
 import { BookingFilterDto, CancelBookingDto, CreateBookingDto, UpdateBookingDto } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
@@ -14,6 +16,7 @@ describe('BookingsController', () => {
   let exportService: BookingExportService;
 
   const mockBooking = { id: 'uuid', status: BookingStatus.DRAFT };
+  const mockUser = { id: 'user-id', role: Role.ADMIN } as User;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -69,15 +72,15 @@ describe('BookingsController', () => {
 
   describe('findAll', () => {
     it('should call service.findAll', async () => {
-      await controller.findAll({} as BookingFilterDto);
-      expect(service.findAll).toHaveBeenCalled();
+      await controller.findAll({} as BookingFilterDto, mockUser);
+      expect(service.findAll).toHaveBeenCalledWith({}, mockUser);
     });
   });
 
   describe('findOne', () => {
     it('should call service.findOne', async () => {
-      await controller.findOne('uuid');
-      expect(service.findOne).toHaveBeenCalledWith('uuid');
+      await controller.findOne('uuid', mockUser);
+      expect(service.findOne).toHaveBeenCalledWith('uuid', mockUser);
     });
   });
 

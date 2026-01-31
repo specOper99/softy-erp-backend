@@ -1,13 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Readable } from 'stream';
-import { Repository } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { CreateClientDto, UpdateClientDto } from '../dto';
-import { Booking } from '../entities/booking.entity';
 import { Client } from '../entities/client.entity';
 import type { StreamableResponse } from '../types/export.types';
 
@@ -15,34 +11,31 @@ import type { StreamableResponse } from '../types/export.types';
  * Service for managing clients.
  * Extracted from BookingsService for better separation of concerns.
  */
+import { BookingRepository } from '../repositories/booking.repository';
+import { ClientRepository } from '../repositories/client.repository';
+
 @Injectable()
 export class ClientsService {
   private readonly logger = new Logger(ClientsService.name);
 
   constructor(
-    @InjectRepository(Client)
-    private readonly clientRepository: Repository<Client>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
+    private readonly clientRepository: ClientRepository,
+    private readonly bookingRepository: BookingRepository,
     private readonly auditService: AuditService,
     private readonly exportService: ExportService,
   ) {}
 
   async create(dto: CreateClientDto): Promise<Client> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const client = this.clientRepository.create({
       ...dto,
-      tenantId,
     });
     return this.clientRepository.save(client);
   }
 
   async findAll(query: PaginationDto = new PaginationDto(), tags?: string[]): Promise<Client[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const queryBuilder = this.clientRepository
       .createQueryBuilder('client')
-      .where('client.tenantId = :tenantId', { tenantId })
+      // Tenant scoping handled by repository
       .orderBy('client.createdAt', 'DESC')
       .skip(query.getSkip())
       .take(query.getTake());
@@ -58,9 +51,8 @@ export class ClientsService {
   }
 
   async findById(id: string): Promise<Client> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const client = await this.clientRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
     });
     if (!client) {
       throw new NotFoundException(`Client with ID ${id} not found`);
@@ -100,7 +92,7 @@ export class ClientsService {
     const client = await this.findById(id);
 
     const bookingsCount = await this.bookingRepository.count({
-      where: { clientId: id, tenantId: client.tenantId },
+      where: { clientId: id }, // tenantId handled by repo
     });
 
     if (bookingsCount > 0) {
@@ -121,17 +113,17 @@ export class ClientsService {
   }
 
   async getClientExportStream(): Promise<Readable> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
-    return this.clientRepository
-      .createQueryBuilder('client')
-      .leftJoin('client.bookings', 'booking')
-      .where('client.tenantId = :tenantId', { tenantId })
-      .select(['client.id', 'client.name', 'client.email', 'client.phone', 'client.notes', 'client.createdAt'])
-      .addSelect('COUNT(booking.id)', 'bookingCount')
-      .groupBy('client.id')
-      .orderBy('client.createdAt', 'DESC')
-      .stream();
+    return (
+      this.clientRepository
+        .createQueryBuilder('client')
+        .leftJoin('client.bookings', 'booking')
+        // tenantId handled by repo
+        .select(['client.id', 'client.name', 'client.email', 'client.phone', 'client.notes', 'client.createdAt'])
+        .addSelect('COUNT(booking.id)', 'bookingCount')
+        .groupBy('client.id')
+        .orderBy('client.createdAt', 'DESC')
+        .stream()
+    );
   }
 
   async exportToCSV(res: StreamableResponse): Promise<void> {

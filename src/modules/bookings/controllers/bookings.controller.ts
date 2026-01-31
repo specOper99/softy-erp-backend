@@ -13,10 +13,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Roles } from '../../../common/decorators';
+import { CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { BookingFilterDto, CancelBookingDto, CreateBookingDto, RecordPaymentDto, UpdateBookingDto } from '../dto';
 import { BookingExportService } from '../services/booking-export.service';
@@ -57,8 +58,8 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'Return all bookings' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  findAll(@Query() query: BookingFilterDto) {
-    return this.bookingsService.findAll(query);
+  findAll(@Query() query: BookingFilterDto, @CurrentUser() user: User) {
+    return this.bookingsService.findAll(query, user);
   }
 
   @Get('cursor')
@@ -67,8 +68,8 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'Return bookings' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  findAllCursor(@Query() query: CursorPaginationDto) {
-    return this.bookingsService.findAllCursor(query);
+  findAllCursor(@Query() query: CursorPaginationDto, @CurrentUser() user: User) {
+    return this.bookingsService.findAllCursor(query, user);
   }
 
   @Get('export')
@@ -88,8 +89,8 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Booking not found' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingsService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.bookingsService.findOne(id, user);
   }
 
   @Patch(':id')

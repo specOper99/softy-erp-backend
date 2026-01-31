@@ -191,31 +191,27 @@ describe('BookingsService', () => {
       const result = await service.findAll();
 
       expect(result).toEqual([mockBooking]);
-      // Verify tenantId was used in where clause (manual check in service)
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        'booking.tenantId = :tenantId',
-        expect.objectContaining({ tenantId: 'tenant-123' }),
-      );
+      // Verify tenantId WAS used in where clause for tenant isolation
+      expect(queryBuilder.where).toHaveBeenCalledWith('booking.tenantId = :tenantId', { tenantId: 'tenant-123' });
     });
   });
 
   describe('findOne', () => {
     it('should return a booking', async () => {
-      bookingRepository.findOne.mockResolvedValue(mockBooking);
+      const queryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        innerJoin: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockBooking),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue(queryBuilder);
 
       const result = await service.findOne('booking-123');
 
       expect(result).toEqual(mockBooking);
-      expect(bookingRepository.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'booking-123' }, // tenantId should be implicitly handled by repo, not passed manually here
-        }),
-      );
-      // Verify we are NOT passing tenantId manually in the where clause of findOneOptions
-      const findOneCallArg = bookingRepository.findOne.mock.calls[0][0];
-      // The service code: where: { id }
-      // Tests that we removed tenantId from the service call.
-      expect(findOneCallArg.where).not.toHaveProperty('tenantId');
+      expect(bookingRepository.createQueryBuilder).toHaveBeenCalledWith('booking');
+      expect(queryBuilder.where).toHaveBeenCalledWith('booking.id = :id', { id: 'booking-123' });
     });
   });
 });
