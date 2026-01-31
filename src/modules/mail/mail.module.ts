@@ -4,8 +4,10 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
+import { Repository } from 'typeorm';
+import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { EmailTemplatesController } from './controllers/email-templates.controller';
 import { EmailTemplate } from './entities/email-template.entity';
 import { BookingCancelledHandler } from './handlers/booking-cancelled.handler';
@@ -15,9 +17,13 @@ import { TaskAssignedHandler } from './handlers/task-assigned.handler';
 import { MailService } from './mail.service';
 import { EMAIL_QUEUE } from './mail.types';
 import { EmailProcessor } from './processors/email.processor';
+import { EmailTemplatesService } from './services/email-templates.service';
 import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 import { MailTemplateService } from './services/mail-template.service';
+
+/** Injection token for tenant-aware EmailTemplate repository */
+const EMAIL_TEMPLATE_REPO_TOKEN = 'EMAIL_TEMPLATE_TENANT_REPO';
 
 export const createMailerOptions = (configService: ConfigService): MailerOptions => ({
   transport: {
@@ -75,7 +81,19 @@ export const createMailerOptions = (configService: ConfigService): MailerOptions
     BookingCancelledHandler,
     PaymentReceivedHandler,
     TaskAssignedHandler,
+    // TenantAware repository factory for EmailTemplate
+    {
+      provide: EMAIL_TEMPLATE_REPO_TOKEN,
+      useFactory: (repo: Repository<EmailTemplate>) => new TenantAwareRepository(repo),
+      inject: [getRepositoryToken(EmailTemplate)],
+    },
+    // EmailTemplatesService with tenant-aware repository
+    {
+      provide: EmailTemplatesService,
+      useFactory: (repo: TenantAwareRepository<EmailTemplate>) => new EmailTemplatesService(repo),
+      inject: [EMAIL_TEMPLATE_REPO_TOKEN],
+    },
   ],
-  exports: [MailService, MailSenderService, MailQueueService],
+  exports: [MailService, MailSenderService, MailQueueService, EmailTemplatesService],
 })
 export class MailModule {}
