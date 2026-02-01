@@ -24,7 +24,7 @@ import { TasksModule } from '../tasks/tasks.module';
     TasksModule,
     forwardRef(() => BookingsModule),
     HrModule,
-    AnalyticsModule,
+    forwardRef(() => AnalyticsModule),
   ],
   controllers: [DashboardController],
   providers: [
