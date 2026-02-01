@@ -3,14 +3,14 @@ import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
-import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { PlatformUser } from '../entities/platform-user.entity';
+import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { MFAService } from '../services/mfa.service';
-import * as bcrypt from 'bcrypt';
 
 interface AuthenticatedRequest {
   user: {
@@ -39,6 +39,7 @@ class DisableMFADto {
 export class MFAController {
   constructor(
     private readonly mfaService: MFAService,
+
     @InjectRepository(PlatformUser)
     private readonly userRepository: Repository<PlatformUser>,
   ) {}

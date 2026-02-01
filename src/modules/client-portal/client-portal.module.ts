@@ -5,11 +5,11 @@ import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TENANT_REPO_CLIENT } from '../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
-import { Booking } from '../bookings/entities/booking.entity';
+import { BookingsModule } from '../bookings/bookings.module';
 import { Client } from '../bookings/entities/client.entity';
-import { TenantsModule } from '../tenants/tenants.module';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
+import { TenantsModule } from '../tenants/tenants.module';
 import { ClientPortalController } from './client-portal.controller';
 import { ClientTokenGuard } from './guards/client-token.guard';
 import { ClientAuthService } from './services/client-auth.service';
@@ -17,7 +17,8 @@ import { ClientPortalService } from './services/client-portal.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Client, Booking]),
+    TypeOrmModule.forFeature([Client]),
+    BookingsModule,
     MailModule,
     MetricsModule,
     TenantsModule,

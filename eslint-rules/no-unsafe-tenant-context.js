@@ -9,10 +9,13 @@
  * - `getTenantId() ?? 'system'`
  * - `getTenantId() || 'default'`
  * - `const tenant = getTenantId(); if (!tenant) { tenant = 'default'; }`
+ * - `dataSource.getRepository(Entity)` (bypasses tenant scoping)
+ * - `@InjectRepository(Entity)` in controllers (should use services)
  *
  * ## Good Patterns (allowed):
  * - `getTenantIdOrThrow()`
  * - `const tenantId = getTenantId(); if (!tenantId) throw new Error(...)`
+ * - Using TenantAwareRepository or custom repositories extending it
  *
  * @type {import('eslint').Rule.RuleModule}
  */
@@ -30,12 +33,25 @@ module.exports = {
                 'Unsafe tenant context fallback detected. Use `getTenantIdOrThrow()` instead of `getTenantId() ?? {{fallback}}` to prevent data leaks.',
             preferThrowMethod:
                 'Prefer `getTenantIdOrThrow()` over manual null checks with tenant fallbacks for security.',
+            dataSourceGetRepository:
+                'Direct `dataSource.getRepository()` bypasses tenant isolation. Use a TenantAwareRepository instead.',
+            controllerInjectRepository:
+                '@InjectRepository in controllers bypasses service layer. Move repository access to a service.',
         },
         schema: [], // no options
         fixable: 'code',
     },
 
     create(context) {
+        const filename = context.getFilename();
+        const isController = filename.endsWith('.controller.ts');
+        const isPlatformModule = filename.includes('/platform/');
+        const isCommonGuard = filename.includes('/common/guards/');
+        const isCronService = filename.includes('.cron.') || filename.includes('/cron/');
+        // Cron jobs that use dataSource.getRepository are flagged - they should be refactored
+        // to iterate tenants properly. But some services have legitimate cron logic mixed in.
+        const isInfrastructure = isPlatformModule || isCommonGuard;
+        
         return {
             // Detect: getTenantId() ?? 'default'
             // Detect: getTenantId() || 'system'
@@ -67,6 +83,68 @@ module.exports = {
                             },
                         });
                     }
+                }
+            },
+
+            // Detect: dataSource.getRepository(Entity)
+            CallExpression(node) {
+                // Skip infrastructure modules - they're intentionally tenant-agnostic or handle scoping themselves
+                if (isInfrastructure) {
+                    return;
+                }
+
+                if (
+                    node.callee.type === 'MemberExpression' &&
+                    node.callee.property.type === 'Identifier' &&
+                    node.callee.property.name === 'getRepository' &&
+                    node.callee.object.type === 'MemberExpression' &&
+                    node.callee.object.property.type === 'Identifier' &&
+                    (node.callee.object.property.name === 'dataSource' ||
+                     node.callee.object.object?.name === 'this' && node.callee.object.property.name === 'dataSource')
+                ) {
+                    context.report({
+                        node,
+                        messageId: 'dataSourceGetRepository',
+                    });
+                }
+
+                // Also catch this.dataSource.getRepository
+                if (
+                    node.callee.type === 'MemberExpression' &&
+                    node.callee.property.type === 'Identifier' &&
+                    node.callee.property.name === 'getRepository'
+                ) {
+                    const obj = node.callee.object;
+                    if (
+                        obj.type === 'MemberExpression' &&
+                        obj.object.type === 'ThisExpression' &&
+                        obj.property.type === 'Identifier' &&
+                        obj.property.name === 'dataSource'
+                    ) {
+                        context.report({
+                            node,
+                            messageId: 'dataSourceGetRepository',
+                        });
+                    }
+                }
+            },
+
+            // Detect: @InjectRepository(Entity) in controllers
+            // Skip platform controllers - they're intentionally tenant-agnostic
+            Decorator(node) {
+                if (!isController || isPlatformModule) {
+                    return;
+                }
+
+                if (
+                    node.expression.type === 'CallExpression' &&
+                    node.expression.callee.type === 'Identifier' &&
+                    node.expression.callee.name === 'InjectRepository'
+                ) {
+                    context.report({
+                        node,
+                        messageId: 'controllerInjectRepository',
+                    });
                 }
             },
 

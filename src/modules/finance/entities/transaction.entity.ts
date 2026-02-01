@@ -1,4 +1,5 @@
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import { ExchangeRateColumn, MoneyColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Task } from '../../tasks/entities/task.entity';
@@ -30,16 +31,19 @@ export class Transaction extends BaseTenantEntity {
   })
   currency: Currency;
 
-  @Column({
-    type: 'decimal',
-    precision: 12,
-    scale: 6,
-    name: 'exchange_rate',
-    default: 1.0,
-  })
+  /**
+   * Exchange rate at time of transaction.
+   * Uses 6 decimal places for precision in currency conversions.
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @ExchangeRateColumn('exchange_rate')
   exchangeRate: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  /**
+   * Transaction amount in the specified currency.
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @MoneyColumn('amount', { nullable: false })
   amount: number;
 
   @Column({ nullable: true })

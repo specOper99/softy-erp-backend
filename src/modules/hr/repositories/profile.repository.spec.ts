@@ -20,6 +20,7 @@ describe('ProfileRepository', () => {
       })),
       softRemove: jest.fn(),
       remove: jest.fn(),
+      metadata: { name: 'Profile' },
     } as unknown as Repository<Profile>;
 
     const module: TestingModule = await Test.createTestingModule({

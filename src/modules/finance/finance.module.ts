@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from '../analytics/analytics.module';
-import { Booking } from '../bookings/entities/booking.entity';
+import { BookingsModule } from '../bookings/bookings.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { FinancialReportController } from './controllers/financial-report.controller';
@@ -13,6 +13,7 @@ import { DepartmentBudget, EmployeeWallet, Invoice, Payout, RecurringTransaction
 import { TransactionCategory } from './entities/transaction-category.entity';
 import { DepartmentBudgetRepository } from './repositories/department-budget.repository';
 import { InvoiceRepository } from './repositories/invoice.repository';
+import { PayoutRepository } from './repositories/payout.repository';
 import { RecurringTransactionRepository } from './repositories/recurring-transaction.repository';
 import { TransactionRepository } from './repositories/transaction.repository';
 import { WalletRepository } from './repositories/wallet.repository';
@@ -41,11 +42,11 @@ import { PayoutRelayService } from './services/payout-relay.service';
       Payout,
       DepartmentBudget,
       Invoice,
-      Booking,
     ]),
     TenantsModule,
     DashboardModule,
     AnalyticsModule,
+    BookingsModule,
   ],
   controllers: [
     TransactionsController,
@@ -68,6 +69,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     WalletRepository,
     FinancialReportService,
     PayoutRelayService,
+    PayoutRepository,
     MockPaymentGatewayService,
     PayoutConsistencyCron,
     BookingUpdatedHandler,
@@ -86,6 +88,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     WalletRepository,
     FinancialReportService,
     PayoutRelayService,
+    PayoutRepository,
   ],
 })
 export class FinanceModule {}

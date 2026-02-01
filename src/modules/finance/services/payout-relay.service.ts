@@ -2,9 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
+import { FINANCE } from '../constants';
 import { Payout } from '../entities/payout.entity';
 import { PayoutStatus } from '../enums/payout-status.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
@@ -14,8 +16,9 @@ import { WalletService } from './wallet.service';
 @Injectable()
 export class PayoutRelayService {
   private readonly logger = new Logger(PayoutRelayService.name);
-  private readonly BATCH_SIZE = 50;
   private readonly tenantTx: TenantScopedManager;
+  /** Lock key for payout relay cron job */
+  private static readonly CRON_LOCK_KEY = `${FINANCE.LOCK.PAYOUT_PROCESSING}:relay`;
 
   constructor(
     @InjectRepository(Payout)
@@ -24,6 +27,7 @@ export class PayoutRelayService {
     private readonly walletService: WalletService,
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
+    private readonly distributedLockService: DistributedLockService,
   ) {
     this.tenantTx = new TenantScopedManager(dataSource);
   }
@@ -34,22 +38,20 @@ export class PayoutRelayService {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async processPendingPayouts(): Promise<void> {
-    const lockId = 2002; // Specific lock for payout relay
-    const queryResult: unknown = await this.dataSource.query('SELECT pg_try_advisory_lock($1) as locked', [lockId]);
-    const typedResult = queryResult as Array<{ locked?: boolean; pg_try_advisory_lock?: boolean }>;
-    const isLocked = typedResult[0] && (typedResult[0].locked === true || typedResult[0].pg_try_advisory_lock === true);
+    const result = await this.distributedLockService.withLock(
+      PayoutRelayService.CRON_LOCK_KEY,
+      async () => {
+        await this.processBatch();
+        return true;
+      },
+      {
+        ttl: FINANCE.TIME.ONE_MINUTE_MS, // 1 minute lock TTL matches cron interval
+        maxRetries: 0, // Don't retry - let next cron tick handle it
+      },
+    );
 
-    if (!isLocked) {
+    if (result === null) {
       this.logger.debug('Skipping payout relay: another instance is running.');
-      return;
-    }
-
-    try {
-      await this.processBatch();
-    } catch (error) {
-      this.logger.error('Failed to process payout batch', error);
-    } finally {
-      await this.dataSource.query('SELECT pg_advisory_unlock($1)', [lockId]);
     }
   }
 
@@ -59,9 +61,8 @@ export class PayoutRelayService {
         status: PayoutStatus.PENDING,
         payoutDate: LessThanOrEqual(new Date()),
       },
-      take: this.BATCH_SIZE,
+      take: FINANCE.BATCH.DEFAULT_BATCH_SIZE,
       order: { payoutDate: 'ASC' },
-      relations: ['transactions'], // Optional, maybe not needed here
     });
 
     if (payouts.length === 0) {

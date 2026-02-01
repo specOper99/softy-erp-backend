@@ -6,7 +6,6 @@ import { Cacheable } from '../../common/decorators/cacheable.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { MfaRequired } from '../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
@@ -34,7 +33,6 @@ import { ReportGeneratorService } from './services/report-generator.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseInterceptors(GlobalCacheInterceptor)
 @Roles(Role.ADMIN, Role.OPS_MANAGER)
-@MfaRequired()
 export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,

@@ -1,14 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 import { Counter, Gauge } from 'prom-client';
-import { LessThan, Repository } from 'typeorm';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Payout } from '../../finance/entities/payout.entity';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
+import { PayoutRepository } from '../../finance/repositories/payout.repository';
 import { TicketPriority } from '../../notifications/services/ticketing.interface';
 import { TicketingService } from '../../notifications/services/ticketing.service';
 import { TenantsService } from '../../tenants/tenants.service';
@@ -35,8 +34,7 @@ export class PayrollReconciliationService {
   private readonly stalePayoutsGauge: Gauge<string>;
 
   constructor(
-    @InjectRepository(Payout)
-    private readonly payoutRepository: Repository<Payout>,
+    private readonly payoutRepository: PayoutRepository,
     private readonly paymentGatewayService: MockPaymentGatewayService,
     private readonly ticketingService: TicketingService,
     private readonly tenantsService: TenantsService,
@@ -130,21 +128,11 @@ export class PayrollReconciliationService {
     });
 
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setHours(cutoffDate.getHours() - 24);
-
-      // Find stale PENDING payouts
-      const stalePayouts = await this.payoutRepository.find({
-        where: {
-          tenantId,
-          status: PayoutStatus.PENDING,
-          payoutDate: LessThan(cutoffDate),
-        },
-        order: { payoutDate: 'ASC' },
-      });
+      // Use tenant-scoped repository method
+      const stalePayouts = await this.payoutRepository.findStalePayouts(24);
 
       // Update stuck payouts gauge
-      const stuckCount = await this.countStuckPayouts(tenantId);
+      const stuckCount = await this.payoutRepository.countStuckPayouts(10);
       this.stalePayoutsGauge.set(stuckCount);
 
       span.setAttribute('stale_payouts.count', stalePayouts.length);
@@ -218,22 +206,6 @@ export class PayrollReconciliationService {
       this.logger.error(`Failed to check gateway status for payout ${payout.id}`, error);
       return null;
     }
-  }
-
-  /**
-   * Count payouts stuck in PENDING for more than 10 minutes.
-   */
-  private async countStuckPayouts(tenantId: string): Promise<number> {
-    const cutoff = new Date();
-    cutoff.setMinutes(cutoff.getMinutes() - 10);
-
-    return this.payoutRepository.count({
-      where: {
-        tenantId,
-        status: PayoutStatus.PENDING,
-        payoutDate: LessThan(cutoff),
-      },
-    });
   }
 
   /**

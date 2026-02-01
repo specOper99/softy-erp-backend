@@ -17,7 +17,7 @@
  *
  * 3. **Runtime Safety**: Despite the compile-time casts, runtime safety is ensured by
  *    explicit `tenantId` validation before every mutating operation. Cross-tenant
- *    operations throw `ForbiddenException`.
+ *    operations throw `TenantMismatchException`.
  *
  * 4. **Controlled Trust Boundary**: These casts exist at the boundary between our
  *    application code and TypeORM internals - not in business logic.
@@ -26,7 +26,7 @@
  * increase code duplication without improving runtime safety.
  */
 
-import { ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import {
   DeepPartial,
   DeleteResult,
@@ -36,12 +36,16 @@ import {
   QueryDeepPartialEntity,
   Repository,
   SaveOptions,
+  SelectQueryBuilder,
   UpdateResult,
 } from 'typeorm';
+import { TenantMismatchException, TenantMismatchOperation } from '../exceptions/domain.exceptions';
 import { TenantContextService } from '../services/tenant-context.service';
 
 @Injectable()
 export class TenantAwareRepository<T extends { tenantId: string }> {
+  protected readonly logger = new Logger(this.constructor.name);
+
   constructor(private readonly baseRepository?: Repository<T>) {}
 
   /**
@@ -56,8 +60,23 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     return this.baseRepository;
   }
 
+  /**
+   * Get the entity name for logging and error messages.
+   */
+  protected get entityName(): string {
+    return this.repository.metadata.name;
+  }
+
   private getTenantId(): string {
     return TenantContextService.getTenantIdOrThrow();
+  }
+
+  /**
+   * Safely get tenant ID, returning undefined if not in tenant context.
+   * Useful for checking if we're in a tenant-scoped context.
+   */
+  protected getTenantIdSafe(): string | undefined {
+    return TenantContextService.getTenantId();
   }
 
   private applyTenantScope<O extends FindManyOptions<T> | FindOneOptions<T>>(options: O): O {
@@ -94,7 +113,12 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
         if (!typedEntity.tenantId) {
           typedEntity.tenantId = tenantId;
         } else if (typedEntity.tenantId !== tenantId) {
-          throw new ForbiddenException('common.cross_tenant_save_attempt');
+          throw new TenantMismatchException({
+            contextTenantId: tenantId,
+            entityTenantId: typedEntity.tenantId,
+            operation: TenantMismatchOperation.CREATE,
+            entityType: this.entityName,
+          });
         }
       }
       return this.repository.save(entityOrEntities as unknown as DeepPartial<T>[], options) as Promise<E>;
@@ -104,7 +128,12 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     if (!entity.tenantId) {
       entity.tenantId = tenantId;
     } else if (entity.tenantId !== tenantId) {
-      throw new ForbiddenException('common.cross_tenant_save_attempt');
+      throw new TenantMismatchException({
+        contextTenantId: tenantId,
+        entityTenantId: entity.tenantId,
+        operation: TenantMismatchOperation.CREATE,
+        entityType: this.entityName,
+      });
     }
     return this.repository.save(entity, options) as Promise<E>;
   }
@@ -168,22 +197,119 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     }
 
     const entity = entityOrEntities as T & { tenantId: string };
-    this.validateTenantOwnership(entity, tenantId);
+    this.validateTenantOwnership(
+      entity,
+      tenantId,
+      action === 'remove' ? TenantMismatchOperation.DELETE : TenantMismatchOperation.DELETE,
+    );
     // @ts-expect-error - TypeORM method overload doesn't play well with generic type
     return await this.repository[action](entity);
   }
 
-  private validateTenantOwnership(entity: T & { tenantId: string }, tenantId: string): void {
+  private validateTenantOwnership(
+    entity: T & { tenantId: string },
+    tenantId: string,
+    operation: TenantMismatchOperation = TenantMismatchOperation.UPDATE,
+  ): void {
     if (!entity.tenantId) {
       entity.tenantId = tenantId;
     } else if (entity.tenantId !== tenantId) {
-      throw new ForbiddenException('common.cross_tenant_remove_attempt');
+      throw new TenantMismatchException({
+        contextTenantId: tenantId,
+        entityTenantId: entity.tenantId,
+        operation,
+        entityType: this.entityName,
+        entityId: (entity as unknown as { id?: string }).id,
+      });
     }
   }
 
-  private validateTenantOwnerships(entities: Array<T & { tenantId: string }>, tenantId: string): void {
+  private validateTenantOwnerships(
+    entities: Array<T & { tenantId: string }>,
+    tenantId: string,
+    operation: TenantMismatchOperation = TenantMismatchOperation.UPDATE,
+  ): void {
     for (const entity of entities) {
-      this.validateTenantOwnership(entity, tenantId);
+      this.validateTenantOwnership(entity, tenantId, operation);
     }
+  }
+
+  // ==================== Enhanced Query Builder Methods ====================
+
+  /**
+   * Creates a tenant-scoped query builder for streaming operations.
+   * Use this for exports, reports, and other streaming scenarios.
+   *
+   * @example
+   * ```typescript
+   * const stream = await this.repo.createStreamQueryBuilder('t')
+   *   .orderBy('t.createdAt', 'DESC')
+   *   .stream();
+   * ```
+   */
+  createStreamQueryBuilder(alias: string): SelectQueryBuilder<T> {
+    const tenantId = this.getTenantId();
+    this.logger.debug(`Creating stream query builder for ${this.entityName} with tenant ${tenantId}`);
+    return this.repository.createQueryBuilder(alias).andWhere(`${alias}.tenantId = :tenantId`, { tenantId });
+  }
+
+  /**
+   * Creates a tenant-scoped query builder for aggregation operations.
+   * Includes tenant validation logging for audit purposes.
+   */
+  createAggregateQueryBuilder(alias: string): SelectQueryBuilder<T> {
+    const tenantId = this.getTenantId();
+    this.logger.debug(`Creating aggregate query builder for ${this.entityName} with tenant ${tenantId}`);
+    return this.repository.createQueryBuilder(alias).andWhere(`${alias}.tenantId = :tenantId`, { tenantId });
+  }
+
+  /**
+   * Execute a raw query within tenant scope.
+   * WARNING: Use sparingly - prefer typed methods when possible.
+   * The query should use $1, $2 etc for parameters and tenantId is injected as the last parameter.
+   */
+  async queryWithTenantScope<R>(query: string, parameters: unknown[] = []): Promise<R[]> {
+    const tenantId = this.getTenantId();
+    return this.repository.query(query, [...parameters, tenantId]) as Promise<R[]>;
+  }
+
+  /**
+   * Validates that an entity belongs to the current tenant.
+   * Useful for permission checks before operations.
+   */
+  assertTenantOwnership(entity: T, operation: TenantMismatchOperation = TenantMismatchOperation.READ): void {
+    const tenantId = this.getTenantId();
+    if (entity.tenantId !== tenantId) {
+      throw new TenantMismatchException({
+        contextTenantId: tenantId,
+        entityTenantId: entity.tenantId,
+        operation,
+        entityType: this.entityName,
+        entityId: (entity as unknown as { id?: string }).id,
+      });
+    }
+  }
+
+  /**
+   * Find one entity by ID with tenant validation.
+   * Throws TenantMismatchException if entity exists but belongs to different tenant.
+   */
+  async findOneByIdOrFail(id: string): Promise<T> {
+    const tenantId = this.getTenantId();
+    const entity = await this.repository.findOne({
+      where: { id, tenantId } as unknown as FindOptionsWhere<T>,
+    });
+    if (!entity) {
+      throw new Error(`${this.entityName} with ID ${id} not found`);
+    }
+    return entity;
+  }
+
+  /**
+   * Check if an entity with the given criteria exists within the tenant scope.
+   */
+  async exists(where: FindOptionsWhere<T>): Promise<boolean> {
+    const count = await this.count({ where });
+    return count > 0;
   }
 }

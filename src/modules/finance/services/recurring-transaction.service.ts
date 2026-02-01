@@ -1,10 +1,13 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import pLimit from 'p-limit';
 import { DataSource, LessThanOrEqual } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { FINANCE } from '../constants';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
 import { FinanceService } from './finance.service';
@@ -14,13 +17,14 @@ import { RecurringTransactionRepository } from '../repositories/recurring-transa
 @Injectable()
 export class RecurringTransactionService {
   private readonly logger = new Logger(RecurringTransactionService.name);
-  // Deterministic lock ID for pg_advisory_lock
-  private static readonly CRON_LOCK_ID = 928374651; // Hash of 'recurring_cron'
+  /** Lock key for recurring transaction cron job */
+  private static readonly CRON_LOCK_KEY = `${FINANCE.LOCK.RECURRING_TRANSACTION}:cron`;
 
   constructor(
     private readonly recurringRepo: RecurringTransactionRepository,
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
+    private readonly distributedLockService: DistributedLockService,
   ) {}
 
   async create(dto: CreateRecurringTransactionDto): Promise<RecurringTransaction> {
@@ -72,51 +76,43 @@ export class RecurringTransactionService {
 
   @Cron('0 0 * * *')
   async processDueTransactions() {
-    // Use PostgreSQL advisory lock for distributed lock in multi-replica deployments
-    const lockId = RecurringTransactionService.CRON_LOCK_ID;
-    const result = await this.dataSource.query<{ acquired: boolean }[]>('SELECT pg_try_advisory_lock($1) as acquired', [
-      lockId,
-    ]);
-    const acquired = result[0]?.acquired;
+    // Use Redis-based distributed lock for multi-replica deployments
+    const result = await this.distributedLockService.withLock(
+      RecurringTransactionService.CRON_LOCK_KEY,
+      async () => {
+        this.logger.log('Processing recurring transactions...');
 
-    if (!acquired) {
+        // Intentionally global query for cron - processes all tenants, each in its own context
+        // eslint-disable-next-line local-rules/no-unsafe-tenant-context
+        const dueTransactions = await this.dataSource.getRepository(RecurringTransaction).find({
+          where: {
+            status: RecurringStatus.ACTIVE,
+            nextRunDate: LessThanOrEqual(new Date()),
+          },
+          take: FINANCE.BATCH.MAX_BATCH_SIZE,
+        });
+
+        // Use bounded concurrency to prevent resource exhaustion
+        const limit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+        const results = await Promise.allSettled(dueTransactions.map((rt) => limit(() => this.processTransaction(rt))));
+
+        // Log summary
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+        this.logger.log(
+          `Processed ${dueTransactions.length} recurring transactions: ${succeeded} succeeded, ${failed} failed`,
+        );
+
+        return { total: dueTransactions.length, succeeded, failed };
+      },
+      {
+        ttl: FINANCE.TIME.FIVE_MINUTES_MS, // 5 minute lock TTL for batch processing
+        maxRetries: 0, // Don't retry - let next cron tick handle it
+      },
+    );
+
+    if (result === null) {
       this.logger.log('Skipping recurring transactions - another instance holds the lock');
-      return;
-    }
-
-    try {
-      this.logger.log('Processing recurring transactions...');
-
-      const dueTransactions = await this.dataSource.getRepository(RecurringTransaction).find({
-        where: {
-          status: RecurringStatus.ACTIVE,
-          nextRunDate: LessThanOrEqual(new Date()),
-        },
-        take: 1000,
-      });
-
-      const BATCH_SIZE = 5;
-      for (let i = 0; i < dueTransactions.length; i += BATCH_SIZE) {
-        const batch = dueTransactions.slice(i, i + BATCH_SIZE);
-        await Promise.all(batch.map((rt) => this.processTransaction(rt)));
-      }
-
-      this.logger.log(`Processed ${dueTransactions.length} recurring transactions`);
-    } finally {
-      try {
-        const unlockResult = await this.dataSource.query<{ unlocked: boolean }[]>(
-          'SELECT pg_advisory_unlock($1) as unlocked',
-          [lockId],
-        );
-        const unlocked = unlockResult[0]?.unlocked;
-        if (!unlocked) {
-          this.logger.error(`Failed to release recurring transactions advisory lock (lockId=${lockId})`);
-        }
-      } catch (unlockError) {
-        this.logger.error(
-          `Failed to release recurring transactions advisory lock (lockId=${lockId}): ${unlockError instanceof Error ? unlockError.message : String(unlockError)}`,
-        );
-      }
     }
   }
 

@@ -5,6 +5,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PdfUtils } from '../../../common/utils/pdf.utils';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
+import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
 import { Role } from '../../users/enums/role.enum';
@@ -15,6 +16,7 @@ import { FinancialReportService } from '../services/financial-report.service';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.OPS_MANAGER)
+@MfaRequired()
 @Controller('finance/reports')
 export class FinancialReportController {
   constructor(

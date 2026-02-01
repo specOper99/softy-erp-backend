@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
@@ -113,6 +114,18 @@ describe('FinanceService - Comprehensive Tests', () => {
       }),
     });
 
+    // Mock createStreamQueryBuilder for streaming exports
+    mockTransactionRepository.createStreamQueryBuilder = jest.fn().mockReturnValue({
+      orderBy: jest.fn().mockReturnThis(),
+      stream: jest.fn().mockResolvedValue({
+        pipe: jest.fn(),
+        on: jest.fn((event, callback) => {
+          if (event === 'end') callback();
+          return { pipe: jest.fn(), on: jest.fn() };
+        }),
+      }),
+    });
+
     // Configure other default behaviors
     mockTransactionRepository.save.mockImplementation((txn: any) =>
       Promise.resolve({ id: 'txn-uuid-123', ...txn } as unknown as Transaction),
@@ -160,6 +173,12 @@ describe('FinanceService - Comprehensive Tests', () => {
           useValue: mockFinancialReportService,
         },
         { provide: WalletService, useValue: mockWalletService },
+        {
+          provide: EventBus,
+          useValue: {
+            publish: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -349,7 +368,7 @@ describe('FinanceService - Comprehensive Tests', () => {
     it('should stream transactions to response', async () => {
       const mockRes = createMockResponse();
       await service.exportTransactionsToCSV(mockRes);
-      expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalledWith('t');
+      expect(mockTransactionRepository.createStreamQueryBuilder).toHaveBeenCalledWith('t');
       expect(mockExportService.streamFromStream).toHaveBeenCalledWith(
         mockRes,
         expect.anything(),

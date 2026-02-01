@@ -1,7 +1,7 @@
 import { Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-
+import { MoneyColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('employee_wallets')
 @Index(['tenantId', 'userId'], { unique: true })
@@ -9,22 +9,18 @@ export class EmployeeWallet extends BaseTenantEntity {
   @Column({ name: 'user_id' })
   userId: string;
 
-  @Column({
-    name: 'pending_balance',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  /**
+   * Pending commission balance (not yet payable).
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @MoneyColumn('pending_balance')
   pendingBalance: number;
 
-  @Column({
-    name: 'payable_balance',
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-  })
+  /**
+   * Balance available for payout.
+   * Transformer ensures type safety (PostgreSQL returns strings).
+   */
+  @MoneyColumn('payable_balance')
   payableBalance: number;
 
   @OneToOne(() => User)
