@@ -10,6 +10,7 @@ import { TaskStatus } from '../tasks/enums/task-status.enum';
 import { TaskRepository } from '../tasks/repositories/task.repository';
 import { DashboardService } from './dashboard.service';
 import { UserPreference } from './entities/user-preference.entity';
+import { UserPreferenceRepository } from './repositories/user-preference.repository';
 
 // Mock TenantContextService to avoid ReferenceError/Circular Dependency issues in tests
 jest.mock('../../common/services/tenant-context.service', () => ({
@@ -67,6 +68,10 @@ describe('DashboardService', () => {
         },
         {
           provide: ProfileRepository,
+          useValue: mockRepository,
+        },
+        {
+          provide: UserPreferenceRepository,
           useValue: mockRepository,
         },
         {

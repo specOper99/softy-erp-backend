@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   createMockPackageItem,
@@ -77,6 +78,10 @@ describe('CatalogService', () => {
             set: jest.fn(),
             del: jest.fn(),
           },
+        },
+        {
+          provide: EventBus,
+          useValue: { publish: jest.fn() },
         },
       ],
     }).compile();

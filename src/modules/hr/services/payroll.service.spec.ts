@@ -9,6 +9,8 @@ import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { PayrollRun, Profile } from '../entities';
+import { PayrollRunRepository } from '../repositories/payroll-run.repository';
+import { ProfileRepository } from '../repositories/profile.repository';
 import { PayrollService } from './payroll.service';
 
 jest.mock('p-limit'); // Use the manual mock in __mocks__/p-limit.ts
@@ -101,6 +103,14 @@ describe('PayrollService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayrollService,
+        {
+          provide: ProfileRepository,
+          useValue: mockProfileRepository,
+        },
+        {
+          provide: PayrollRunRepository,
+          useValue: mockPayrollRunRepository,
+        },
         {
           provide: getRepositoryToken(Profile),
           useValue: mockProfileRepository,

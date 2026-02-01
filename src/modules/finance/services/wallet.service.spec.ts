@@ -1,4 +1,5 @@
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EntityManager } from 'typeorm';
 import {
@@ -35,6 +36,10 @@ describe('WalletService', () => {
         {
           provide: WalletRepository,
           useValue: mockWalletRepository,
+        },
+        {
+          provide: EventBus,
+          useValue: { publish: jest.fn() },
         },
       ],
     }).compile();

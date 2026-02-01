@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotificationPreference } from '../entities/notification-preference.entity';
 import { NotificationFrequency, NotificationType } from '../enums/notification.enum';
+import { NotificationPreferenceRepository } from '../repositories/notification-preference.repository';
 import { NotificationPreferencesService } from './notification-preferences.service';
 
 describe('NotificationPreferencesService', () => {
@@ -37,7 +38,7 @@ describe('NotificationPreferencesService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationPreferencesService,
-        { provide: NotificationPreferenceRepository, useValue: mockRepository },
+        { provide: NotificationPreferenceRepository, useValue: preferenceRepository },
         { provide: getRepositoryToken(NotificationPreference), useValue: preferenceRepository },
       ],
     }).compile();
