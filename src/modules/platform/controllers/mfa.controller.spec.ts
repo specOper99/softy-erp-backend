@@ -4,7 +4,6 @@ import { PlatformUser } from '../entities/platform-user.entity';
 import { MFAService } from '../services/mfa.service';
 import { PlatformAuthService } from '../services/platform-auth.service';
 import { MFAController } from './mfa.controller';
-import * as bcrypt from 'bcrypt';
 
 interface AuthenticatedRequest {
   user: {
@@ -60,6 +59,12 @@ describe('MFAController', () => {
             verifyMFACode: jest.fn(),
             verifyBackupCode: verifyBackupCodeMock,
             removeUsedBackupCode: removeUsedBackupCodeMock,
+            getUserById: jest.fn().mockResolvedValue(mockUser),
+            saveMfaSetup: jest.fn().mockResolvedValue(undefined),
+            enableMfa: jest.fn().mockResolvedValue(undefined),
+            disableMfa: jest.fn().mockResolvedValue(undefined),
+            getUserWithFields: jest.fn().mockResolvedValue(mockUser),
+            updateBackupCodes: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -104,16 +109,11 @@ describe('MFAController', () => {
 
       await controller.setupMFA(mockRequest);
 
-      expect(userRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          mfaSecret: mockMFASetup.secret,
-          mfaRecoveryCodes: mockMFASetup.backupCodes,
-        }),
-      );
+      expect(mfaService.saveMfaSetup).toHaveBeenCalledWith('user-123', mockMFASetup.secret, mockMFASetup.backupCodes);
     });
 
     it('should throw error if user not found', async () => {
-      userRepository.findOne.mockResolvedValueOnce(null);
+      (mfaService.getUserById as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
 
       const mockRequest = {
         user: { userId: 'non-existent' },
@@ -131,8 +131,8 @@ describe('MFAController', () => {
         mfaEnabled: false,
       };
 
-      userRepository.findOne.mockResolvedValueOnce(userWithSecret);
-      verifyTokenMock.mockImplementation(() => true);
+      (mfaService.getUserById as jest.Mock).mockResolvedValueOnce(userWithSecret);
+      (mfaService.verifyToken as jest.Mock).mockReturnValue(true);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -147,11 +147,11 @@ describe('MFAController', () => {
         success: true,
         message: 'MFA enabled successfully',
       });
-      expect(userRepository.save).toHaveBeenCalledWith(expect.objectContaining({ mfaEnabled: true }));
+      expect(mfaService.enableMfa).toHaveBeenCalledWith('user-123');
     });
 
     it('should throw error if user has no MFA secret', async () => {
-      userRepository.findOne.mockResolvedValueOnce({
+      (mfaService.getUserById as jest.Mock).mockResolvedValueOnce({
         ...mockUser,
         mfaSecret: null,
       });
@@ -167,11 +167,11 @@ describe('MFAController', () => {
     });
 
     it('should reject invalid MFA code', async () => {
-      userRepository.findOne.mockResolvedValueOnce({
+      (mfaService.getUserById as jest.Mock).mockResolvedValueOnce({
         ...mockUser,
         mfaSecret: 'TEMP_SECRET',
       });
-      verifyTokenMock.mockImplementation(() => false);
+      (mfaService.verifyToken as jest.Mock).mockReturnValue(false);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -188,14 +188,7 @@ describe('MFAController', () => {
     it('should disable MFA with valid reason', async () => {
       const password = 'password123';
 
-      const userWithMFA = {
-        ...mockUser,
-        mfaEnabled: true,
-        mfaSecret: 'SECRET',
-        passwordHash: bcrypt.hashSync(password, 10),
-      };
-
-      userRepository.findOne.mockResolvedValueOnce(userWithMFA);
+      (mfaService.disableMfa as jest.Mock).mockResolvedValueOnce(undefined);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -212,17 +205,11 @@ describe('MFAController', () => {
         success: true,
         message: 'MFA disabled',
       });
-      expect(userRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          mfaEnabled: false,
-          mfaSecret: null,
-          mfaRecoveryCodes: [],
-        }),
-      );
+      expect(mfaService.disableMfa).toHaveBeenCalledWith('user-123', password);
     });
 
     it('should throw error if user not found', async () => {
-      userRepository.findOne.mockResolvedValueOnce(null);
+      (mfaService.disableMfa as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -244,7 +231,7 @@ describe('MFAController', () => {
         mfaRecoveryCodes: ['CODE1', 'CODE2', 'CODE3'],
       };
 
-      userRepository.findOne.mockResolvedValueOnce(userWithCodes);
+      (mfaService.getUserWithFields as jest.Mock).mockResolvedValueOnce(userWithCodes);
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -259,7 +246,7 @@ describe('MFAController', () => {
     });
 
     it('should return empty array if no backup codes', async () => {
-      userRepository.findOne.mockResolvedValueOnce({
+      (mfaService.getUserWithFields as jest.Mock).mockResolvedValueOnce({
         ...mockUser,
         mfaRecoveryCodes: [],
       });
@@ -277,7 +264,7 @@ describe('MFAController', () => {
     });
 
     it('should throw error if user not found', async () => {
-      userRepository.findOne.mockResolvedValueOnce(null);
+      (mfaService.getUserWithFields as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -302,15 +289,11 @@ describe('MFAController', () => {
         backupCodes: mockMFASetup.backupCodes,
         message: 'Backup codes regenerated',
       });
-      expect(userRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          mfaRecoveryCodes: mockMFASetup.backupCodes,
-        }),
-      );
+      expect(mfaService.updateBackupCodes).toHaveBeenCalledWith('user-123', mockMFASetup.backupCodes);
     });
 
     it('should throw error if user not found', async () => {
-      userRepository.findOne.mockResolvedValueOnce(null);
+      (mfaService.getUserById as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
 
       const mockRequest = {
         user: { userId: 'user-123' },

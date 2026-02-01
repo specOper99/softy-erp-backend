@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -16,6 +17,7 @@ import {
 import { PackageItem } from '../entities/package-item.entity';
 import { ServicePackage } from '../entities/service-package.entity';
 import { TaskType } from '../entities/task-type.entity';
+import { PackageUpdatedEvent } from '../events/package.events';
 import { PackageItemRepository } from '../repositories/package-item.repository';
 import { ServicePackageRepository } from '../repositories/service-package.repository';
 import { TaskTypeRepository } from '../repositories/task-type.repository';
@@ -28,6 +30,7 @@ export class CatalogService {
     private readonly packageItemRepository: PackageItemRepository,
     private readonly auditService: AuditPublisher,
     private readonly cacheUtils: CacheUtilsService,
+    private readonly eventBus: EventBus,
   ) {}
 
   // Cache TTLs in milliseconds
@@ -143,6 +146,18 @@ export class CatalogService {
 
     // Log price or status changes
     if (dto.price !== undefined || dto.isActive !== undefined || dto.name !== undefined) {
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
+
+      if (dto.price !== undefined && dto.price !== oldValues.price) {
+        changes.price = { old: oldValues.price, new: savedPkg.price };
+      }
+      if (dto.isActive !== undefined && dto.isActive !== oldValues.isActive) {
+        changes.isActive = { old: oldValues.isActive, new: savedPkg.isActive };
+      }
+      if (dto.name !== undefined && dto.name !== oldValues.name) {
+        changes.name = { old: oldValues.name, new: savedPkg.name };
+      }
+
       await this.auditService.log({
         action: 'UPDATE',
         entityName: 'ServicePackage',
@@ -158,6 +173,11 @@ export class CatalogService {
             ? `Price changed from ${oldValues.price} to ${savedPkg.price}`
             : undefined,
       });
+
+      // Publish event for price changes (triggers BookingPriceChangedHandler)
+      if (Object.keys(changes).length > 0) {
+        this.eventBus.publish(new PackageUpdatedEvent(savedPkg.id, savedPkg.tenantId, changes, new Date()));
+      }
     }
 
     // Invalidate cache

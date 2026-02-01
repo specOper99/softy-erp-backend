@@ -41,7 +41,7 @@ export class PlatformAuditService {
    * Create an audit log entry
    * This is append-only, logs are never modified or deleted
    */
-  async log(dto: CreateAuditLogDto): Promise<PlatformAuditLog> {
+  async log(dto: CreateAuditLogDto): Promise<PlatformAuditLog | null> {
     try {
       const auditLog = this.auditLogRepository.create({
         ...dto,
@@ -59,7 +59,8 @@ export class PlatformAuditService {
       // Audit logging failure should not crash the application
       // but should be logged with high severity
       this.logger.error('Failed to create audit log', error instanceof Error ? error.stack : String(error));
-      throw error;
+      // Don't rethrow to avoid failing user requests due to logging errors
+      return null as PlatformAuditLog | null;
     }
   }
 

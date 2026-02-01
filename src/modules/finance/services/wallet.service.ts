@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { EntityManager } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -6,6 +7,7 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
+import { WalletBalanceUpdatedEvent } from '../events/wallet-balance-updated.event';
 
 import { WalletRepository } from '../repositories/wallet.repository';
 
@@ -13,7 +15,10 @@ import { WalletRepository } from '../repositories/wallet.repository';
 export class WalletService {
   private readonly logger = new Logger(WalletService.name);
 
-  constructor(private readonly walletRepository: WalletRepository) {}
+  constructor(
+    private readonly walletRepository: WalletRepository,
+    private readonly eventBus: EventBus,
+  ) {}
 
   async getOrCreateWallet(userId: string, manager?: EntityManager): Promise<EmployeeWallet> {
     if (manager) {
@@ -133,8 +138,23 @@ export class WalletService {
       throw new BadRequestException('wallet.commission_must_be_positive');
     }
     const wallet = await this.getWalletWithLock(manager, userId, 'addPendingCommission', true);
-    wallet.pendingBalance = MathUtils.add(Number(wallet.pendingBalance), Number(amount));
-    return manager.save(wallet);
+    const oldBalance = Number(wallet.pendingBalance);
+    wallet.pendingBalance = MathUtils.add(oldBalance, Number(amount));
+    const savedWallet = await manager.save(wallet);
+
+    // Publish event after transaction commits
+    this.eventBus.publish(
+      new WalletBalanceUpdatedEvent(
+        userId,
+        wallet.tenantId,
+        oldBalance,
+        Number(savedWallet.pendingBalance),
+        'pending',
+        'Commission added',
+      ),
+    );
+
+    return savedWallet;
   }
 
   /**
@@ -166,7 +186,21 @@ export class WalletService {
     }
 
     wallet.pendingBalance = newBalance;
-    return manager.save(wallet);
+    const savedWallet = await manager.save(wallet);
+
+    // Publish event after transaction commits
+    this.eventBus.publish(
+      new WalletBalanceUpdatedEvent(
+        userId,
+        wallet.tenantId,
+        currentBalance,
+        newBalance,
+        'pending',
+        'Commission subtracted',
+      ),
+    );
+
+    return savedWallet;
   }
 
   /**
@@ -190,9 +224,24 @@ export class WalletService {
       );
     }
 
+    const oldPayable = Number(wallet.payableBalance);
     wallet.pendingBalance = MathUtils.subtract(currentPending, transferAmount);
-    wallet.payableBalance = MathUtils.add(Number(wallet.payableBalance), transferAmount);
-    return manager.save(wallet);
+    wallet.payableBalance = MathUtils.add(oldPayable, transferAmount);
+    const savedWallet = await manager.save(wallet);
+
+    // Publish event after transaction commits
+    this.eventBus.publish(
+      new WalletBalanceUpdatedEvent(
+        userId,
+        wallet.tenantId,
+        oldPayable,
+        Number(savedWallet.payableBalance),
+        'paid',
+        'Commission moved to payable',
+      ),
+    );
+
+    return savedWallet;
   }
 
   /**
@@ -202,8 +251,25 @@ export class WalletService {
    */
   async resetPayableBalance(manager: EntityManager, userId: string): Promise<EmployeeWallet> {
     const wallet = await this.getWalletWithLock(manager, userId, 'resetPayableBalance');
+    const oldBalance = Number(wallet.payableBalance);
     wallet.payableBalance = 0;
-    return manager.save(wallet);
+    const savedWallet = await manager.save(wallet);
+
+    // Publish event after transaction commits (only if there was a balance to reset)
+    if (oldBalance > 0) {
+      this.eventBus.publish(
+        new WalletBalanceUpdatedEvent(
+          userId,
+          wallet.tenantId,
+          oldBalance,
+          0,
+          'paid',
+          'Payable balance reset after payout',
+        ),
+      );
+    }
+
+    return savedWallet;
   }
 
   /**

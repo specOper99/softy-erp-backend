@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MathUtils } from '../../common/utils/math.utils';
@@ -24,7 +22,8 @@ import {
   StaffPerformanceDto,
 } from './dto/dashboard.dto';
 import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
-import { UserDashboardConfig, UserPreference } from './entities/user-preference.entity';
+import { UserDashboardConfig } from './entities/user-preference.entity';
+import { UserPreferenceRepository } from './repositories/user-preference.repository';
 
 @Injectable()
 export class DashboardService {
@@ -33,8 +32,7 @@ export class DashboardService {
     private readonly taskRepository: TaskRepository,
     private readonly bookingRepository: BookingRepository,
     private readonly profileRepository: ProfileRepository,
-    @InjectRepository(UserPreference)
-    private readonly preferenceRepository: Repository<UserPreference>,
+    private readonly preferenceRepository: UserPreferenceRepository,
     private readonly metricsRepository: DailyMetricsRepository,
     private readonly cacheUtils: CacheUtilsService,
   ) {}

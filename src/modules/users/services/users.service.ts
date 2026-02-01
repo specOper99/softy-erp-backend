@@ -10,10 +10,30 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { CreateUserDto, UpdateUserDto } from '../dto';
 import { User } from '../entities/user.entity';
+import { UserCreatedEvent } from '../events/user-created.event';
 import { UserDeactivatedEvent } from '../events/user-deactivated.event';
 import { UserDeletedEvent } from '../events/user-deleted.event';
 import { UserRepository } from '../repositories/user.repository';
 
+/**
+ * UsersService manages user entities with dual repository strategy:
+ *
+ * 1. `userRepository` (UserRepository - TenantAwareRepository):
+ *    - For tenant-scoped operations (CRUD, queries within tenant context)
+ *    - Automatically filters by current tenant via AsyncLocalStorage
+ *    - Used in authenticated endpoints with established tenant context
+ *
+ * 2. `rawUserRepository` (Repository<User>):
+ *    - For cross-tenant operations requiring global access
+ *    - Used exclusively in authentication flows BEFORE tenant context exists:
+ *      - `findByEmailGlobal()`: Login endpoint needs to find user across all tenants
+ *      - `findByEmailWithMfaSecretGlobal()`: MFA verification before tenant resolution
+ *      - `findByIdWithRecoveryCodesGlobal()`: Recovery code verification (pre-auth)
+ *    - **SECURITY**: Never expose rawUserRepository to controllers or external callers
+ *
+ * This pattern is INTENTIONAL and required for multi-tenant authentication.
+ * Do NOT consolidate into single repository - breaks login flow.
+ */
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -53,6 +73,18 @@ export class UsersService {
       entityId: savedUser.id,
       newValues: { email: savedUser.email, role: savedUser.role },
     });
+
+    // Publish UserCreatedEvent for onboarding workflows
+    this.eventBus.publish(
+      new UserCreatedEvent(
+        savedUser.id,
+        savedUser.tenantId,
+        savedUser.email,
+        savedUser.role,
+        undefined,
+        savedUser.createdAt,
+      ),
+    );
 
     return savedUser;
   }

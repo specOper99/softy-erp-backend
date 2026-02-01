@@ -4,6 +4,7 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardGateway } from './dashboard.gateway';
 import { DashboardService } from './dashboard.service';
 import { DashboardWalletBalanceHandler } from './handlers/wallet-balance-updated.handler';
+import { UserPreferenceRepository } from './repositories/user-preference.repository';
 import { ReportGeneratorService } from './services/report-generator.service';
 
 import { AuthModule } from '../auth/auth.module';
@@ -26,7 +27,13 @@ import { TasksModule } from '../tasks/tasks.module';
     AnalyticsModule,
   ],
   controllers: [DashboardController],
-  providers: [DashboardService, ReportGeneratorService, DashboardGateway, DashboardWalletBalanceHandler],
+  providers: [
+    DashboardService,
+    ReportGeneratorService,
+    DashboardGateway,
+    DashboardWalletBalanceHandler,
+    UserPreferenceRepository,
+  ],
   exports: [DashboardGateway, ReportGeneratorService],
 })
 export class DashboardModule {}

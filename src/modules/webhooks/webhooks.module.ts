@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook, WebhookDelivery } from './entities';
 import { BookingConfirmedWebhookHandler } from './handlers/booking-confirmed.handler';
+import { BookingCreatedWebhookHandler } from './handlers/booking-created.handler';
 import { BookingUpdatedWebhookHandler } from './handlers/booking-updated.handler';
 import { TaskCompletedWebhookHandler } from './handlers/task-completed.handler';
 import { WebhookProcessor } from './processors/webhook.processor';
@@ -35,6 +36,7 @@ import { WEBHOOK_QUEUE } from './webhooks.types';
     WebhookProcessor,
     EncryptionService,
     BookingConfirmedWebhookHandler,
+    BookingCreatedWebhookHandler,
     BookingUpdatedWebhookHandler,
     TaskCompletedWebhookHandler,
     WebhookRepository,

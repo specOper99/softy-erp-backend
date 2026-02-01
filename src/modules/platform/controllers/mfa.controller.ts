@@ -2,13 +2,9 @@ import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
-import { PlatformUser } from '../entities/platform-user.entity';
 import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { MFAService } from '../services/mfa.service';
 
@@ -37,12 +33,7 @@ class DisableMFADto {
 @RequireContext(ContextType.PLATFORM)
 @Controller('platform/mfa')
 export class MFAController {
-  constructor(
-    private readonly mfaService: MFAService,
-
-    @InjectRepository(PlatformUser)
-    private readonly userRepository: Repository<PlatformUser>,
-  ) {}
+  constructor(private readonly mfaService: MFAService) {}
 
   @Post('setup')
   @HttpCode(HttpStatus.OK)
@@ -77,14 +68,12 @@ export class MFAController {
   @ApiResponse({ status: 400, description: 'MFA already enabled' })
   async setupMFA(@Request() req: AuthenticatedRequest) {
     const userId: string = req.user.userId;
-    const user = await this.getUserOrThrow(userId);
+    const user = await this.mfaService.getUserById(userId);
 
     const mfaSetup = await this.mfaService.setupMFA(userId, user.email);
 
     // Store secret temporarily - user must verify before enabling
-    user.mfaSecret = mfaSetup.secret;
-    user.mfaRecoveryCodes = mfaSetup.backupCodes;
-    await this.userRepository.save(user);
+    await this.mfaService.saveMfaSetup(userId, mfaSetup.secret, mfaSetup.backupCodes);
 
     return {
       qrCode: mfaSetup.qrCode,
@@ -115,7 +104,7 @@ export class MFAController {
   @ApiResponse({ status: 400, description: 'Invalid MFA code or MFA not set up' })
   async verifyAndEnableMFA(@Body() dto: VerifyMFADto, @Request() req: AuthenticatedRequest) {
     const userId: string = req.user.userId;
-    const user = await this.getUserOrThrow(userId);
+    const user = await this.mfaService.getUserById(userId);
 
     if (!user || !user.mfaSecret) {
       throw new Error('MFA not set up');
@@ -128,8 +117,7 @@ export class MFAController {
     }
 
     // Enable MFA
-    user.mfaEnabled = true;
-    await this.userRepository.save(user);
+    await this.mfaService.enableMfa(userId);
 
     return {
       success: true,
@@ -159,25 +147,7 @@ export class MFAController {
   @ApiResponse({ status: 401, description: 'Invalid password' })
   async disableMFA(@Body() dto: DisableMFADto, @Request() req: AuthenticatedRequest) {
     const userId: string = req.user.userId;
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['id', 'passwordHash', 'mfaEnabled'],
-    });
-
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Verify password before disabling MFA
-    const passwordMatches = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!passwordMatches) {
-      throw new Error('Incorrect password. MFA cannot be disabled.');
-    }
-
-    user.mfaEnabled = false;
-    user.mfaSecret = null;
-    user.mfaRecoveryCodes = [];
-    await this.userRepository.save(user);
+    await this.mfaService.disableMfa(userId, dto.password);
 
     return {
       success: true,
@@ -210,14 +180,7 @@ export class MFAController {
   })
   async getBackupCodes(@Request() req: AuthenticatedRequest) {
     const userId: string = req.user.userId;
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['id', 'mfaRecoveryCodes'],
-    });
-
-    if (!user) {
-      throw new Error('User not found');
-    }
+    const user = await this.mfaService.getUserWithFields(userId, ['mfaRecoveryCodes']);
 
     return {
       backupCodes: user.mfaRecoveryCodes || [],
@@ -251,22 +214,14 @@ export class MFAController {
   @ApiResponse({ status: 400, description: 'MFA not enabled' })
   async regenerateBackupCodes(@Request() req: AuthenticatedRequest) {
     const userId: string = req.user.userId;
-    const user = await this.getUserOrThrow(userId);
+    const user = await this.mfaService.getUserById(userId);
 
     const mfaSetup = await this.mfaService.setupMFA(userId, user.email);
-    user.mfaRecoveryCodes = mfaSetup.backupCodes;
-    await this.userRepository.save(user);
+    await this.mfaService.updateBackupCodes(userId, mfaSetup.backupCodes);
 
     return {
       backupCodes: mfaSetup.backupCodes,
       message: 'Backup codes regenerated',
     };
-  }
-  private async getUserOrThrow(userId: string): Promise<PlatformUser> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new Error('User not found');
-    }
-    return user;
   }
 }

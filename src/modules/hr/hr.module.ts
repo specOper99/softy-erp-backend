@@ -16,6 +16,7 @@ import { AttendanceController, HrController } from './controllers';
 import { Attendance, PayrollRun, PerformanceReview, Profile } from './entities';
 import { UserDeletedHandler } from './handlers/user-deleted.handler';
 import { WalletBalanceUpdatedHandler } from './handlers/wallet-balance-updated.handler';
+import { PayrollRunRepository } from './repositories/payroll-run.repository';
 import { ProfileRepository } from './repositories/profile.repository';
 import { AttendanceService } from './services/attendance.service';
 import { HrService } from './services/hr.service';
@@ -37,6 +38,7 @@ import { PayrollService } from './services/payroll.service';
   controllers: [HrController, AttendanceController],
   providers: [
     ProfileRepository,
+    PayrollRunRepository,
     HrService,
     PayrollService,
     PayrollReconciliationService,

@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
 import pLimit from 'p-limit';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
@@ -21,7 +20,9 @@ import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { PayrollRunResponseDto } from '../dto';
-import { PayrollRun, Profile } from '../entities';
+import { PayrollRun } from '../entities';
+import { PayrollRunRepository } from '../repositories/payroll-run.repository';
+import { ProfileRepository } from '../repositories/profile.repository';
 
 @Injectable()
 export class PayrollService {
@@ -31,10 +32,8 @@ export class PayrollService {
   private readonly tenantTx: TenantScopedManager;
 
   constructor(
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
-    @InjectRepository(PayrollRun)
-    private readonly payrollRunRepository: Repository<PayrollRun>,
+    private readonly profileRepository: ProfileRepository,
+    private readonly payrollRunRepository: PayrollRunRepository,
     private readonly financeService: FinanceService,
     private readonly walletService: WalletService,
     private readonly mailService: MailService,
@@ -185,9 +184,8 @@ export class PayrollService {
   }
 
   async getPayrollHistory(query: PaginationDto = new PaginationDto()): Promise<PayrollRun[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.payrollRunRepository.find({
-      where: { tenantId },
+      where: {},
       order: { processedAt: 'DESC' },
       skip: query.getSkip(),
       take: query.getTake(),
@@ -197,10 +195,7 @@ export class PayrollService {
   async getPayrollHistoryCursor(
     query: CursorPaginationDto,
   ): Promise<{ data: PayrollRun[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const qb = this.payrollRunRepository.createQueryBuilder('payrollRun');
-    qb.where('payrollRun.tenantId = :tenantId', { tenantId });
 
     return CursorPaginationHelper.paginateWithCustomDateField(
       qb,

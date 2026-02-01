@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'node:crypto';
-import { authenticator } from 'otplib';
+import * as OTPAuth from 'otpauth';
 import { toDataURL } from 'qrcode';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { User } from '../../users/entities/user.entity';
@@ -17,14 +17,22 @@ export class MfaService {
   ) {}
 
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
-    const secret = authenticator.generateSecret();
-    const otpauthUrl = authenticator.keyuri(user.email, 'softY ERP', secret);
+    const secret = new OTPAuth.Secret({ size: 20 });
+    const totp = new OTPAuth.TOTP({
+      issuer: 'softY ERP',
+      label: user.email,
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      secret: secret,
+    });
+    const otpauthUrl = totp.toString();
     const qrCodeUrl = await toDataURL(otpauthUrl);
 
-    await this.usersService.updateMfaSecret(user.id, secret, false);
+    await this.usersService.updateMfaSecret(user.id, secret.base32, false);
 
     return {
-      secret,
+      secret: secret.base32,
       qrCodeUrl,
     };
   }
@@ -38,10 +46,14 @@ export class MfaService {
 
     let isValid = false;
     try {
-      isValid = authenticator.verify({
-        token: code,
-        secret: userWithSecret.mfaSecret,
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(userWithSecret.mfaSecret),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
       });
+      const delta = totp.validate({ token: code, window: 1 });
+      isValid = delta !== null;
     } catch {
       throw new UnauthorizedException('Invalid MFA code');
     }
@@ -117,7 +129,14 @@ export class MfaService {
 
   verifyTotp(secret: string, token: string): boolean {
     try {
-      return authenticator.verify({ token, secret });
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(secret),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+      });
+      const delta = totp.validate({ token, window: 1 });
+      return delta !== null;
     } catch (error) {
       this.logger.debug(`TOTP verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;

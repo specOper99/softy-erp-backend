@@ -1,17 +1,13 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CreateNotificationDto, NotificationFilterDto } from '../dto/notification.dto';
 import { Notification } from '../entities/notification.entity';
+import { NotificationRepository } from '../repositories/notification.repository';
 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(
-    @InjectRepository(Notification)
-    private readonly notificationRepo: Repository<Notification>,
-  ) {}
+  constructor(private readonly notificationRepo: NotificationRepository) {}
 
   async createNotification(dto: CreateNotificationDto): Promise<Notification> {
     const notification = this.notificationRepo.create(dto);
@@ -20,15 +16,13 @@ export class NotificationService {
 
   async getUserNotifications(
     userId: string,
-    tenantId: string,
     filter: NotificationFilterDto,
   ): Promise<{ data: Notification[]; total: number; page: number; limit: number }> {
     const { read, type, page = 1, limit = 20 } = filter;
 
     const queryBuilder = this.notificationRepo
       .createQueryBuilder('notification')
-      .where('notification.userId = :userId', { userId })
-      .andWhere('notification.tenantId = :tenantId', { tenantId });
+      .where('notification.userId = :userId', { userId });
 
     if (read !== undefined) {
       queryBuilder.andWhere('notification.read = :read', { read });
@@ -53,9 +47,9 @@ export class NotificationService {
     };
   }
 
-  async markAsRead(notificationId: string, userId: string, tenantId: string): Promise<Notification> {
+  async markAsRead(notificationId: string, userId: string): Promise<Notification> {
     const notification = await this.notificationRepo.findOne({
-      where: { id: notificationId, userId, tenantId },
+      where: { id: notificationId, userId },
     });
 
     if (!notification) {
@@ -71,30 +65,28 @@ export class NotificationService {
     return notification;
   }
 
-  async markAllAsRead(userId: string, tenantId: string): Promise<void> {
+  async markAllAsRead(userId: string): Promise<void> {
     await this.notificationRepo
-      .createQueryBuilder()
+      .createQueryBuilder('notification')
       .update(Notification)
       .set({ read: true, readAt: new Date() })
       .where('userId = :userId', { userId })
-      .andWhere('tenantId = :tenantId', { tenantId })
       .andWhere('read = :read', { read: false })
       .execute();
 
     this.logger.log(`Marked all notifications as read for user ${userId}`);
   }
 
-  async getUnreadCount(userId: string, tenantId: string): Promise<number> {
+  async getUnreadCount(userId: string): Promise<number> {
     return this.notificationRepo.count({
-      where: { userId, tenantId, read: false },
+      where: { userId, read: false },
     });
   }
 
-  async deleteNotification(notificationId: string, userId: string, tenantId: string): Promise<void> {
+  async deleteNotification(notificationId: string, userId: string): Promise<void> {
     const result = await this.notificationRepo.delete({
       id: notificationId,
       userId,
-      tenantId,
     });
 
     if (result.affected === 0) {

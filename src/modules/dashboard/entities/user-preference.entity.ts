@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
-import { BaseEntity } from '../../../common/entities/abstract.entity';
+import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { User } from '../../users/entities/user.entity';
 
 export interface DashboardWidgetConfig {
@@ -13,7 +13,7 @@ export interface UserDashboardConfig {
 }
 
 @Entity('user_preferences')
-export class UserPreference extends BaseEntity {
+export class UserPreference extends BaseTenantEntity {
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

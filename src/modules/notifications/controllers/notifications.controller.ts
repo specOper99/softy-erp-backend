@@ -21,7 +21,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Return user notifications', type: [NotificationResponseDto] })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getNotifications(@CurrentUser() user: User, @Query() filter: NotificationFilterDto) {
-    return this.notificationService.getUserNotifications(user.id, user.tenantId, filter);
+    return this.notificationService.getUserNotifications(user.id, filter);
   }
 
   @Get('unread-count')
@@ -29,7 +29,7 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Get count of unread notifications' })
   @ApiResponse({ status: 200, description: 'Return unread count' })
   async getUnreadCount(@CurrentUser() user: User) {
-    const count = await this.notificationService.getUnreadCount(user.id, user.tenantId);
+    const count = await this.notificationService.getUnreadCount(user.id);
     return { count };
   }
 
@@ -39,7 +39,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Notification marked as read' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
   async markAsRead(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    return this.notificationService.markAsRead(id, user.id, user.tenantId);
+    return this.notificationService.markAsRead(id, user.id);
   }
 
   @Post('mark-all-read')
@@ -47,7 +47,7 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Mark all notifications as read' })
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
   async markAllAsRead(@CurrentUser() user: User) {
-    await this.notificationService.markAllAsRead(user.id, user.tenantId);
+    await this.notificationService.markAllAsRead(user.id);
     return { message: 'All notifications marked as read' };
   }
 
@@ -57,7 +57,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Notification deleted' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
   async deleteNotification(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    await this.notificationService.deleteNotification(id, user.id, user.tenantId);
+    await this.notificationService.deleteNotification(id, user.id);
     return { message: 'Notification deleted successfully' };
   }
 }

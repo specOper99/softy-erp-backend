@@ -1,16 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { UpdateNotificationPreferenceDto } from '../dto/notification-preference.dto';
 import { NotificationPreference } from '../entities/notification-preference.entity';
 import { NotificationType } from '../enums/notification.enum';
+import { NotificationPreferenceRepository } from '../repositories/notification-preference.repository';
 
 @Injectable()
 export class NotificationPreferencesService {
-  constructor(
-    @InjectRepository(NotificationPreference)
-    private readonly preferenceRepo: Repository<NotificationPreference>,
-  ) {}
+  constructor(private readonly preferenceRepo: NotificationPreferenceRepository) {}
 
   async getUserPreferences(userId: string): Promise<NotificationPreference[]> {
     const preferences = await this.preferenceRepo.find({ where: { userId }, take: 100 });

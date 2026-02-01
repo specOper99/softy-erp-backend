@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PackagesController } from './controllers/packages.controller';
 import { TaskTypesController } from './controllers/task-types.controller';
@@ -11,7 +12,7 @@ import { TaskTypeRepository } from './repositories/task-type.repository';
 import { CatalogService } from './services/catalog.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ServicePackage, TaskType, PackageItem])],
+  imports: [TypeOrmModule.forFeature([ServicePackage, TaskType, PackageItem]), CqrsModule],
   controllers: [PackagesController, TaskTypesController],
   providers: [CatalogService, ServicePackageRepository, TaskTypeRepository, PackageItemRepository],
   exports: [CatalogService, ServicePackageRepository],

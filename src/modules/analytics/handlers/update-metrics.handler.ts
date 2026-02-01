@@ -1,12 +1,10 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
-import { DailyMetrics } from '../entities/daily-metrics.entity';
+import { DailyMetricsRepository } from '../repositories/daily-metrics.repository';
 
 @EventsHandler(BookingConfirmedEvent, TaskCompletedEvent, BookingCancelledEvent, PaymentRecordedEvent)
 export class UpdateMetricsHandler
@@ -18,10 +16,7 @@ export class UpdateMetricsHandler
 {
   private readonly logger = new Logger(UpdateMetricsHandler.name);
 
-  constructor(
-    @InjectRepository(DailyMetrics)
-    private readonly metricsRepository: Repository<DailyMetrics>,
-  ) {}
+  constructor(private readonly metricsRepository: DailyMetricsRepository) {}
 
   async handle(event: BookingConfirmedEvent | TaskCompletedEvent | BookingCancelledEvent | PaymentRecordedEvent) {
     const tenantId = event.tenantId;
