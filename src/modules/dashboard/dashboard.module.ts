@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DashboardController } from './dashboard.controller';
 import { DashboardGateway } from './dashboard.gateway';
@@ -19,7 +19,7 @@ import { TasksModule } from '../tasks/tasks.module';
   imports: [
     TypeOrmModule.forFeature([UserPreference]),
     AuthModule,
-    FinanceModule,
+    forwardRef(() => FinanceModule),
     TasksModule,
     BookingsModule,
     HrModule,

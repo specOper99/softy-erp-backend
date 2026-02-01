@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { BookingsModule } from '../bookings/bookings.module';
@@ -44,7 +44,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
       Invoice,
     ]),
     TenantsModule,
-    DashboardModule,
+    forwardRef(() => DashboardModule),
     AnalyticsModule,
     BookingsModule,
   ],
