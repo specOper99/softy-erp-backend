@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CommonModule } from '../../common/common.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
@@ -43,6 +44,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
       DepartmentBudget,
       Invoice,
     ]),
+    CommonModule,
     TenantsModule,
     forwardRef(() => DashboardModule),
     forwardRef(() => AnalyticsModule),
