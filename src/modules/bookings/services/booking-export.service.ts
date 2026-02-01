@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { Response } from 'express';
-import { Repository } from 'typeorm';
 import { ExportService } from '../../../common/services/export.service';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { Booking } from '../entities/booking.entity';
+import { BookingRepository } from '../repositories/booking.repository';
 import type { BookingExportRow, ClientCsvRow } from '../types/export.types';
 import { ClientsService } from './clients.service';
 
@@ -13,20 +10,16 @@ export class BookingExportService {
   private readonly logger = new Logger(BookingExportService.name);
 
   constructor(
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: BookingRepository,
     private readonly clientsService: ClientsService,
     private readonly exportService: ExportService,
   ) {}
 
   async exportBookingsToCSV(res: Response): Promise<void> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const queryStream = await this.bookingRepository
       .createQueryBuilder('booking')
       .leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
-      .where('booking.tenantId = :tenantId', { tenantId })
       .orderBy('booking.createdAt', 'DESC')
       .stream();
 

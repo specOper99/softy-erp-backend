@@ -1,4 +1,4 @@
-import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
@@ -81,12 +81,12 @@ describe('TenantGuard', () => {
       await expect(guard.canActivate(mockExecutionContext) as Promise<boolean>).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw UnauthorizedException when no tenantId', () => {
+    it('should throw BadRequestException when no tenantId', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
 
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(UnauthorizedException);
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow('tenants.tenant_id_required');
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(BadRequestException);
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow('Tenant context missing');
     });
 
     it('should check both handler and class for SkipTenant', async () => {

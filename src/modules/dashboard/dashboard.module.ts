@@ -1,22 +1,32 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { DailyMetrics } from '../analytics/entities/daily-metrics.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { Transaction } from '../finance/entities/transaction.entity';
-import { Profile } from '../hr/entities/profile.entity';
-import { Task } from '../tasks/entities/task.entity';
 import { DashboardController } from './dashboard.controller';
 import { DashboardGateway } from './dashboard.gateway';
 import { DashboardService } from './dashboard.service';
+import { DashboardWalletBalanceHandler } from './handlers/wallet-balance-updated.handler';
 import { ReportGeneratorService } from './services/report-generator.service';
 
 import { AuthModule } from '../auth/auth.module';
 import { UserPreference } from './entities/user-preference.entity';
 
+import { AnalyticsModule } from '../analytics/analytics.module';
+import { BookingsModule } from '../bookings/bookings.module';
+import { FinanceModule } from '../finance/finance.module';
+import { HrModule } from '../hr/hr.module';
+import { TasksModule } from '../tasks/tasks.module';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking, Transaction, Task, Profile, UserPreference, DailyMetrics]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([UserPreference]),
+    AuthModule,
+    FinanceModule,
+    TasksModule,
+    BookingsModule,
+    HrModule,
+    AnalyticsModule,
+  ],
   controllers: [DashboardController],
-  providers: [DashboardService, ReportGeneratorService, DashboardGateway],
+  providers: [DashboardService, ReportGeneratorService, DashboardGateway, DashboardWalletBalanceHandler],
   exports: [DashboardGateway, ReportGeneratorService],
 })
 export class DashboardModule {}

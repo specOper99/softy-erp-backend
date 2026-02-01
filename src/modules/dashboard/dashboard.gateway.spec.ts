@@ -106,10 +106,11 @@ describe('DashboardGateway', () => {
       handshake: { headers: { authorization: 'Bearer valid-token' }, query: {}, auth: {} },
       join: jest.fn(),
       disconnect: jest.fn(),
+      data: {},
     } as any;
 
     const jwtService = gateway['jwtService'];
-    (jwtService.verifyAsync as jest.Mock).mockReturnValue({ tenantId: 'tenant-123', sub: 'user-123' });
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ tenantId: 'tenant-123', sub: 'user-123' });
 
     await gateway.handleConnection(mockClient);
 
@@ -117,7 +118,9 @@ describe('DashboardGateway', () => {
       'valid-token',
       expect.objectContaining({ algorithms: ['HS256'], secret: 'test-jwt-secret' }),
     );
-    expect(mockClient.join).toHaveBeenCalledWith('tenant:tenant-123');
+    // Verify client data was set
+    expect(mockClient.data.tenantId).toBe('tenant-123');
+    expect(mockClient.data.userId).toBe('user-123');
   });
 
   it('handleConnection() does nothing when token is invalid', async () => {

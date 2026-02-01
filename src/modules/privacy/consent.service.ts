@@ -20,10 +20,7 @@ export class ConsentService {
   ) {}
 
   async getConsents(userId: string): Promise<ConsentResponseDto[]> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const consents = await this.consentRepository.find({
       where: { userId, tenantId },
@@ -39,10 +36,7 @@ export class ConsentService {
   }
 
   async grantConsent(userId: string, dto: GrantConsentDto, context?: ConsentContext): Promise<ConsentResponseDto> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     let consent = await this.consentRepository.findOne({
       where: { userId, tenantId, type: dto.type },
@@ -76,10 +70,7 @@ export class ConsentService {
   }
 
   async revokeConsent(userId: string, type: ConsentType): Promise<ConsentResponseDto> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const consent = await this.consentRepository.findOne({
       where: { userId, tenantId, type },
@@ -108,10 +99,7 @@ export class ConsentService {
   }
 
   async hasConsent(userId: string, type: ConsentType): Promise<boolean> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      return false;
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const consent = await this.consentRepository.findOne({
       where: { userId, tenantId, type, granted: true },

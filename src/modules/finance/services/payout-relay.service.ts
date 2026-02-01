@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
 import { Payout } from '../entities/payout.entity';
 import { PayoutStatus } from '../enums/payout-status.enum';
@@ -14,6 +15,7 @@ import { WalletService } from './wallet.service';
 export class PayoutRelayService {
   private readonly logger = new Logger(PayoutRelayService.name);
   private readonly BATCH_SIZE = 50;
+  private readonly tenantTx: TenantScopedManager;
 
   constructor(
     @InjectRepository(Payout)
@@ -22,7 +24,9 @@ export class PayoutRelayService {
     private readonly walletService: WalletService,
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) {
+    this.tenantTx = new TenantScopedManager(dataSource);
+  }
 
   /**
    * Periodic job to process pending payouts.
@@ -136,63 +140,51 @@ export class PayoutRelayService {
   }
 
   private async completePayout(payout: Payout, transactionReference?: string): Promise<void> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
     try {
-      payout.status = PayoutStatus.COMPLETED;
-      payout.notes = `${payout.notes || ''} | TxnRef: ${transactionReference}`;
-      await queryRunner.manager.save(payout);
+      await this.tenantTx.run(async (manager) => {
+        payout.status = PayoutStatus.COMPLETED;
+        payout.notes = `${payout.notes || ''} | TxnRef: ${transactionReference}`;
+        await manager.save(payout);
 
-      // Create ERP Transaction
-      await this.financeService.createTransactionWithManager(queryRunner.manager, {
-        type: TransactionType.PAYROLL,
-        amount: Number(payout.amount),
-        category: 'Monthly Payroll',
-        payoutId: payout.id,
-        description: `Payroll payout completed. Ref: ${transactionReference}`,
-        transactionDate: new Date(),
+        // Create ERP Transaction
+        await this.financeService.createTransactionWithManager(manager, {
+          type: TransactionType.PAYROLL,
+          amount: Number(payout.amount),
+          category: 'Monthly Payroll',
+          payoutId: payout.id,
+          description: `Payroll payout completed. Ref: ${transactionReference}`,
+          transactionDate: new Date(),
+        });
+
+        // No need to touch Wallet here, as balance was zeroed in the initial Payroll run.
       });
 
-      // No need to touch Wallet here, as balance was zeroed in the initial Payroll run.
-
-      await queryRunner.commitTransaction();
       this.logger.log(`Payout ${payout.id} completed successfully`);
     } catch (error) {
-      await queryRunner.rollbackTransaction();
       this.logger.error(`Failed to complete payout ${payout.id} in DB`, error);
       throw error;
-    } finally {
-      await queryRunner.release();
     }
   }
 
   private async failPayout(payout: Payout, reason: string): Promise<void> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
     try {
-      payout.status = PayoutStatus.FAILED;
-      payout.notes = `${payout.notes || ''} | Failed: ${reason}`;
-      await queryRunner.manager.save(payout);
+      await this.tenantTx.run(async (manager) => {
+        payout.status = PayoutStatus.FAILED;
+        payout.notes = `${payout.notes || ''} | Failed: ${reason}`;
+        await manager.save(payout);
 
-      const metadata = this.getPayoutMetadata(payout);
-      if (metadata) {
-        const commissionAmount = Number(payout.commissionAmount) || 0;
-        if (commissionAmount > 0) {
-          await this.walletService.refundPayableBalance(queryRunner.manager, metadata.userId, commissionAmount);
+        const metadata = this.getPayoutMetadata(payout);
+        if (metadata) {
+          const commissionAmount = Number(payout.commissionAmount) || 0;
+          if (commissionAmount > 0) {
+            await this.walletService.refundPayableBalance(manager, metadata.userId, commissionAmount);
+          }
         }
-      }
+      });
 
-      await queryRunner.commitTransaction();
       this.logger.warn(`Payout ${payout.id} marked as FAILED. Refunded if applicable.`);
     } catch (error) {
-      await queryRunner.rollbackTransaction();
       this.logger.error(`Failed to mark payout ${payout.id} as FAILED`, error);
-    } finally {
-      await queryRunner.release();
     }
   }
 }

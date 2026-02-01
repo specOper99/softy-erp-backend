@@ -19,8 +19,8 @@ export class PlatformSession {
   @JoinColumn({ name: 'user_id' })
   user: PlatformUser;
 
-  @Column({ name: 'session_token', type: 'text', unique: true })
-  sessionToken: string;
+  @Column({ name: 'session_token', type: 'text', unique: true, nullable: true })
+  sessionToken: string | null;
 
   @Column({ name: 'refresh_token', type: 'text', nullable: true })
   refreshToken: string | null;

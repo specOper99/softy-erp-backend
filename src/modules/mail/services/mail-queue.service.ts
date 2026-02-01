@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import {
   BookingCancellationJobData,
   BookingConfirmationJobData,
@@ -9,20 +10,19 @@ import {
   EMAIL_QUEUE,
   EmailJobData,
   EmailVerificationEmailData,
-  NewDeviceLoginJobData,
   NewDeviceLoginEmailData,
+  NewDeviceLoginJobData,
   PasswordResetEmailData,
-  PaymentReceiptJobData,
   PaymentReceiptEmailData,
-  PayrollJobData,
+  PaymentReceiptJobData,
   PayrollEmailData,
-  SuspiciousActivityJobData,
+  PayrollJobData,
   SuspiciousActivityEmailData,
-  TaskAssignmentJobData,
+  SuspiciousActivityJobData,
   TaskAssignmentEmailData,
+  TaskAssignmentJobData,
 } from '../mail.types';
 import { MailSenderService } from './mail-sender.service';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
 
 @Injectable()
 export class MailQueueService {
@@ -41,13 +41,11 @@ export class MailQueueService {
     backoff: { type: 'exponential' as const, delay: 2000 },
   };
 
-  private getTenantId(): string {
-    return TenantContextService.getTenantId() ?? 'system';
-  }
-
   async queueBookingConfirmation(data: BookingEmailData): Promise<void> {
+    // Tenant ID must come from the booking/caller's context
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const jobData: BookingConfirmationJobData = {
-      tenantId: this.getTenantId(),
+      tenantId,
       clientName: data.clientName,
       clientEmail: data.clientEmail,
       eventDate: data.eventDate.toISOString(),
@@ -73,8 +71,9 @@ export class MailQueueService {
   }
 
   async queueTaskAssignment(data: TaskAssignmentEmailData): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const jobData: TaskAssignmentJobData = {
-      tenantId: this.getTenantId(),
+      tenantId,
       employeeName: data.employeeName,
       employeeEmail: data.employeeEmail,
       taskType: data.taskType,
@@ -96,8 +95,9 @@ export class MailQueueService {
   }
 
   async queuePayrollNotification(data: PayrollEmailData): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const jobData: PayrollJobData = {
-      tenantId: this.getTenantId(),
+      tenantId,
       employeeName: data.employeeName,
       employeeEmail: data.employeeEmail,
       baseSalary: data.baseSalary,
@@ -131,7 +131,7 @@ export class MailQueueService {
       'password-reset',
       {
         type: 'password-reset',
-        data: { ...data, tenantId: this.getTenantId() },
+        data: { ...data, tenantId: TenantContextService.getTenantIdOrThrow() },
       },
       this.defaultJobOptions,
     );
@@ -151,7 +151,7 @@ export class MailQueueService {
       'email-verification',
       {
         type: 'email-verification',
-        data: { ...data, tenantId: this.getTenantId() },
+        data: { ...data, tenantId: TenantContextService.getTenantIdOrThrow() },
       },
       this.defaultJobOptions,
     );
@@ -159,8 +159,9 @@ export class MailQueueService {
   }
 
   async queueNewDeviceLogin(data: NewDeviceLoginEmailData): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const jobData: NewDeviceLoginJobData = {
-      tenantId: this.getTenantId(),
+      tenantId,
       email: data.email,
       name: data.name,
       device: data.device,
@@ -182,8 +183,9 @@ export class MailQueueService {
   }
 
   async queueSuspiciousActivity(data: SuspiciousActivityEmailData): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const jobData: SuspiciousActivityJobData = {
-      tenantId: this.getTenantId(),
+      tenantId,
       email: data.email,
       name: data.name,
       activityType: data.activityType,
@@ -210,8 +212,9 @@ export class MailQueueService {
   }
 
   async queueCancellationEmail(data: CancellationEmailData): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const jobData: BookingCancellationJobData = {
-      tenantId: this.getTenantId(),
+      tenantId,
       clientName: data.clientName,
       to: data.to,
       bookingId: data.bookingId,
@@ -238,8 +241,9 @@ export class MailQueueService {
   }
 
   async queuePaymentReceipt(data: PaymentReceiptEmailData): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const jobData: PaymentReceiptJobData = {
-      tenantId: this.getTenantId(),
+      tenantId,
       clientName: data.clientName,
       to: data.to,
       bookingId: data.bookingId,

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'crypto';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -7,6 +8,9 @@ import { Booking } from '../../bookings/entities/booking.entity';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 
 import { InvoiceRepository } from '../repositories/invoice.repository';
+
+/** Invoice number prefix for identification */
+const INVOICE_NUMBER_PREFIX = 'INV';
 
 @Injectable()
 export class InvoiceService {
@@ -16,6 +20,17 @@ export class InvoiceService {
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
   ) {}
+
+  /**
+   * Generates a cryptographically secure invoice number.
+   * Format: INV-YYYYMMDD-XXXXXX (6 hex chars = 16.7M combinations per day)
+   */
+  private generateInvoiceNumber(): string {
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    // Use crypto.randomBytes for secure randomness instead of Math.random()
+    const randomPart = randomBytes(3).toString('hex').toUpperCase();
+    return `${INVOICE_NUMBER_PREFIX}-${datePart}-${randomPart}`;
+  }
 
   async createInvoice(bookingId: string): Promise<Invoice> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -37,9 +52,7 @@ export class InvoiceService {
       return existingInvoice;
     }
 
-    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const randomPart = Math.floor(1000 + Math.random() * 9000);
-    const invoiceNumber = `INV-${datePart}-${randomPart}`;
+    const invoiceNumber = this.generateInvoiceNumber();
 
     const items = [
       {

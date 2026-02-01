@@ -26,11 +26,7 @@ export class SubscriptionGuard implements CanActivate {
       return true;
     }
 
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new ForbiddenException('No tenant context found');
-    }
-
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const tenant = await this.tenantsService.findOne(tenantId);
     if (!tenant) {
       throw new ForbiddenException('Tenant not found');

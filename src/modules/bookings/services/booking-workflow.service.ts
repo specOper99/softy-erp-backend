@@ -40,7 +40,7 @@ export class BookingWorkflowService {
    * 5. Rollback all on failure
    */
   async confirmBooking(id: string): Promise<ConfirmBookingResponseDto> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     let eventToPublish: BookingConfirmedEvent | null = null;
 
     const result = await this.dataSource.transaction(async (manager) => {

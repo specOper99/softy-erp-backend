@@ -1,17 +1,18 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MathUtils } from '../../common/utils/math.utils';
-import { DailyMetrics } from '../analytics/entities/daily-metrics.entity';
-import { Booking } from '../bookings/entities/booking.entity';
+import { DailyMetricsRepository } from '../analytics/repositories/daily-metrics.repository';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
-import { Transaction } from '../finance/entities/transaction.entity';
+import { BookingRepository } from '../bookings/repositories/booking.repository';
 import { TransactionType } from '../finance/enums/transaction-type.enum';
+import { TransactionRepository } from '../finance/repositories/transaction.repository';
 import { Profile } from '../hr/entities/profile.entity';
-import { Task } from '../tasks/entities/task.entity';
+import { ProfileRepository } from '../hr/repositories/profile.repository';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
+import { TaskRepository } from '../tasks/repositories/task.repository';
 import {
   BookingTrendDto,
   DashboardKpiDto,
@@ -28,18 +29,13 @@ import { UserDashboardConfig, UserPreference } from './entities/user-preference.
 @Injectable()
 export class DashboardService {
   constructor(
-    @InjectRepository(Transaction)
-    private readonly transactionRepository: Repository<Transaction>,
-    @InjectRepository(Task)
-    private readonly taskRepository: Repository<Task>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
+    private readonly transactionRepository: TransactionRepository,
+    private readonly taskRepository: TaskRepository,
+    private readonly bookingRepository: BookingRepository,
+    private readonly profileRepository: ProfileRepository,
     @InjectRepository(UserPreference)
     private readonly preferenceRepository: Repository<UserPreference>,
-    @InjectRepository(DailyMetrics)
-    private readonly metricsRepository: Repository<DailyMetrics>,
+    private readonly metricsRepository: DailyMetricsRepository,
     private readonly cacheUtils: CacheUtilsService,
   ) {}
 
@@ -84,9 +80,7 @@ export class DashboardService {
   }
 
   private getContext(query: ReportQueryDto): { tenantId: string; start: Date; end: Date } {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) throw new BadRequestException('common.tenant_missing');
-
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const { start, end } = this.getDateRange(query);
     return { tenantId, start, end };
   }
@@ -110,8 +104,8 @@ export class DashboardService {
         .createQueryBuilder('m')
         .select('SUM(m.totalRevenue)', 'revenue')
         .addSelect('SUM(m.bookingsCount)', 'bookings')
-        .where('m.tenantId = :tenantId', { tenantId })
-        .andWhere('m.date >= :startDate AND m.date <= :endDate', {
+        // tenantId handled by repo
+        .where('m.date >= :startDate AND m.date <= :endDate', {
           startDate: startDateStr,
           endDate: endDateStr,
         })
@@ -121,12 +115,12 @@ export class DashboardService {
         .createQueryBuilder('t')
         .select('COUNT(t.id)', 'total')
         .addSelect('SUM(CASE WHEN t.status = :completed THEN 1 ELSE 0 END)', 'completed')
-        .where('t.tenantId = :tenantId', { tenantId })
-        .andWhere('t.createdAt BETWEEN :start AND :end', { start, end })
+        // tenantId handled by repo
+        .where('t.createdAt BETWEEN :start AND :end', { start, end })
         .setParameter('completed', TaskStatus.COMPLETED)
         .getRawOne<{ total: string; completed: string }>(),
 
-      this.profileRepository.count({ where: { tenantId } }),
+      this.profileRepository.count(),
     ]);
 
     const totalRevenue = MathUtils.parseFinancialAmount(metricsResult?.revenue, 0);
@@ -149,7 +143,7 @@ export class DashboardService {
   }
 
   async getBookingTrends(query: ReportQueryDto = {}): Promise<BookingTrendDto[]> {
-    const { tenantId, start, end } = this.getContext(query);
+    const { tenantId: _tenantId, start, end } = this.getContext(query);
 
     const stats = await this.bookingRepository
       .createQueryBuilder('b')
@@ -158,8 +152,8 @@ export class DashboardService {
       .addSelect('SUM(CASE WHEN b.status = :confirmed THEN 1 ELSE 0 END)', 'confirmedBookings')
       .addSelect('SUM(CASE WHEN b.status = :completed THEN 1 ELSE 0 END)', 'completedBookings')
       .addSelect('SUM(CASE WHEN b.status = :cancelled THEN 1 ELSE 0 END)', 'cancelledBookings')
-      .where('b.tenantId = :tenantId', { tenantId })
-      .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
+      // tenantId handled by repo
+      .where('b.createdAt BETWEEN :start AND :end', { start, end })
       .setParameter('confirmed', BookingStatus.CONFIRMED)
       .setParameter('completed', BookingStatus.COMPLETED)
       .setParameter('cancelled', BookingStatus.CANCELLED)
@@ -183,15 +177,15 @@ export class DashboardService {
   }
 
   async getRevenueStats(query: ReportQueryDto = {}): Promise<RevenueStatsDto> {
-    const { tenantId, start, end } = this.getContext(query);
+    const { tenantId: _tenantId, start, end } = this.getContext(query);
 
     const totals = await this.transactionRepository
       .createQueryBuilder('t')
       .select('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'revenue')
       .addSelect('SUM(CASE WHEN t.type = :expense THEN t.amount ELSE 0 END)', 'expenses')
       .addSelect('SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)', 'payroll')
-      .where('t.tenantId = :tenantId', { tenantId })
-      .andWhere('t.transactionDate BETWEEN :start AND :end', { start, end })
+      // tenantId handled by repo
+      .where('t.transactionDate BETWEEN :start AND :end', { start, end })
       .setParameter('income', TransactionType.INCOME)
       .setParameter('expense', TransactionType.EXPENSE)
       .setParameter('payroll', TransactionType.PAYROLL)
@@ -213,15 +207,15 @@ export class DashboardService {
   }
 
   async getRevenueSummary(query: ReportQueryDto = {}): Promise<RevenueSummaryDto[]> {
-    const { tenantId, start, end } = this.getContext(query);
+    const { tenantId: _tenantId, start, end } = this.getContext(query);
 
     const stats = await this.transactionRepository
       .createQueryBuilder('t')
       .select("to_char(t.transactionDate, 'YYYY-MM')", 'month')
       .addSelect('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'revenue')
       .addSelect('SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)', 'payouts')
-      .where('t.tenantId = :tenantId', { tenantId })
-      .andWhere('t.transactionDate BETWEEN :start AND :end', { start, end })
+      // tenantId handled by repo
+      .where('t.transactionDate BETWEEN :start AND :end', { start, end })
       .setParameter('income', TransactionType.INCOME)
       .setParameter('payroll', TransactionType.PAYROLL)
       .groupBy('month')
@@ -237,7 +231,7 @@ export class DashboardService {
   }
 
   async getStaffPerformance(query: ReportQueryDto = {}): Promise<StaffPerformanceDto[]> {
-    const { tenantId, start, end } = this.getContext(query);
+    const { tenantId: _tenantId, start, end } = this.getContext(query);
 
     const stats = await this.taskRepository
       .createQueryBuilder('task')
@@ -246,8 +240,8 @@ export class DashboardService {
       .addSelect('COUNT(task.id)', 'completedTasks')
       .addSelect('SUM(task.commissionSnapshot)', 'totalCommission')
       .leftJoin(Profile, 'profile', 'profile.userId = user.id')
-      .where('task.tenantId = :tenantId', { tenantId })
-      .andWhere('task.status = :status', { status: TaskStatus.COMPLETED })
+      // tenantId handled by repo
+      .where('task.status = :status', { status: TaskStatus.COMPLETED })
       .andWhere('task.updatedAt BETWEEN :start AND :end', { start, end })
       .groupBy('staffName')
       .orderBy('totalCommission', 'DESC')
@@ -266,7 +260,7 @@ export class DashboardService {
   }
 
   async getPackageStats(query: ReportQueryDto = {}): Promise<PackageStatsDto[]> {
-    const { tenantId, start, end } = this.getContext(query);
+    const { tenantId: _tenantId, start, end } = this.getContext(query);
 
     const stats = await this.bookingRepository
       .createQueryBuilder('b')
@@ -274,8 +268,8 @@ export class DashboardService {
       .select('pkg.name', 'packageName')
       .addSelect('COUNT(b.id)', 'bookingCount')
       .addSelect('SUM(b.totalPrice)', 'totalRevenue')
-      .where('b.tenantId = :tenantId', { tenantId })
-      .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
+      // tenantId handled by repo
+      .where('b.createdAt BETWEEN :start AND :end', { start, end })
       .groupBy('pkg.name')
       .orderBy('bookingCount', 'DESC')
       .take(50)

@@ -196,4 +196,119 @@ describe('IpRateLimitGuard', () => {
 
     await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
   });
+
+  describe('Fallback strategy for missing IP', () => {
+    const createMockContextWithUser = (userId?: string, cookies?: Record<string, string>) => {
+      const mockSetHeader = jest.fn();
+      const mockCookie = jest.fn();
+      return {
+        getHandler: () => createMockContextWithUser,
+        getClass: () => IpRateLimitGuard,
+        switchToHttp: () => ({
+          getRequest: () => ({
+            ip: null,
+            headers: {},
+            socket: { remoteAddress: null },
+            user: userId ? { id: userId } : undefined,
+            cookies: cookies || {},
+          }),
+          getResponse: () => ({
+            setHeader: mockSetHeader,
+            cookie: mockCookie,
+          }),
+        }),
+      } as unknown as ExecutionContext;
+    };
+
+    it('should use user ID for authenticated users when IP is missing', async () => {
+      mockCacheService.get.mockResolvedValue(null);
+      const context = createMockContextWithUser('user-123');
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockCacheService.get).toHaveBeenCalledWith('ip_rate:user:user-123');
+      expect(mockCacheService.set).toHaveBeenCalledWith(
+        'ip_rate:user:user-123',
+        expect.objectContaining({ count: 1 }),
+        expect.any(Number),
+      );
+    });
+
+    it('should generate session ID for anonymous users when IP is missing', async () => {
+      mockCacheService.get.mockResolvedValue(null);
+      const context = createMockContextWithUser(undefined);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      // Should use session-based key
+      expect(mockCacheService.get).toHaveBeenCalled();
+      const callArgs = mockCacheService.get.mock.calls[0] as [string];
+      expect(callArgs[0]).toMatch(/^ip_rate:session:[a-f0-9]{32}$/);
+    });
+
+    it('should reuse existing session ID cookie for anonymous users', async () => {
+      const existingSessionId = 'a'.repeat(32); // 32 char hex string
+      mockCacheService.get.mockResolvedValue(null);
+      const context = createMockContextWithUser(undefined, { rate_limit_session: existingSessionId });
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockCacheService.get).toHaveBeenCalledWith(`ip_rate:session:${existingSessionId}`);
+    });
+
+    it('should not allow one authenticated user to block another when IP is missing', async () => {
+      mockCacheService.get.mockResolvedValue({
+        count: 101,
+        firstRequest: Date.now(),
+        blocked: false,
+      });
+
+      // First user exceeds limit
+      const context1 = createMockContextWithUser('user-1');
+      await expect(guard.canActivate(context1)).rejects.toThrow(HttpException);
+
+      // Second user should have separate counter
+      mockCacheService.get.mockResolvedValue(null);
+      const context2 = createMockContextWithUser('user-2');
+      const result = await guard.canActivate(context2);
+
+      expect(result).toBe(true);
+      expect(mockCacheService.get).toHaveBeenCalledWith('ip_rate:user:user-2');
+    });
+
+    it('should not allow one anonymous session to block another when IP is missing', async () => {
+      const session1 = 'a'.repeat(32);
+      const session2 = 'b'.repeat(32);
+
+      // First session exceeds limit
+      mockCacheService.get.mockResolvedValue({
+        count: 101,
+        firstRequest: Date.now(),
+        blocked: false,
+      });
+      const context1 = createMockContextWithUser(undefined, { rate_limit_session: session1 });
+      await expect(guard.canActivate(context1)).rejects.toThrow(HttpException);
+
+      // Second session should have separate counter
+      mockCacheService.get.mockResolvedValue(null);
+      const context2 = createMockContextWithUser(undefined, { rate_limit_session: session2 });
+      const result = await guard.canActivate(context2);
+
+      expect(result).toBe(true);
+      expect(mockCacheService.get).toHaveBeenCalledWith(`ip_rate:session:${session2}`);
+    });
+
+    it('should still use IP-based rate limiting when IP is available', async () => {
+      mockCacheService.get.mockResolvedValue(null);
+      const context = createMockContext('192.168.1.100');
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockCacheService.get).toHaveBeenCalledWith('ip_rate:192.168.1.100');
+    });
+  });
 });

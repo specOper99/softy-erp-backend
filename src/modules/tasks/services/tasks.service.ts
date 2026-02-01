@@ -7,6 +7,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
+import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditService } from '../../audit/audit.service';
 import { Client } from '../../bookings/entities/client.entity';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -25,6 +26,7 @@ import { TaskRepository } from '../repositories/task.repository';
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
+  private readonly tenantTx: TenantScopedManager;
 
   private static readonly MAX_LIST_LIMIT = 100;
   private static readonly DEFAULT_LIST_LIMIT = 100;
@@ -37,7 +39,9 @@ export class TasksService {
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
     private readonly tasksExportService: TasksExportService,
-  ) {}
+  ) {
+    this.tenantTx = new TenantScopedManager(dataSource);
+  }
 
   async findAll(query: PaginationDto = new PaginationDto()): Promise<Task[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -141,60 +145,49 @@ export class TasksService {
   async assignTask(id: string, dto: AssignTaskDto): Promise<Task> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const task = await this.findTaskWithLock(queryRunner.manager, id, tenantId);
+    const result = await this.tenantTx.run(async (manager) => {
+      const task = await this.findTaskWithLock(manager, id, tenantId);
 
       const oldUserId = task.assignedUserId;
 
       // Step 3: Validate new user belongs to the same tenant
-      const assignedUser = await this.validateUserInTenant(queryRunner.manager, dto.userId, tenantId);
+      const assignedUser = await this.validateUserInTenant(manager, dto.userId, tenantId);
 
       task.assignedUserId = dto.userId;
 
       // Step 4: Update task
-      const savedTask = await queryRunner.manager.save(task);
+      const savedTask = await manager.save(task);
 
       // Step 5: Handle commission transfers
       const commissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
-      await this.financeService.transferPendingCommission(queryRunner.manager, oldUserId, dto.userId, commissionAmount);
+      await this.financeService.transferPendingCommission(manager, oldUserId, dto.userId, commissionAmount);
 
       // Step 6: Audit Log
-      await this.logTaskAssignment(queryRunner.manager, task, oldUserId, dto.userId, commissionAmount);
+      await this.logTaskAssignment(manager, task, oldUserId, dto.userId, commissionAmount);
 
       // Ensure booking.client is loaded for the email
-      await this.ensureClientLoaded(queryRunner.manager, task, tenantId);
+      await this.ensureClientLoaded(manager, task, tenantId);
 
-      await queryRunner.commitTransaction();
+      return { savedTask, assignedUser, commissionAmount };
+    });
 
-      // Emit domain event (after commit)
-      if (assignedUser && task.taskType && task.booking) {
-        this.eventBus.publish(
-          new TaskAssignedEvent(
-            task.id,
-            tenantId,
-            assignedUser.email,
-            assignedUser.email,
-            task.taskType.name,
-            task.booking.client?.name || 'Client',
-            task.booking.eventDate,
-            commissionAmount,
-          ),
-        );
-      }
-
-      return savedTask;
-    } catch (error) {
-      if (queryRunner.isTransactionActive) {
-        await queryRunner.rollbackTransaction();
-      }
-      throw error;
-    } finally {
-      await queryRunner.release();
+    // Emit domain event (after commit)
+    if (result.assignedUser && result.savedTask.taskType && result.savedTask.booking) {
+      this.eventBus.publish(
+        new TaskAssignedEvent(
+          result.savedTask.id,
+          tenantId,
+          result.assignedUser.email,
+          result.assignedUser.email,
+          result.savedTask.taskType.name,
+          result.savedTask.booking.client?.name || 'Client',
+          result.savedTask.booking.eventDate,
+          result.commissionAmount,
+        ),
+      );
     }
+
+    return result.savedTask;
   }
 
   private async validateUserInTenant(
@@ -285,16 +278,11 @@ export class TasksService {
   async completeTask(id: string, user: User): Promise<CompleteTaskResponseDto> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      // Step 1: Acquire pessimistic lock to prevent race conditions
+    const result = await this.tenantTx.run(async (manager) => {
       // Step 1: Acquire pessimistic lock to prevent race conditions
       // Note: We MUST NOT include relations here because "FOR UPDATE" cannot be
       // applied to the nullable side of an outer join (which TypeORM uses for relations)
-      const task = await this.findTaskWithLock(queryRunner.manager, id, tenantId);
+      const task = await this.findTaskWithLock(manager, id, tenantId);
 
       this.assertCanUpdateTaskStatus(user, task);
 
@@ -310,14 +298,14 @@ export class TasksService {
       const oldStatus = task.status;
       task.status = TaskStatus.COMPLETED;
       task.completedAt = new Date();
-      await queryRunner.manager.save(task);
+      await manager.save(task);
 
       // Step 3: Move commission to payable balance (NaN-safe)
       const commissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
       let walletUpdated = false;
 
       if (commissionAmount > 0) {
-        await this.walletService.moveToPayable(queryRunner.manager, task.assignedUserId, commissionAmount);
+        await this.walletService.moveToPayable(manager, task.assignedUserId, commissionAmount);
         walletUpdated = true;
       }
 
@@ -331,35 +319,28 @@ export class TasksService {
         notes: `Task completed. Commission of ${commissionAmount} accrued.`,
       });
 
-      // Commit transaction
-      await queryRunner.commitTransaction();
+      return { task, commissionAmount, walletUpdated };
+    });
 
-      // Emit domain event
-      const userId = task.assignedUserId;
-      if (userId) {
-        this.eventBus.publish(
-          new TaskCompletedEvent(
-            task.id,
-            tenantId || '', // Fallback or strict check needed. Assuming tenantId is available here.
-            task.completedAt || new Date(),
-            commissionAmount,
-            userId,
-          ),
-        );
-      }
-
-      return {
-        task,
-        commissionAccrued: commissionAmount,
-        walletUpdated,
-      };
-    } catch (error) {
-      // Rollback on failure
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+    // Emit domain event (after commit)
+    const userId = result.task.assignedUserId;
+    if (userId) {
+      this.eventBus.publish(
+        new TaskCompletedEvent(
+          result.task.id,
+          tenantId || '',
+          result.task.completedAt || new Date(),
+          result.commissionAmount,
+          userId,
+        ),
+      );
     }
+
+    return {
+      task: result.task,
+      commissionAccrued: result.commissionAmount,
+      walletUpdated: result.walletUpdated,
+    };
   }
 
   private assertCanUpdateTaskStatus(user: User, task: Task): void {

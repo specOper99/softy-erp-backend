@@ -57,10 +57,7 @@ export class WebhookService {
    * Register a webhook endpoint for a tenant (persisted in DB)
    */
   async registerWebhook(config: WebhookConfig): Promise<void> {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     // URL Validation
     let url: URL;

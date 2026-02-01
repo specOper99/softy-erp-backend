@@ -13,6 +13,7 @@ import { AuditModule } from '../audit/audit.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { BookingRepository } from './repositories/booking.repository';
+import { ClientRepository } from './repositories/client.repository';
 import { BookingExportService } from './services/booking-export.service';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingWorkflowService } from './services/booking-workflow.service';
@@ -38,7 +39,15 @@ import { ClientsService } from './services/clients.service';
     BookingExportService,
     ExportService,
     BookingRepository,
+    ClientRepository,
   ],
-  exports: [BookingsService, BookingStateMachineService, ClientsService, BookingExportService, BookingRepository],
+  exports: [
+    BookingsService,
+    BookingStateMachineService,
+    ClientsService,
+    BookingExportService,
+    BookingRepository,
+    ClientRepository,
+  ],
 })
 export class BookingsModule {}

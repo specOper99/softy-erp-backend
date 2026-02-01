@@ -15,6 +15,7 @@ import { UsersModule } from '../users/users.module';
 import { AttendanceController, HrController } from './controllers';
 import { Attendance, PayrollRun, PerformanceReview, Profile } from './entities';
 import { UserDeletedHandler } from './handlers/user-deleted.handler';
+import { WalletBalanceUpdatedHandler } from './handlers/wallet-balance-updated.handler';
 import { ProfileRepository } from './repositories/profile.repository';
 import { AttendanceService } from './services/attendance.service';
 import { HrService } from './services/hr.service';
@@ -42,6 +43,7 @@ import { PayrollService } from './services/payroll.service';
     MockPaymentGatewayService,
     AttendanceService,
     UserDeletedHandler,
+    WalletBalanceUpdatedHandler,
     {
       provide: TENANT_REPO_ATTENDANCE,
       useFactory: (repo: Repository<Attendance>) => new TenantAwareRepository(repo),

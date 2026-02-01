@@ -1,10 +1,10 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-import { TenantContextService } from '../../common/services/tenant-context.service';
+import { DataSource } from 'typeorm';
+import { mockTenantContext } from '../../../test/helpers/mock-factories';
 import { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
+import { AttachmentRepository } from './repositories/attachment.repository';
 import { StorageService } from './storage.service';
 
 jest.mock('../../common/utils/file-type.util', () => ({
@@ -15,7 +15,7 @@ jest.mock('../../common/utils/file-type.util', () => ({
 
 describe('MediaService', () => {
   let service: MediaService;
-  let attachmentRepository: Repository<Attachment>;
+  let attachmentRepository: AttachmentRepository;
   let storageService: StorageService;
 
   const mockDataSource = {
@@ -25,7 +25,7 @@ describe('MediaService', () => {
   };
 
   beforeEach(async () => {
-    jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
+    mockTenantContext('tenant-123');
 
     // Reset mocks
     mockDataSource.manager.findOne.mockReset();
@@ -39,7 +39,7 @@ describe('MediaService', () => {
       providers: [
         MediaService,
         {
-          provide: getRepositoryToken(Attachment),
+          provide: AttachmentRepository,
           useValue: {
             create: jest.fn().mockImplementation((dto) => dto),
             save: jest.fn().mockImplementation((entity) => Promise.resolve({ id: 'uuid', ...entity })),
@@ -68,7 +68,7 @@ describe('MediaService', () => {
     }).compile();
 
     service = module.get<MediaService>(MediaService);
-    attachmentRepository = module.get<Repository<Attachment>>(getRepositoryToken(Attachment));
+    attachmentRepository = module.get<AttachmentRepository>(AttachmentRepository);
     storageService = module.get<StorageService>(StorageService);
   });
 
@@ -232,7 +232,7 @@ describe('MediaService', () => {
 
       const result = await service.findByBooking('b-id');
       expect(attachmentRepository.find).toHaveBeenCalledWith({
-        where: { bookingId: 'b-id', tenantId: 'tenant-123' },
+        where: { bookingId: 'b-id' },
         order: { createdAt: 'DESC' },
         take: 100,
       });
@@ -247,7 +247,7 @@ describe('MediaService', () => {
 
       const result = await service.findByTask('t-id');
       expect(attachmentRepository.find).toHaveBeenCalledWith({
-        where: { taskId: 't-id', tenantId: 'tenant-123' },
+        where: { taskId: 't-id' },
         order: { createdAt: 'DESC' },
         take: 100,
       });
@@ -269,7 +269,6 @@ describe('MediaService', () => {
     it('should call repository.find', async () => {
       await service.findAll();
       expect(attachmentRepository.find).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-123' },
         relations: ['booking', 'task'],
         order: { createdAt: 'DESC' },
         skip: 0,

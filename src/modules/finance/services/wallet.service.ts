@@ -112,10 +112,9 @@ export class WalletService {
   async getAllWalletsCursor(
     query: CursorPaginationDto,
   ): Promise<{ data: EmployeeWallet[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const qb = this.walletRepository.createQueryBuilder('wallet');
 
-    qb.leftJoinAndSelect('wallet.user', 'user').where('wallet.tenantId = :tenantId', { tenantId });
+    qb.leftJoinAndSelect('wallet.user', 'user');
 
     return CursorPaginationHelper.paginate(qb, {
       cursor: query.cursor,
@@ -143,22 +142,30 @@ export class WalletService {
    * Used when reassigning a task to reverse the old user's commission.
    * @requires MUST be called within an active transaction context
    * @throws Error if called outside transaction
+   * @throws BadRequestException if subtraction would result in negative balance
    */
   async subtractPendingCommission(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
     if (amount <= 0) {
       throw new BadRequestException('wallet.commission_must_be_positive');
     }
     const wallet = await this.getWalletWithLock(manager, userId, 'subtractPendingCommission');
-    const newBalance = MathUtils.subtract(Number(wallet.pendingBalance), Number(amount));
+    const currentBalance = Number(wallet.pendingBalance);
+    const newBalance = MathUtils.subtract(currentBalance, Number(amount));
 
-    // L-08: Log warning if balance would go negative (potential accounting issue)
+    // SECURITY FIX: Negative balance indicates accounting error or fraud attempt
+    // Do NOT silently clamp - this must be investigated
     if (newBalance < 0) {
-      this.logger.warn(
-        `Wallet balance would be negative for user ${userId}: pendingBalance=${wallet.pendingBalance}, subtraction=${amount}, result=${newBalance}. Clamping to 0.`,
+      this.logger.error(
+        `[ACCOUNTING_ANOMALY] Wallet balance would be negative for user ${userId}: ` +
+          `pendingBalance=${currentBalance}, subtraction=${amount}, result=${newBalance}. ` +
+          `Rejecting operation - requires investigation.`,
+      );
+      throw new BadRequestException(
+        `wallet.insufficient_pending_balance: Cannot subtract ${amount} from balance of ${currentBalance}`,
       );
     }
 
-    wallet.pendingBalance = Math.max(0, newBalance);
+    wallet.pendingBalance = newBalance;
     return manager.save(wallet);
   }
 

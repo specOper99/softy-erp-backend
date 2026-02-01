@@ -36,17 +36,14 @@ export class TenantsController {
 
   @Get()
   async findAll() {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new ForbiddenException('Tenant context missing');
-    }
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return [await this.tenantsService.findOne(tenantId)];
   }
 
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId || id !== tenantId) {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    if (id !== tenantId) {
       throw new ForbiddenException('Cross-tenant access is forbidden');
     }
     return this.tenantsService.findOne(id);
@@ -55,8 +52,8 @@ export class TenantsController {
   @Patch(':id')
   @MfaRequired()
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTenantDto: UpdateTenantDto) {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId || id !== tenantId) {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    if (id !== tenantId) {
       throw new ForbiddenException('Cross-tenant access is forbidden');
     }
     return this.tenantsService.update(id, updateTenantDto);

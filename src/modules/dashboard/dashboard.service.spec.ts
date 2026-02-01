@@ -1,14 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
-import { DailyMetrics } from '../analytics/entities/daily-metrics.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { Transaction } from '../finance/entities/transaction.entity';
+import { DailyMetricsRepository } from '../analytics/repositories/daily-metrics.repository';
+import { BookingRepository } from '../bookings/repositories/booking.repository';
 import { TransactionType } from '../finance/enums/transaction-type.enum';
-import { Profile } from '../hr/entities/profile.entity';
-import { Task } from '../tasks/entities/task.entity';
+import { TransactionRepository } from '../finance/repositories/transaction.repository';
+import { ProfileRepository } from '../hr/repositories/profile.repository';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
+import { TaskRepository } from '../tasks/repositories/task.repository';
 import { DashboardService } from './dashboard.service';
 import { UserPreference } from './entities/user-preference.entity';
 
@@ -16,15 +15,16 @@ import { UserPreference } from './entities/user-preference.entity';
 jest.mock('../../common/services/tenant-context.service', () => ({
   TenantContextService: {
     getTenantId: jest.fn().mockReturnValue('tenant-123'),
+    getTenantIdOrThrow: jest.fn().mockReturnValue('tenant-123'),
   },
 }));
 
 describe('DashboardService', () => {
   let service: DashboardService;
-  let transactionRepo: Repository<Transaction>;
-  let taskRepo: Repository<Task>;
-  let bookingRepo: Repository<Booking>;
-  let metricsRepo: Repository<DailyMetrics>;
+  let transactionRepo: TransactionRepository;
+  let taskRepo: TaskRepository;
+  let bookingRepo: BookingRepository;
+  let metricsRepo: DailyMetricsRepository;
 
   const mockQueryBuilder = {
     select: jest.fn().mockReturnThis(),
@@ -54,19 +54,19 @@ describe('DashboardService', () => {
       providers: [
         DashboardService,
         {
-          provide: getRepositoryToken(Transaction),
+          provide: TransactionRepository,
           useValue: mockRepository,
         },
         {
-          provide: getRepositoryToken(Task),
+          provide: TaskRepository,
           useValue: mockRepository,
         },
         {
-          provide: getRepositoryToken(Booking),
+          provide: BookingRepository,
           useValue: mockRepository,
         },
         {
-          provide: getRepositoryToken(Profile),
+          provide: ProfileRepository,
           useValue: mockRepository,
         },
         {
@@ -74,7 +74,7 @@ describe('DashboardService', () => {
           useValue: mockRepository,
         },
         {
-          provide: getRepositoryToken(DailyMetrics),
+          provide: DailyMetricsRepository,
           useValue: mockRepository,
         },
         {
@@ -85,10 +85,10 @@ describe('DashboardService', () => {
     }).compile();
 
     service = module.get<DashboardService>(DashboardService);
-    transactionRepo = module.get<Repository<Transaction>>(getRepositoryToken(Transaction));
-    taskRepo = module.get<Repository<Task>>(getRepositoryToken(Task));
-    bookingRepo = module.get<Repository<Booking>>(getRepositoryToken(Booking));
-    metricsRepo = module.get<Repository<DailyMetrics>>(getRepositoryToken(DailyMetrics));
+    transactionRepo = module.get<TransactionRepository>(TransactionRepository);
+    taskRepo = module.get<TaskRepository>(TaskRepository);
+    bookingRepo = module.get<BookingRepository>(BookingRepository);
+    metricsRepo = module.get<DailyMetricsRepository>(DailyMetricsRepository);
   });
 
   afterEach(() => {
@@ -168,8 +168,8 @@ describe('DashboardService', () => {
       const result = await service.getStaffPerformance();
 
       expect(taskRepo.createQueryBuilder).toHaveBeenCalledWith('task');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('task.tenantId = :tenantId', { tenantId: 'tenant-123' });
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('task.status = :status', { status: TaskStatus.COMPLETED });
+      // Tenant check removed as it's handled by repo
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('task.status = :status', { status: TaskStatus.COMPLETED });
       expect(result).toEqual([{ staffName: 'John Doe', completedTasks: 10, totalCommission: 500 }]);
     });
 

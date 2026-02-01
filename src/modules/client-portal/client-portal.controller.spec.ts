@@ -67,6 +67,7 @@ describe('ClientPortalController', () => {
 
       const result = await controller.requestMagicLink('acme', {
         email: 'test@example.com',
+        tenantSlug: 'test-tenant',
       });
 
       expect(clientAuthService.requestMagicLink).toHaveBeenCalledWith('acme', 'test@example.com');
@@ -84,7 +85,7 @@ describe('ClientPortalController', () => {
 
       clientAuthService.verifyMagicLink.mockResolvedValue(mockResult);
 
-      const result = await controller.verifyMagicLink({ token: 'magic-token' });
+      const result = await controller.verifyMagicLink({ token: 'magic-token', tenantSlug: 'test-tenant' });
 
       expect(clientAuthService.verifyMagicLink).toHaveBeenCalledWith('magic-token');
       expect(result.accessToken).toBe('access-token-123');

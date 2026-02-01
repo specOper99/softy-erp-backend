@@ -12,6 +12,10 @@ export class TenantContextService {
     return this.storage.run(tenantId, callback);
   }
 
+  static enter(tenantId: string): void {
+    this.storage.enterWith(tenantId);
+  }
+
   static getTenantId(): string | undefined {
     return this.storage.getStore();
   }

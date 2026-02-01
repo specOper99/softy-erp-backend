@@ -1,9 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { Counter } from 'prom-client';
-import { Repository } from 'typeorm';
 import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
 import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -20,6 +18,7 @@ export interface ChainVerificationResult {
 
 import { AuditPublisher } from './audit.publisher';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
+import { AuditLogRepository } from './repositories/audit-log.repository';
 
 @Injectable()
 export class AuditService implements AuditPublisher {
@@ -27,8 +26,7 @@ export class AuditService implements AuditPublisher {
   private readonly auditWriteFailureCounter: Counter<'tenant_id' | 'stage'>;
 
   constructor(
-    @InjectRepository(AuditLog)
-    private readonly auditRepository: Repository<AuditLog>,
+    private readonly auditRepository: AuditLogRepository,
     @InjectQueue('audit-queue') private readonly auditQueue: Queue,
     private readonly metricsFactory: MetricsFactory,
   ) {
@@ -119,11 +117,7 @@ export class AuditService implements AuditPublisher {
   }
 
   async findAllCursor(query: AuditLogFilterDto): Promise<{ data: AuditLog[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const queryBuilder = this.auditRepository.createQueryBuilder('audit');
-
-    queryBuilder.where('audit.tenantId = :tenantId', { tenantId });
 
     return CursorPaginationHelper.paginate(queryBuilder, {
       cursor: query.cursor,

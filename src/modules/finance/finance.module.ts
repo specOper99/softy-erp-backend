@@ -27,6 +27,8 @@ import { ExportService } from '../../common/services/export.service';
 
 import { MockPaymentGatewayService } from '../hr/services/payment-gateway.service';
 import { PayoutConsistencyCron } from './cron/payout-consistency.cron';
+import { BookingUpdatedHandler } from './events/handlers/booking-updated.handler';
+import { BookingPriceChangedHandler } from './handlers/booking-price-changed.handler';
 import { PayoutRelayService } from './services/payout-relay.service';
 
 @Module({
@@ -68,12 +70,13 @@ import { PayoutRelayService } from './services/payout-relay.service';
     PayoutRelayService,
     MockPaymentGatewayService,
     PayoutConsistencyCron,
+    BookingUpdatedHandler,
+    BookingPriceChangedHandler,
   ],
   exports: [
     FinanceService,
     CurrencyService,
     InvoiceService,
-    InvoiceRepository,
     InvoiceRepository,
     RecurringTransactionService,
     RecurringTransactionRepository,

@@ -1,12 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
 import { CreateProfileDto, UpdateProfileDto } from '../dto';
@@ -16,62 +15,59 @@ import { ProfileRepository } from '../repositories/profile.repository';
 @Injectable()
 export class HrService {
   private readonly logger = new Logger(HrService.name);
+  private readonly tenantTx: TenantScopedManager;
 
   constructor(
     private readonly profileRepository: ProfileRepository,
-    @InjectRepository(EmployeeWallet)
-    private readonly walletRepository: Repository<EmployeeWallet>,
     private readonly walletService: WalletService,
     private readonly auditService: AuditPublisher,
     private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
-  ) {}
+  ) {
+    this.tenantTx = new TenantScopedManager(dataSource);
+  }
 
   // Profile Methods
   async createProfile(dto: CreateProfileDto): Promise<Profile> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
     try {
-      // Step 1: Validate user belongs to the same tenant
-      const user = await this.usersService.findOne(dto.userId);
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
-      if (user.tenantId !== tenantId) {
-        throw new BadRequestException('hr.user_not_found_in_tenant');
-      }
+      return await this.tenantTx.run(async (manager) => {
+        // Step 1: Validate user belongs to the same tenant
+        const user = await this.usersService.findOne(dto.userId);
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+        if (user.tenantId !== tenantId) {
+          throw new BadRequestException('hr.user_not_found_in_tenant');
+        }
 
-      // Step 2: Create wallet for the user within the profile transaction
-      await this.walletService.getOrCreateWalletWithManager(queryRunner.manager, dto.userId);
+        // Step 2: Create wallet for the user within the profile transaction
+        await this.walletService.getOrCreateWalletWithManager(manager, dto.userId);
 
-      // Step 2: Create profile
-      const profile = this.profileRepository.create({
-        ...dto,
-        hireDate: dto.hireDate ? new Date(dto.hireDate) : null,
+        // Step 3: Create profile
+        const profile = this.profileRepository.create({
+          ...dto,
+          hireDate: dto.hireDate ? new Date(dto.hireDate) : null,
+        });
+        const savedProfile = await manager.save(profile);
+
+        // Step 4: Audit Log
+        await this.auditService.log({
+          action: 'CREATE',
+          entityName: 'Profile',
+          entityId: savedProfile.id,
+          newValues: {
+            userId: dto.userId,
+            firstName: dto.firstName,
+            lastName: dto.lastName,
+            baseSalary: dto.baseSalary,
+          },
+        });
+
+        return savedProfile;
       });
-      const savedProfile = await queryRunner.manager.save(profile);
-
-      // Step 3: Audit Log (outside transaction if preferred, but here included for consistency)
-      await this.auditService.log({
-        action: 'CREATE',
-        entityName: 'Profile',
-        entityId: savedProfile.id,
-        newValues: {
-          userId: dto.userId,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          baseSalary: dto.baseSalary,
-        },
-      });
-
-      await queryRunner.commitTransaction();
-      return savedProfile;
     } catch (e) {
-      await queryRunner.rollbackTransaction();
       if ((e as { code?: string }).code === '23505') {
         this.logger.warn(`Profile already exists for user ${dto.userId}`);
         throw new ConflictException(`Profile already exists for user ${dto.userId}`);
@@ -79,7 +75,7 @@ export class HrService {
       this.logger.error('Failed to create profile', e);
       throw e;
     } finally {
-      await queryRunner.release();
+      // No cleanup needed with TenantScopedManager
     }
   }
 

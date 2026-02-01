@@ -106,11 +106,7 @@ export class CatalogService {
     const limit = query.limit || 20;
 
     const qb = this.packageRepository.createQueryBuilder('pkg');
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
-    qb.leftJoinAndSelect('pkg.packageItems', 'items')
-      .leftJoinAndSelect('items.taskType', 'taskType')
-      .where('pkg.tenantId = :tenantId', { tenantId });
+    qb.leftJoinAndSelect('pkg.packageItems', 'items').leftJoinAndSelect('items.taskType', 'taskType');
 
     return CursorPaginationHelper.paginate(qb, {
       cursor: query.cursor,
@@ -138,6 +134,10 @@ export class CatalogService {
       isActive: pkg.isActive,
     };
 
+    if (dto.price !== undefined && dto.price <= 0) {
+      throw new BadRequestException('catalog.price_must_be_positive');
+    }
+
     Object.assign(pkg, dto);
     const savedPkg = await this.packageRepository.save(pkg);
 
@@ -161,7 +161,8 @@ export class CatalogService {
     }
 
     // Invalidate cache
-    await this.invalidatePackagesCache(TenantContextService.getTenantId() ?? 'default');
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    await this.invalidatePackagesCache(tenantId);
 
     return savedPkg;
   }
@@ -176,10 +177,12 @@ export class CatalogService {
       oldValues: { name: pkg.name, price: pkg.price },
     });
 
-    await this.packageRepository.remove(pkg);
+    // Perform actual deletion
+    await this.packageRepository.softRemove(pkg);
 
     // Invalidate cache
-    await this.invalidatePackagesCache(TenantContextService.getTenantId() ?? 'default');
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    await this.invalidatePackagesCache(tenantId);
   }
 
   async addPackageItems(packageId: string, dto: AddPackageItemsDto): Promise<PackageItem[]> {
@@ -222,9 +225,8 @@ export class CatalogService {
     });
   }
 
-  // Task Type Methods
   async createTaskType(dto: CreateTaskTypeDto): Promise<TaskType> {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const taskType = this.taskTypeRepository.create({ ...dto });
     const savedTaskType = await this.taskTypeRepository.save(taskType);
 
@@ -239,14 +241,14 @@ export class CatalogService {
     });
 
     // Invalidate cache
-    await this.invalidateTaskTypesCache(tenantId ?? 'default');
+    await this.invalidateTaskTypesCache(tenantId);
 
     return savedTaskType;
   }
 
   async findAllTaskTypes(query: PaginationDto = new PaginationDto(), nocache = false): Promise<TaskType[]> {
-    const tenantId = TenantContextService.getTenantId();
-    const cacheKey = this.getTaskTypesCacheKey(tenantId ?? 'default');
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const cacheKey = this.getTaskTypesCacheKey(tenantId);
 
     // Try cache first (only for default pagination)
     if (!nocache && query.page === 1 && query.limit === 10) {
@@ -272,9 +274,6 @@ export class CatalogService {
     const limit = query.limit || 20;
 
     const qb = this.taskTypeRepository.createQueryBuilder('tt');
-    const tenantId = TenantContextService.getTenantId();
-
-    qb.where('tt.tenantId = :tenantId', { tenantId });
 
     return CursorPaginationHelper.paginate(qb, {
       cursor: query.cursor,

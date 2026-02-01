@@ -1,4 +1,4 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -60,7 +60,7 @@ describe('SubscriptionGuard', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(SubscriptionPlan.PRO);
       jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(ForbiddenException);
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw when tenant not found', async () => {

@@ -94,8 +94,7 @@ export class FinancialReportService {
 
     const result = await this.transactionRepository
       .createQueryBuilder('t')
-      .where('t.tenantId = :tenantId', { tenantId })
-      .andWhere('t.transactionDate >= :startDate', {
+      .where('t.transactionDate >= :startDate', {
         startDate: filter.startDate,
       })
       .andWhere('t.transactionDate <= :endDate', { endDate: filter.endDate })
@@ -133,7 +132,7 @@ export class FinancialReportService {
   }
 
   async getBudgetReport(period: string): Promise<BudgetResponseDto[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const _tenantId = TenantContextService.getTenantIdOrThrow();
 
     const budgets = await this.budgetRepository.find({
       where: { period },
@@ -151,8 +150,7 @@ export class FinancialReportService {
       .createQueryBuilder('budget')
       .select('MIN(budget.startDate)', 'minStart')
       .addSelect('MAX(budget.endDate)', 'maxEnd')
-      .where('budget.tenantId = :tenantId', { tenantId })
-      .andWhere('budget.period = :period', { period })
+      .where('budget.period = :period', { period })
       .getRawOne<{ minStart: Date; maxEnd: Date }>();
 
     const minStartDate = dateRange?.minStart ?? new Date();
@@ -163,8 +161,7 @@ export class FinancialReportService {
       .createQueryBuilder('t')
       .select('t.department', 'department')
       .addSelect('SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))', 'total')
-      .where('t.tenantId = :tenantId', { tenantId })
-      .andWhere('t.department IN (:...departments)', {
+      .where('t.department IN (:...departments)', {
         departments: budgetDepartments,
       })
       .andWhere('t.transactionDate >= :start', { start: minStartDate })

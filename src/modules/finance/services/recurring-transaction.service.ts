@@ -42,11 +42,9 @@ export class RecurringTransactionService {
   async findAllCursor(
     query: CursorPaginationDto,
   ): Promise<{ data: RecurringTransaction[]; nextCursor: string | null }> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const limit = query.limit || 20;
 
     const qb = this.recurringRepo.createQueryBuilder('rt');
-    qb.where('rt.tenantId = :tenantId', { tenantId });
 
     return CursorPaginationHelper.paginate(qb, {
       cursor: query.cursor,

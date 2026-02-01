@@ -70,6 +70,7 @@ export class TasksController {
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get task by ID' })
   @ApiResponse({ status: 200, description: 'Task retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

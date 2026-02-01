@@ -35,7 +35,7 @@ describe('ConsentService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    (TenantContextService.getTenantId as jest.Mock).mockReturnValue(mockTenantId);
+    (TenantContextService.getTenantIdOrThrow as jest.Mock).mockReturnValue(mockTenantId);
 
     consentRepository = {
       find: jest.fn(),
@@ -69,7 +69,9 @@ describe('ConsentService', () => {
     });
 
     it('should throw BadRequestException when tenant context is missing', async () => {
-      (TenantContextService.getTenantId as jest.Mock).mockReturnValue(null);
+      (TenantContextService.getTenantIdOrThrow as jest.Mock).mockImplementation(() => {
+        throw new BadRequestException('Tenant context missing');
+      });
 
       await expect(service.getConsents(mockUserId)).rejects.toThrow(BadRequestException);
     });
@@ -109,7 +111,9 @@ describe('ConsentService', () => {
     });
 
     it('should throw BadRequestException when tenant context is missing', async () => {
-      (TenantContextService.getTenantId as jest.Mock).mockReturnValue(null);
+      (TenantContextService.getTenantIdOrThrow as jest.Mock).mockImplementation(() => {
+        throw new BadRequestException('Tenant context missing');
+      });
 
       await expect(service.grantConsent(mockUserId, { type: ConsentType.MARKETING })).rejects.toThrow(
         BadRequestException,
@@ -158,12 +162,12 @@ describe('ConsentService', () => {
       expect(result).toBe(false);
     });
 
-    it('should return false when tenant context is missing', async () => {
-      (TenantContextService.getTenantId as jest.Mock).mockReturnValue(null);
+    it('should throw BadRequestException when tenant context is missing', async () => {
+      (TenantContextService.getTenantIdOrThrow as jest.Mock).mockImplementation(() => {
+        throw new BadRequestException('Tenant context missing');
+      });
 
-      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING);
-
-      expect(result).toBe(false);
+      await expect(service.hasConsent(mockUserId, ConsentType.MARKETING)).rejects.toThrow(BadRequestException);
     });
   });
 

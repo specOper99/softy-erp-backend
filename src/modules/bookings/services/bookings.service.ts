@@ -12,6 +12,8 @@ import { CatalogService } from '../../catalog/services/catalog.service';
 import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
 import {
   BookingFilterDto,
   BookingSortBy,
@@ -29,6 +31,7 @@ import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingStateMachineService } from './booking-state-machine.service';
 
 import { BookingRepository } from '../repositories/booking.repository';
+import { BookingPriceCalculator } from '../utils/booking-price.calculator';
 
 @Injectable()
 export class BookingsService {
@@ -65,28 +68,31 @@ export class BookingsService {
       throw new BadRequestException('booking.invalid_tax_rate');
     }
 
-    const subTotal = Number(pkg.price);
-    const taxAmount = MathUtils.round(subTotal * (taxRate / 100), 2);
-    const totalPrice = subTotal + taxAmount;
+    const priceInput = {
+      packagePrice: Number(pkg.price),
+      taxRate: dto.taxRate ?? 0,
+      depositPercentage: dto.depositPercentage ?? 0,
+    };
 
-    const depositPercentage = dto.depositPercentage ?? 0;
-    if (depositPercentage < 0 || depositPercentage > 100) {
+    // Validate deposit percentage bounds
+    if (priceInput.depositPercentage < 0 || priceInput.depositPercentage > 100) {
       throw new BadRequestException('booking.invalid_deposit_percentage');
     }
-    const depositAmount = MathUtils.round(totalPrice * (depositPercentage / 100), 2);
+
+    const pricing = BookingPriceCalculator.calculate(priceInput);
 
     const booking = this.bookingRepository.create({
       clientId: dto.clientId,
       eventDate: new Date(dto.eventDate),
       packageId: dto.packageId,
       notes: dto.notes,
-      subTotal,
-      taxRate,
-      taxAmount,
-      totalPrice,
+      subTotal: pricing.subTotal,
+      taxRate: pricing.taxRate,
+      taxAmount: pricing.taxAmount,
+      totalPrice: pricing.totalPrice,
       status: BookingStatus.DRAFT,
-      depositPercentage,
-      depositAmount,
+      depositPercentage: pricing.depositPercentage,
+      depositAmount: pricing.depositAmount,
     });
 
     const savedBooking = await this.bookingRepository.save(booking);
@@ -100,7 +106,7 @@ export class BookingsService {
     return savedBooking;
   }
 
-  async findAll(query: BookingFilterDto = new BookingFilterDto()): Promise<Booking[]> {
+  async findAll(query: BookingFilterDto = new BookingFilterDto(), user?: User): Promise<Booking[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const qb = this.bookingRepository.createQueryBuilder('booking');
 
@@ -144,6 +150,12 @@ export class BookingsService {
       qb.andWhere('booking.status IN (:...statuses)', { statuses });
     }
 
+    // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
+    if (user && user.role === Role.FIELD_STAFF) {
+      qb.innerJoin('booking.tasks', 'task');
+      qb.andWhere('task.assignedUserId = :userId', { userId: user.id });
+    }
+
     if (query.startDate) {
       qb.andWhere('booking.eventDate >= :startDate', {
         startDate: query.startDate,
@@ -183,7 +195,10 @@ export class BookingsService {
     return qb.getMany();
   }
 
-  async findAllCursor(query: CursorPaginationDto): Promise<{ data: Booking[]; nextCursor: string | null }> {
+  async findAllCursor(
+    query: CursorPaginationDto,
+    user?: User,
+  ): Promise<{ data: Booking[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const qb = this.bookingRepository.createQueryBuilder('booking');
@@ -192,6 +207,12 @@ export class BookingsService {
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
       .where('booking.tenantId = :tenantId', { tenantId });
 
+    // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
+    if (user && user.role === Role.FIELD_STAFF) {
+      qb.innerJoin('booking.tasks', 'task');
+      qb.andWhere('task.assignedUserId = :userId', { userId: user.id });
+    }
+
     return CursorPaginationHelper.paginate(qb, {
       cursor: query.cursor,
       limit: query.limit,
@@ -199,19 +220,27 @@ export class BookingsService {
     });
   }
 
-  async findOne(id: string): Promise<Booking> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id },
-      relations: [
-        'client',
-        'servicePackage',
-        'servicePackage.packageItems',
-        'servicePackage.packageItems.taskType',
-        'tasks',
-        'tasks.assignedUser',
-        'tasks.taskType',
-      ],
-    });
+  async findOne(id: string, user?: User): Promise<Booking> {
+    const qb = this.bookingRepository.createQueryBuilder('booking');
+    qb.where('booking.id = :id', { id });
+
+    // Apply standard relations
+    qb.leftJoinAndSelect('booking.client', 'client')
+      .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
+      .leftJoinAndSelect('servicePackage.packageItems', 'packageItems')
+      .leftJoinAndSelect('packageItems.taskType', 'packageTaskType')
+      .leftJoinAndSelect('booking.tasks', 'tasks')
+      .leftJoinAndSelect('tasks.assignedUser', 'assignedUser')
+      .leftJoinAndSelect('tasks.taskType', 'taskTaskType');
+
+    // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
+    if (user && user.role === Role.FIELD_STAFF) {
+      qb.andWhere('EXISTS (SELECT 1 FROM task t WHERE t."bookingId" = booking.id AND t."assignedUserId" = :userId)', {
+        userId: user.id,
+      });
+    }
+
+    const booking = await qb.getOne();
     if (!booking) {
       throw new NotFoundException(`Booking with ID ${id} not found`);
     }

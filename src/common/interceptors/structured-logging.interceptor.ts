@@ -2,10 +2,10 @@ import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } fr
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
-import { TenantContextService } from '../services/tenant-context.service';
-import { LogSanitizer } from '../utils/log-sanitizer.util';
-import { getClientIp } from '../utils/client-ip.util';
 import { getCorrelationId } from '../logger/request-context';
+import { TenantContextService } from '../services/tenant-context.service';
+import { getClientIp } from '../utils/client-ip.util';
+import { LogSanitizer } from '../utils/log-sanitizer.util';
 
 interface LogContext {
   correlationId?: string;
@@ -51,7 +51,7 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
       method: request.method,
       url: request.url,
       userAgent: request.headers['user-agent'],
-      ip: getClientIp(request, this.trustProxyHeaders, (message) => this.logger.warn(message)),
+      ip: getClientIp(request, this.trustProxyHeaders, (message) => this.logger.warn(message)) ?? undefined,
     };
 
     // Log sanitized body for non-GET requests, exclude binary (file uploads)

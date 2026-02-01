@@ -21,8 +21,8 @@ import Stripe from 'stripe';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { Role } from '../../users/enums/role.enum';
 import {
   CreateCheckoutSessionDto,
@@ -44,11 +44,7 @@ export class BillingController {
   ) {}
 
   private getTenantIdOrThrow(): string {
-    const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('billing.tenant_required');
-    }
-    return tenantId;
+    return TenantContextService.getTenantIdOrThrow();
   }
 
   @Get('subscription')

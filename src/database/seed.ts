@@ -39,7 +39,12 @@ class SeedLogger {
 }
 
 // Validate required environment variables
-const requiredEnvVars = ['SEED_ADMIN_PASSWORD', 'SEED_STAFF_PASSWORD', 'SEED_OPS_PASSWORD'] as const;
+const requiredEnvVars = [
+  'SEED_ADMIN_PASSWORD',
+  'SEED_STAFF_PASSWORD',
+  'SEED_OPS_PASSWORD',
+  'SEED_PLATFORM_ADMIN_PASSWORD',
+] as const;
 
 const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 if (missingEnvVars.length > 0) {
@@ -147,7 +152,7 @@ async function seed() {
     // ============ 1. CREATE ADMIN USER ============
     SeedLogger.log('Creating admin user...');
     const existingAdmin = await userRepo.findOne({
-      where: { email: 'admin@erp.soft-y.org' }, // Unique constraint is (email, tenantId) typically, but we check email + tenant
+      where: { email: 'admin@erp.soft-y.org' }, // Email is globally unique
     });
 
     let _adminUser: User;
@@ -216,6 +221,7 @@ async function seed() {
         SeedLogger.log(`   Exists: ${data.name}`);
       }
     }
+    const taskTypeByName = new Map(taskTypes.map((t) => [t.name, t]));
 
     // ============ 3. CREATE SERVICE PACKAGES ============
     SeedLogger.log('\nCreating service packages...');
@@ -290,6 +296,30 @@ async function seed() {
         }
       } else {
         SeedLogger.log(`   Exists: ${pkgData.name}`);
+
+        const existingItems = await packageItemRepo.find({
+          where: { packageId: pkg.id, tenantId },
+        });
+        const existingByTaskTypeId = new Map(existingItems.map((i) => [i.taskTypeId, i]));
+
+        for (const itemData of pkgData.items) {
+          const taskType = taskTypeByName.get(itemData.taskTypeName);
+          if (!taskType) continue;
+
+          const existingItem = existingByTaskTypeId.get(taskType.id);
+          if (!existingItem) {
+            const item = packageItemRepo.create({
+              packageId: pkg.id,
+              taskTypeId: taskType.id,
+              quantity: itemData.quantity,
+              tenantId,
+            });
+            await packageItemRepo.save(item);
+          } else if (existingItem.quantity !== itemData.quantity) {
+            existingItem.quantity = itemData.quantity;
+            await packageItemRepo.save(existingItem);
+          }
+        }
       }
     }
 
@@ -355,6 +385,31 @@ async function seed() {
         await walletRepo.save(wallet);
       } else {
         SeedLogger.log(`   Exists: ${data.email}`);
+
+        const existingProfile = await profileRepo.findOne({ where: { userId: user.id, tenantId } });
+        if (!existingProfile) {
+          const profile = profileRepo.create({
+            userId: user.id,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            jobTitle: data.jobTitle,
+            baseSalary: data.baseSalary,
+            hireDate: new Date(),
+            tenantId,
+          });
+          await profileRepo.save(profile);
+        }
+
+        const existingWallet = await walletRepo.findOne({ where: { userId: user.id, tenantId } });
+        if (!existingWallet) {
+          const wallet = walletRepo.create({
+            userId: user.id,
+            pendingBalance: 0,
+            payableBalance: 0,
+            tenantId,
+          });
+          await walletRepo.save(wallet);
+        }
       }
     }
 
@@ -385,7 +440,7 @@ async function seed() {
       where: { email: 'admin@erp.soft-y.org' },
     });
     if (!existingPlatformAdmin) {
-      const passwordHash = await bcrypt.hash('SecurePassword123!', 10);
+      const passwordHash = await bcrypt.hash(process.env.SEED_PLATFORM_ADMIN_PASSWORD!, 10);
       const platformAdmin = platformUserRepo.create({
         email: 'admin@erp.soft-y.org',
         fullName: 'Platform Administrator',
@@ -411,7 +466,7 @@ async function seed() {
     SeedLogger.log('            sarah.videographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('            mike.editor@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('\nPlatform:');
-    SeedLogger.log('  Admin:    admin@erp.soft-y.org / SecurePassword123!\n');
+    SeedLogger.log('  Admin:    admin@erp.soft-y.org / [SEED_PLATFORM_ADMIN_PASSWORD]\n');
   } catch (error) {
     SeedLogger.error('Seed failed:', error);
     process.exit(1);

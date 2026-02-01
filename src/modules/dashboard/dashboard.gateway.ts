@@ -93,6 +93,8 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
 
       const tenantId = payload.tenantId;
       if (tenantId) {
+        client.data.tenantId = tenantId;
+        client.data.userId = payload.sub;
         void client.join(`tenant:${tenantId}`);
       }
     } catch (error) {

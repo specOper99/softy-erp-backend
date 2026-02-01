@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { createMockQueryBuilder } from '../../../../test/helpers/test-setup.utils';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Booking } from '../../bookings/entities/booking.entity';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { AnalyticsService } from './analytics.service';
 
 describe('AnalyticsService', () => {
@@ -19,7 +19,7 @@ describe('AnalyticsService', () => {
       providers: [
         AnalyticsService,
         {
-          provide: getRepositoryToken(Booking),
+          provide: BookingRepository,
           useValue: {
             createQueryBuilder: jest.fn(),
           },
@@ -35,7 +35,7 @@ describe('AnalyticsService', () => {
     }).compile();
 
     service = module.get<AnalyticsService>(AnalyticsService);
-    bookingRepo = module.get(getRepositoryToken(Booking));
+    bookingRepo = module.get(BookingRepository);
     cacheUtils = module.get(CacheUtilsService);
 
     // Mock tenant context

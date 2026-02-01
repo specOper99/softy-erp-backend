@@ -39,7 +39,7 @@ export class EmailTemplatesController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'List all email templates' })
   async findAll(@Query() query: PaginationDto = new PaginationDto()) {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.templateRepository.find({
       where: { tenantId },
       order: { name: 'ASC' },
@@ -52,7 +52,7 @@ export class EmailTemplatesController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get template by ID' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.findTemplateOrThrow(id, tenantId);
   }
 
@@ -60,7 +60,7 @@ export class EmailTemplatesController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create a new email template' })
   async create(@Body() dto: CreateEmailTemplateDto) {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const existing = await this.templateRepository.findOne({
       where: { name: dto.name, tenantId },
@@ -82,7 +82,7 @@ export class EmailTemplatesController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update an email template' })
   async update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateEmailTemplateDto) {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const template = await this.findTemplateOrThrow(id, tenantId);
 
     Object.assign(template, dto);
@@ -93,7 +93,7 @@ export class EmailTemplatesController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete an email template' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
-    const tenantId = TenantContextService.getTenantId();
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const template = await this.findTemplateOrThrow(id, tenantId);
 
     if (template.isSystem) {
