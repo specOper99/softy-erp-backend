@@ -46,7 +46,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     TenantsModule,
     forwardRef(() => DashboardModule),
     AnalyticsModule,
-    BookingsModule,
+    forwardRef(() => BookingsModule),
   ],
   controllers: [
     TransactionsController,

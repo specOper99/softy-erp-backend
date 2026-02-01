@@ -22,7 +22,7 @@ import { TasksModule } from '../tasks/tasks.module';
     AuthModule,
     forwardRef(() => FinanceModule),
     TasksModule,
-    BookingsModule,
+    forwardRef(() => BookingsModule),
     HrModule,
     AnalyticsModule,
   ],

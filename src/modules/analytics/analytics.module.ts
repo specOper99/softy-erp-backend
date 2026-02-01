@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from '../bookings/entities/booking.entity';
@@ -14,7 +14,13 @@ import { AnalyticsController } from './controllers';
 import { DailyMetricsRepository } from './repositories/daily-metrics.repository';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DailyMetrics, Booking]), CqrsModule, DashboardModule, AuthModule, TenantsModule],
+  imports: [
+    TypeOrmModule.forFeature([DailyMetrics, Booking]),
+    CqrsModule,
+    forwardRef(() => DashboardModule),
+    AuthModule,
+    TenantsModule,
+  ],
   controllers: [AnalyticsController],
   providers: [UpdateMetricsHandler, AnalyticsService, DailyMetricsRepository, BookingRepository],
   exports: [AnalyticsService, DailyMetricsRepository],
