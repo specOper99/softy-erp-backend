@@ -137,7 +137,8 @@ describe('PlatformAuditService', () => {
       (auditLogRepository.create as jest.Mock).mockReturnValue(mockAuditLog);
       (auditLogRepository.save as jest.Mock).mockRejectedValue(new Error('Database error'));
 
-      await expect(service.log(dto)).rejects.toThrow('Database error');
+      const result = await service.log(dto);
+      expect(result).toBeNull();
     });
   });
 

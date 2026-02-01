@@ -7,6 +7,7 @@ import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.e
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
 import { DailyMetrics } from '../entities/daily-metrics.entity';
+import { DailyMetricsRepository } from '../repositories/daily-metrics.repository';
 import { UpdateMetricsHandler } from './update-metrics.handler';
 
 // Mock DB connection or use sqlite in-memory
@@ -30,7 +31,7 @@ describe('UpdateMetricsHandler Integration', () => {
         }),
         TypeOrmModule.forFeature([DailyMetrics]),
       ],
-      providers: [UpdateMetricsHandler],
+      providers: [UpdateMetricsHandler, DailyMetricsRepository],
     }).compile();
 
     handler = module.get<UpdateMetricsHandler>(UpdateMetricsHandler);

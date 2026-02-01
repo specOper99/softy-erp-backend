@@ -37,10 +37,8 @@ describe('NotificationPreferencesService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationPreferencesService,
-        {
-          provide: getRepositoryToken(NotificationPreference),
-          useValue: preferenceRepository,
-        },
+        { provide: NotificationPreferenceRepository, useValue: mockRepository },
+        { provide: getRepositoryToken(NotificationPreference), useValue: preferenceRepository },
       ],
     }).compile();
 

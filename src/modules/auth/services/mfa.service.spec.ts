@@ -1,12 +1,35 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { authenticator } from 'otplib';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { MfaService } from './mfa.service';
 
-jest.mock('QRCode', () => ({
+jest.mock('qrcode', () => ({
   toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mockcode'),
+}));
+
+jest.mock('otpauth', () => ({
+  Secret: class MockSecret {
+    base32: string;
+    constructor({ size: _size }: { size?: number } = {}) {
+      this.base32 = 'MOCK_SECRET_BASE32';
+    }
+    static fromBase32(str: string) {
+      const secret = new MockSecret();
+      secret.base32 = str;
+      return secret;
+    }
+  },
+  TOTP: jest.fn().mockImplementation(({ secret, ...opts }) => {
+    const secretBase32 = secret.base32 || secret;
+    return {
+      toString: () => `otpauth://totp/${opts.issuer}:${opts.label}?secret=${secretBase32}`,
+      validate: ({ token, window: _window }: { token: string; window?: number }) => {
+        // Return 0 (valid within window) for token '123456', null otherwise
+        return token === '123456' ? 0 : null;
+      },
+    };
+  }),
 }));
 
 describe('MfaService', () => {
@@ -66,17 +89,13 @@ describe('MfaService', () => {
 
   describe('enableMfa', () => {
     it('should enable MFA if code is valid', async () => {
-      const secret = authenticator.generateSecret();
-      const token = authenticator.generate(secret);
+      const secret = 'MOCK_SECRET_BASE32';
+      const token = '123456';
 
       usersService.findByEmailWithMfaSecret.mockResolvedValue({
         ...mockUser,
         mfaSecret: secret,
       } as User);
-
-      // Mock generateRecoveryCodes internal call
-      // Since generateRecoveryCodes is public, we can spy on it?
-      // Or just let it run. It calls usersService.updateMfaRecoveryCodes
 
       const result = await service.enableMfa(mockUser, token);
 
@@ -86,7 +105,7 @@ describe('MfaService', () => {
     });
 
     it('should throw Unauthorized if code is invalid', async () => {
-      const secret = authenticator.generateSecret();
+      const secret = 'MOCK_SECRET_BASE32';
       usersService.findByEmailWithMfaSecret.mockResolvedValue({
         ...mockUser,
         mfaSecret: secret,
