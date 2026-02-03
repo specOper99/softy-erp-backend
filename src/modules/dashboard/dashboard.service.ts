@@ -9,6 +9,7 @@ import { TransactionType } from '../finance/enums/transaction-type.enum';
 import { TransactionRepository } from '../finance/repositories/transaction.repository';
 import { Profile } from '../hr/entities/profile.entity';
 import { ProfileRepository } from '../hr/repositories/profile.repository';
+import { NotificationRepository } from '../notifications/repositories/notification.repository';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
 import { TaskRepository } from '../tasks/repositories/task.repository';
 import {
@@ -20,6 +21,7 @@ import {
   RevenueStatsDto,
   RevenueSummaryDto,
   StaffPerformanceDto,
+  StudioKpisDto,
 } from './dto/dashboard.dto';
 import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
 import { UserDashboardConfig } from './entities/user-preference.entity';
@@ -35,6 +37,7 @@ export class DashboardService {
     private readonly preferenceRepository: UserPreferenceRepository,
     private readonly metricsRepository: DailyMetricsRepository,
     private readonly cacheUtils: CacheUtilsService,
+    private readonly notificationRepository: NotificationRepository,
   ) {}
 
   // Cache TTL: 5 minutes for KPIs
@@ -310,5 +313,114 @@ export class DashboardService {
 
     const saved = await this.preferenceRepository.save(prefs);
     return saved.dashboardConfig;
+  }
+
+  async getStudioKpis(): Promise<StudioKpisDto> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const cacheKey = `studio:kpis:${tenantId}`;
+
+    // Try cache first (5 min TTL)
+    const cached = await this.cacheUtils.get<StudioKpisDto>(cacheKey);
+    if (cached) return cached;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    // Parallel execution of all queries
+    const [bookingsData, tasksData, staffData, revenueData, notificationsData] = await Promise.all([
+      // Bookings data
+      this.bookingRepository
+        .createQueryBuilder('b')
+        .select('COUNT(b.id)', 'total')
+        .addSelect('SUM(CASE WHEN b.status = :draft THEN 1 ELSE 0 END)', 'pending')
+        .addSelect('SUM(CASE WHEN b.status = :confirmed THEN 1 ELSE 0 END)', 'confirmed')
+        .addSelect(
+          'SUM(CASE WHEN b.scheduledAt >= :today AND b.scheduledAt <= :endOfDay THEN 1 ELSE 0 END)',
+          'todayBookings',
+        )
+        .setParameter('draft', BookingStatus.DRAFT)
+        .setParameter('confirmed', BookingStatus.CONFIRMED)
+        .setParameter('today', today)
+        .setParameter('endOfDay', endOfDay)
+        .getRawOne<{ total: string; pending: string; confirmed: string; todayBookings: string }>(),
+
+      // Tasks data
+      this.taskRepository
+        .createQueryBuilder('t')
+        .select('COUNT(t.id)', 'total')
+        .addSelect('SUM(CASE WHEN t.status = :pending THEN 1 ELSE 0 END)', 'pending')
+        .addSelect('SUM(CASE WHEN t.status = :inProgress THEN 1 ELSE 0 END)', 'inProgress')
+        .addSelect('SUM(CASE WHEN t.dueDate >= :today AND t.dueDate <= :endOfDay THEN 1 ELSE 0 END)', 'todayTasks')
+        .setParameter('pending', TaskStatus.PENDING)
+        .setParameter('inProgress', TaskStatus.IN_PROGRESS)
+        .setParameter('today', today)
+        .setParameter('endOfDay', endOfDay)
+        .getRawOne<{ total: string; pending: string; inProgress: string; todayTasks: string }>(),
+
+      // Staff data
+      this.profileRepository
+        .createQueryBuilder('p')
+        .select('COUNT(p.id)', 'total')
+        .addSelect('SUM(CASE WHEN p.status = :active THEN 1 ELSE 0 END)', 'active')
+        .addSelect('SUM(CASE WHEN p.status = :onLeave THEN 1 ELSE 0 END)', 'onLeave')
+        .setParameter('active', 'active')
+        .setParameter('onLeave', 'on_leave')
+        .getRawOne<{ total: string; active: string; onLeave: string }>(),
+
+      // Revenue data
+      this.transactionRepository
+        .createQueryBuilder('t')
+        .select('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'total')
+        .addSelect(
+          'SUM(CASE WHEN t.type = :income AND t.transactionDate >= :monthStart AND t.transactionDate <= :monthEnd THEN t.amount ELSE 0 END)',
+          'monthly',
+        )
+        .setParameter('income', TransactionType.INCOME)
+        .setParameter('monthStart', firstDayOfMonth)
+        .setParameter('monthEnd', lastDayOfMonth)
+        .getRawOne<{ total: string; monthly: string }>(),
+
+      // Notifications data (unread count)
+      this.notificationRepository.count({ where: { read: false } }),
+    ]);
+
+    const result: StudioKpisDto = {
+      // Bookings
+      totalBookings: Number(bookingsData?.total) || 0,
+      pendingBookings: Number(bookingsData?.pending) || 0,
+      confirmedBookings: Number(bookingsData?.confirmed) || 0,
+      todayBookings: Number(bookingsData?.todayBookings) || 0,
+
+      // Tasks
+      totalTasks: Number(tasksData?.total) || 0,
+      pendingTasks: Number(tasksData?.pending) || 0,
+      inProgressTasks: Number(tasksData?.inProgress) || 0,
+      todayTasks: Number(tasksData?.todayTasks) || 0,
+
+      // Staff
+      totalStaff: Number(staffData?.total) || 0,
+      activeStaff: Number(staffData?.active) || 0,
+      onLeaveStaff: Number(staffData?.onLeave) || 0,
+
+      // Revenue
+      totalRevenue: MathUtils.parseFinancialAmount(revenueData?.total, 0),
+      monthlyRevenue: MathUtils.parseFinancialAmount(revenueData?.monthly, 0),
+
+      // Notifications
+      unreadNotifications: notificationsData || 0,
+
+      // Timestamp
+      generatedAt: new Date(),
+    };
+
+    // Cache for 5 minutes
+    await this.cacheUtils.set(cacheKey, result, this.KPI_CACHE_TTL);
+
+    return result;
   }
 }

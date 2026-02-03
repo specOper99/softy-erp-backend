@@ -66,6 +66,50 @@ export class Tenant {
     refundPercentage: number;
   }[];
 
+  @Column({ name: 'timezone', type: 'varchar', length: 100, default: 'UTC' })
+  timezone: string;
+
+  @Column({
+    type: 'jsonb',
+    name: 'working_hours',
+    nullable: true,
+  })
+  workingHours:
+    | {
+        day: string;
+        startTime: string;
+        endTime: string;
+        isOpen: boolean;
+      }[]
+    | null;
+
+  @Column({
+    type: 'jsonb',
+    name: 'branding',
+    nullable: true,
+  })
+  branding: {
+    logoUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+  } | null;
+
+  @Column({ name: 'description', type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({ name: 'address', type: 'varchar', length: 200, nullable: true })
+  address: string | null;
+
+  @Column({ name: 'phone', type: 'varchar', length: 20, nullable: true })
+  phone: string | null;
+
+  @Column({ name: 'email', type: 'varchar', length: 100, nullable: true })
+  email: string | null;
+
+  @Column({ name: 'website', type: 'varchar', length: 255, nullable: true })
+  website: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
