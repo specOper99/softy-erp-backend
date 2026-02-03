@@ -21,6 +21,7 @@ describe('PackagesController', () => {
           provide: CatalogService,
           useValue: {
             findAllPackages: jest.fn().mockResolvedValue([mockPackage]),
+            findAllPackagesWithFilters: jest.fn().mockResolvedValue({ data: [mockPackage], meta: {} }),
             findPackageById: jest.fn().mockResolvedValue(mockPackage),
             createPackage: jest.fn().mockResolvedValue(mockPackage),
             updatePackage: jest.fn().mockResolvedValue(mockPackage),
@@ -53,10 +54,11 @@ describe('PackagesController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('findAll', () => {
-    it('should call service.findAllPackages', async () => {
-      await controller.findAll();
-      expect(service.findAllPackages).toHaveBeenCalled();
+  describe('findAllWithFilters', () => {
+    it('should call service.findAllPackagesWithFilters', async () => {
+      const query = {};
+      await controller.findAllWithFilters(query);
+      expect(service.findAllPackagesWithFilters).toHaveBeenCalledWith(query);
     });
   });
 

@@ -6,6 +6,7 @@ import { BookingRepository } from '../bookings/repositories/booking.repository';
 import { TransactionType } from '../finance/enums/transaction-type.enum';
 import { TransactionRepository } from '../finance/repositories/transaction.repository';
 import { ProfileRepository } from '../hr/repositories/profile.repository';
+import { NotificationRepository } from '../notifications/repositories/notification.repository';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
 import { TaskRepository } from '../tasks/repositories/task.repository';
 import { DashboardService } from './dashboard.service';
@@ -85,6 +86,10 @@ describe('DashboardService', () => {
         {
           provide: CacheUtilsService,
           useValue: { get: jest.fn(), set: jest.fn() },
+        },
+        {
+          provide: NotificationRepository,
+          useValue: mockRepository,
         },
       ],
     }).compile();

@@ -22,6 +22,7 @@ describe('HrController', () => {
           useValue: {
             createProfile: jest.fn().mockResolvedValue(mockProfile),
             findAllProfiles: jest.fn().mockResolvedValue([mockProfile]),
+            findAllProfilesWithFilters: jest.fn().mockResolvedValue({ data: [mockProfile], meta: {} }),
             findProfileById: jest.fn().mockResolvedValue(mockProfile),
             findProfileByUserId: jest.fn().mockResolvedValue(mockProfile),
             updateProfile: jest.fn().mockResolvedValue(mockProfile),
@@ -62,10 +63,11 @@ describe('HrController', () => {
     });
   });
 
-  describe('findAllProfiles', () => {
-    it('should call service.findAllProfiles', async () => {
-      await controller.findAllProfiles();
-      expect(service.findAllProfiles).toHaveBeenCalled();
+  describe('findAllProfilesWithFilters', () => {
+    it('should call service.findAllProfilesWithFilters', async () => {
+      const query = {};
+      await controller.findAllProfilesWithFilters(query);
+      expect(service.findAllProfilesWithFilters).toHaveBeenCalledWith(query);
     });
   });
 
