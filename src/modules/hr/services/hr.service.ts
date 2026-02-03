@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -8,7 +9,7 @@ import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
-import { CreateProfileDto, UpdateProfileDto } from '../dto';
+import { CreateProfileDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
 import { Profile } from '../entities';
 import { ProfileRepository } from '../repositories/profile.repository';
 
@@ -88,6 +89,76 @@ export class HrService {
     await this.populateProfilesWithUsers(profiles);
 
     return profiles;
+  }
+
+  /**
+   * @deprecated Use findAllProfilesWithFiltersCursor for better performance with large datasets
+   */
+  async findAllProfilesWithFilters(filter: ProfileFilterDto): Promise<PaginatedResponseDto<Profile>> {
+    const qb = this.profileRepository.createQueryBuilder('profile');
+
+    // Apply filters
+    this.applyProfileFilters(qb, filter);
+
+    // Get total count
+    const total = await qb.getCount();
+
+    // Apply pagination
+    qb.skip(filter.getSkip()).take(filter.getTake());
+
+    // Order by
+    qb.orderBy('profile.hireDate', 'DESC').addOrderBy('profile.lastName', 'ASC');
+
+    const profiles = await qb.getMany();
+
+    // Populate user data
+    await this.populateProfilesWithUsers(profiles);
+
+    return createPaginatedResponse(profiles, total, filter.page || 1, filter.getTake());
+  }
+
+  async findAllProfilesWithFiltersCursor(
+    filter: ProfileFilterDto,
+  ): Promise<{ data: Profile[]; nextCursor: string | null }> {
+    const qb = this.profileRepository.createQueryBuilder('profile');
+
+    // Apply cursor pagination with filters
+    const result = await CursorPaginationHelper.paginate(qb, {
+      cursor: filter.cursor,
+      limit: filter.limit,
+      alias: 'profile',
+      filters: (qb) => this.applyProfileFilters(qb, filter),
+    });
+
+    // Populate user data
+    await this.populateProfilesWithUsers(result.data);
+
+    return result;
+  }
+
+  private applyProfileFilters(qb: SelectQueryBuilder<Profile>, filter: ProfileFilterDto): void {
+    if (filter.status) {
+      qb.andWhere('profile.status = :status', { status: filter.status });
+    }
+
+    if (filter.department) {
+      qb.andWhere('profile.department = :department', { department: filter.department });
+    }
+
+    if (filter.contractType) {
+      qb.andWhere('profile.contractType = :contractType', { contractType: filter.contractType });
+    }
+
+    if (filter.search) {
+      qb.andWhere(
+        new Brackets((qb2) => {
+          qb2
+            .where('profile.firstName ILIKE :search', { search: `%${filter.search}%` })
+            .orWhere('profile.lastName ILIKE :search', { search: `%${filter.search}%` })
+            .orWhere('profile.employeeId ILIKE :search', { search: `%${filter.search}%` });
+        }),
+      );
+    }
   }
 
   async findAllProfilesCursor(query: CursorPaginationDto): Promise<{ data: Profile[]; nextCursor: string | null }> {

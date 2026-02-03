@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { Brackets, SelectQueryBuilder } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -11,6 +13,7 @@ import {
   ClonePackageDto,
   CreateServicePackageDto,
   CreateTaskTypeDto,
+  PackageFilterDto,
   UpdateServicePackageDto,
   UpdateTaskTypeDto,
 } from '../dto';
@@ -101,6 +104,65 @@ export class CatalogService {
     }
 
     return packages;
+  }
+
+  /**
+   * @deprecated Use findAllPackagesWithFiltersCursor for better performance with large datasets
+   */
+  async findAllPackagesWithFilters(filter: PackageFilterDto): Promise<PaginatedResponseDto<ServicePackage>> {
+    const qb = this.packageRepository
+      .createQueryBuilder('pkg')
+      .leftJoinAndSelect('pkg.packageItems', 'items')
+      .leftJoinAndSelect('items.taskType', 'taskType');
+
+    // Apply filters
+    this.applyPackageFilters(qb, filter);
+
+    // Get total count
+    const total = await qb.getCount();
+
+    // Apply pagination
+    qb.skip(filter.getSkip()).take(filter.getTake());
+
+    // Order by
+    qb.orderBy('pkg.isActive', 'DESC').addOrderBy('pkg.name', 'ASC');
+
+    const data = await qb.getMany();
+
+    return createPaginatedResponse(data, total, filter.page || 1, filter.getTake());
+  }
+
+  async findAllPackagesWithFiltersCursor(
+    filter: PackageFilterDto,
+  ): Promise<{ data: ServicePackage[]; nextCursor: string | null }> {
+    const qb = this.packageRepository
+      .createQueryBuilder('pkg')
+      .leftJoinAndSelect('pkg.packageItems', 'items')
+      .leftJoinAndSelect('items.taskType', 'taskType');
+
+    // Apply cursor pagination with filters
+    return CursorPaginationHelper.paginate(qb, {
+      cursor: filter.cursor,
+      limit: filter.limit,
+      alias: 'pkg',
+      filters: (qb) => this.applyPackageFilters(qb, filter),
+    });
+  }
+
+  private applyPackageFilters(qb: SelectQueryBuilder<ServicePackage>, filter: PackageFilterDto): void {
+    if (filter.isActive !== undefined) {
+      qb.andWhere('pkg.isActive = :isActive', { isActive: filter.isActive });
+    }
+
+    if (filter.search) {
+      qb.andWhere(
+        new Brackets((qb2) => {
+          qb2
+            .where('pkg.name ILIKE :search', { search: `%${filter.search}%` })
+            .orWhere('pkg.description ILIKE :search', { search: `%${filter.search}%` });
+        }),
+      );
+    }
   }
 
   async findAllPackagesCursor(
