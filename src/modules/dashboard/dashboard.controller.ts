@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Put, Query, Res, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { GlobalCacheInterceptor } from '../../common/cache/cache.interceptor';
 import { Cacheable } from '../../common/decorators/cacheable.decorator';
@@ -21,6 +21,7 @@ import {
   RevenueStatsDto,
   RevenueSummaryDto,
   StaffPerformanceDto,
+  StudioKpisDto,
 } from './dto/dashboard.dto';
 import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
 import { UserDashboardConfig } from './entities/user-preference.entity';
@@ -47,6 +48,19 @@ export class DashboardController {
   @ApiQuery({ name: 'endDate', required: false })
   async getKpis(@Query() query: ReportQueryDto): Promise<DashboardKpiDto> {
     return this.dashboardService.getKpiSummary(query);
+  }
+
+  @Get('studio-kpis')
+  @Cacheable()
+  @ApiOperation({
+    summary: 'Get aggregated studio KPIs',
+    description: 'Returns all studio metrics in a single call: bookings, tasks, staff, revenue, and notifications',
+  })
+  @ApiResponse({ status: 200, description: 'Studio KPIs retrieved successfully', type: StudioKpisDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getStudioKpis(): Promise<StudioKpisDto> {
+    return this.dashboardService.getStudioKpis();
   }
 
   @Get('summary')

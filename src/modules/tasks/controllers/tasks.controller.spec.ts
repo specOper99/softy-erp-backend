@@ -22,6 +22,7 @@ describe('TasksController', () => {
           provide: TasksService,
           useValue: {
             findAll: jest.fn().mockResolvedValue([mockTask]),
+            findAllWithFilters: jest.fn().mockResolvedValue({ data: [mockTask], meta: {} }),
             findAllCursor: jest.fn().mockResolvedValue({ data: [mockTask], meta: {} }),
             findOne: jest.fn().mockResolvedValue(mockTask),
             findByUser: jest.fn().mockResolvedValue([mockTask]),
@@ -43,10 +44,11 @@ describe('TasksController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('findAll', () => {
-    it('should call service.findAll', async () => {
-      await controller.findAll();
-      expect(service.findAll).toHaveBeenCalled();
+  describe('findAllWithFilters', () => {
+    it('should call service.findAllWithFilters', async () => {
+      const query = {};
+      await controller.findAllWithFilters(query);
+      expect(service.findAllWithFilters).toHaveBeenCalledWith(query);
     });
   });
 

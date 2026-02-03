@@ -84,3 +84,32 @@ export class DashboardKpiDto {
   averageBookingValue: number;
   activeStaffCount: number;
 }
+
+export class StudioKpisDto {
+  // Bookings
+  totalBookings: number;
+  pendingBookings: number;
+  confirmedBookings: number;
+  todayBookings: number;
+
+  // Tasks
+  totalTasks: number;
+  pendingTasks: number;
+  inProgressTasks: number;
+  todayTasks: number;
+
+  // Staff
+  totalStaff: number;
+  activeStaff: number;
+  onLeaveStaff: number;
+
+  // Revenue
+  totalRevenue: number;
+  monthlyRevenue: number;
+
+  // Notifications
+  unreadNotifications: number;
+
+  // Timestamp
+  generatedAt: Date;
+}

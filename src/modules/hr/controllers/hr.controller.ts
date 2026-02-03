@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
 import { Role } from '../../users/enums/role.enum';
-import { CreateProfileDto, UpdateProfileDto } from '../dto';
+import { CreateProfileDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
 
@@ -35,17 +35,34 @@ export class HrController {
   @Get('profiles')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
-    summary: 'Get all employee profiles (Offset Pagination)',
+    summary: 'Get all employee profiles with filtering (Offset Pagination - Deprecated)',
+    description:
+      'Supports filtering by status, department, contract type, and search. Use /hr/profiles/cursor for better performance.',
     deprecated: true,
-    description: 'Use /hr/profiles/cursor for better performance with large datasets.',
   })
-  findAllProfiles(@Query() query: PaginationDto = new PaginationDto()) {
-    return this.hrService.findAllProfiles(query);
+  @ApiResponse({ status: 200, description: 'Return filtered profiles with pagination meta' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async findAllProfilesWithFilters(@Query() query: ProfileFilterDto) {
+    return this.hrService.findAllProfilesWithFilters(query);
   }
 
   @Get('profiles/cursor')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Get all profiles with cursor pagination' })
+  @ApiOperation({
+    summary: 'Get all employee profiles with filtering (Cursor Pagination - Recommended)',
+    description: 'Supports filtering by status, department, contract type, and search with cursor pagination',
+  })
+  @ApiResponse({ status: 200, description: 'Return filtered profiles with cursor pagination' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async findAllProfilesWithFiltersCursor(@Query() query: ProfileFilterDto) {
+    return this.hrService.findAllProfilesWithFiltersCursor(query);
+  }
+
+  @Get('profiles/cursor/no-filters')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all profiles with cursor pagination (no filters)' })
   findAllProfilesCursor(@Query() query: CursorPaginationDto) {
     return this.hrService.findAllProfilesCursor(query);
   }

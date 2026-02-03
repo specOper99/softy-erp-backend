@@ -1,8 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { Response } from 'express';
-import { DataSource } from 'typeorm';
+import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -14,7 +15,7 @@ import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { AssignTaskDto, CompleteTaskResponseDto, UpdateTaskDto } from '../dto';
+import { AssignTaskDto, CompleteTaskResponseDto, TaskFilterDto, UpdateTaskDto } from '../dto';
 import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
@@ -50,6 +51,82 @@ export class TasksService {
     qb.orderBy('task.createdAt', 'DESC').skip(query.getSkip()).take(query.getTake());
 
     return qb.getMany();
+  }
+
+  /**
+   * @deprecated Use findAllWithFiltersCursor for better performance with large datasets
+   */
+  async findAllWithFilters(filter: TaskFilterDto): Promise<PaginatedResponseDto<Task>> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const qb = this.createTaskBaseQuery(tenantId);
+
+    // Apply filters
+    this.applyTaskFilters(qb, filter);
+
+    // Get total count
+    const total = await qb.getCount();
+
+    // Apply pagination
+    qb.skip(filter.getSkip()).take(filter.getTake());
+
+    // Order by
+    qb.orderBy('task.dueDate', 'ASC').addOrderBy('task.createdAt', 'DESC');
+
+    const data = await qb.getMany();
+
+    return createPaginatedResponse(data, total, filter.page || 1, filter.getTake());
+  }
+
+  async findAllWithFiltersCursor(filter: TaskFilterDto): Promise<{ data: Task[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const qb = this.createTaskBaseQuery(tenantId);
+
+    // Apply cursor pagination with filters
+    return CursorPaginationHelper.paginate(qb, {
+      cursor: filter.cursor,
+      limit: filter.limit,
+      alias: 'task',
+      filters: (qb) => this.applyTaskFilters(qb, filter),
+    });
+  }
+
+  private applyTaskFilters(qb: SelectQueryBuilder<Task>, filter: TaskFilterDto): void {
+    if (filter.status) {
+      qb.andWhere('task.status = :status', { status: filter.status });
+    }
+
+    if (filter.assignedUserId) {
+      qb.andWhere('task.assignedUserId = :assignedUserId', { assignedUserId: filter.assignedUserId });
+    }
+
+    if (filter.bookingId) {
+      qb.andWhere('task.bookingId = :bookingId', { bookingId: filter.bookingId });
+    }
+
+    if (filter.taskTypeId) {
+      qb.andWhere('task.taskTypeId = :taskTypeId', { taskTypeId: filter.taskTypeId });
+    }
+
+    if (filter.dueDateStart && filter.dueDateEnd) {
+      qb.andWhere('task.dueDate BETWEEN :start AND :end', {
+        start: new Date(filter.dueDateStart),
+        end: new Date(filter.dueDateEnd),
+      });
+    } else if (filter.dueDateStart) {
+      qb.andWhere('task.dueDate >= :start', { start: new Date(filter.dueDateStart) });
+    } else if (filter.dueDateEnd) {
+      qb.andWhere('task.dueDate <= :end', { end: new Date(filter.dueDateEnd) });
+    }
+
+    if (filter.search) {
+      qb.andWhere(
+        new Brackets((qb2) => {
+          qb2
+            .where('task.notes ILIKE :search', { search: `%${filter.search}%` })
+            .orWhere('taskType.name ILIKE :search', { search: `%${filter.search}%` });
+        }),
+      );
+    }
   }
 
   async findAllCursor(query: CursorPaginationDto): Promise<{ data: Task[]; nextCursor: string | null }> {
