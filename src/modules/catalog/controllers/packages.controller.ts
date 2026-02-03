@@ -18,7 +18,13 @@ import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import { AddPackageItemsDto, ClonePackageDto, CreateServicePackageDto, UpdateServicePackageDto } from '../dto';
+import {
+  AddPackageItemsDto,
+  ClonePackageDto,
+  CreateServicePackageDto,
+  PackageFilterDto,
+  UpdateServicePackageDto,
+} from '../dto';
 import { CatalogService } from '../services/catalog.service';
 
 @ApiTags('Service Packages')
@@ -41,20 +47,30 @@ export class PackagesController {
   }
 
   @Get()
-  @Cacheable()
   @ApiOperation({
-    summary: 'Get all service packages',
+    summary: 'Get all service packages with filtering (Offset Pagination - Deprecated)',
+    description: 'Supports filtering by active status and search. Use /packages/cursor for better performance.',
     deprecated: true,
-    description: 'Use /packages/cursor for better performance with large datasets.',
   })
-  @ApiResponse({ status: 200, description: 'Return all packages' })
+  @ApiResponse({ status: 200, description: 'Return filtered packages with pagination meta' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  findAll() {
-    return this.catalogService.findAllPackages();
+  async findAllWithFilters(@Query() query: PackageFilterDto) {
+    return this.catalogService.findAllPackagesWithFilters(query);
   }
 
   @Get('cursor')
-  @ApiOperation({ summary: 'Get all packages with cursor pagination' })
+  @ApiOperation({
+    summary: 'Get all service packages with filtering (Cursor Pagination - Recommended)',
+    description: 'Supports filtering by active status and search with cursor pagination',
+  })
+  @ApiResponse({ status: 200, description: 'Return filtered packages with cursor pagination' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async findAllWithFiltersCursor(@Query() query: PackageFilterDto) {
+    return this.catalogService.findAllPackagesWithFiltersCursor(query);
+  }
+
+  @Get('cursor/no-filters')
+  @ApiOperation({ summary: 'Get all packages with cursor pagination (no filters)' })
   @ApiResponse({ status: 200, description: 'Return paginated packages' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAllCursor(@Query() query: CursorPaginationDto) {

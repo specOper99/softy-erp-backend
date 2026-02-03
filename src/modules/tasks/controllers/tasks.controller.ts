@@ -7,7 +7,7 @@ import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { AssignTaskDto, UpdateTaskDto } from '../dto';
+import { AssignTaskDto, TaskFilterDto, UpdateTaskDto } from '../dto';
 import { TasksService } from '../services/tasks.service';
 
 @ApiTags('Tasks')
@@ -20,20 +20,35 @@ export class TasksController {
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
-    summary: 'Get all tasks (Offset Pagination)',
+    summary: 'Get all tasks with filtering (Offset Pagination - Deprecated)',
+    description:
+      'Supports filtering by status, assignedUserId, bookingId, date range, and search. Use /tasks/cursor for better performance.',
     deprecated: true,
-    description: 'Use /tasks/cursor for better performance with large datasets.',
   })
-  @ApiResponse({ status: 200, description: 'Return all tasks' })
+  @ApiResponse({ status: 200, description: 'Return filtered tasks with pagination meta' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  findAll() {
-    return this.tasksService.findAll();
+  async findAllWithFilters(@Query() query: TaskFilterDto) {
+    return this.tasksService.findAllWithFilters(query);
   }
 
   @Get('cursor')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Get all tasks using keyset pagination' })
+  @ApiOperation({
+    summary: 'Get all tasks with filtering (Cursor Pagination - Recommended)',
+    description:
+      'Supports filtering by status, assignedUserId, bookingId, date range, and search with cursor pagination',
+  })
+  @ApiResponse({ status: 200, description: 'Return filtered tasks with cursor pagination' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async findAllWithFiltersCursor(@Query() query: TaskFilterDto) {
+    return this.tasksService.findAllWithFiltersCursor(query);
+  }
+
+  @Get('cursor/no-filters')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all tasks using keyset pagination (no filters)' })
   @ApiResponse({ status: 200, description: 'Return paginated tasks' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
