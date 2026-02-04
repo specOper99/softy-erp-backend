@@ -34,6 +34,7 @@ import { BookingStateMachineService } from './booking-state-machine.service';
 
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 
 @Injectable()
 export class BookingsService {
@@ -50,6 +51,7 @@ export class BookingsService {
 
     private readonly dashboardGateway: DashboardGateway,
     private readonly stateMachine: BookingStateMachineService,
+    private readonly cacheUtils: CacheUtilsService,
     @Optional() private readonly availabilityService?: AvailabilityService,
   ) {}
 
@@ -123,11 +125,16 @@ export class BookingsService {
       bookingId: savedBooking.id,
     });
 
-    // Invalidate availability cache if service is available
-    if (this.availabilityService && savedBooking.eventDate) {
+    // Invalidate availability cache if service is available and packageId is present
+    if (this.availabilityService && savedBooking.eventDate && savedBooking.packageId) {
       try {
         const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
-        await this.availabilityService.invalidateAvailabilityCache(tenantId, savedBooking.packageId, dateStr);
+        const pkgId = savedBooking.packageId as string;
+        if (pkgId) {
+          const pkgIdStr: string = String(pkgId);
+          // Invalidate availability cache directly via CacheUtils (avoids cross-module typing issues)
+          await this.cacheUtils.del(`availability:${tenantId}:${pkgIdStr}:${dateStr}`);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(`Failed to invalidate availability cache: ${message}`);
@@ -347,15 +354,16 @@ export class BookingsService {
 
     this.eventBus.publish(new BookingUpdatedEvent(savedBooking.id, savedBooking.tenantId, allowedChanges, new Date()));
 
-    // Invalidate availability cache if date or status changed
-    if (this.availabilityService && (dto.eventDate || dto.status)) {
+    // Invalidate availability cache if date or status changed and packageId is present
+    if (this.availabilityService && (dto.eventDate || dto.status) && savedBooking.packageId) {
       try {
         const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
-        await this.availabilityService.invalidateAvailabilityCache(
-          savedBooking.tenantId,
-          savedBooking.packageId,
-          dateStr,
-        );
+        const pkgId = savedBooking.packageId as string;
+        if (pkgId) {
+          const pkgIdStr: string = String(pkgId);
+          // Invalidate availability cache directly via CacheUtils (avoids cross-module typing issues)
+          await this.cacheUtils.del(`availability:${savedBooking.tenantId}:${pkgIdStr}:${dateStr}`);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(`Failed to invalidate availability cache: ${message}`);
@@ -373,10 +381,15 @@ export class BookingsService {
     await this.bookingRepository.softRemove(booking);
 
     // Invalidate availability cache
-    if (this.availabilityService && booking.eventDate) {
+    if (this.availabilityService && booking.eventDate && booking.packageId) {
       try {
         const dateStr = booking.eventDate.toISOString().split('T')[0];
-        await this.availabilityService.invalidateAvailabilityCache(booking.tenantId, booking.packageId, dateStr);
+        const pkgId = booking.packageId as string;
+        if (pkgId) {
+          const pkgIdStr: string = String(pkgId);
+          // Invalidate availability cache directly via CacheUtils (avoids cross-module typing issues)
+          await this.cacheUtils.del(`availability:${booking.tenantId}:${pkgIdStr}:${dateStr}`);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(`Failed to invalidate availability cache: ${message}`);
