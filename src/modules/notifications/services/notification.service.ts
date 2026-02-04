@@ -93,4 +93,44 @@ export class NotificationService {
       throw new NotFoundException(`Notification with ID ${notificationId} not found`);
     }
   }
+
+  // Client Portal Methods
+  async create(dto: CreateNotificationDto): Promise<Notification> {
+    return this.createNotification(dto);
+  }
+
+  async findByClient(
+    tenantId: string,
+    clientId: string,
+    pagination: { page?: number; limit?: number },
+  ): Promise<[Notification[], number]> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 10;
+
+    const queryBuilder = this.notificationRepo
+      .createQueryBuilder('notification')
+      .where('notification.tenantId = :tenantId', { tenantId })
+      .andWhere('notification.clientId = :clientId', { clientId })
+      .orderBy('notification.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    return queryBuilder.getManyAndCount();
+  }
+
+  async markAsReadForClient(tenantId: string, clientId: string, notificationId: string): Promise<void> {
+    const notification = await this.notificationRepo.findOne({
+      where: { id: notificationId, tenantId, clientId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException(`Notification with ID ${notificationId} not found`);
+    }
+
+    if (!notification.read) {
+      notification.read = true;
+      notification.readAt = new Date();
+      await this.notificationRepo.save(notification);
+    }
+  }
 }

@@ -29,6 +29,16 @@ export class Client extends BaseTenantEntity {
   @Index('idx_clients_tags', { synchronize: false }) // GIN index created via migration
   tags: string[];
 
+  @Column({
+    name: 'notification_preferences',
+    type: 'jsonb',
+    default: { email: true, inApp: true },
+  })
+  notificationPreferences: {
+    email: boolean;
+    inApp: boolean;
+  };
+
   // Magic Link Authentication - SECURITY: Store hash, not plaintext
   @Column({
     name: 'access_token_hash',

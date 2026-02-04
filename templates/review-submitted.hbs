@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Review Submitted</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #FF9800; color: white; padding: 20px; text-align: center; }
+    .content { background-color: #f9f9f9; padding: 20px; margin-top: 20px; }
+    .review-box { background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #FF9800; }
+    .rating { color: #FFD700; font-size: 24px; }
+    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>{{t 'email.reviewSubmitted.title'}}</h1>
+    </div>
+    
+    <div class="content">
+      <p>{{t 'email.reviewSubmitted.greeting' name=clientName}}</p>
+      
+      <p>{{t 'email.reviewSubmitted.message'}}</p>
+      
+      <div class="review-box">
+        <h3>{{t 'email.reviewSubmitted.yourReview'}}</h3>
+        <p><strong>{{t 'email.reviewSubmitted.package'}}:</strong> {{packageName}}</p>
+        <p><strong>{{t 'email.reviewSubmitted.rating'}}:</strong> <span class="rating">{{rating}}/5 ⭐</span></p>
+        <p><strong>{{t 'email.reviewSubmitted.comment'}}:</strong></p>
+        <p style="font-style: italic;">"{{comment}}"</p>
+      </div>
+      
+      <p>{{t 'email.reviewSubmitted.approval'}}</p>
+      
+      <p>{{t 'email.reviewSubmitted.thanks'}}</p>
+    </div>
+    
+    <div class="footer">
+      <p>{{tenantName}}</p>
+      <p>{{t 'email.footer.doNotReply'}}</p>
+    </div>
+  </div>
+</body>
+</html>

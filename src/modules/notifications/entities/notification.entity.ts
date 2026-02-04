@@ -6,13 +6,21 @@ import { NotificationType } from '../enums/notification.enum';
 @Entity('notifications')
 @Index(['userId', 'read'])
 @Index(['userId', 'createdAt'])
+@Index(['clientId', 'read'])
 export class Notification extends BaseTenantEntity {
-  @Column({ name: 'user_id' })
-  userId: string;
+  @Column({ name: 'user_id', nullable: true })
+  userId: string | null;
 
-  @ManyToOne('User', { onDelete: 'CASCADE' })
+  @ManyToOne('User', { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: User | null;
+
+  @Column({ name: 'client_id', nullable: true })
+  clientId: string | null;
+
+  @ManyToOne('Client', { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'client_id' })
+  client: unknown | null;
 
   @Column({
     type: 'enum',

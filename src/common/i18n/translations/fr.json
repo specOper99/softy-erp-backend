@@ -44,5 +44,47 @@
         "min_length": "{field} doit contenir au moins {min} caractères",
         "max_length": "{field} ne doit pas dépasser {max} caractères",
         "invalid_date": "Format de date invalide"
+    },
+    "clientPortal": {
+        "bookingRequestClient": {
+            "subject": "Demande de réservation reçue",
+            "greeting": "Bonjour {{clientName}},",
+            "thankYou": "Merci pour votre demande de réservation !",
+            "bookingDetails": "Détails de la réservation",
+            "package": "Forfait",
+            "date": "Date",
+            "time": "Heure",
+            "price": "Prix",
+            "status": "Statut",
+            "nextSteps": "Prochaines étapes",
+            "nextStepsText": "Notre équipe examinera votre demande et vous contactera bientôt pour confirmer la réservation.",
+            "footer": "Cordialement"
+        },
+        "bookingRequestAdmin": {
+            "subject": "Nouvelle demande de réservation",
+            "greeting": "Bonjour,",
+            "newBooking": "Vous avez reçu une nouvelle demande de réservation :",
+            "clientInfo": "Informations client",
+            "name": "Nom",
+            "email": "Email",
+            "phone": "Téléphone",
+            "bookingDetails": "Détails de la réservation",
+            "package": "Forfait",
+            "date": "Date",
+            "time": "Heure",
+            "price": "Prix",
+            "viewDashboard": "Voir dans le tableau de bord",
+            "footer": "Veuillez examiner et prendre des mesures."
+        },
+        "reviewSubmitted": {
+            "subject": "Avis soumis",
+            "greeting": "Bonjour {{clientName}},",
+            "thankYou": "Merci pour votre avis !",
+            "reviewDetails": "Votre avis",
+            "rating": "Note",
+            "comment": "Commentaire",
+            "approvalPending": "Votre avis est en attente d'approbation et sera publié une fois examiné par notre équipe.",
+            "footer": "Nous apprécions vos commentaires !"
+        }
     }
 }

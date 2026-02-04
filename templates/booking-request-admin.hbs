@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>New Booking Request</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #2196F3; color: white; padding: 20px; text-align: center; }
+    .content { background-color: #f9f9f9; padding: 20px; margin-top: 20px; }
+    .booking-details { background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #2196F3; }
+    .client-details { background-color: #e3f2fd; padding: 15px; margin: 15px 0; }
+    .action-button { display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; margin: 10px 5px; }
+    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>{{t 'email.bookingRequestAdmin.title'}}</h1>
+    </div>
+    
+    <div class="content">
+      <p><strong>{{t 'email.bookingRequestAdmin.newRequest'}}</strong></p>
+      
+      <div class="client-details">
+        <h3>{{t 'email.bookingRequestAdmin.clientInfo'}}</h3>
+        <p><strong>{{t 'email.bookingRequestAdmin.clientName'}}:</strong> {{clientName}}</p>
+        <p><strong>{{t 'email.bookingRequestAdmin.clientEmail'}}:</strong> {{clientEmail}}</p>
+        <p><strong>{{t 'email.bookingRequestAdmin.clientPhone'}}:</strong> {{clientPhone}}</p>
+      </div>
+      
+      <div class="booking-details">
+        <h3>{{t 'email.bookingRequestAdmin.bookingDetails'}}</h3>
+        <p><strong>{{t 'email.bookingRequestAdmin.package'}}:</strong> {{packageName}}</p>
+        <p><strong>{{t 'email.bookingRequestAdmin.date'}}:</strong> {{eventDate}}</p>
+        <p><strong>{{t 'email.bookingRequestAdmin.time'}}:</strong> {{startTime}}</p>
+        <p><strong>{{t 'email.bookingRequestAdmin.price'}}:</strong> {{totalPrice}}</p>
+        {{#if notes}}
+        <p><strong>{{t 'email.bookingRequestAdmin.notes'}}:</strong> {{notes}}</p>
+        {{/if}}
+      </div>
+      
+      <p style="text-align: center;">
+        <a href="{{dashboardUrl}}" class="action-button">{{t 'email.bookingRequestAdmin.viewBooking'}}</a>
+      </p>
+      
+      <p>{{t 'email.bookingRequestAdmin.action'}}</p>
+    </div>
+    
+    <div class="footer">
+      <p>{{tenantName}}</p>
+    </div>
+  </div>
+</body>
+</html>

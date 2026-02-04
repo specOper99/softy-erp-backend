@@ -202,4 +202,52 @@ export class Tenant {
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, unknown> | null;
+
+  // Client Portal Scheduling Configuration (workingHours schema is kept as array shape for compatibility)
+  // Additional scheduling columns are defined below.
+
+  @Column({
+    name: 'default_booking_duration_hours',
+    type: 'decimal',
+    precision: 4,
+    scale: 2,
+    nullable: true,
+    default: 2.0,
+  })
+  defaultBookingDurationHours: number | null;
+
+  @Column({
+    name: 'max_concurrent_bookings_per_slot',
+    type: 'int',
+    default: 1,
+  })
+  maxConcurrentBookingsPerSlot: number;
+
+  @Column({
+    name: 'time_slot_duration_minutes',
+    type: 'int',
+    default: 60,
+  })
+  timeSlotDurationMinutes: number;
+
+  @Column({
+    name: 'minimum_notice_period_hours',
+    type: 'int',
+    default: 24,
+  })
+  minimumNoticePeriodHours: number;
+
+  @Column({
+    name: 'max_advance_booking_days',
+    type: 'int',
+    default: 90,
+  })
+  maxAdvanceBookingDays: number;
+
+  @Column({
+    name: 'notification_emails',
+    type: 'jsonb',
+    default: () => "'[]'",
+  })
+  notificationEmails: string[];
 }

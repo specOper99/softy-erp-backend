@@ -44,5 +44,47 @@
         "min_length": "{field} دەبێت لانیکەم {min} پیت بێت",
         "max_length": "{field} نابێت زیاتر لە {max} پیت بێت",
         "invalid_date": "فۆرماتی بەروار هەڵەیە"
+    },
+    "clientPortal": {
+        "bookingRequestClient": {
+            "subject": "داواکاری نۆرە وەرگیرا",
+            "greeting": "سڵاو {{clientName}}،",
+            "thankYou": "سوپاس بۆ داواکاری نۆرەکەت!",
+            "bookingDetails": "وردەکاری نۆرە",
+            "package": "پاکێج",
+            "date": "بەروار",
+            "time": "کات",
+            "price": "نرخ",
+            "status": "دۆخ",
+            "nextSteps": "هەنگاوەکانی داهاتوو",
+            "nextStepsText": "تیمەکەمان پێداچوونەوە بە داواکاریەکەت دەکات و بەم زووانە پەیوەندیت پێوە دەکات بۆ پشتڕاستکردنەوەی نۆرەکە.",
+            "footer": "لەگەڵ ڕێزدا"
+        },
+        "bookingRequestAdmin": {
+            "subject": "داواکاری نۆرەی نوێ",
+            "greeting": "سڵاو،",
+            "newBooking": "داواکاری نۆرەیەکی نوێت وەرگرتووە:",
+            "clientInfo": "زانیاری کڕیار",
+            "name": "ناو",
+            "email": "ئیمەیڵ",
+            "phone": "تەلەفۆن",
+            "bookingDetails": "وردەکاری نۆرە",
+            "package": "پاکێج",
+            "date": "بەروار",
+            "time": "کات",
+            "price": "نرخ",
+            "viewDashboard": "بینین لە داشبۆردەکە",
+            "footer": "تکایە پێداچوونەوە بکە و کردار ئەنجام بدە."
+        },
+        "reviewSubmitted": {
+            "subject": "هەڵسەنگاندن نێردرا",
+            "greeting": "سڵاو {{clientName}}،",
+            "thankYou": "سوپاس بۆ هەڵسەنگاندنەکەت!",
+            "reviewDetails": "هەڵسەنگاندنەکەت",
+            "rating": "هەڵسەنگاندن",
+            "comment": "سەرنج",
+            "approvalPending": "هەڵسەنگاندنەکەت ئێستا چاوەڕێی پەسەندکردنە و دوای پێداچوونەوەی تیمەکەمان بڵاودەکرێتەوە.",
+            "footer": "سوپاسی ڕەخنە و پێشنیارەکانت!"
+        }
     }
 }
