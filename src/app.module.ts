@@ -47,6 +47,7 @@ import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { UsersModule } from './modules/users/users.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
@@ -157,6 +158,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     UsersModule,
     CatalogModule,
     BookingsModule,
+    ReviewsModule,
     TasksModule,
     FinanceModule,
     HrModule,

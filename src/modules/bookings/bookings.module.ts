@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogModule } from '../catalog/catalog.module';
 import { FinanceModule } from '../finance/finance.module';
 import { MailModule } from '../mail/mail.module';
+import { ClientPortalModule } from '../client-portal/client-portal.module';
 import { BookingsController } from './controllers/bookings.controller';
 import { ClientsController } from './controllers/clients.controller';
 import { Booking } from './entities/booking.entity';
@@ -29,6 +30,7 @@ import { ClientsService } from './services/clients.service';
     MailModule,
     AuditModule,
     forwardRef(() => DashboardModule),
+    forwardRef(() => ClientPortalModule),
   ],
   controllers: [BookingsController, ClientsController],
   providers: [

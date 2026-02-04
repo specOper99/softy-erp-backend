@@ -6,24 +6,33 @@ import { Repository } from 'typeorm';
 import { TENANT_REPO_CLIENT } from '../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { BookingsModule } from '../bookings/bookings.module';
+import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
+import { CatalogModule } from '../catalog/catalog.module';
+import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { ReviewsModule } from '../reviews/reviews.module';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantsModule } from '../tenants/tenants.module';
-import { ClientPortalController } from './client-portal.controller';
+import { ClientPortalController } from './controllers/client-portal-extended.controller';
 import { ClientTokenGuard } from './guards/client-token.guard';
+import { AvailabilityService } from './services/availability.service';
 import { ClientAuthService } from './services/client-auth.service';
 import { ClientPortalService } from './services/client-portal.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Client]),
+    TypeOrmModule.forFeature([Client, Booking, Tenant, ServicePackage]),
     BookingsModule,
     MailModule,
     MetricsModule,
     TenantsModule,
     ConfigModule,
-    TenantsModule,
+    CatalogModule,
+    ReviewsModule,
+    NotificationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -39,6 +48,7 @@ import { ClientPortalService } from './services/client-portal.service';
   providers: [
     ClientAuthService,
     ClientPortalService,
+    AvailabilityService,
     ClientTokenGuard,
     {
       provide: TENANT_REPO_CLIENT,
@@ -46,6 +56,6 @@ import { ClientPortalService } from './services/client-portal.service';
       inject: [getRepositoryToken(Client)],
     },
   ],
-  exports: [ClientAuthService, ClientPortalService],
+  exports: [ClientAuthService, ClientPortalService, AvailabilityService],
 })
 export class ClientPortalModule {}

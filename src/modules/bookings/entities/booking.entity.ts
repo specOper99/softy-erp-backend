@@ -21,6 +21,9 @@ export class Booking extends BaseTenantEntity {
   @Column({ name: 'event_date', type: 'timestamptz' })
   eventDate: Date;
 
+  @Column({ name: 'start_time', type: 'varchar', length: 5, nullable: true })
+  startTime: string | null;
+
   @Column({
     type: 'enum',
     enum: BookingStatus,

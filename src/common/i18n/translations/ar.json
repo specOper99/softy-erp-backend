@@ -44,5 +44,47 @@
         "min_length": "يجب أن يكون {field} على الأقل {min} حروف",
         "max_length": "يجب ألا يتجاوز {field} {max} حروف",
         "invalid_date": "تنسيق التاريخ غير صالح"
+    },
+    "clientPortal": {
+        "bookingRequestClient": {
+            "subject": "تم استلام طلب الحجز",
+            "greeting": "مرحباً {{clientName}}،",
+            "thankYou": "شكراً لك على طلب الحجز!",
+            "bookingDetails": "تفاصيل الحجز",
+            "package": "الباقة",
+            "date": "التاريخ",
+            "time": "الوقت",
+            "price": "السعر",
+            "status": "الحالة",
+            "nextSteps": "الخطوات التالية",
+            "nextStepsText": "سيقوم فريقنا بمراجعة طلبك والاتصال بك قريباً لتأكيد الحجز.",
+            "footer": "مع أطيب التحيات"
+        },
+        "bookingRequestAdmin": {
+            "subject": "طلب حجز جديد",
+            "greeting": "مرحباً،",
+            "newBooking": "لديك طلب حجز جديد:",
+            "clientInfo": "معلومات العميل",
+            "name": "الاسم",
+            "email": "البريد الإلكتروني",
+            "phone": "الهاتف",
+            "bookingDetails": "تفاصيل الحجز",
+            "package": "الباقة",
+            "date": "التاريخ",
+            "time": "الوقت",
+            "price": "السعر",
+            "viewDashboard": "عرض في لوحة التحكم",
+            "footer": "يرجى المراجعة واتخاذ الإجراء."
+        },
+        "reviewSubmitted": {
+            "subject": "تم إرسال المراجعة",
+            "greeting": "مرحباً {{clientName}}،",
+            "thankYou": "شكراً لك على مراجعتك!",
+            "reviewDetails": "مراجعتك",
+            "rating": "التقييم",
+            "comment": "التعليق",
+            "approvalPending": "مراجعتك قيد الموافقة حالياً وسيتم نشرها بعد مراجعتها من قبل فريقنا.",
+            "footer": "نقدر ملاحظاتك!"
+        }
     }
 }

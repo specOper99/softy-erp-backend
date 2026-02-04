@@ -105,5 +105,47 @@
         "missing_key": "Missing key parameter",
         "invalid_key": "Invalid key",
         "test_error": "This is a test error for Sentry monitoring"
+    },
+    "clientPortal": {
+        "bookingRequestClient": {
+            "subject": "Booking Request Received",
+            "greeting": "Hello {{clientName}},",
+            "thankYou": "Thank you for your booking request!",
+            "bookingDetails": "Booking Details",
+            "package": "Package",
+            "date": "Date",
+            "time": "Time",
+            "price": "Price",
+            "status": "Status",
+            "nextSteps": "Next Steps",
+            "nextStepsText": "Our team will review your request and contact you shortly to confirm the booking.",
+            "footer": "Best regards"
+        },
+        "bookingRequestAdmin": {
+            "subject": "New Booking Request",
+            "greeting": "Hello,",
+            "newBooking": "You have received a new booking request:",
+            "clientInfo": "Client Information",
+            "name": "Name",
+            "email": "Email",
+            "phone": "Phone",
+            "bookingDetails": "Booking Details",
+            "package": "Package",
+            "date": "Date",
+            "time": "Time",
+            "price": "Price",
+            "viewDashboard": "View in Dashboard",
+            "footer": "Please review and take action."
+        },
+        "reviewSubmitted": {
+            "subject": "Review Submitted",
+            "greeting": "Hello {{clientName}},",
+            "thankYou": "Thank you for your review!",
+            "reviewDetails": "Your Review",
+            "rating": "Rating",
+            "comment": "Comment",
+            "approvalPending": "Your review is currently pending approval and will be published once reviewed by our team.",
+            "footer": "We appreciate your feedback!"
+        }
     }
 }

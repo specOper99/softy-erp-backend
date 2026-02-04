@@ -3,10 +3,15 @@ import { IsBoolean, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID }
 import { NotificationType } from '../enums/notification.enum';
 
 export class CreateNotificationDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsUUID()
-  @IsNotEmpty()
-  userId: string;
+  @IsOptional()
+  userId?: string | null;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  clientId?: string | null;
 
   @ApiProperty({ enum: NotificationType })
   @IsEnum(NotificationType)

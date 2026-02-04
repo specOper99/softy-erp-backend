@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
+import type { AvailabilityService } from '../../client-portal/services/availability.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 
@@ -49,6 +50,7 @@ export class BookingsService {
 
     private readonly dashboardGateway: DashboardGateway,
     private readonly stateMachine: BookingStateMachineService,
+    @Optional() private readonly availabilityService?: AvailabilityService,
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
@@ -120,6 +122,17 @@ export class BookingsService {
       action: 'CREATED',
       bookingId: savedBooking.id,
     });
+
+    // Invalidate availability cache if service is available
+    if (this.availabilityService && savedBooking.eventDate) {
+      try {
+        const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
+        await this.availabilityService.invalidateAvailabilityCache(tenantId, savedBooking.packageId, dateStr);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to invalidate availability cache: ${message}`);
+      }
+    }
 
     return savedBooking;
   }
@@ -334,6 +347,21 @@ export class BookingsService {
 
     this.eventBus.publish(new BookingUpdatedEvent(savedBooking.id, savedBooking.tenantId, allowedChanges, new Date()));
 
+    // Invalidate availability cache if date or status changed
+    if (this.availabilityService && (dto.eventDate || dto.status)) {
+      try {
+        const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
+        await this.availabilityService.invalidateAvailabilityCache(
+          savedBooking.tenantId,
+          savedBooking.packageId,
+          dateStr,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to invalidate availability cache: ${message}`);
+      }
+    }
+
     return savedBooking;
   }
 
@@ -343,6 +371,17 @@ export class BookingsService {
       throw new BadRequestException('booking.can_only_delete_draft');
     }
     await this.bookingRepository.softRemove(booking);
+
+    // Invalidate availability cache
+    if (this.availabilityService && booking.eventDate) {
+      try {
+        const dateStr = booking.eventDate.toISOString().split('T')[0];
+        await this.availabilityService.invalidateAvailabilityCache(booking.tenantId, booking.packageId, dateStr);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to invalidate availability cache: ${message}`);
+      }
+    }
   }
 
   async recordPayment(id: string, dto: RecordPaymentDto): Promise<void> {
