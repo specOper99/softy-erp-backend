@@ -24,6 +24,7 @@ import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingStateMachineService } from './booking-state-machine.service';
 import { BookingsService } from './bookings.service';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -103,6 +104,15 @@ describe('BookingsService', () => {
         {
           provide: BookingStateMachineService,
           useValue: stateMachine,
+        },
+        {
+          provide: CacheUtilsService,
+          useValue: {
+            del: jest.fn(),
+            invalidateByPattern: jest.fn(),
+            set: jest.fn(),
+            get: jest.fn(),
+          },
         },
       ],
     }).compile();

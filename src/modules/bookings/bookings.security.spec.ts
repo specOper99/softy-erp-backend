@@ -12,6 +12,7 @@ import { BookingFilterDto } from './dto';
 import { BookingRepository } from './repositories/booking.repository';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingsService } from './services/bookings.service';
+import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 
 describe('Bookings Security Test', () => {
   let service: BookingsService;
@@ -48,6 +49,7 @@ describe('Bookings Security Test', () => {
         { provide: AuditService, useValue: {} },
         { provide: DashboardGateway, useValue: {} },
         { provide: BookingStateMachineService, useValue: {} },
+        { provide: CacheUtilsService, useValue: { del: jest.fn(), invalidateByPattern: jest.fn() } },
         { provide: DataSource, useValue: {} },
         { provide: EventBus, useValue: {} },
       ],
