@@ -107,7 +107,8 @@ async function bootstrap() {
     origin: corsOriginDelegate(allowlist),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID'],
+    exposedHeaders: ['Retry-After', 'X-Correlation-ID'],
   });
 
   // Swagger documentation
@@ -129,6 +130,14 @@ Platform administrators access \`/platform/*\` endpoints for SaaS management. JW
 ### 🔓 Public Context
 Unauthenticated endpoints for registration, login, and public resources.
 
+### CSRF
+This API uses Authorization Bearer tokens and does not require CSRF tokens.
+
+## Rate Limit Contract
+
+- 429 responses include \`Retry-After\` header with retry seconds.
+- Common throttled responses: \`Too many requests\` or \`Too many requests. Blocked for N seconds.\`
+
 ## Role Hierarchy
 
 | Context | Roles | Access Level |
@@ -140,9 +149,13 @@ Unauthenticated endpoints for registration, login, and public resources.
 | Platform | COMPLIANCE_ADMIN | GDPR export/delete, audit logs |
 | Platform | ANALYTICS_VIEWER | Read-only metrics |
 | Tenant | ADMIN | Full tenant access |
-| Tenant | MANAGER | Operations management |
-| Tenant | STAFF | Task execution |
+| Tenant | OPS_MANAGER | Operations management |
+| Tenant | FIELD_STAFF | Task execution |
 | Tenant | CLIENT | Portal access only |
+
+### Tenant Admin - User Creation Guidance
+
+Tenant Admin can create studio-side users primarily with roles: \`OPS_MANAGER\`, \`FIELD_STAFF\`, and \`CLIENT\`.
 `,
     )
     .setVersion('1.0')

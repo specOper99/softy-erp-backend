@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../../common/decorators';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiErrorResponses, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards';
@@ -9,12 +9,21 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
 import { Role } from '../../users/enums/role.enum';
-import { CreateProfileDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
+import { CreateProfileDto, CreateStaffDto, CreateStaffResponseDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
 
 @ApiTags('HR')
 @ApiBearerAuth()
+@ApiErrorResponses(
+  'BAD_REQUEST',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'CONFLICT',
+  'UNPROCESSABLE_ENTITY',
+  'TOO_MANY_REQUESTS',
+)
 @Controller('hr')
 @UseGuards(JwtAuthGuard, RolesGuard, SubscriptionGuard)
 @RequireSubscription(SubscriptionPlan.PRO)
@@ -32,6 +41,21 @@ export class HrController {
     return this.hrService.createProfile(dto);
   }
 
+  @Post('staff')
+  @Roles(Role.ADMIN)
+  @MfaRequired()
+  @ApiOperation({
+    summary: 'Create staff user + profile atomically',
+    description:
+      'Creates user and HR profile in one transaction for studio staffing flow. If profile creation fails, user creation is rolled back.',
+  })
+  @ApiResponse({ status: 201, description: 'Staff created successfully', type: CreateStaffResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid role or payload' })
+  @ApiResponse({ status: 409, description: 'User or profile already exists' })
+  createStaff(@Body() dto: CreateStaffDto): Promise<CreateStaffResponseDto> {
+    return this.hrService.createStaff(dto);
+  }
+
   @Get('profiles')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
@@ -40,6 +64,12 @@ export class HrController {
       'Supports filtering by status, department, contract type, and search. Use /hr/profiles/cursor for better performance.',
     deprecated: true,
   })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'department', required: false, type: String })
+  @ApiQuery({ name: 'contractType', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return filtered profiles with pagination meta' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -53,6 +83,12 @@ export class HrController {
     summary: 'Get all employee profiles with filtering (Cursor Pagination - Recommended)',
     description: 'Supports filtering by status, department, contract type, and search with cursor pagination',
   })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'department', required: false, type: String })
+  @ApiQuery({ name: 'contractType', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return filtered profiles with cursor pagination' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })

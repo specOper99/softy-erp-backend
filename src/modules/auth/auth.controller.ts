@@ -25,7 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { minutes, Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { CurrentUser } from '../../common/decorators';
+import { ApiErrorResponses, CurrentUser } from '../../common/decorators';
 import { SkipTenant } from '../tenants/decorators/skip-tenant.decorator';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
@@ -51,6 +51,15 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Auth')
 @ApiExtraModels(AuthResponseDto, TokensDto)
+@ApiErrorResponses(
+  'BAD_REQUEST',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'CONFLICT',
+  'UNPROCESSABLE_ENTITY',
+  'TOO_MANY_REQUESTS',
+)
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
 export class AuthController {
@@ -75,7 +84,10 @@ export class AuthController {
   @SkipTenant()
   @Throttle({ default: { limit: 5, ttl: minutes(1) } })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiOperation({
+    summary: 'Login with email and password',
+    description: 'Stateless API login using credentials only. No CSRF token is required.',
+  })
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({
     description: 'Login successful or MFA challenge required',
@@ -97,7 +109,16 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 429, description: 'Too Many Requests' })
+  @ApiResponse({
+    status: 429,
+    description: 'Too Many Requests',
+    headers: {
+      'Retry-After': {
+        description: 'Seconds to wait before retrying the request',
+        schema: { type: 'string', example: '60' },
+      },
+    },
+  })
   async login(@Body() loginDto: LoginDto, @Req() req: Request, @Ip() ip: string): Promise<AuthResponseDto> {
     return this.authService.login(loginDto, {
       userAgent: req.headers['user-agent'],

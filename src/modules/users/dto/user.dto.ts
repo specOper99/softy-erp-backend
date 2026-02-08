@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { CombinedPaginationDto } from '../../../common/dto/combined-pagination.dto';
 import { PII } from '../../../common/decorators';
 import { Role } from '../enums/role.enum';
 
@@ -62,4 +64,32 @@ export class UserResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+}
+
+export class UserFilterDto extends CombinedPaginationDto {
+  @ApiPropertyOptional({
+    enum: Role,
+    description: 'Filter users by role',
+    example: Role.FIELD_STAFF,
+  })
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
+
+  @ApiPropertyOptional({
+    description: 'Filter by active status',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Search in user email',
+    example: 'ops@studio.example',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

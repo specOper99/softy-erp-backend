@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,22 +12,40 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { CurrentUser, Roles } from '../../../common/decorators';
+import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { BookingFilterDto, CancelBookingDto, CreateBookingDto, RecordPaymentDto, UpdateBookingDto } from '../dto';
+import {
+  BookingFilterDto,
+  CancelBookingDto,
+  CreateBookingDto,
+  MarkBookingPaidDto,
+  RecordPaymentDto,
+  UpdateBookingDto,
+} from '../dto';
+import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
 import { BookingsService } from '../services/bookings.service';
+import { TasksService } from '../../tasks/services/tasks.service';
 
 import { BookingWorkflowService } from '../services/booking-workflow.service';
 
 @ApiTags('Bookings')
 @ApiBearerAuth()
+@ApiErrorResponses(
+  'BAD_REQUEST',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'CONFLICT',
+  'UNPROCESSABLE_ENTITY',
+  'TOO_MANY_REQUESTS',
+)
 @Controller('bookings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingsController {
@@ -34,6 +53,7 @@ export class BookingsController {
     private readonly bookingsService: BookingsService,
     private readonly bookingWorkflowService: BookingWorkflowService,
     private readonly bookingExportService: BookingExportService,
+    private readonly tasksService: TasksService,
   ) {}
 
   @Post()
@@ -55,6 +75,14 @@ export class BookingsController {
     deprecated: true,
     description: 'Use /bookings/cursor for better performance with large datasets.',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: BookingStatus, isArray: true })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'packageId', required: false, type: String })
+  @ApiQuery({ name: 'clientId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return all bookings' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
@@ -65,6 +93,8 @@ export class BookingsController {
   @Get('cursor')
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get bookings with cursor pagination' })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Return bookings' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
@@ -85,6 +115,7 @@ export class BookingsController {
   @Get(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get booking by ID' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Booking details' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
@@ -96,6 +127,7 @@ export class BookingsController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update booking' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: UpdateBookingDto })
   @ApiResponse({ status: 200, description: 'Booking updated' })
   @ApiResponse({ status: 400, description: 'Bad Request - Validation Error' })
@@ -109,6 +141,7 @@ export class BookingsController {
   @Delete(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete booking (only DRAFT, Admin only)' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Booking deleted' })
   @ApiResponse({ status: 400, description: 'Bad Request - Cannot delete non-draft booking' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -121,24 +154,64 @@ export class BookingsController {
   @Patch(':id/confirm')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
-    summary: 'Confirm booking (generates tasks and records income)',
+    summary: 'Confirm booking (accept booking request)',
+    description:
+      'Booking request status is DRAFT. Confirm transitions DRAFT -> CONFIRMED and generates booking tasks in PENDING state.',
   })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   confirm(@Param('id', ParseUUIDPipe) id: string) {
     return this.bookingWorkflowService.confirmBooking(id);
   }
 
+  @Get(':id/tasks')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
+  @ApiOperation({ summary: 'Get tasks for a booking' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiResponse({ status: 200, description: 'Booking tasks returned' })
+  @ApiResponse({ status: 404, description: 'Booking not found' })
+  async getBookingTasks(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    await this.bookingsService.findOne(id, user);
+    return this.tasksService.findByBooking(id);
+  }
+
   @Patch(':id/cancel')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Cancel booking with automatic refund calculation' })
+  @ApiOperation({
+    summary: 'Cancel booking (request rejection or cancellation)',
+    description:
+      'Allowed transitions: DRAFT -> CANCELLED and CONFIRMED -> CANCELLED. For booking requests, cancellation from DRAFT is treated as rejection/decline.',
+  })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: CancelBookingDto })
   @ApiResponse({ status: 200, description: 'Booking cancelled' })
   cancel(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CancelBookingDto) {
     return this.bookingWorkflowService.cancelBooking(id, dto);
   }
 
+  @Patch(':id/reject')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({
+    summary: 'Reject booking request',
+    description:
+      'Reject is a strict request-level action and only allowed when booking status is DRAFT. Internally this transitions booking to CANCELLED.',
+  })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiBody({ type: CancelBookingDto })
+  @ApiResponse({ status: 200, description: 'Booking request rejected' })
+  @ApiResponse({ status: 400, description: 'Only DRAFT bookings can be rejected' })
+  async reject(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CancelBookingDto, @CurrentUser() user: User) {
+    const booking = await this.bookingsService.findOne(id, user);
+    if (booking.status !== BookingStatus.DRAFT) {
+      throw new BadRequestException('Only DRAFT bookings can be rejected');
+    }
+
+    return this.bookingWorkflowService.cancelBooking(id, dto);
+  }
+
   @Patch(':id/complete')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Complete booking (all tasks must be done)' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   complete(@Param('id', ParseUUIDPipe) id: string) {
     return this.bookingWorkflowService.completeBooking(id);
   }
@@ -146,15 +219,38 @@ export class BookingsController {
   @Post(':id/payments')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Record a payment for this booking' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: RecordPaymentDto })
   @ApiResponse({ status: 201, description: 'Payment recorded' })
   recordPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordPaymentDto) {
     return this.bookingsService.recordPayment(id, dto);
   }
 
+  @Post(':id/submit-payment')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Submit payment (alias of /payments)' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiBody({ type: RecordPaymentDto })
+  @ApiResponse({ status: 201, description: 'Payment submitted' })
+  submitPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordPaymentDto) {
+    return this.bookingsService.recordPayment(id, dto);
+  }
+
+  @Patch(':id/mark-paid')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Mark booking as fully paid (records remaining balance)' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiBody({ type: MarkBookingPaidDto, required: false })
+  @ApiResponse({ status: 200, description: 'Booking marked as paid' })
+  @ApiResponse({ status: 400, description: 'Booking is already fully paid' })
+  markPaid(@Param('id', ParseUUIDPipe) id: string, @Body() dto: MarkBookingPaidDto = {}) {
+    return this.bookingsService.markAsPaid(id, dto);
+  }
+
   @Post(':id/duplicate')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Duplicate booking as a new DRAFT' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 201, description: 'Booking duplicated' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })

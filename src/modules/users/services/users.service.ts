@@ -2,13 +2,11 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CursorAuthService } from '../../../common/services/cursor-auth.service';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { CreateUserDto, UpdateUserDto } from '../dto';
+import { CreateUserDto, UpdateUserDto, UserFilterDto } from '../dto';
 import { User } from '../entities/user.entity';
 import { UserCreatedEvent } from '../events/user-created.event';
 import { UserDeactivatedEvent } from '../events/user-deactivated.event';
@@ -105,16 +103,29 @@ export class UsersService {
     return savedUser;
   }
 
-  async findAll(query: PaginationDto = new PaginationDto()): Promise<User[]> {
-    return this.userRepository.find({
-      where: {},
-      relations: ['wallet'],
-      skip: query.getSkip(),
-      take: query.getTake(),
-    });
+  async findAll(query: UserFilterDto = new UserFilterDto()): Promise<User[]> {
+    const qb = this.userRepository.createQueryBuilder('user');
+
+    qb.leftJoinAndSelect('user.wallet', 'wallet').orderBy('user.createdAt', 'DESC').addOrderBy('user.id', 'DESC');
+
+    if (query.role) {
+      qb.andWhere('user.role = :role', { role: query.role });
+    }
+
+    if (query.isActive !== undefined) {
+      qb.andWhere('user.isActive = :isActive', { isActive: query.isActive });
+    }
+
+    if (query.search?.trim()) {
+      qb.andWhere('user.email ILIKE :search', { search: `%${query.search.trim()}%` });
+    }
+
+    qb.skip(query.getSkip()).take(query.getTake());
+
+    return qb.getMany();
   }
 
-  async findAllCursor(query: CursorPaginationDto): Promise<{ data: User[]; nextCursor: string | null }> {
+  async findAllCursor(query: UserFilterDto): Promise<{ data: User[]; nextCursor: string | null }> {
     const limit = query.limit || 20;
 
     const qb = this.userRepository.createQueryBuilder('user');
@@ -123,6 +134,18 @@ export class UsersService {
       .orderBy('user.createdAt', 'DESC')
       .addOrderBy('user.id', 'DESC')
       .take(limit + 1);
+
+    if (query.role) {
+      qb.andWhere('user.role = :role', { role: query.role });
+    }
+
+    if (query.isActive !== undefined) {
+      qb.andWhere('user.isActive = :isActive', { isActive: query.isActive });
+    }
+
+    if (query.search?.trim()) {
+      qb.andWhere('user.email ILIKE :search', { search: `%${query.search.trim()}%` });
+    }
 
     if (query.cursor) {
       // Use authenticated cursor decoding to prevent cursor manipulation attacks

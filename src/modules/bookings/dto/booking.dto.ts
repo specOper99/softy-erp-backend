@@ -58,7 +58,11 @@ export class UpdateBookingDto {
   @SanitizeHtml()
   notes?: string;
 
-  @ApiPropertyOptional({ enum: BookingStatus })
+  @ApiPropertyOptional({
+    enum: BookingStatus,
+    description:
+      'Booking lifecycle: DRAFT=request, CONFIRMED=accepted request, COMPLETED=service delivered, CANCELLED=cancelled/rejected',
+  })
   @IsEnum(BookingStatus)
   @IsOptional()
   status?: BookingStatus;
@@ -94,7 +98,11 @@ export class BookingResponseDto {
   @ApiProperty()
   eventDate: Date;
 
-  @ApiProperty({ enum: BookingStatus })
+  @ApiProperty({
+    enum: BookingStatus,
+    description:
+      'Booking lifecycle: DRAFT=request, CONFIRMED=accepted request, COMPLETED=service delivered, CANCELLED=cancelled/rejected',
+  })
   status: BookingStatus;
 
   @ApiProperty()

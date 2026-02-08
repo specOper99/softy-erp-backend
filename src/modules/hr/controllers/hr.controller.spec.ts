@@ -1,7 +1,7 @@
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantsService } from '../../tenants/tenants.service';
-import { CreateProfileDto, UpdateProfileDto } from '../dto/hr.dto';
+import { CreateProfileDto, CreateStaffDto, UpdateProfileDto } from '../dto/hr.dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
 import { HrController } from './hr.controller';
@@ -21,6 +21,7 @@ describe('HrController', () => {
           provide: HrService,
           useValue: {
             createProfile: jest.fn().mockResolvedValue(mockProfile),
+            createStaff: jest.fn().mockResolvedValue({ userId: 'user-1', profileId: 'profile-1' }),
             findAllProfiles: jest.fn().mockResolvedValue([mockProfile]),
             findAllProfilesWithFilters: jest.fn().mockResolvedValue({ data: [mockProfile], meta: {} }),
             findProfileById: jest.fn().mockResolvedValue(mockProfile),
@@ -68,6 +69,17 @@ describe('HrController', () => {
       const query = {};
       await controller.findAllProfilesWithFilters(query);
       expect(service.findAllProfilesWithFilters).toHaveBeenCalledWith(query);
+    });
+  });
+
+  describe('createStaff', () => {
+    it('should call service.createStaff', async () => {
+      const dto = {
+        user: { email: 'staff@studio.example', password: 'StrongPassw0rd!' },
+        profile: { baseSalary: 1000 },
+      } as CreateStaffDto;
+      await controller.createStaff(dto);
+      expect(service.createStaff).toHaveBeenCalledWith(dto);
     });
   });
 

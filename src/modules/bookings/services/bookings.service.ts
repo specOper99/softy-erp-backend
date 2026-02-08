@@ -19,6 +19,7 @@ import {
   BookingFilterDto,
   BookingSortBy,
   CreateBookingDto,
+  MarkBookingPaidDto,
   RecordPaymentDto,
   SortOrder,
   UpdateBookingDto,
@@ -458,5 +459,22 @@ export class BookingsService {
         Number(booking.amountPaid),
       ),
     );
+  }
+
+  async markAsPaid(id: string, dto: MarkBookingPaidDto = {}): Promise<void> {
+    const booking = await this.findOne(id);
+    const total = Number(booking.totalPrice || 0);
+    const paid = Number(booking.amountPaid || 0);
+    const remaining = MathUtils.subtract(total, paid);
+
+    if (remaining <= 0) {
+      throw new BadRequestException('booking.already_fully_paid');
+    }
+
+    return this.recordPayment(id, {
+      amount: remaining,
+      paymentMethod: dto.paymentMethod,
+      reference: dto.reference,
+    });
   }
 }

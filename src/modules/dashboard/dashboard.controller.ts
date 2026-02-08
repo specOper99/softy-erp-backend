@@ -2,6 +2,7 @@ import { Body, Controller, Get, Put, Query, Res, UseGuards, UseInterceptors } fr
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { GlobalCacheInterceptor } from '../../common/cache/cache.interceptor';
+import { ApiErrorResponses } from '../../common/decorators';
 import { Cacheable } from '../../common/decorators/cacheable.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -30,6 +31,7 @@ import { ReportGeneratorService } from './services/report-generator.service';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth()
+@ApiErrorResponses('BAD_REQUEST', 'UNAUTHORIZED', 'FORBIDDEN', 'TOO_MANY_REQUESTS')
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseInterceptors(GlobalCacheInterceptor)
@@ -46,6 +48,9 @@ export class DashboardController {
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
   @ApiQuery({ name: 'startDate', required: false })
   @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'KPI summary returned', type: DashboardKpiDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   async getKpis(@Query() query: ReportQueryDto): Promise<DashboardKpiDto> {
     return this.dashboardService.getKpiSummary(query);
   }
@@ -66,6 +71,9 @@ export class DashboardController {
   @Get('summary')
   @ApiOperation({ summary: 'Get monthly revenue vs payouts summary' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Revenue summary returned', type: [RevenueSummaryDto] })
   async getSummary(@Query() query: ReportQueryDto): Promise<RevenueSummaryDto[]> {
     return this.dashboardService.getRevenueSummary(query);
   }
@@ -73,6 +81,9 @@ export class DashboardController {
   @Get('revenue')
   @ApiOperation({ summary: 'Get detailed revenue statistics' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Revenue stats returned', type: RevenueStatsDto })
   async getRevenue(@Query() query: ReportQueryDto): Promise<RevenueStatsDto> {
     return this.dashboardService.getRevenueStats(query);
   }
@@ -80,6 +91,9 @@ export class DashboardController {
   @Get('booking-trends')
   @ApiOperation({ summary: 'Get booking trends over time' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Booking trends returned', type: [BookingTrendDto] })
   async getBookingTrends(@Query() query: ReportQueryDto): Promise<BookingTrendDto[]> {
     return this.dashboardService.getBookingTrends(query);
   }
@@ -87,6 +101,9 @@ export class DashboardController {
   @Get('staff-performance')
   @ApiOperation({ summary: 'Get staff performance ranking' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Staff performance returned', type: [StaffPerformanceDto] })
   async getStaffPerformance(@Query() query: ReportQueryDto): Promise<StaffPerformanceDto[]> {
     return this.dashboardService.getStaffPerformance(query);
   }
@@ -94,6 +111,9 @@ export class DashboardController {
   @Get('package-stats')
   @ApiOperation({ summary: 'Get service package popularity and revenue' })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Package stats returned', type: [PackageStatsDto] })
   async getPackageStats(@Query() query: ReportQueryDto): Promise<PackageStatsDto[]> {
     return this.dashboardService.getPackageStats(query);
   }
@@ -102,6 +122,9 @@ export class DashboardController {
   @ApiOperation({ summary: 'Export dashboard data as CSV or PDF' })
   @ApiQuery({ name: 'format', enum: ExportFormat, required: false })
   @ApiQuery({ name: 'period', enum: ReportPeriod, required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Dashboard report exported' })
   async exportData(@Query() query: ExportQueryDto, @Res() res: Response): Promise<void> {
     const [kpis, revenue, bookingTrends, staffPerformance, packageStats] = await Promise.all([
       this.dashboardService.getKpiSummary(query),
@@ -184,12 +207,14 @@ export class DashboardController {
 
   @Get('preferences')
   @ApiOperation({ summary: 'Get user dashboard preferences' })
+  @ApiResponse({ status: 200, description: 'Dashboard preferences returned' })
   async getPreferences(@CurrentUser() user: User): Promise<UserDashboardConfig> {
     return this.dashboardService.getUserPreferences(user.id);
   }
 
   @Put('preferences')
   @ApiOperation({ summary: 'Update user dashboard preferences' })
+  @ApiResponse({ status: 200, description: 'Dashboard preferences updated' })
   async updatePreferences(
     @CurrentUser() user: User,
     @Body() dto: UpdateDashboardPreferencesDto,

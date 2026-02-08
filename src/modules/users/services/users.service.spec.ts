@@ -12,6 +12,7 @@ import {
 import { CursorAuthService } from '../../../common/services/cursor-auth.service';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
+import { UserFilterDto } from '../dto';
 import { User } from '../entities/user.entity';
 import { Role } from '../enums/role.enum';
 import { UserDeactivatedEvent } from '../events/user-deactivated.event';
@@ -205,31 +206,57 @@ describe('UsersService - Comprehensive Tests', () => {
 
   // ============ FIND OPERATIONS TESTS ============
   describe('findAll', () => {
+    let queryBuilderMock: any;
+
+    beforeEach(() => {
+      queryBuilderMock = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([mockUser]),
+      };
+      userRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
+    });
+
     it('should return all users', async () => {
       const result = await service.findAll();
       expect(result).toEqual([mockUser]);
     });
 
     it('should return empty array when no users exist', async () => {
-      userRepository.find.mockResolvedValueOnce([]);
+      queryBuilderMock.getMany.mockResolvedValueOnce([]);
       const result = await service.findAll();
       expect(result).toEqual([]);
     });
 
     it('should return multiple users', async () => {
       const users = [mockUser, { ...mockUser, id: 'uuid-2', email: 'user2@example.com' }];
-      userRepository.find.mockResolvedValueOnce(users);
+      queryBuilderMock.getMany.mockResolvedValueOnce(users);
       const result = await service.findAll();
       expect(result.length).toBe(2);
     });
 
     it('should query with relations', async () => {
       await service.findAll();
-      expect(userRepository.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          relations: ['wallet'],
-        }),
-      );
+      expect(queryBuilderMock.leftJoinAndSelect).toHaveBeenCalledWith('user.wallet', 'wallet');
+    });
+
+    it('should apply filters for role, isActive and search', async () => {
+      const query = new UserFilterDto();
+      query.role = Role.FIELD_STAFF;
+      query.isActive = true;
+      query.search = 'test';
+      query.limit = 10;
+
+      await service.findAll(query);
+
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.role = :role', { role: Role.FIELD_STAFF });
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.isActive = :isActive', { isActive: true });
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.email ILIKE :search', { search: '%test%' });
     });
 
     describe('findMany', () => {
@@ -447,7 +474,7 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should return users with default limit', async () => {
-      const result = await service.findAllCursor({});
+      const result = await service.findAllCursor(new UserFilterDto());
       expect(result.data).toHaveLength(1);
       expect(result.nextCursor).toBeNull();
       expect(queryBuilderMock.take).toHaveBeenCalledWith(21); // default 20 + 1
@@ -455,7 +482,10 @@ describe('UsersService - Comprehensive Tests', () => {
 
     it('should handle cursor pagination', async () => {
       mockCursorAuthService.parseUserCursor.mockReturnValue({ date: new Date(), id: 'prev-id' });
-      await service.findAllCursor({ cursor: 'valid-cursor', limit: 10 });
+      const query = new UserFilterDto();
+      query.cursor = 'valid-cursor';
+      query.limit = 10;
+      await service.findAllCursor(query);
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('user.createdAt < :date'),
         expect.anything(),
@@ -464,7 +494,9 @@ describe('UsersService - Comprehensive Tests', () => {
 
     it('should return empty result if cursor is invalid', async () => {
       mockCursorAuthService.parseUserCursor.mockReturnValue(null);
-      const result = await service.findAllCursor({ cursor: 'invalid-cursor' });
+      const query = new UserFilterDto();
+      query.cursor = 'invalid-cursor';
+      const result = await service.findAllCursor(query);
       expect(result.data).toHaveLength(0);
       expect(result.nextCursor).toBeNull();
     });
@@ -476,7 +508,9 @@ describe('UsersService - Comprehensive Tests', () => {
       queryBuilderMock.getMany.mockResolvedValue(users);
       mockCursorAuthService.createUserCursor.mockReturnValue('next-cursor');
 
-      const result = await service.findAllCursor({ limit: 20 });
+      const query = new UserFilterDto();
+      query.limit = 20;
+      const result = await service.findAllCursor(query);
       expect(result.data).toHaveLength(20);
       expect(result.nextCursor).toBe('next-cursor');
     });

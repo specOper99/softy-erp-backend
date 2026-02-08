@@ -1,6 +1,9 @@
 import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDateString, IsEmail, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsObject, ValidateNested } from 'class-validator';
 import { PII, SanitizeHtml } from '../../../common/decorators';
+import { Role } from '../../users/enums/role.enum';
 import { ContractType } from '../enums/contract-type.enum';
 
 export class BaseProfileDto {
@@ -117,4 +120,47 @@ export class PayrollRunResponseDto {
 
   @ApiProperty()
   processedAt: Date;
+}
+
+export class CreateStaffUserDto {
+  @ApiProperty({ example: 'staff@studio.example' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: 'StrongPassw0rd!' })
+  @IsString()
+  password: string;
+
+  @ApiPropertyOptional({
+    enum: Role,
+    description: 'Allowed roles for studio staff creation',
+    default: Role.FIELD_STAFF,
+  })
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
+}
+
+export class CreateStaffProfileDto extends OmitType(CreateProfileDto, ['userId'] as const) {}
+
+export class CreateStaffDto {
+  @ApiProperty({ type: CreateStaffUserDto })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CreateStaffUserDto)
+  user: CreateStaffUserDto;
+
+  @ApiProperty({ type: CreateStaffProfileDto })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CreateStaffProfileDto)
+  profile: CreateStaffProfileDto;
+}
+
+export class CreateStaffResponseDto {
+  @ApiProperty()
+  userId: string;
+
+  @ApiProperty()
+  profileId: string;
 }

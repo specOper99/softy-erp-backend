@@ -11,9 +11,9 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
-import { Cacheable, Roles } from '../../../common/decorators';
+import { ApiErrorResponses, Cacheable, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -29,6 +29,15 @@ import { CatalogService } from '../services/catalog.service';
 
 @ApiTags('Service Packages')
 @ApiBearerAuth()
+@ApiErrorResponses(
+  'BAD_REQUEST',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'CONFLICT',
+  'UNPROCESSABLE_ENTITY',
+  'TOO_MANY_REQUESTS',
+)
 @Controller('packages')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseInterceptors(GlobalCacheInterceptor)
@@ -52,6 +61,10 @@ export class PackagesController {
     description: 'Supports filtering by active status and search. Use /packages/cursor for better performance.',
     deprecated: true,
   })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'Return filtered packages with pagination meta' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAllWithFilters(@Query() query: PackageFilterDto) {
@@ -63,6 +76,10 @@ export class PackagesController {
     summary: 'Get all service packages with filtering (Cursor Pagination - Recommended)',
     description: 'Supports filtering by active status and search with cursor pagination',
   })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'Return filtered packages with cursor pagination' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAllWithFiltersCursor(@Query() query: PackageFilterDto) {

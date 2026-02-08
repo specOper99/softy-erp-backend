@@ -8,8 +8,9 @@ import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { WalletService } from '../../finance/services/wallet.service';
+import { Role } from '../../users/enums/role.enum';
 import { UsersService } from '../../users/services/users.service';
-import { CreateProfileDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
+import { CreateProfileDto, CreateStaffDto, CreateStaffResponseDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
 import { Profile } from '../entities';
 import { ProfileRepository } from '../repositories/profile.repository';
 
@@ -26,6 +27,72 @@ export class HrService {
     private readonly usersService: UsersService,
   ) {
     this.tenantTx = new TenantScopedManager(dataSource);
+  }
+
+  async createStaff(dto: CreateStaffDto): Promise<CreateStaffResponseDto> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const allowedRoles = new Set<Role>([Role.OPS_MANAGER, Role.FIELD_STAFF, Role.CLIENT]);
+    const requestedRole = dto.user.role ?? Role.FIELD_STAFF;
+
+    if (!allowedRoles.has(requestedRole)) {
+      throw new BadRequestException('Unsupported staff role for studio tenant');
+    }
+
+    try {
+      return await this.tenantTx.run(async (manager) => {
+        const createdUser = await this.usersService.createWithManager(manager, {
+          email: dto.user.email,
+          password: dto.user.password,
+          role: requestedRole,
+          tenantId,
+        });
+
+        await this.walletService.getOrCreateWalletWithManager(manager, createdUser.id);
+
+        const profile = this.profileRepository.create({
+          ...dto.profile,
+          userId: createdUser.id,
+          hireDate: dto.profile.hireDate ? new Date(dto.profile.hireDate) : null,
+        });
+
+        const savedProfile = await manager.save(profile);
+
+        await this.auditService.log({
+          action: 'CREATE',
+          entityName: 'User',
+          entityId: createdUser.id,
+          newValues: {
+            email: createdUser.email,
+            role: createdUser.role,
+            flow: 'create_staff',
+          },
+        });
+
+        await this.auditService.log({
+          action: 'CREATE',
+          entityName: 'Profile',
+          entityId: savedProfile.id,
+          newValues: {
+            userId: createdUser.id,
+            firstName: savedProfile.firstName,
+            lastName: savedProfile.lastName,
+            flow: 'create_staff',
+          },
+        });
+
+        return {
+          userId: createdUser.id,
+          profileId: savedProfile.id,
+        };
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        throw new ConflictException('User or profile already exists');
+      }
+
+      throw error;
+    }
   }
 
   // Profile Methods

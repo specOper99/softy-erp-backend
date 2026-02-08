@@ -11,8 +11,8 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../common/decorators';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiErrorResponses, Roles } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MfaRequired } from '../auth/decorators/mfa-required.decorator';
@@ -25,6 +25,15 @@ import { TenantsService } from './tenants.service';
 
 @ApiTags('Tenants')
 @ApiBearerAuth()
+@ApiErrorResponses(
+  'BAD_REQUEST',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'CONFLICT',
+  'UNPROCESSABLE_ENTITY',
+  'TOO_MANY_REQUESTS',
+)
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
@@ -32,17 +41,34 @@ export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 
   @Post()
+  @ApiOperation({
+    summary: 'Create tenant (disabled for studio API)',
+    description: 'Tenant creation is platform-managed and not available for studio-side tenant admin users.',
+  })
+  @ApiResponse({ status: 403, description: 'Tenant creation is not supported via API' })
   create(@Body() _createTenantDto: CreateTenantDto) {
     throw new ForbiddenException('Tenant creation is not supported via API');
   }
 
   @Get()
+  @ApiOperation({
+    summary: 'Get current tenant',
+    description: 'Returns only the current tenant (studio) resolved from authenticated tenant context.',
+  })
+  @ApiResponse({ status: 200, description: 'Current tenant returned' })
   async findAll() {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     return [await this.tenantsService.findOne(tenantId)];
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get tenant by ID (current tenant only)',
+    description: 'Cross-tenant access is forbidden. You can only access your own tenant ID.',
+  })
+  @ApiParam({ name: 'id', description: 'Tenant UUID' })
+  @ApiResponse({ status: 200, description: 'Tenant returned' })
+  @ApiResponse({ status: 403, description: 'Cross-tenant access is forbidden' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     if (id !== tenantId) {
@@ -53,6 +79,13 @@ export class TenantsController {
 
   @Patch(':id')
   @MfaRequired()
+  @ApiOperation({
+    summary: 'Update tenant (current tenant only)',
+    description: 'Studio tenant admin can update only the current tenant settings. Cross-tenant updates are forbidden.',
+  })
+  @ApiParam({ name: 'id', description: 'Tenant UUID' })
+  @ApiResponse({ status: 200, description: 'Tenant updated' })
+  @ApiResponse({ status: 403, description: 'Cross-tenant access is forbidden' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTenantDto: UpdateTenantDto) {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     if (id !== tenantId) {
@@ -62,6 +95,12 @@ export class TenantsController {
   }
 
   @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete tenant (disabled for studio API)',
+    description: 'Tenant deletion is platform-managed and not available for studio-side tenant admin users.',
+  })
+  @ApiParam({ name: 'id', description: 'Tenant UUID' })
+  @ApiResponse({ status: 403, description: 'Tenant deletion is not supported via API' })
   remove(@Param('id', ParseUUIDPipe) _id: string) {
     throw new ForbiddenException('Tenant deletion is not supported via API');
   }

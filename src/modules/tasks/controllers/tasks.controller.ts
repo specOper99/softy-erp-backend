@@ -1,17 +1,19 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { CurrentUser, Roles } from '../../../common/decorators';
+import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { AssignTaskDto, TaskFilterDto, UpdateTaskDto } from '../dto';
+import { TaskStatus } from '../enums/task-status.enum';
 import { TasksService } from '../services/tasks.service';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
+@ApiErrorResponses('BAD_REQUEST', 'UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'UNPROCESSABLE_ENTITY', 'TOO_MANY_REQUESTS')
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksController {
@@ -25,6 +27,14 @@ export class TasksController {
       'Supports filtering by status, assignedUserId, bookingId, date range, and search. Use /tasks/cursor for better performance.',
     deprecated: true,
   })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: TaskStatus })
+  @ApiQuery({ name: 'bookingId', required: false, type: String })
+  @ApiQuery({ name: 'assignedUserId', required: false, type: String })
+  @ApiQuery({ name: 'dueDateStart', required: false, type: String })
+  @ApiQuery({ name: 'dueDateEnd', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return filtered tasks with pagination meta' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
@@ -39,6 +49,14 @@ export class TasksController {
     description:
       'Supports filtering by status, assignedUserId, bookingId, date range, and search with cursor pagination',
   })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: TaskStatus })
+  @ApiQuery({ name: 'bookingId', required: false, type: String })
+  @ApiQuery({ name: 'assignedUserId', required: false, type: String })
+  @ApiQuery({ name: 'dueDateStart', required: false, type: String })
+  @ApiQuery({ name: 'dueDateEnd', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return filtered tasks with cursor pagination' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
@@ -76,6 +94,7 @@ export class TasksController {
 
   @Get('booking/:bookingId')
   @ApiOperation({ summary: 'Get tasks by booking ID' })
+  @ApiParam({ name: 'bookingId', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Return booking tasks' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })

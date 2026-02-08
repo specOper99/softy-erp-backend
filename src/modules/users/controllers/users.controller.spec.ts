@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { UserFilterDto } from '../dto';
 import { Role } from '../enums/role.enum';
 import { UsersService } from '../services/users.service';
 import { UsersController } from './users.controller';
@@ -54,7 +54,7 @@ describe('UsersController', () => {
 
   describe('findAll', () => {
     it('should call service.findAll', async () => {
-      await controller.findAll({} as PaginationDto);
+      await controller.findAll({} as UserFilterDto);
       expect(service.findAll).toHaveBeenCalled();
     });
   });

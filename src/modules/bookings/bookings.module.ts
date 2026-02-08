@@ -13,6 +13,7 @@ import { ExportService } from '../../common/services/export.service';
 import { AuditModule } from '../audit/audit.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { TenantsModule } from '../tenants/tenants.module';
+import { TasksModule } from '../tasks/tasks.module';
 import { BookingRepository } from './repositories/booking.repository';
 import { ClientRepository } from './repositories/client.repository';
 import { BookingExportService } from './services/booking-export.service';
@@ -29,6 +30,7 @@ import { ClientsService } from './services/clients.service';
     TenantsModule,
     MailModule,
     AuditModule,
+    TasksModule,
     forwardRef(() => DashboardModule),
     forwardRef(() => ClientPortalModule),
   ],

@@ -8,6 +8,7 @@ import { BookingExportService } from '../services/booking-export.service';
 import { BookingWorkflowService } from '../services/booking-workflow.service';
 import { BookingsService } from '../services/bookings.service';
 import { BookingsController } from './bookings.controller';
+import { TasksService } from '../../tasks/services/tasks.service';
 
 describe('BookingsController', () => {
   let controller: BookingsController;
@@ -47,6 +48,12 @@ describe('BookingsController', () => {
           provide: BookingExportService,
           useValue: {
             exportBookingsToCSV: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: TasksService,
+          useValue: {
+            findByBooking: jest.fn().mockResolvedValue([]),
           },
         },
       ],

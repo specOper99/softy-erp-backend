@@ -1,6 +1,6 @@
 import { Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CurrentUser, Roles } from '../../../common/decorators';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
@@ -10,6 +10,7 @@ import { NotificationService } from '../services/notification.service';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()
+@ApiErrorResponses('BAD_REQUEST', 'UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'TOO_MANY_REQUESTS')
 @Controller('notifications')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class NotificationsController {
@@ -18,6 +19,10 @@ export class NotificationsController {
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get user notifications with pagination and filters' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'read', required: false, type: Boolean })
+  @ApiQuery({ name: 'type', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return user notifications', type: [NotificationResponseDto] })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getNotifications(@CurrentUser() user: User, @Query() filter: NotificationFilterDto) {
@@ -36,6 +41,7 @@ export class NotificationsController {
   @Patch(':id/read')
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Mark notification as read' })
+  @ApiParam({ name: 'id', description: 'Notification UUID' })
   @ApiResponse({ status: 200, description: 'Notification marked as read' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
   async markAsRead(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
@@ -54,6 +60,7 @@ export class NotificationsController {
   @Delete(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Delete notification' })
+  @ApiParam({ name: 'id', description: 'Notification UUID' })
   @ApiResponse({ status: 200, description: 'Notification deleted' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
   async deleteNotification(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
