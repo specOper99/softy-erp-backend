@@ -92,6 +92,7 @@ export class BookingsService {
       eventDate: new Date(dto.eventDate),
       packageId: dto.packageId,
       notes: dto.notes,
+      startTime: dto.startTime ?? null,
       subTotal: pricing.subTotal,
       taxRate: pricing.taxRate,
       taxAmount: pricing.taxAmount,
@@ -261,7 +262,7 @@ export class BookingsService {
 
   async findOne(id: string, user?: User): Promise<Booking> {
     const qb = this.bookingRepository.createQueryBuilder('booking');
-    qb.where('booking.id = :id', { id });
+    qb.andWhere('booking.id = :id', { id });
 
     // Apply standard relations
     qb.leftJoinAndSelect('booking.client', 'client')

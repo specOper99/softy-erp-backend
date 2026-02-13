@@ -176,7 +176,12 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
 
   createQueryBuilder(alias: string) {
     const tenantId = this.getTenantId();
-    return this.repository.createQueryBuilder(alias).andWhere(`${alias}.tenantId = :tenantId`, { tenantId });
+    const queryBuilder = this.repository.createQueryBuilder(alias).where(`${alias}.tenantId = :tenantId`, { tenantId });
+    const baseAndWhere = queryBuilder.andWhere.bind(queryBuilder);
+    queryBuilder.where = (...parameters: Parameters<SelectQueryBuilder<T>['where']>) => {
+      return baseAndWhere(...parameters);
+    };
+    return queryBuilder;
   }
 
   async remove<E extends T | T[]>(entityOrEntities: E): Promise<E> {
@@ -250,7 +255,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
   createStreamQueryBuilder(alias: string): SelectQueryBuilder<T> {
     const tenantId = this.getTenantId();
     this.logger.debug(`Creating stream query builder for ${this.entityName} with tenant ${tenantId}`);
-    return this.repository.createQueryBuilder(alias).andWhere(`${alias}.tenantId = :tenantId`, { tenantId });
+    return this.createQueryBuilder(alias);
   }
 
   /**
@@ -260,7 +265,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
   createAggregateQueryBuilder(alias: string): SelectQueryBuilder<T> {
     const tenantId = this.getTenantId();
     this.logger.debug(`Creating aggregate query builder for ${this.entityName} with tenant ${tenantId}`);
-    return this.repository.createQueryBuilder(alias).andWhere(`${alias}.tenantId = :tenantId`, { tenantId });
+    return this.createQueryBuilder(alias);
   }
 
   /**

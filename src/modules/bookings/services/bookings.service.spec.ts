@@ -209,6 +209,7 @@ describe('BookingsService', () => {
   describe('findOne', () => {
     it('should return a booking', async () => {
       const queryBuilder = {
+        andWhere: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         innerJoin: jest.fn().mockReturnThis(),
@@ -221,7 +222,7 @@ describe('BookingsService', () => {
 
       expect(result).toEqual(mockBooking);
       expect(bookingRepository.createQueryBuilder).toHaveBeenCalledWith('booking');
-      expect(queryBuilder.where).toHaveBeenCalledWith('booking.id = :id', { id: 'booking-123' });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('booking.id = :id', { id: 'booking-123' });
     });
   });
 });

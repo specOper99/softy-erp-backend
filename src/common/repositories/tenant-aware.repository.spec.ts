@@ -329,7 +329,9 @@ describe('TenantAwareRepository', () => {
 
   describe('createQueryBuilder (tenant-scoped)', () => {
     it('should apply tenant filter to query builder', () => {
+      const where = jest.fn().mockReturnThis();
       const qb = {
+        where,
         andWhere: jest.fn().mockReturnThis(),
       };
       (mockTypeOrmRepository.createQueryBuilder as unknown as jest.Mock).mockReturnValue(qb);
@@ -339,7 +341,7 @@ describe('TenantAwareRepository', () => {
       });
 
       expect(mockTypeOrmRepository.createQueryBuilder).toHaveBeenCalledWith('t');
-      expect(qb.andWhere).toHaveBeenCalledWith('t.tenantId = :tenantId', { tenantId: 'default-tenant' });
+      expect(where).toHaveBeenCalledWith('t.tenantId = :tenantId', { tenantId: 'default-tenant' });
     });
   });
 

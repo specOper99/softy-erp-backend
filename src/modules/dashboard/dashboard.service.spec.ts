@@ -179,7 +179,7 @@ describe('DashboardService', () => {
 
       expect(taskRepo.createQueryBuilder).toHaveBeenCalledWith('task');
       // Tenant check removed as it's handled by repo
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('task.status = :status', { status: TaskStatus.COMPLETED });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('task.status = :status', { status: TaskStatus.COMPLETED });
       expect(result).toEqual([{ staffName: 'John Doe', completedTasks: 10, totalCommission: 500 }]);
     });
 

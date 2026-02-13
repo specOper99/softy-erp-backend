@@ -94,7 +94,7 @@ export class FinancialReportService {
 
     const result = await this.transactionRepository
       .createQueryBuilder('t')
-      .where('t.transactionDate >= :startDate', {
+      .andWhere('t.transactionDate >= :startDate', {
         startDate: filter.startDate,
       })
       .andWhere('t.transactionDate <= :endDate', { endDate: filter.endDate })
@@ -150,7 +150,7 @@ export class FinancialReportService {
       .createQueryBuilder('budget')
       .select('MIN(budget.startDate)', 'minStart')
       .addSelect('MAX(budget.endDate)', 'maxEnd')
-      .where('budget.period = :period', { period })
+      .andWhere('budget.period = :period', { period })
       .getRawOne<{ minStart: Date; maxEnd: Date }>();
 
     const minStartDate = dateRange?.minStart ?? new Date();
@@ -161,7 +161,7 @@ export class FinancialReportService {
       .createQueryBuilder('t')
       .select('t.department', 'department')
       .addSelect('SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))', 'total')
-      .where('t.department IN (:...departments)', {
+      .andWhere('t.department IN (:...departments)', {
         departments: budgetDepartments,
       })
       .andWhere('t.transactionDate >= :start', { start: minStartDate })

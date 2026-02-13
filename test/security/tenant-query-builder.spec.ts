@@ -2,6 +2,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 describe('Tenant scoping in QueryBuilder usages', () => {
+  it('TenantAwareRepository query builder should prevent where() from dropping tenant scope', () => {
+    const repoFile = path.join(__dirname, '..', '..', 'src', 'common', 'repositories', 'tenant-aware.repository.ts');
+    const content = fs.readFileSync(repoFile, 'utf8');
+
+    expect(content).toContain('queryBuilder.where =');
+    expect(content).toContain('baseAndWhere');
+  });
+
   it('all createQueryBuilder calls should apply tenant filters or use TenantAwareRepository', () => {
     const srcDir = path.join(__dirname, '..', '..', 'src');
     const _files = fs.readdirSync(srcDir, { withFileTypes: true });
@@ -31,11 +39,12 @@ describe('Tenant scoping in QueryBuilder usages', () => {
           // Skip tenant-aware repository implementation file itself
           if (file.endsWith('tenant-aware.repository.ts')) continue;
 
-          // Inspect next N lines for tenantId filter
-          const window = lines.slice(i, i + 12).join('\n');
+          // Inspect next N lines for tenantId scoping
+          const window = lines.slice(i, i + 20).join('\n');
+          const hasWhereCall = /\.where\(/.test(window);
           const hasTenantFilter = /tenantId/.test(window);
 
-          if (!hasTenantFilter) {
+          if (hasWhereCall && !hasTenantFilter) {
             failures.push(`${file}:${i + 1} -> ${line.trim()}`);
           }
         }

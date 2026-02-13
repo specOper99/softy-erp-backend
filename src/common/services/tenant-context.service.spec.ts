@@ -42,4 +42,27 @@ describe('TenantContextService', () => {
       done();
     });
   });
+
+  it('should preserve tenant context across async promise boundaries', async () => {
+    await TenantContextService.run('tenant-async-1', async () => {
+      await Promise.resolve();
+      expect(TenantContextService.getTenantId()).toBe('tenant-async-1');
+    });
+  });
+
+  it('should isolate tenant context across parallel executions', async () => {
+    const [tenantA, tenantB] = await Promise.all([
+      TenantContextService.run('tenant-a', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return TenantContextService.getTenantId();
+      }),
+      TenantContextService.run('tenant-b', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        return TenantContextService.getTenantId();
+      }),
+    ]);
+
+    expect(tenantA).toBe('tenant-a');
+    expect(tenantB).toBe('tenant-b');
+  });
 });

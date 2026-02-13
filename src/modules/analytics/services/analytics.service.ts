@@ -43,7 +43,7 @@ export class AnalyticsService {
     const result = await this.bookingRepository
       .createQueryBuilder('b')
       .leftJoin('b.servicePackage', 'pkg')
-      .where('b.eventDate >= :startDate', { startDate: filter.startDate })
+      .andWhere('b.eventDate >= :startDate', { startDate: filter.startDate })
       .andWhere('b.eventDate <= :endDate', { endDate: filter.endDate })
       .andWhere('b.status IN (:...statuses)', {
         statuses: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED],
@@ -70,7 +70,7 @@ export class AnalyticsService {
   async getTaxReport(startDate: string, endDate: string) {
     const result = await this.bookingRepository
       .createQueryBuilder('b')
-      .where('b.eventDate >= :startDate', { startDate })
+      .andWhere('b.eventDate >= :startDate', { startDate })
       .andWhere('b.eventDate <= :endDate', { endDate })
       .andWhere('b.status IN (:...statuses)', {
         statuses: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED],
