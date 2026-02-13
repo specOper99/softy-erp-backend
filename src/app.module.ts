@@ -24,33 +24,11 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
 import { QueueModule } from './common/queue/queue.module';
 import { TenantGuard } from './modules/tenants/guards/tenant.guard';
 import { TenantMiddleware } from './modules/tenants/middleware/tenant.middleware';
-import { TenantsModule } from './modules/tenants/tenants.module';
 
 // Feature module imports
 import { ResilienceModule } from './common/resilience/resilience.module';
 import authConfig from './config/auth.config';
-import { AdminModule } from './modules/admin/admin.module';
-import { AnalyticsModule } from './modules/analytics/analytics.module';
-import { AuditModule } from './modules/audit/audit.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { BillingModule } from './modules/billing/billing.module';
-import { BookingsModule } from './modules/bookings/bookings.module';
-import { CatalogModule } from './modules/catalog/catalog.module';
-import { ClientPortalModule } from './modules/client-portal/client-portal.module';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { FinanceModule } from './modules/finance/finance.module';
-import { HealthModule } from './modules/health/health.module';
-import { HrModule } from './modules/hr/hr.module';
-import { MailModule } from './modules/mail/mail.module';
-import { MediaModule } from './modules/media/media.module';
-import { MetricsModule } from './modules/metrics/metrics.module';
-import { NotificationsModule } from './modules/notifications/notifications.module';
-import { PlatformModule } from './modules/platform/platform.module';
-import { PrivacyModule } from './modules/privacy/privacy.module';
-import { ReviewsModule } from './modules/reviews/reviews.module';
-import { TasksModule } from './modules/tasks/tasks.module';
-import { UsersModule } from './modules/users/users.module';
-import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { CoreModule } from './modules/core/core.module';
 
 @Module({
   imports: [
@@ -153,30 +131,8 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
     // Feature Modules
     CommonModule,
-    AdminModule,
-    AuthModule,
-    UsersModule,
-    CatalogModule,
-    BookingsModule,
-    ReviewsModule,
-    TasksModule,
-    FinanceModule,
-    HrModule,
-    MailModule,
-    NotificationsModule,
-    DashboardModule,
-    AuditModule,
-    MediaModule,
-    HealthModule,
-    AnalyticsModule,
-    TenantsModule,
-    WebhooksModule,
-    MetricsModule,
+    CoreModule,
     I18nModule,
-    ClientPortalModule,
-    PrivacyModule,
-    BillingModule,
-    PlatformModule,
     ResilienceModule.forRoot([
       {
         name: 's3',
