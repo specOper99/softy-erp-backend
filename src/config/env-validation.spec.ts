@@ -42,6 +42,7 @@ describe('env-validation', () => {
     const config = {
       NODE_ENV: 'production',
       JWT_SECRET: 'short',
+      PLATFORM_JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
     };
     expect(() => validate(config)).toThrow();
   });
@@ -51,6 +52,7 @@ describe('env-validation', () => {
       NODE_ENV: 'production',
       // High-entropy-ish string (length >= 43) to pass validateSecretStrength
       JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
+      PLATFORM_JWT_SECRET: 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g0F9e8D7c6B5a4',
     };
 
     expect(() => validate(config)).not.toThrow();
@@ -61,6 +63,7 @@ describe('env-validation', () => {
       NODE_ENV: 'production',
       // High-entropy-ish string (length >= 43) to pass validateSecretStrength
       JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
+      PLATFORM_JWT_SECRET: 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g0F9e8D7c6B5a4',
       DB_PASSWORD: 'change-me-local-only',
     };
 

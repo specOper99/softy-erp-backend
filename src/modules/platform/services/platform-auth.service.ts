@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import { createHash } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { PlatformSession } from '../entities/platform-session.entity';
@@ -136,8 +137,8 @@ export class PlatformAuthService {
     const accessToken = this.generateAccessToken(user, session.id);
     const refreshToken = this.generateRefreshToken(user, session.id);
 
-    session.sessionToken = accessToken;
-    session.refreshToken = refreshToken;
+    session.sessionTokenHash = this.hashToken(accessToken);
+    session.refreshTokenHash = this.hashToken(refreshToken);
     await this.sessionRepository.save(session);
 
     user.lastLoginAt = new Date();
@@ -210,12 +211,12 @@ export class PlatformAuthService {
     let backupCodesRemaining: number | undefined;
 
     if (!isTotpValid) {
-      const isBackupValid = this.mfaService.verifyBackupCode(code, user.mfaRecoveryCodes || []);
+      const isBackupValid = await this.mfaService.verifyBackupCode(code, user.mfaRecoveryCodes || []);
       if (!isBackupValid) {
         throw new UnauthorizedException('Invalid MFA code');
       }
 
-      user.mfaRecoveryCodes = this.mfaService.removeUsedBackupCode(code, user.mfaRecoveryCodes || []);
+      user.mfaRecoveryCodes = await this.mfaService.removeUsedBackupCode(code, user.mfaRecoveryCodes || []);
       await this.userRepository.save(user);
       backupCodesRemaining = user.mfaRecoveryCodes.length;
     }
@@ -226,8 +227,8 @@ export class PlatformAuthService {
 
     const accessToken = this.generateAccessToken(user, session.id);
     const refreshToken = this.generateRefreshToken(user, session.id);
-    session.sessionToken = accessToken;
-    session.refreshToken = refreshToken;
+    session.sessionTokenHash = this.hashToken(accessToken);
+    session.refreshTokenHash = this.hashToken(refreshToken);
     await this.sessionRepository.save(session);
 
     return {
@@ -289,7 +290,8 @@ export class PlatformAuthService {
       mfaVerifiedAt: !user.mfaEnabled ? new Date() : null,
       expiresAt: new Date(Date.now() + this.SESSION_DURATION),
       lastActivityAt: new Date(),
-      sessionToken: null,
+      sessionTokenHash: null,
+      refreshTokenHash: null,
     });
 
     return this.sessionRepository.save(session);
@@ -329,5 +331,9 @@ export class PlatformAuthService {
     }
 
     await this.userRepository.save(user);
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 }

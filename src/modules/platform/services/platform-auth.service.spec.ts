@@ -40,8 +40,8 @@ describe('PlatformAuthService', () => {
     userId: 'user-123',
     ipAddress: '192.168.1.1',
     userAgent: 'Mozilla/5.0',
-    sessionToken: 'token',
-    refreshToken: 'refresh',
+    sessionTokenHash: 'token-hash',
+    refreshTokenHash: 'refresh-hash',
     expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
     isRevoked: false,
   };
@@ -228,7 +228,7 @@ describe('PlatformAuthService', () => {
 
       const savedSession = saveSpy.mock.lastCall?.[0] as PlatformSession | undefined;
       expect(savedSession).toBeDefined();
-      expect(savedSession?.sessionToken).toBeNull();
+      expect(savedSession?.sessionTokenHash).toBeNull();
     });
 
     it('should reject suspended account', async () => {

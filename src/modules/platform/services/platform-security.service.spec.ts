@@ -107,7 +107,7 @@ describe('PlatformSecurityService', () => {
       const userUpdateSpy = jest.spyOn(userRepository, 'update').mockResolvedValue({ affected: 1 } as never);
       const tokenUpdateSpy = jest.spyOn(refreshTokenRepository, 'update').mockResolvedValue({ affected: 2 } as never);
       const notifySpy = jest.spyOn(passwordService, 'forgotPassword').mockResolvedValue(undefined);
-      const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const dto = { tenantId: 'tenant-123', userId: 'user-123', reason: 'Account compromised', notifyUser: true };
       await service.forcePasswordReset(dto, 'admin-123', '192.168.1.1');
@@ -145,7 +145,7 @@ describe('PlatformSecurityService', () => {
       const userQb = {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
-        getQuery: jest.fn().mockReturnValue('SELECT u.id FROM users u WHERE u.tenant_id = :tenantId'),
+        getRawMany: jest.fn().mockResolvedValue([{ id: 'user-1' }, { id: 'user-2' }]),
       };
       jest.spyOn(userRepository, 'createQueryBuilder').mockReturnValue(userQb as never);
 
@@ -158,7 +158,7 @@ describe('PlatformSecurityService', () => {
       };
       jest.spyOn(refreshTokenRepository, 'createQueryBuilder').mockReturnValue(qb as never);
 
-      const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const dto = { tenantId: 'tenant-123', reason: 'Security incident' };
       const result = await service.revokeAllSessions(dto, 'admin-123', '192.168.1.1');
@@ -166,10 +166,41 @@ describe('PlatformSecurityService', () => {
       expect(result).toBe(3);
 
       expect(userRepository.find).not.toHaveBeenCalled();
-      expect(qb.where).toHaveBeenCalledWith(
-        expect.stringContaining('user_id IN (SELECT u.id FROM users u WHERE u.tenant_id = :tenantId)'),
-        { tenantId: 'tenant-123' },
+      expect(qb.where).toHaveBeenCalledWith('user_id IN (:...userIds)', { userIds: ['user-1', 'user-2'] });
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: PlatformAction.SESSIONS_REVOKED,
+          targetTenantId: dto.tenantId,
+        }),
       );
+    });
+
+    it('should return zero and audit when tenant has no users', async () => {
+      jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
+
+      const userQb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([]),
+      };
+      jest.spyOn(userRepository, 'createQueryBuilder').mockReturnValue(userQb as never);
+
+      const qb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 3 }),
+      };
+      jest.spyOn(refreshTokenRepository, 'createQueryBuilder').mockReturnValue(qb as never);
+
+      const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(null);
+
+      const dto = { tenantId: 'tenant-123', reason: 'Security incident' };
+      const result = await service.revokeAllSessions(dto, 'admin-123', '192.168.1.1');
+
+      expect(result).toBe(0);
+      expect(qb.execute).not.toHaveBeenCalled();
       expect(logSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           action: PlatformAction.SESSIONS_REVOKED,
@@ -207,7 +238,7 @@ describe('PlatformSecurityService', () => {
     it('should update IP allowlist with valid CIDR', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
       const saveSpy = jest.spyOn(tenantRepository, 'save').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const dto = {
         tenantId: 'tenant-123',
@@ -229,7 +260,7 @@ describe('PlatformSecurityService', () => {
     it('should accept IPv4 addresses without CIDR', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
       jest.spyOn(tenantRepository, 'save').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const dto = {
         tenantId: 'tenant-123',
@@ -256,7 +287,7 @@ describe('PlatformSecurityService', () => {
 
     it('should return export ID and estimated completion time', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const dto = {
         tenantId: 'tenant-123',
@@ -273,7 +304,7 @@ describe('PlatformSecurityService', () => {
 
     it('should log data export action', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
-      const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      const logSpy = jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const dto = {
         tenantId: 'tenant-123',
@@ -308,7 +339,7 @@ describe('PlatformSecurityService', () => {
     it('should schedule data deletion', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
       const saveSpy = jest.spyOn(tenantRepository, 'save').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const scheduleDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       const dto = {
@@ -364,7 +395,7 @@ describe('PlatformSecurityService', () => {
     it('should update security policy', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
       const saveSpy = jest.spyOn(tenantRepository, 'save').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(auditService, 'log').mockResolvedValue(undefined);
+      jest.spyOn(auditService, 'log').mockResolvedValue(null);
 
       const policy = { mfaRequired: true, sessionTimeout: 3600 };
 

@@ -1,9 +1,11 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'node:crypto';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
 import { Repository } from 'typeorm';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { PlatformUser } from '../entities/platform-user.entity';
 
 export interface MFASetupResponse {
@@ -28,6 +30,7 @@ export class MFAService {
   constructor(
     @InjectRepository(PlatformUser)
     private readonly userRepository: Repository<PlatformUser>,
+    private readonly passwordHashService: PasswordHashService,
   ) {}
 
   /**
@@ -105,7 +108,7 @@ export class MFAService {
   private generateBackupCodes(count: number): string[] {
     const codes: string[] = [];
     for (let i = 0; i < count; i++) {
-      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const code = randomBytes(5).toString('hex').toUpperCase();
       codes.push(code);
     }
     return codes;
@@ -114,17 +117,36 @@ export class MFAService {
   /**
    * Verify backup code
    */
-  verifyBackupCode(providedCode: string, storedCodes: string[]): boolean {
+  async verifyBackupCode(providedCode: string, storedCodes: string[]): Promise<boolean> {
     const normalizedCode = providedCode.toUpperCase().trim();
-    return storedCodes.includes(normalizedCode);
+
+    for (const storedCode of storedCodes) {
+      if (await this.passwordHashService.verify(storedCode, normalizedCode)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
    * Remove used backup code
    */
-  removeUsedBackupCode(usedCode: string, storedCodes: string[]): string[] {
+  async removeUsedBackupCode(usedCode: string, storedCodes: string[]): Promise<string[]> {
     const normalizedCode = usedCode.toUpperCase().trim();
-    return storedCodes.filter((code) => code !== normalizedCode);
+
+    for (let i = 0; i < storedCodes.length; i++) {
+      const storedCode = storedCodes[i];
+      if (!storedCode) {
+        continue;
+      }
+
+      if (await this.passwordHashService.verify(storedCode, normalizedCode)) {
+        return storedCodes.filter((_, idx) => idx !== i);
+      }
+    }
+
+    return storedCodes;
   }
   /**
    * Get platform user by ID
@@ -157,8 +179,11 @@ export class MFAService {
    */
   async saveMfaSetup(userId: string, secret: string, backupCodes: string[]): Promise<void> {
     const user = await this.getUserById(userId);
+    const hashedCodes = await Promise.all(
+      backupCodes.map((code) => this.passwordHashService.hash(code.toUpperCase().trim())),
+    );
     user.mfaSecret = secret;
-    user.mfaRecoveryCodes = backupCodes;
+    user.mfaRecoveryCodes = hashedCodes;
     await this.userRepository.save(user);
   }
 
@@ -194,7 +219,9 @@ export class MFAService {
    */
   async updateBackupCodes(userId: string, backupCodes: string[]): Promise<void> {
     const user = await this.getUserById(userId);
-    user.mfaRecoveryCodes = backupCodes;
+    user.mfaRecoveryCodes = await Promise.all(
+      backupCodes.map((code) => this.passwordHashService.hash(code.toUpperCase().trim())),
+    );
     await this.userRepository.save(user);
   }
 }

@@ -94,21 +94,40 @@ export class PlatformSecurityService {
   }
 
   async revokeAllSessions(dto: RevokeSessionsDto, platformUserId: string, ipAddress: string): Promise<number> {
-    const _tenant = await this.getTenantOrThrow(dto.tenantId);
+    await this.getTenantOrThrow(dto.tenantId);
 
     this.logger.warn(`Revoking all sessions for tenant ${dto.tenantId} by platform user ${platformUserId}`);
 
-    const userIdSubquery = this.userRepository
+    const users = await this.userRepository
       .createQueryBuilder('u')
-      .select('u.id')
+      .select('u.id', 'id')
       .where('u.tenantId = :tenantId', { tenantId: dto.tenantId })
-      .getQuery();
+      .getRawMany<{ id: string }>();
+
+    const userIds = users.map((user) => user.id);
+    if (userIds.length === 0) {
+      await this.auditService.log({
+        platformUserId,
+        targetTenantId: dto.tenantId,
+        action: PlatformAction.SESSIONS_REVOKED,
+        targetEntityType: 'session',
+        reason: dto.reason,
+        ipAddress,
+        additionalContext: {
+          operation: 'revoke_all_sessions',
+          userId: dto.userId,
+          revoked: 0,
+        },
+      });
+
+      return 0;
+    }
 
     const result = await this.refreshTokenRepository
       .createQueryBuilder()
       .update(RefreshToken)
       .set({ isRevoked: true })
-      .where(`user_id IN (${userIdSubquery})`, { tenantId: dto.tenantId })
+      .where('user_id IN (:...userIds)', { userIds })
       .andWhere('is_revoked = false')
       .execute();
     const revoked = result.affected ?? 0;
@@ -168,7 +187,7 @@ export class PlatformSecurityService {
     platformUserId: string,
     ipAddress: string,
   ): Promise<{ exportId: string; estimatedCompletionTime: Date }> {
-    const _tenant = await this.getTenantOrThrow(dto.tenantId);
+    await this.getTenantOrThrow(dto.tenantId);
 
     const exportId = `export-${Date.now()}-${crypto.randomUUID()}`;
     const estimatedCompletionTime = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours

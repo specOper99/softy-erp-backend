@@ -72,7 +72,7 @@ import { PlatformJwtStrategy } from './strategies/platform-jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+        secret: configService.get<string>('PLATFORM_JWT_SECRET'),
         signOptions: {
           expiresIn: parseInt(configService.get<string>('JWT_ACCESS_EXPIRES_SECONDS', '900'), 10),
         },

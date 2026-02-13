@@ -220,7 +220,7 @@ export class UsersService {
     return this.rawUserRepository
       .createQueryBuilder('user')
       .addSelect('user.mfaSecret')
-      .where('user.email = :email', { email })
+      .andWhere('user.email = :email', { email })
       .getOne();
   }
 
@@ -240,7 +240,7 @@ export class UsersService {
     return this.rawUserRepository
       .createQueryBuilder('user')
       .addSelect('user.mfaRecoveryCodes')
-      .where('user.id = :userId', { userId })
+      .andWhere('user.id = :userId', { userId })
       .getOne();
   }
 

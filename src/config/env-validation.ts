@@ -136,6 +136,13 @@ class EnvironmentVariables {
   })
   JWT_SECRET?: string;
 
+  @IsString()
+  @MinLength(32, { message: 'PLATFORM_JWT_SECRET must be at least 32 characters (256 bits recommended: 43 chars)' })
+  @Matches(/^(?=.*[A-Za-z])(?=.*[0-9]).+$/, {
+    message: 'PLATFORM_JWT_SECRET must contain both letters and numbers for minimum complexity',
+  })
+  PLATFORM_JWT_SECRET?: string;
+
   /**
    * Secret for cursor pagination HMAC signing.
    * Recommended: 32+ characters of random data.
@@ -283,7 +290,7 @@ export function validate(config: Record<string, unknown>) {
   if (errors.length > 0) {
     // Only bypass JWT_SECRET and CURSOR_SECRET validation in explicit test environment
     // This prevents accidental deployment with weak secrets in development/staging
-    const secretProperties = ['JWT_SECRET', 'CURSOR_SECRET'];
+    const secretProperties = ['JWT_SECRET', 'PLATFORM_JWT_SECRET', 'CURSOR_SECRET'];
     const filteredErrors = errors.filter((e) => {
       if (isTestEnv && secretProperties.includes(e.property)) return false;
       return true;
@@ -336,6 +343,15 @@ export function validate(config: Record<string, unknown>) {
     const jwtSecretError = validateSecretStrength(validatedConfig.JWT_SECRET, 'JWT_SECRET');
     if (jwtSecretError) {
       throw new Error(jwtSecretError);
+    }
+
+    if (!validatedConfig.PLATFORM_JWT_SECRET) {
+      throw new Error('SECURITY: PLATFORM_JWT_SECRET is required in production environments.');
+    }
+
+    const platformJwtSecretError = validateSecretStrength(validatedConfig.PLATFORM_JWT_SECRET, 'PLATFORM_JWT_SECRET');
+    if (platformJwtSecretError) {
+      throw new Error(platformJwtSecretError);
     }
 
     // CURSOR_SECRET is recommended but optional (falls back to JWT_SECRET)

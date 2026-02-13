@@ -2,6 +2,7 @@ import { ConflictException, Injectable, Logger, NotFoundException, UnauthorizedE
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
+import { createHash } from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
 import { User } from '../../../modules/users/entities/user.entity';
 import { StartImpersonationDto } from '../dto/support.dto';
@@ -60,6 +61,7 @@ export class ImpersonationService {
 
     // Generate session token
     const sessionToken = randomBytes(32).toString('hex');
+    const sessionTokenHash = this.hashToken(sessionToken);
 
     // Create session with verified user email
     const session = this.sessionRepository.create({
@@ -69,13 +71,21 @@ export class ImpersonationService {
       targetUserEmail: targetUser.email,
       reason: dto.reason,
       approvalTicketId: dto.approvalTicketId,
-      sessionToken,
+      sessionTokenHash,
       ipAddress,
       userAgent,
       isActive: true,
     });
 
-    const saved = await this.sessionRepository.save(session);
+    let saved: ImpersonationSession;
+    try {
+      saved = await this.sessionRepository.save(session);
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+        throw new ConflictException('An active impersonation session already exists for this user');
+      }
+      throw error;
+    }
 
     // Generate JWT for impersonation
     const token = this.jwtService.sign(
@@ -111,6 +121,10 @@ export class ImpersonationService {
     );
 
     return { session: saved, token };
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   /**

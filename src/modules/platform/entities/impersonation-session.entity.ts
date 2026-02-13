@@ -7,6 +7,10 @@ import { PlatformUser } from './platform-user.entity';
 @Entity('impersonation_sessions')
 @Index(['platformUserId', 'startedAt'])
 @Index(['tenantId', 'targetUserId'])
+@Index(['platformUserId', 'tenantId', 'targetUserId'], {
+  unique: true,
+  where: 'is_active = true',
+})
 @Index(['startedAt', 'endedAt'])
 export class ImpersonationSession {
   @PrimaryGeneratedColumn('uuid')
@@ -34,8 +38,8 @@ export class ImpersonationSession {
   @Column({ name: 'approval_ticket_id', type: 'varchar', length: 255, nullable: true })
   approvalTicketId: string | null;
 
-  @Column({ name: 'session_token', type: 'varchar', length: 255, unique: true })
-  sessionToken: string;
+  @Column({ name: 'session_token_hash', type: 'varchar', length: 64, unique: true })
+  sessionTokenHash: string;
 
   @CreateDateColumn({ name: 'started_at' })
   startedAt: Date;

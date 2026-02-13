@@ -25,9 +25,9 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jw
     @InjectRepository(PlatformSession)
     private readonly platformSessionRepository: Repository<PlatformSession>,
   ) {
-    const jwtSecret = configService.get<string>('JWT_SECRET');
+    const jwtSecret = configService.get<string>('PLATFORM_JWT_SECRET');
     if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not defined');
+      throw new Error('PLATFORM_JWT_SECRET is not defined');
     }
 
     super({

@@ -25,7 +25,7 @@ describe('ImpersonationService', () => {
     targetUserId: 'user-789',
     targetUserEmail: 'user@tenant.com',
     reason: 'Customer support request',
-    sessionToken: 'mock-token',
+    sessionTokenHash: 'mock-token-hash',
     ipAddress,
     userAgent,
     isActive: true,
@@ -165,6 +165,16 @@ describe('ImpersonationService', () => {
 
     it('should throw ConflictException if active session exists', async () => {
       sessionRepository.findOne.mockResolvedValue(mockSession as ImpersonationSession);
+
+      await expect(service.startImpersonation(dto, platformUserId, ipAddress, userAgent)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('should map unique-constraint insert race to ConflictException', async () => {
+      sessionRepository.findOne.mockResolvedValue(null);
+      sessionRepository.create.mockReturnValue(mockSession as ImpersonationSession);
+      sessionRepository.save.mockRejectedValue({ code: '23505' });
 
       await expect(service.startImpersonation(dto, platformUserId, ipAddress, userAgent)).rejects.toThrow(
         ConflictException,

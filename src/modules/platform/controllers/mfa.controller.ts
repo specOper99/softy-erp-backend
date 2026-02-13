@@ -170,11 +170,7 @@ export class MFAController {
     schema: {
       type: 'object',
       properties: {
-        backupCodes: {
-          type: 'array',
-          items: { type: 'string' },
-        },
-        total: { type: 'number' },
+        remaining: { type: 'number' },
       },
     },
   })
@@ -183,8 +179,7 @@ export class MFAController {
     const user = await this.mfaService.getUserWithFields(userId, ['mfaRecoveryCodes']);
 
     return {
-      backupCodes: user.mfaRecoveryCodes || [],
-      total: (user.mfaRecoveryCodes || []).length,
+      remaining: (user.mfaRecoveryCodes || []).length,
     };
   }
 

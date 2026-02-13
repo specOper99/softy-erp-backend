@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as QRCode from 'qrcode';
+import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { MFAService } from './mfa.service';
 
@@ -29,6 +30,7 @@ jest.mock('otpauth', () => ({
 
 describe('MFAService', () => {
   let service: MFAService;
+  let passwordHashService: PasswordHashService;
 
   beforeEach(async () => {
     const mockRepository = {
@@ -43,10 +45,18 @@ describe('MFAService', () => {
           provide: getRepositoryToken(PlatformUser),
           useValue: mockRepository,
         },
+        {
+          provide: PasswordHashService,
+          useValue: {
+            hash: jest.fn(async (value: string) => `hashed:${value}`),
+            verify: jest.fn(async (hashed: string, value: string) => hashed === `hashed:${value}`),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<MFAService>(MFAService);
+    passwordHashService = module.get<PasswordHashService>(PasswordHashService);
   });
 
   afterEach(() => {
@@ -138,97 +148,110 @@ describe('MFAService', () => {
   });
 
   describe('verifyBackupCode', () => {
-    it('should verify valid backup code', () => {
+    it('should verify valid backup code', async () => {
       const providedCode = 'ABC12345';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.verifyBackupCode(providedCode, storedCodes);
+      const result = await service.verifyBackupCode(providedCode, storedCodes);
 
       expect(result).toBe(true);
     });
 
-    it('should verify backup code case-insensitively', () => {
+    it('should verify backup code case-insensitively', async () => {
       const providedCode = 'abc12345';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.verifyBackupCode(providedCode, storedCodes);
+      const result = await service.verifyBackupCode(providedCode, storedCodes);
 
       expect(result).toBe(true);
     });
 
-    it('should verify backup code with trimmed whitespace', () => {
+    it('should verify backup code with trimmed whitespace', async () => {
       const providedCode = '  ABC12345  ';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.verifyBackupCode(providedCode, storedCodes);
+      const result = await service.verifyBackupCode(providedCode, storedCodes);
 
       expect(result).toBe(true);
     });
 
-    it('should reject invalid backup code', () => {
+    it('should reject invalid backup code', async () => {
       const providedCode = 'INVALID';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.verifyBackupCode(providedCode, storedCodes);
+      const result = await service.verifyBackupCode(providedCode, storedCodes);
 
       expect(result).toBe(false);
     });
 
-    it('should return false for empty backup codes list', () => {
+    it('should return false for empty backup codes list', async () => {
       const providedCode = 'ABC12345';
       const storedCodes: string[] = [];
 
-      const result = service.verifyBackupCode(providedCode, storedCodes);
+      const result = await service.verifyBackupCode(providedCode, storedCodes);
 
       expect(result).toBe(false);
     });
   });
 
   describe('removeUsedBackupCode', () => {
-    it('should remove used backup code', () => {
+    it('should remove used backup code', async () => {
       const usedCode = 'ABC12345';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.removeUsedBackupCode(usedCode, storedCodes);
+      const result = await service.removeUsedBackupCode(usedCode, storedCodes);
 
-      expect(result).toEqual(['DEF67890', 'GHI11111']);
-      expect(result).not.toContain('ABC12345');
+      expect(result).toEqual(['hashed:DEF67890', 'hashed:GHI11111']);
+      expect(result).not.toContain('hashed:ABC12345');
     });
 
-    it('should remove backup code case-insensitively', () => {
+    it('should remove backup code case-insensitively', async () => {
       const usedCode = 'abc12345';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.removeUsedBackupCode(usedCode, storedCodes);
+      const result = await service.removeUsedBackupCode(usedCode, storedCodes);
 
-      expect(result).toEqual(['DEF67890', 'GHI11111']);
+      expect(result).toEqual(['hashed:DEF67890', 'hashed:GHI11111']);
     });
 
-    it('should remove backup code with trimmed whitespace', () => {
+    it('should remove backup code with trimmed whitespace', async () => {
       const usedCode = '  ABC12345  ';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.removeUsedBackupCode(usedCode, storedCodes);
+      const result = await service.removeUsedBackupCode(usedCode, storedCodes);
 
-      expect(result).toEqual(['DEF67890', 'GHI11111']);
+      expect(result).toEqual(['hashed:DEF67890', 'hashed:GHI11111']);
     });
 
-    it('should handle non-existent backup code gracefully', () => {
+    it('should handle non-existent backup code gracefully', async () => {
       const usedCode = 'NONEXISTENT';
-      const storedCodes = ['ABC12345', 'DEF67890', 'GHI11111'];
+      const storedCodes = ['hashed:ABC12345', 'hashed:DEF67890', 'hashed:GHI11111'];
 
-      const result = service.removeUsedBackupCode(usedCode, storedCodes);
+      const result = await service.removeUsedBackupCode(usedCode, storedCodes);
 
       expect(result).toEqual(storedCodes);
     });
 
-    it('should handle empty codes list', () => {
+    it('should handle empty codes list', async () => {
       const usedCode = 'ABC12345';
       const storedCodes: string[] = [];
 
-      const result = service.removeUsedBackupCode(usedCode, storedCodes);
+      const result = await service.removeUsedBackupCode(usedCode, storedCodes);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('hashing on persistence', () => {
+    it('should hash backup codes when saving setup', async () => {
+      const repo = (service as unknown as { userRepository: { findOne: jest.Mock; save: jest.Mock } }).userRepository;
+      const user = { id: 'user-1', mfaSecret: null, mfaRecoveryCodes: [] } as unknown as PlatformUser;
+      repo.findOne.mockResolvedValueOnce(user);
+      repo.save.mockResolvedValueOnce(user);
+
+      await service.saveMfaSetup('user-1', 'secret', ['ABC12345']);
+
+      expect(passwordHashService.hash).toHaveBeenCalledWith('ABC12345');
     });
   });
 });

@@ -240,12 +240,11 @@ describe('MFAController', () => {
       const result = await controller.getBackupCodes(mockRequest);
 
       expect(result).toEqual({
-        backupCodes: ['CODE1', 'CODE2', 'CODE3'],
-        total: 3,
+        remaining: 3,
       });
     });
 
-    it('should return empty array if no backup codes', async () => {
+    it('should return zero if no backup codes', async () => {
       (mfaService.getUserWithFields as jest.Mock).mockResolvedValueOnce({
         ...mockUser,
         mfaRecoveryCodes: [],
@@ -258,8 +257,7 @@ describe('MFAController', () => {
       const result = await controller.getBackupCodes(mockRequest);
 
       expect(result).toEqual({
-        backupCodes: [],
-        total: 0,
+        remaining: 0,
       });
     });
 

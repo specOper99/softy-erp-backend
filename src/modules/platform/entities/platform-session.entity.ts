@@ -6,7 +6,7 @@ import { PlatformUser } from './platform-user.entity';
  */
 @Entity('platform_sessions')
 @Index(['userId', 'expiresAt'])
-@Index(['sessionToken'], { unique: true })
+@Index(['sessionTokenHash'], { unique: true, where: 'session_token_hash IS NOT NULL' })
 @Index(['isRevoked', 'expiresAt'])
 export class PlatformSession {
   @PrimaryGeneratedColumn('uuid')
@@ -19,11 +19,11 @@ export class PlatformSession {
   @JoinColumn({ name: 'user_id' })
   user: PlatformUser;
 
-  @Column({ name: 'session_token', type: 'text', unique: true, nullable: true })
-  sessionToken: string | null;
+  @Column({ name: 'session_token_hash', type: 'varchar', length: 64, nullable: true })
+  sessionTokenHash: string | null;
 
-  @Column({ name: 'refresh_token', type: 'text', nullable: true })
-  refreshToken: string | null;
+  @Column({ name: 'refresh_token_hash', type: 'varchar', length: 64, nullable: true })
+  refreshTokenHash: string | null;
 
   @Column({ name: 'ip_address', type: 'varchar', length: 45 })
   ipAddress: string;
