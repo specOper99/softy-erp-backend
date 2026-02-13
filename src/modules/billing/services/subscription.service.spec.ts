@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { BillingCustomer } from '../entities/billing-customer.entity';
+import { BillingWebhookEvent } from '../entities/billing-webhook-event.entity';
 import { PaymentMethod } from '../entities/payment-method.entity';
 import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 import { StripeService } from './stripe.service';
@@ -15,6 +16,7 @@ describe('SubscriptionService', () => {
   let service: SubscriptionService;
   let subscriptionRepo: jest.Mocked<Repository<Subscription>>;
   let customerRepo: jest.Mocked<Repository<BillingCustomer>>;
+  let webhookEventRepo: jest.Mocked<Repository<BillingWebhookEvent>>;
   let tenantRepo: jest.Mocked<Repository<Tenant>>;
   let stripeService: jest.Mocked<StripeService>;
 
@@ -48,6 +50,13 @@ describe('SubscriptionService', () => {
           },
         },
         {
+          provide: getRepositoryToken(BillingWebhookEvent),
+          useValue: {
+            create: jest.fn(),
+            insert: jest.fn(),
+          },
+        },
+        {
           provide: getRepositoryToken(Tenant),
           useValue: {
             findOne: jest.fn(),
@@ -69,6 +78,7 @@ describe('SubscriptionService', () => {
     service = module.get<SubscriptionService>(SubscriptionService);
     subscriptionRepo = module.get(getRepositoryToken(Subscription));
     customerRepo = module.get(getRepositoryToken(BillingCustomer));
+    webhookEventRepo = module.get(getRepositoryToken(BillingWebhookEvent));
     tenantRepo = module.get(getRepositoryToken(Tenant));
     stripeService = module.get(StripeService);
   });
@@ -259,14 +269,40 @@ describe('SubscriptionService', () => {
   });
 
   describe('handleWebhookEvent', () => {
+    it('should skip duplicate events', async () => {
+      const mockEvent = {
+        id: 'evt_duplicate',
+        type: 'invoice.payment_succeeded',
+        data: { object: { subscription: 'sub_123' } },
+      } as unknown as Stripe.Event;
+
+      webhookEventRepo.create.mockReturnValue({
+        provider: 'stripe',
+        eventId: mockEvent.id,
+      } as unknown as BillingWebhookEvent);
+      webhookEventRepo.insert.mockRejectedValue({ code: '23505' });
+
+      await service.handleWebhookEvent(mockEvent);
+
+      expect(subscriptionRepo.findOne).not.toHaveBeenCalled();
+      expect(subscriptionRepo.save).not.toHaveBeenCalled();
+    });
+
     it('should handle expanded subscription object in invoice', async () => {
       const mockInvoice = {
         subscription: { id: 'sub_123' },
       };
       const mockEvent = {
+        id: 'evt_123',
         type: 'invoice.payment_succeeded',
         data: { object: mockInvoice },
       } as unknown as Stripe.Event;
+
+      webhookEventRepo.create.mockReturnValue({
+        provider: 'stripe',
+        eventId: mockEvent.id,
+      } as unknown as BillingWebhookEvent);
+      webhookEventRepo.insert.mockResolvedValue({} as never);
 
       const mockSubscription = { id: 'sub-db-1', status: SubscriptionStatus.PAST_DUE };
       subscriptionRepo.findOne.mockResolvedValue(mockSubscription as unknown as Subscription);
@@ -288,9 +324,16 @@ describe('SubscriptionService', () => {
         items: { data: [{ price: { id: 'price_123' } }] },
       };
       const mockEvent = {
+        id: 'evt_456',
         type: 'customer.subscription.updated',
         data: { object: mockStripeSub },
       } as unknown as Stripe.Event;
+
+      webhookEventRepo.create.mockReturnValue({
+        provider: 'stripe',
+        eventId: mockEvent.id,
+      } as unknown as BillingWebhookEvent);
+      webhookEventRepo.insert.mockResolvedValue({} as never);
 
       customerRepo.findOne.mockResolvedValue({ tenantId: 'tenant-1' } as unknown as BillingCustomer);
       subscriptionRepo.findOne.mockResolvedValue({

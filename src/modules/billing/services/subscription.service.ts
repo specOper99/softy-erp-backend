@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { BillingCustomer } from '../entities/billing-customer.entity';
+import { BillingWebhookEvent } from '../entities/billing-webhook-event.entity';
 import { PaymentMethod } from '../entities/payment-method.entity';
 import { BillingInterval, Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 import { StripeService } from './stripe.service';
@@ -29,6 +30,8 @@ export class SubscriptionService {
     private readonly customerRepo: Repository<BillingCustomer>,
     @InjectRepository(PaymentMethod)
     private readonly paymentMethodRepo: Repository<PaymentMethod>,
+    @InjectRepository(BillingWebhookEvent)
+    private readonly webhookEventRepo: Repository<BillingWebhookEvent>,
     @InjectRepository(Tenant)
     private readonly tenantRepo: Repository<Tenant>,
     private readonly stripeService: StripeService,
@@ -133,6 +136,12 @@ export class SubscriptionService {
   }
 
   async handleWebhookEvent(event: Stripe.Event): Promise<void> {
+    const firstSeen = await this.markWebhookEventProcessed('stripe', event.id);
+    if (!firstSeen) {
+      this.logger.warn(`Skipping duplicate webhook event: ${event.id}`);
+      return;
+    }
+
     this.logger.log(`Processing webhook event: ${event.type}`);
 
     switch (event.type) {
@@ -283,5 +292,22 @@ export class SubscriptionService {
     if (priceId.includes('enterprise')) return SubscriptionPlan.ENTERPRISE;
     if (priceId.includes('pro')) return SubscriptionPlan.PRO;
     return SubscriptionPlan.FREE;
+  }
+
+  private async markWebhookEventProcessed(provider: string, eventId: string): Promise<boolean> {
+    try {
+      await this.webhookEventRepo.insert(
+        this.webhookEventRepo.create({
+          provider,
+          eventId,
+        }),
+      );
+      return true;
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+        return false;
+      }
+      throw error;
+    }
   }
 }
