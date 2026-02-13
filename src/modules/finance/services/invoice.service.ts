@@ -56,16 +56,28 @@ export class InvoiceService {
       },
     ];
 
+    const amountPaid = Math.max(0, Number(booking.amountPaid || 0));
+    const balanceDue = Math.max(0, Number(booking.totalPrice) - amountPaid);
+    const status =
+      balanceDue === 0 ? InvoiceStatus.PAID : amountPaid > 0 ? InvoiceStatus.PARTIALLY_PAID : InvoiceStatus.DRAFT;
+
     const invoice = this.invoiceRepository.create({
+      bookingId: booking.id,
+      clientId: booking.clientId,
       booking,
+      client: booking.client,
       invoiceNumber,
-      status: InvoiceStatus.DRAFT,
+      status,
       issueDate: new Date(),
       dueDate: new Date(booking.eventDate),
+      paidDate: balanceDue === 0 ? new Date() : null,
       items,
       subTotal: booking.subTotal,
+      taxRate: booking.taxRate,
       taxTotal: booking.taxAmount,
       totalAmount: booking.totalPrice,
+      amountPaid,
+      balanceDue,
       currency: 'USD',
     });
 
