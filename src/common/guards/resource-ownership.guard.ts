@@ -23,10 +23,19 @@
  * async downloadPdf(@Param('id') id: string) { ... }
  * ```
  */
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger, SetMetadata } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  SetMetadata,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { DataSource } from 'typeorm';
+import { Client } from '../../modules/bookings/entities/client.entity';
 import { User } from '../../modules/users/entities/user.entity';
 import { Role } from '../../modules/users/enums/role.enum';
 import { TenantContextService } from '../services/tenant-context.service';
@@ -121,7 +130,7 @@ export class ResourceOwnershipGuard implements CanActivate {
     const userField = config.userField || 'id';
 
     // Get user's value for comparison
-    const userValue = this.getUserFieldValue(user, userField);
+    const userValue = await this.getUserFieldValue(user, userField, tenantId);
     if (!userValue) {
       this.logger.debug(`User ${user.id} has no value for field ${userField}`);
       return false;
@@ -140,25 +149,46 @@ export class ResourceOwnershipGuard implements CanActivate {
       });
 
       if (!resource) {
-        // Resource not found - let the controller handle 404
-        return true;
+        throw new NotFoundException(`${config.resourceType} ${resourceId} not found`);
       }
 
       const resourceOwnerValue = (resource as Record<string, unknown>)[config.ownerField];
       return resourceOwnerValue === userValue;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       this.logger.error(`Failed to verify ownership for ${config.resourceType} ${resourceId}: ${error}`);
       // Fail closed - deny access on error
       return false;
     }
   }
 
-  private getUserFieldValue(user: User & { clientId?: string }, field: string): string | null {
+  private async getUserFieldValue(
+    user: User & { clientId?: string },
+    field: string,
+    tenantId: string,
+  ): Promise<string | null> {
     switch (field) {
       case 'id':
         return user.id;
-      case 'clientId':
-        return user.clientId || null;
+      case 'clientId': {
+        if (user.clientId) {
+          return user.clientId;
+        }
+
+        if (!user.email) {
+          return null;
+        }
+
+        const clientRepo = this.dataSource.getRepository(Client);
+        const client = await clientRepo.findOne({
+          where: { tenantId, email: user.email },
+          select: ['id'],
+        });
+
+        return client?.id ?? null;
+      }
       default:
         return (user as unknown as Record<string, string>)[field] || null;
     }
