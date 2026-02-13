@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
@@ -16,7 +16,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ReviewsModule } from '../reviews/reviews.module';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantsModule } from '../tenants/tenants.module';
-import { ClientPortalController } from './controllers/client-portal-extended.controller';
+import { ClientPortalController } from './client-portal.controller';
+import { ValidateTenantSlugMiddleware } from './decorators/validate-tenant-slug.decorator';
 import { ClientTokenGuard } from './guards/client-token.guard';
 import { AvailabilityService } from './services/availability.service';
 import { ClientAuthService } from './services/client-auth.service';
@@ -58,4 +59,16 @@ import { ClientPortalService } from './services/client-portal.service';
   ],
   exports: [ClientAuthService, ClientPortalService, AvailabilityService],
 })
-export class ClientPortalModule {}
+export class ClientPortalModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer
+      .apply(ValidateTenantSlugMiddleware)
+      .forRoutes(
+        'client-portal/:slug/auth/request-magic-link',
+        'client-portal/:slug/packages',
+        'client-portal/:slug/packages/:id',
+        'client-portal/:slug/packages/:id/reviews',
+        'client-portal/:slug/packages/:id/availability',
+      );
+  }
+}

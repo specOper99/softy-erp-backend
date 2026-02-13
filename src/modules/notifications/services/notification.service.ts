@@ -22,7 +22,7 @@ export class NotificationService {
 
     const queryBuilder = this.notificationRepo
       .createQueryBuilder('notification')
-      .where('notification.userId = :userId', { userId });
+      .andWhere('notification.userId = :userId', { userId });
 
     if (read !== undefined) {
       queryBuilder.andWhere('notification.read = :read', { read });
@@ -70,7 +70,7 @@ export class NotificationService {
       .createQueryBuilder('notification')
       .update(Notification)
       .set({ read: true, readAt: new Date() })
-      .where('userId = :userId', { userId })
+      .andWhere('userId = :userId', { userId })
       .andWhere('read = :read', { read: false })
       .execute();
 
@@ -109,7 +109,7 @@ export class NotificationService {
 
     const queryBuilder = this.notificationRepo
       .createQueryBuilder('notification')
-      .where('notification.tenantId = :tenantId', { tenantId })
+      .andWhere('notification.tenantId = :tenantId', { tenantId })
       .andWhere('notification.clientId = :clientId', { clientId })
       .orderBy('notification.createdAt', 'DESC')
       .skip((page - 1) * limit)

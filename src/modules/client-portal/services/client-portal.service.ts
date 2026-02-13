@@ -1,10 +1,21 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CreateBookingDto } from '../../bookings/dto';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
+import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
+import { BookingsService } from '../../bookings/services/bookings.service';
+import { CatalogService } from '../../catalog/services/catalog.service';
+import { NotificationType } from '../../notifications/enums/notification.enum';
+import { NotificationService } from '../../notifications/services/notification.service';
+import { Tenant } from '../../tenants/entities/tenant.entity';
+import { TenantsService } from '../../tenants/tenants.service';
+import { CreateClientBookingDto } from '../dto/create-client-booking.dto';
+import { AvailabilityService } from './availability.service';
 
 @Injectable()
 export class ClientPortalService {
@@ -12,6 +23,11 @@ export class ClientPortalService {
     @Inject(TENANT_REPO_CLIENT)
     private readonly clientRepository: TenantAwareRepository<Client>,
     private readonly bookingRepository: BookingRepository,
+    private readonly bookingsService: BookingsService,
+    private readonly catalogService: CatalogService,
+    private readonly tenantsService: TenantsService,
+    private readonly availabilityService: AvailabilityService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async getClientProfile(clientId: string, tenantId: string): Promise<Partial<Client>> {
@@ -56,5 +72,97 @@ export class ClientPortalService {
     }
 
     return booking;
+  }
+
+  async createBooking(client: Client, dto: CreateClientBookingDto): Promise<Booking> {
+    const tenant = await this.tenantsService.findOne(client.tenantId);
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const eventDate = this.toUtcDate(dto.eventDate);
+    this.validateNoticePeriod(eventDate, tenant);
+
+    const servicePackage = await this.catalogService.findPackageById(dto.packageId);
+    if (!servicePackage || servicePackage.tenantId !== client.tenantId) {
+      throw new NotFoundException('Package not found');
+    }
+
+    await this.ensureSlotCapacity(client.tenantId, dto.packageId, eventDate, dto.startTime, tenant);
+
+    const bookingInput: CreateBookingDto = {
+      clientId: client.id,
+      packageId: dto.packageId,
+      eventDate: eventDate.toISOString(),
+      notes: dto.notes,
+      taxRate: tenant.defaultTaxRate ?? 0,
+      depositPercentage: 0,
+      startTime: dto.startTime,
+    };
+
+    const savedBooking = await TenantContextService.run(client.tenantId, async () => {
+      return this.bookingsService.create(bookingInput);
+    });
+
+    await this.availabilityService.invalidateAvailabilityCache(client.tenantId, dto.packageId, dto.eventDate);
+    await this.sendBookingNotifications(client, tenant, savedBooking);
+
+    return savedBooking;
+  }
+
+  private async ensureSlotCapacity(
+    tenantId: string,
+    packageId: string,
+    eventDate: Date,
+    startTime: string,
+    tenant: Tenant,
+  ): Promise<void> {
+    const confirmedCount = await this.bookingRepository.count({
+      where: {
+        packageId,
+        eventDate,
+        startTime,
+        status: BookingStatus.CONFIRMED,
+      },
+    });
+
+    const maxConcurrent = tenant.maxConcurrentBookingsPerSlot ?? 1;
+    if (confirmedCount >= maxConcurrent) {
+      throw new ConflictException('Selected time slot is fully booked');
+    }
+  }
+
+  private validateNoticePeriod(eventDate: Date, tenant: Tenant): void {
+    const minNoticeHours = tenant.minimumNoticePeriodHours ?? 24;
+    const minDate = new Date(Date.now() + minNoticeHours * 60 * 60 * 1000);
+    if (eventDate < minDate) {
+      throw new BadRequestException(`Booking requires at least ${minNoticeHours} hours notice`);
+    }
+  }
+
+  private toUtcDate(date: string): Date {
+    const [yearStr, monthStr, dayStr] = date.split('-');
+    const year = parseInt(yearStr || '0', 10);
+    const month = parseInt(monthStr || '0', 10);
+    const day = parseInt(dayStr || '0', 10);
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  private async sendBookingNotifications(client: Client, tenant: Tenant, booking: Booking): Promise<void> {
+    if (client.notificationPreferences?.inApp) {
+      await this.notificationService.create({
+        tenantId: client.tenantId,
+        clientId: client.id,
+        userId: null,
+        type: NotificationType.BOOKING_CREATED,
+        title: 'Booking Request Submitted',
+        message: 'Your booking request has been submitted and is pending approval.',
+        metadata: { bookingId: booking.id },
+      });
+    }
+
+    if (tenant.notificationEmails && tenant.notificationEmails.length > 0) {
+      // Mail dispatch intentionally handled by existing async handlers.
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, Min } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { BookingStatus } from '../enums/booking-status.enum';
@@ -22,6 +22,13 @@ export class CreateBookingDto {
   @IsOptional()
   @SanitizeHtml()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Start time in HH:mm format', example: '14:30' })
+  @Matches(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/, {
+    message: 'startTime must be in HH:mm format',
+  })
+  @IsOptional()
+  startTime?: string;
 
   @ApiPropertyOptional({ description: 'Tax rate override (0-50%)' })
   @IsNumber()

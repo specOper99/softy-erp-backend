@@ -4,7 +4,12 @@ import { Request } from 'express';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
+import { ClientsService } from '../bookings/services/clients.service';
+import { CatalogService } from '../catalog/services/catalog.service';
+import { NotificationService } from '../notifications/services/notification.service';
+import { ReviewsService } from '../reviews/services/reviews.service';
 import { ClientPortalController } from './client-portal.controller';
+import { AvailabilityService } from './services/availability.service';
 import { ClientAuthService } from './services/client-auth.service';
 import { ClientPortalService } from './services/client-portal.service';
 
@@ -40,6 +45,33 @@ describe('ClientPortalController', () => {
       getMyBookings: jest.fn(),
       getBooking: jest.fn(),
       getClientProfile: jest.fn(),
+      createBooking: jest.fn(),
+    };
+
+    const mockCatalogService = {
+      findAllPackagesWithFilters: jest.fn(),
+      findPackageById: jest.fn(),
+    };
+
+    const mockReviewsService = {
+      findApprovedByPackage: jest.fn(),
+      checkDuplicateReview: jest.fn(),
+      create: jest.fn(),
+    };
+
+    const mockAvailabilityService = {
+      checkAvailability: jest.fn(),
+      findNextAvailableDate: jest.fn(),
+    };
+
+    const mockNotificationService = {
+      create: jest.fn(),
+      findByClient: jest.fn(),
+      markAsReadForClient: jest.fn(),
+    };
+
+    const mockClientsService = {
+      update: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +79,11 @@ describe('ClientPortalController', () => {
       providers: [
         { provide: ClientAuthService, useValue: mockClientAuthService },
         { provide: ClientPortalService, useValue: mockClientPortalService },
+        { provide: CatalogService, useValue: mockCatalogService },
+        { provide: ReviewsService, useValue: mockReviewsService },
+        { provide: AvailabilityService, useValue: mockAvailabilityService },
+        { provide: NotificationService, useValue: mockNotificationService },
+        { provide: ClientsService, useValue: mockClientsService },
       ],
     }).compile();
 

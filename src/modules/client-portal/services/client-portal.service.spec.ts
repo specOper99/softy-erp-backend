@@ -2,9 +2,15 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
+import { BookingsService } from '../../bookings/services/bookings.service';
+import { CatalogService } from '../../catalog/services/catalog.service';
+import { NotificationService } from '../../notifications/services/notification.service';
+import { TenantsService } from '../../tenants/tenants.service';
+import { AvailabilityService } from './availability.service';
 import { ClientPortalService } from './client-portal.service';
 
 describe('ClientPortalService', () => {
@@ -15,7 +21,13 @@ describe('ClientPortalService', () => {
   let bookingRepository: {
     find: jest.Mock;
     findOne: jest.Mock;
+    count: jest.Mock;
   };
+  let bookingsService: { create: jest.Mock };
+  let catalogService: { findPackageById: jest.Mock };
+  let tenantsService: { findOne: jest.Mock };
+  let availabilityService: { invalidateAvailabilityCache: jest.Mock };
+  let notificationService: { create: jest.Mock };
 
   const mockClient: Partial<Client> = {
     id: 'client-1',
@@ -40,13 +52,25 @@ describe('ClientPortalService', () => {
     bookingRepository = {
       find: jest.fn(),
       findOne: jest.fn(),
+      count: jest.fn(),
     };
+
+    bookingsService = { create: jest.fn() };
+    catalogService = { findPackageById: jest.fn() };
+    tenantsService = { findOne: jest.fn() };
+    availabilityService = { invalidateAvailabilityCache: jest.fn() };
+    notificationService = { create: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClientPortalService,
         { provide: TENANT_REPO_CLIENT, useValue: clientRepository },
         { provide: BookingRepository, useValue: bookingRepository },
+        { provide: BookingsService, useValue: bookingsService },
+        { provide: CatalogService, useValue: catalogService },
+        { provide: TenantsService, useValue: tenantsService },
+        { provide: AvailabilityService, useValue: availabilityService },
+        { provide: NotificationService, useValue: notificationService },
       ],
     }).compile();
 
@@ -141,6 +165,48 @@ describe('ClientPortalService', () => {
       bookingRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getBooking('booking-1', 'client-1', 'tenant-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('createBooking', () => {
+    it('should create booking using shared booking service flow', async () => {
+      const tenant = {
+        id: 'tenant-1',
+        defaultTaxRate: 10,
+        minimumNoticePeriodHours: 1,
+        maxConcurrentBookingsPerSlot: 2,
+        notificationEmails: [],
+      };
+
+      tenantsService.findOne.mockResolvedValue(tenant);
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-1',
+        tenantId: 'tenant-1',
+      });
+      bookingRepository.count.mockResolvedValue(0);
+
+      const createdBooking = {
+        id: 'booking-1',
+        status: BookingStatus.DRAFT,
+      } as Booking;
+      bookingsService.create.mockResolvedValue(createdBooking);
+
+      const result = await service.createBooking(mockClient as Client, {
+        packageId: 'pkg-1',
+        eventDate: '2099-01-01',
+        startTime: '10:00',
+        notes: 'notes',
+      });
+
+      expect(bookingsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: 'client-1',
+          packageId: 'pkg-1',
+          startTime: '10:00',
+        }),
+      );
+      expect(availabilityService.invalidateAvailabilityCache).toHaveBeenCalledWith('tenant-1', 'pkg-1', '2099-01-01');
+      expect(result).toEqual(createdBooking);
     });
   });
 });
