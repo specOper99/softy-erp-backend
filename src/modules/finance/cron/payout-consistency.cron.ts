@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import pLimit from 'p-limit';
 import { Gauge, register } from 'prom-client';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
 import { TenantsService } from '../../tenants/tenants.service';
+import { FINANCE } from '../constants';
 import { Payout } from '../entities/payout.entity';
 import { PayoutRepository } from '../repositories/payout.repository';
 
@@ -39,22 +41,28 @@ export class PayoutConsistencyCron {
         const tenants = await this.tenantsService.findAll();
         let totalStuck = 0;
 
-        for (const tenant of tenants) {
-          await TenantContextService.run(tenant.id, async () => {
-            const stuckPayouts = await this.findStuckPayouts();
-            totalStuck += stuckPayouts.length;
+        const tenantLimit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+        await Promise.allSettled(
+          tenants.map((tenant) =>
+            tenantLimit(async () => {
+              await TenantContextService.run(tenant.id, async () => {
+                const stuckPayouts = await this.findStuckPayouts();
+                totalStuck += stuckPayouts.length;
 
-            if (stuckPayouts.length > 0) {
-              this.logger.warn(
-                `Tenant ${tenant.id}: Found ${stuckPayouts.length} stuck payouts. Checking status with gateway...`,
-              );
+                if (stuckPayouts.length > 0) {
+                  this.logger.warn(
+                    `Tenant ${tenant.id}: Found ${stuckPayouts.length} stuck payouts. Checking status with gateway...`,
+                  );
 
-              for (const payout of stuckPayouts) {
-                await this.handleStuckPayout(payout);
-              }
-            }
-          });
-        }
+                  const payoutLimit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+                  await Promise.allSettled(
+                    stuckPayouts.map((payout) => payoutLimit(() => this.handleStuckPayout(payout))),
+                  );
+                }
+              });
+            }),
+          ),
+        );
 
         // Update Prometheus metric with total across all tenants
         this.stuckPayoutsGauge.set(totalStuck);

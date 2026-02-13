@@ -239,88 +239,94 @@ export class PayrollService {
     // Original was per-employee transaction.
     // We can stick to per-employee for failure isolation.
 
-    for (const profile of profiles) {
-      const baseSalary = Number(profile.baseSalary) || 0;
+    const limit = pLimit(5);
 
-      const payrollMonth = new Date().toISOString().slice(0, 7);
-      const referenceId = `${tenantId}-${profile.id}-${payrollMonth}`;
-      const idempotencyKey = `payroll:${tenantId}:${profile.id}:${payrollMonth}`;
+    await Promise.allSettled(
+      profiles.map((profile) =>
+        limit(async () => {
+          const baseSalary = Number(profile.baseSalary) || 0;
 
-      try {
-        const result = await this.tenantTx.run(async (manager) => {
-          const wallet = await this.walletService.getOrCreateWalletWithManager(manager, profile.userId);
+          const payrollMonth = new Date().toISOString().slice(0, 7);
+          const referenceId = `${tenantId}-${profile.id}-${payrollMonth}`;
+          const idempotencyKey = `payroll:${tenantId}:${profile.id}:${payrollMonth}`;
 
-          const commissionPayable = wallet ? Number(wallet.payableBalance) || 0 : 0;
-          const totalAmount = MathUtils.add(baseSalary, commissionPayable);
+          try {
+            const result = await this.tenantTx.run(async (manager) => {
+              const wallet = await this.walletService.getOrCreateWalletWithManager(manager, profile.userId);
 
-          if (totalAmount <= 0) {
-            return null; // Skip this employee
+              const commissionPayable = wallet ? Number(wallet.payableBalance) || 0 : 0;
+              const totalAmount = MathUtils.add(baseSalary, commissionPayable);
+
+              if (totalAmount <= 0) {
+                return null; // Skip this employee
+              }
+
+              const existingPayout = await manager.findOne(Payout, {
+                where: {
+                  tenantId,
+                  idempotencyKey,
+                },
+              });
+
+              if (existingPayout) {
+                this.logger.log(`Skipping already existing payout for ${idempotencyKey}`);
+                return null; // Skip this employee
+              }
+
+              const payout = manager.create(Payout, {
+                tenantId,
+                idempotencyKey,
+                amount: totalAmount,
+                commissionAmount: commissionPayable,
+                payoutDate: new Date(),
+                status: PayoutStatus.PENDING,
+                notes: `Pending payroll for ${referenceId}`,
+                currency: Currency.USD,
+                metadata: {
+                  userId: profile.userId,
+                  employeeName: `${profile.firstName || ''} ${profile.lastName || ''}`,
+                  bankAccount: profile.bankAccount || 'NO_BANK_ACCOUNT',
+                  referenceId,
+                },
+              });
+
+              await manager.save(payout);
+
+              // Create corresponding transaction record for the payout
+              const transaction = manager.create(Transaction, {
+                tenantId,
+                type: TransactionType.PAYROLL,
+                currency: Currency.USD,
+                exchangeRate: 1.0,
+                amount: totalAmount,
+                category: 'Payroll',
+                department: profile.department || 'Operations',
+                payoutId: payout.id,
+                description: `Payroll payout for ${profile.firstName || ''} ${profile.lastName || ''}`,
+                transactionDate: new Date(),
+              });
+
+              await manager.save(transaction);
+
+              if (wallet && commissionPayable > 0) {
+                await this.walletService.resetPayableBalance(manager, profile.userId);
+              }
+
+              return { transaction, totalAmount };
+            });
+
+            if (result) {
+              transactionIds.push(result.transaction.id);
+              totalPayout = MathUtils.add(totalPayout, result.totalAmount);
+              employeesProcessed++;
+            }
+          } catch (error) {
+            this.logger.error(`Payroll processing failed for ${profile.firstName} ${profile.lastName}`, error);
+            // Continue with next employee - partial payroll is better than none
           }
-
-          const existingPayout = await manager.findOne(Payout, {
-            where: {
-              tenantId,
-              idempotencyKey,
-            },
-          });
-
-          if (existingPayout) {
-            this.logger.log(`Skipping already existing payout for ${idempotencyKey}`);
-            return null; // Skip this employee
-          }
-
-          const payout = manager.create(Payout, {
-            tenantId,
-            idempotencyKey,
-            amount: totalAmount,
-            commissionAmount: commissionPayable,
-            payoutDate: new Date(),
-            status: PayoutStatus.PENDING,
-            notes: `Pending payroll for ${referenceId}`,
-            currency: Currency.USD,
-            metadata: {
-              userId: profile.userId,
-              employeeName: `${profile.firstName || ''} ${profile.lastName || ''}`,
-              bankAccount: profile.bankAccount || 'NO_BANK_ACCOUNT',
-              referenceId,
-            },
-          });
-
-          await manager.save(payout);
-
-          // Create corresponding transaction record for the payout
-          const transaction = manager.create(Transaction, {
-            tenantId,
-            type: TransactionType.PAYROLL,
-            currency: Currency.USD,
-            exchangeRate: 1.0,
-            amount: totalAmount,
-            category: 'Payroll',
-            department: profile.department || 'Operations',
-            payoutId: payout.id,
-            description: `Payroll payout for ${profile.firstName || ''} ${profile.lastName || ''}`,
-            transactionDate: new Date(),
-          });
-
-          await manager.save(transaction);
-
-          if (wallet && commissionPayable > 0) {
-            await this.walletService.resetPayableBalance(manager, profile.userId);
-          }
-
-          return { transaction, totalAmount };
-        });
-
-        if (result) {
-          transactionIds.push(result.transaction.id);
-          totalPayout = MathUtils.add(totalPayout, result.totalAmount);
-          employeesProcessed++;
-        }
-      } catch (error) {
-        this.logger.error(`Payroll processing failed for ${profile.firstName} ${profile.lastName}`, error);
-        // Continue with next employee - partial payroll is better than none
-      }
-    }
+        }),
+      ),
+    );
 
     return { transactionIds, totalPayout, employeesProcessed };
   }

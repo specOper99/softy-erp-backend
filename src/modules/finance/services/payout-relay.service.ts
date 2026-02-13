@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import pLimit from 'p-limit';
 import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -71,9 +72,8 @@ export class PayoutRelayService {
 
     this.logger.log(`Found ${payouts.length} pending payouts to process`);
 
-    for (const payout of payouts) {
-      await this.processSinglePayout(payout);
-    }
+    const limit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+    await Promise.allSettled(payouts.map((payout) => limit(() => this.processSinglePayout(payout))));
   }
 
   private async processSinglePayout(payout: Payout): Promise<void> {

@@ -14,7 +14,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 
 export interface LockResult {
   acquired: boolean;
@@ -190,7 +190,7 @@ export class DistributedLockService implements OnModuleDestroy {
 
       if (attempt < maxRetries) {
         // Exponential backoff with jitter
-        const delay = retryDelay * Math.pow(2, attempt - 1) + Math.random() * 50;
+        const delay = retryDelay * Math.pow(2, attempt - 1) + randomInt(0, 50);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

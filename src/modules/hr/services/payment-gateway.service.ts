@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomBytes, randomInt } from 'node:crypto';
 
 @Injectable()
 export class MockPaymentGatewayService {
@@ -24,7 +25,7 @@ export class MockPaymentGatewayService {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Simulate 5% failure rate for testing FAILED status
-    if (Math.random() < 0.05) {
+    if (this.getFailureRoll() < 5) {
       this.logger.warn(`Payout failed for ${details.referenceId}`);
       return { success: false, error: 'INSUFFICIENT_FUNDS' };
     }
@@ -32,7 +33,7 @@ export class MockPaymentGatewayService {
     this.logger.log(`Payout successful for ${details.referenceId}`);
     return {
       success: true,
-      transactionReference: `BANK_TXN_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      transactionReference: `BANK_TXN_${this.getReferenceSuffix()}`,
     };
   }
 
@@ -56,7 +57,15 @@ export class MockPaymentGatewayService {
 
     return {
       status: 'COMPLETED',
-      transactionReference: `BANK_TXN_CHECK_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      transactionReference: `BANK_TXN_CHECK_${this.getReferenceSuffix()}`,
     };
+  }
+
+  protected getFailureRoll(): number {
+    return randomInt(0, 100);
+  }
+
+  protected getReferenceSuffix(): string {
+    return randomBytes(4).toString('hex').toUpperCase();
   }
 }

@@ -1,15 +1,28 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MockPaymentGatewayService } from './payment-gateway.service';
 
+class DeterministicMockPaymentGatewayService extends MockPaymentGatewayService {
+  failureRoll = 50;
+  referenceSuffix = '1234ABCD';
+
+  protected override getFailureRoll(): number {
+    return this.failureRoll;
+  }
+
+  protected override getReferenceSuffix(): string {
+    return this.referenceSuffix;
+  }
+}
+
 describe('MockPaymentGatewayService', () => {
-  let service: MockPaymentGatewayService;
+  let service: DeterministicMockPaymentGatewayService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MockPaymentGatewayService],
+      providers: [DeterministicMockPaymentGatewayService],
     }).compile();
 
-    service = module.get<MockPaymentGatewayService>(MockPaymentGatewayService);
+    service = module.get<DeterministicMockPaymentGatewayService>(DeterministicMockPaymentGatewayService);
   });
 
   it('should be defined', () => {
@@ -18,8 +31,8 @@ describe('MockPaymentGatewayService', () => {
 
   describe('triggerPayout', () => {
     it('should return success for valid payout', async () => {
-      // Mock Math.random to always return > 0.05 (success)
-      const mockRandom = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      service.failureRoll = 50;
+      service.referenceSuffix = '1234ABCD';
 
       const result = await service.triggerPayout({
         employeeName: 'John Doe',
@@ -30,14 +43,11 @@ describe('MockPaymentGatewayService', () => {
 
       expect(result.success).toBe(true);
       expect(result.transactionReference).toBeDefined();
-      expect(result.transactionReference).toMatch(/^BANK_TXN_/);
-
-      mockRandom.mockRestore();
+      expect(result.transactionReference).toBe('BANK_TXN_1234ABCD');
     });
 
     it('should return failure when simulating 5% failure rate', async () => {
-      // Mock Math.random to return < 0.05 (failure)
-      const mockRandom = jest.spyOn(Math, 'random').mockReturnValue(0.01);
+      service.failureRoll = 1;
 
       const result = await service.triggerPayout({
         employeeName: 'Jane Doe',
@@ -48,12 +58,11 @@ describe('MockPaymentGatewayService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('INSUFFICIENT_FUNDS');
-
-      mockRandom.mockRestore();
     });
 
     it('should include amount in log', async () => {
-      const mockRandom = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      service.failureRoll = 50;
+      service.referenceSuffix = 'CAFEBABE';
 
       const result = await service.triggerPayout({
         employeeName: 'Test User',
@@ -63,7 +72,7 @@ describe('MockPaymentGatewayService', () => {
       });
 
       expect(result.success).toBe(true);
-      mockRandom.mockRestore();
+      expect(result.transactionReference).toBe('BANK_TXN_CAFEBABE');
     });
   });
 });

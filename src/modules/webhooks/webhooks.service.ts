@@ -8,7 +8,7 @@ import {
   RequestTimeoutException,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { createHmac } from 'node:crypto';
+import { createHmac, randomInt } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { SelectQueryBuilder } from 'typeorm';
@@ -330,7 +330,7 @@ export class WebhookService {
         }
         // Exponential backoff with jitter to prevent thundering herd
         const baseDelay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
-        const jitter = Math.random() * baseDelay; // Random jitter between 0 and baseDelay
+        const jitter = randomInt(0, Math.max(1, baseDelay));
         const delay = baseDelay + jitter;
         await new Promise((resolve) => setTimeout(resolve, delay));
       }

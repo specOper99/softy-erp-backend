@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
+import pLimit from 'p-limit';
 import { Counter, Gauge } from 'prom-client';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
@@ -8,6 +9,7 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { Payout } from '../../finance/entities/payout.entity';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
 import { PayoutRepository } from '../../finance/repositories/payout.repository';
+import { FINANCE } from '../../finance/constants';
 import { TicketPriority } from '../../notifications/services/ticketing.interface';
 import { TicketingService } from '../../notifications/services/ticketing.service';
 import { TenantsService } from '../../tenants/tenants.service';
@@ -83,17 +85,22 @@ export class PayrollReconciliationService {
           const tenants = await this.tenantsService.findAll();
           let totalMismatches = 0;
 
-          for (const tenant of tenants) {
-            await TenantContextService.run(tenant.id, async () => {
-              const mismatches = await this.reconcileTenant(tenant.id);
-              totalMismatches += mismatches.length;
+          const tenantLimit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+          await Promise.allSettled(
+            tenants.map((tenant) =>
+              tenantLimit(async () => {
+                await TenantContextService.run(tenant.id, async () => {
+                  const mismatches = await this.reconcileTenant(tenant.id);
+                  totalMismatches += mismatches.length;
 
-              // Create tickets for mismatches
-              for (const mismatch of mismatches) {
-                await this.createMismatchTicket(mismatch);
-              }
-            });
-          }
+                  const ticketLimit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+                  await Promise.allSettled(
+                    mismatches.map((mismatch) => ticketLimit(() => this.createMismatchTicket(mismatch))),
+                  );
+                });
+              }),
+            ),
+          );
 
           span.setStatus({ code: SpanStatusCode.OK });
           span.setAttribute('mismatches.total', totalMismatches);
@@ -146,8 +153,12 @@ export class PayrollReconciliationService {
 
       const mismatches: ReconciliationResult[] = [];
 
-      for (const payout of stalePayouts) {
-        const mismatch = await this.checkPayoutStatus(payout);
+      const payoutLimit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+      const results = await Promise.all(
+        stalePayouts.map((payout) => payoutLimit(() => this.checkPayoutStatus(payout))),
+      );
+
+      for (const mismatch of results) {
         if (mismatch) {
           mismatches.push(mismatch);
           this.reconciliationMismatchesTotal.inc({ mismatch_type: mismatch.mismatchType });
