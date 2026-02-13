@@ -1,3 +1,41 @@
-No 'as any' casts found in source code.
-No 'as any' casts found in test code.
-Total 'as any' casts: 0
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/common/interceptors/api-version.interceptor.spec.ts:121: expect((result as any)._meta).toBeUndefined();
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/common/interceptors/message-pack.interceptor.spec.ts:137: const loggerErrorSpy = jest.spyOn((interceptor as any).logger, 'error');
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/common/interceptors/message-pack.interceptor.spec.ts:138: (interceptor as any).packr.pack = jest.fn(() => {
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/auth/auth.service.spec.ts:369: const loggerSpy = jest.spyOn((service as any).logger, 'error');
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/auth/auth.service.spec.ts:389: const loggerSpy = jest.spyOn((service as any).logger, 'error');
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/dashboard/dashboard.gateway.spec.ts:94: } as any;
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/dashboard/dashboard.gateway.spec.ts:110: } as any;
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/dashboard/dashboard.gateway.spec.ts:131: } as any;
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/dashboard/dashboard.gateway.spec.ts:144: gateway.handleDisconnect({} as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/hr/repositories/profile.repository.spec.ts:59: mockTypeOrmRepository.softRemove.mockResolvedValue(entity as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/hr/repositories/profile.repository.spec.ts:95: mockTypeOrmRepository.remove.mockResolvedValue(entity as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/media/media.service.spec.ts:106: await expect(service.uploadFile(params as any)).rejects.toThrow(BadRequestException);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/media/media.service.spec.ts:107: await expect(service.uploadFile(params as any)).rejects.toThrow('media.file_too_large');
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:100: jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:126: jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:156: jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:298: .mockReturnValueOnce(totalsQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:299: .mockReturnValueOnce(byPlanQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:300: .mockReturnValueOnce(topTenantsQb as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:344: .mockReturnValueOnce(totalsQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:345: .mockReturnValueOnce(byPlanQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:346: .mockReturnValueOnce(topTenantsQb as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:389: .mockReturnValueOnce(totalsQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:390: .mockReturnValueOnce(byPlanQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:391: .mockReturnValueOnce(topTenantsQb as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:426: .mockReturnValueOnce(totalsQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:427: .mockReturnValueOnce(byPlanQb as any)
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-analytics.service.spec.ts:428: .mockReturnValueOnce(topTenantsQb as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-auth.service.spec.ts:267: const updateSpy = jest.spyOn(sessionRepository, 'update').mockResolvedValue({ affected: 1 } as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-auth.service.spec.ts:283: const updateSpy = jest.spyOn(sessionRepository, 'update').mockResolvedValue({ affected: 3 } as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/users/services/users.service.spec.ts:584: await expect(service.create({ email: 'dup@example.com', password: 'p' } as any)).rejects.toThrow(
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/users/services/users.service.spec.ts:591: await expect(service.create({ email: 'err@example.com', password: 'p' } as any)).rejects.toThrow('db error');
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:65: webhookRepository.createQueryBuilder = jest.fn().mockReturnValue(qb as any);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:79: jest.spyOn(service as any, 'getConcurrencyLimit').mockResolvedValue(<T>(fn: () => T | Promise<T>) => fn());
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:199: const sendSpy = jest.spyOn(service as any, 'sendWebhookWithRetry').mockResolvedValue(undefined);
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:572: const webhook = { id: 'w1', tenantId: 't1', url: 'https://queue.com', events: ['*'], isActive: true } as any;
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:604: } as any;
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:631: } as any;
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:650: await expect(service.emit({ type: 'booking.created' } as any)).rejects.toThrow('common.tenant_missing');
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:654: const webhook = { id: 'w1', events: null, isActive: true } as any;
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/webhooks/webhooks.service.spec.ts:659: await service.emit({ type: 'booking.created', tenantId: 't1' } as any);

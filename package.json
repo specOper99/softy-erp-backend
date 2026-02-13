@@ -51,7 +51,8 @@
     "lint:circular": "madge --circular src/",
     "lint:duplication": "jscpd src --ignore \"**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**,**/*.d.ts\" --reporters console,json",
     "check:sql-safety": "ts-node scripts/ci/check-raw-queries.ts",
-    "validate": "npm run lint && npm run type-check && npm run test",
+    "check:security-patterns": "ts-node scripts/ci/check-security-patterns.ts",
+    "validate": "npm run lint && npm run type-check && npm run check:sql-safety && npm run check:security-patterns && npm run test",
     "pre-push": "npm run validate",
     "test:mutation": "stryker run"
   },
