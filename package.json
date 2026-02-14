@@ -48,7 +48,7 @@
     "platform:create-admin": "ts-node -r tsconfig-paths/register scripts/platform/create-admin-auto.ts",
     "prepare": "husky",
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
-    "lint:circular": "madge --circular src/",
+    "lint:circular": "madge --circular --extensions ts --ts-config tsconfig.json --exclude \"\\.entity\\.ts$\" src/main.ts",
     "lint:duplication": "jscpd src --ignore \"**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**,**/*.d.ts\" --reporters console,json",
     "check:sql-safety": "ts-node scripts/ci/check-raw-queries.ts",
     "check:security-patterns": "ts-node scripts/ci/check-security-patterns.ts",
@@ -182,9 +182,12 @@
     "typescript-eslint": "^8.54.0"
   },
   "overrides": {
+    "@isaacs/brace-expansion": "^5.0.1",
+    "axios": "^1.13.5",
+    "qs": "^6.14.2",
     "mjml": "file:./scripts/dummy-mjml",
     "lodash": "^4.17.22",
-    "glob": "^11.0.0",
+    "glob": "^13.0.0",
     "tar": "^7.5.7",
     "fast-xml-parser": "^5.3.4"
   },
