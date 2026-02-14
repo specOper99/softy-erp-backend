@@ -1,12 +1,12 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { CancelBookingDto, ConfirmBookingResponseDto } from '../dto';
@@ -14,12 +14,11 @@ import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCancelledEvent } from '../events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../events/booking-confirmed.event';
+import { BookingCreatedEvent } from '../events/booking-created.event';
 import { BookingStateMachineService } from './booking-state-machine.service';
 
 @Injectable()
 export class BookingWorkflowService {
-  private readonly logger = new Logger(BookingWorkflowService.name);
-
   constructor(
     private readonly financeService: FinanceService,
     private readonly auditService: AuditPublisher,
@@ -27,7 +26,6 @@ export class BookingWorkflowService {
     private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
-    private readonly dashboardGateway: DashboardGateway,
   ) {}
 
   /**
@@ -57,7 +55,7 @@ export class BookingWorkflowService {
       // Step 2: Fetch actual data with relations.
       const booking = await manager.findOne(Booking, {
         where: { id, tenantId },
-        relations: ['client', 'servicePackage', 'servicePackage.packageItems', 'servicePackage.packageItems.taskType'],
+        relations: ['client', 'servicePackage'],
       });
 
       if (!booking) {
@@ -70,7 +68,10 @@ export class BookingWorkflowService {
       await manager.save(booking);
 
       // Step 3: Generate Tasks from package items (bulk insert for performance)
-      const packageItems = await (booking.servicePackage?.packageItems ?? Promise.resolve([]));
+      const packageItems = await manager.find(PackageItem, {
+        where: { packageId: booking.packageId, tenantId },
+        relations: ['taskType'],
+      });
       const tasksToCreate: Partial<Task>[] = [];
       const maxTasks = this.configService.get<number>('booking.maxTasksPerBooking', 500);
 
@@ -225,7 +226,6 @@ export class BookingWorkflowService {
     return this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(Booking, {
         where: { id, tenantId },
-        relations: ['tasks'], // Need tasks for validation
       });
 
       if (!booking) {
@@ -236,7 +236,9 @@ export class BookingWorkflowService {
 
       this.stateMachine.validateTransition(booking.status, BookingStatus.COMPLETED);
 
-      const tasksArray = await booking.tasks;
+      const tasksArray = await manager.find(Task, {
+        where: { bookingId: booking.id, tenantId },
+      });
       if (!tasksArray || tasksArray.length === 0) {
         // Warning: This logic assumes a complete booking SHOULD have tasks.
         throw new BadRequestException('No tasks found for this booking');
@@ -295,11 +297,21 @@ export class BookingWorkflowService {
       newValues: { newBookingId: savedBooking.id },
     });
 
-    this.dashboardGateway.broadcastMetricsUpdate(tenantId, 'BOOKING', {
-      action: 'DUPLICATED',
-      originalBookingId: id,
-      newBookingId: savedBooking.id,
-    });
+    this.eventBus.publish(
+      new BookingCreatedEvent(
+        savedBooking.id,
+        tenantId,
+        savedBooking.clientId,
+        '',
+        '',
+        savedBooking.packageId,
+        '',
+        Number(savedBooking.totalPrice),
+        null,
+        savedBooking.eventDate,
+        savedBooking.createdAt,
+      ),
+    );
 
     return savedBooking;
   }

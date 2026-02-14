@@ -2,14 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { EventBus } from '@nestjs/cqrs';
 import Decimal from 'decimal.js';
 import type { Response } from 'express';
-import { DataSource, EntityManager } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 
-import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TenantsService } from '../../tenants/tenants.service';
 import { CreateTransactionDto, TransactionFilterDto } from '../dto';
 import { Transaction } from '../entities/transaction.entity';
@@ -25,11 +24,9 @@ import { WalletService } from './wallet.service';
 export class FinanceService {
   constructor(
     private readonly transactionRepository: TransactionRepository,
-    private readonly dataSource: DataSource,
     private readonly currencyService: CurrencyService,
     private readonly tenantsService: TenantsService,
     private readonly exportService: ExportService,
-    private readonly dashboardGateway: DashboardGateway,
     private readonly walletService: WalletService,
     private readonly financialReportService: FinancialReportService,
     private readonly eventBus: EventBus,
@@ -61,32 +58,7 @@ export class FinanceService {
     const transaction = this.transactionRepository.create(preparedData);
     const savedTransaction = await this.transactionRepository.save(transaction);
 
-    // Publish domain event for cross-module reactions
-    this.eventBus.publish(
-      new TransactionCreatedEvent(
-        savedTransaction.id,
-        tenantId,
-        savedTransaction.type,
-        savedTransaction.amount,
-        savedTransaction.currency,
-        savedTransaction.exchangeRate,
-        savedTransaction.category ?? undefined,
-        savedTransaction.bookingId ?? undefined,
-        savedTransaction.taskId ?? undefined,
-        savedTransaction.payoutId ?? undefined,
-        savedTransaction.description ?? undefined,
-        savedTransaction.transactionDate,
-        savedTransaction.createdAt,
-      ),
-    );
-
-    // Notify dashboard
-    this.dashboardGateway.broadcastMetricsUpdate(tenantId, 'REVENUE', {
-      action: 'TRANSACTION_RECORDED',
-      amount: savedTransaction.amount,
-      type: savedTransaction.type,
-      transactionId: savedTransaction.id,
-    });
+    this.publishTransactionCreatedEvent(tenantId, savedTransaction);
 
     // Invalidate financial report caches (data has changed)
     await this.financialReportService.invalidateReportCaches(tenantId);
@@ -215,11 +187,33 @@ export class FinanceService {
     const transaction = manager.create(Transaction, preparedData);
     const savedTransaction = await manager.save(transaction);
 
+    this.publishTransactionCreatedEvent(tenantId, savedTransaction);
+
     // Invalidate financial report caches (data has changed)
     // This ensures reports are recalculated after transaction commits
     await this.financialReportService.invalidateReportCaches(tenantId);
 
     return savedTransaction;
+  }
+
+  private publishTransactionCreatedEvent(tenantId: string, transaction: Transaction): void {
+    this.eventBus.publish(
+      new TransactionCreatedEvent(
+        transaction.id,
+        tenantId,
+        transaction.type,
+        transaction.amount,
+        transaction.currency,
+        transaction.exchangeRate,
+        transaction.category ?? undefined,
+        transaction.bookingId ?? undefined,
+        transaction.taskId ?? undefined,
+        transaction.payoutId ?? undefined,
+        transaction.description ?? undefined,
+        transaction.transactionDate,
+        transaction.createdAt,
+      ),
+    );
   }
 
   /**

@@ -1,9 +1,8 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogModule } from '../catalog/catalog.module';
 import { FinanceModule } from '../finance/finance.module';
 import { MailModule } from '../mail/mail.module';
-import { ClientPortalModule } from '../client-portal/client-portal.module';
 import { BookingsController } from './controllers/bookings.controller';
 import { ClientsController } from './controllers/clients.controller';
 import { Booking } from './entities/booking.entity';
@@ -11,7 +10,6 @@ import { Client } from './entities/client.entity';
 
 import { ExportService } from '../../common/services/export.service';
 import { AuditModule } from '../audit/audit.module';
-import { DashboardModule } from '../dashboard/dashboard.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { BookingRepository } from './repositories/booking.repository';
@@ -25,14 +23,12 @@ import { ClientsService } from './services/clients.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, Client]),
-    forwardRef(() => FinanceModule),
+    FinanceModule,
     CatalogModule,
     TenantsModule,
     MailModule,
     AuditModule,
     TasksModule,
-    forwardRef(() => DashboardModule),
-    forwardRef(() => ClientPortalModule),
   ],
   controllers: [BookingsController, ClientsController],
   providers: [

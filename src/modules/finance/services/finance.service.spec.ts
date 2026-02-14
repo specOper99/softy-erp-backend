@@ -26,7 +26,6 @@ import { WalletService } from './wallet.service';
 import { ExportService } from '../../../common/services/export.service';
 
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
-import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 
 describe('FinanceService - Comprehensive Tests', () => {
   let service: FinanceService;
@@ -43,14 +42,6 @@ describe('FinanceService - Comprehensive Tests', () => {
     exportTransactions: jest.fn().mockResolvedValue('mock-csv'),
     exportInvoices: jest.fn().mockResolvedValue('mock-csv'),
     streamFromStream: jest.fn(),
-  };
-
-  const mockDashboardGateway = {
-    server: {
-      to: jest.fn().mockReturnThis(),
-      emit: jest.fn(),
-    },
-    broadcastMetricsUpdate: jest.fn(),
   };
 
   const mockFinancialReportService = {
@@ -72,6 +63,10 @@ describe('FinanceService - Comprehensive Tests', () => {
   const mockWalletService = {
     addPendingCommission: jest.fn().mockResolvedValue(undefined),
     subtractPendingCommission: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockEventBus = {
+    publish: jest.fn(),
   };
 
   const mockDataSource = {
@@ -115,16 +110,18 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     // Mock createStreamQueryBuilder for streaming exports
-    mockTransactionRepository.createStreamQueryBuilder = jest.fn().mockReturnValue({
-      orderBy: jest.fn().mockReturnThis(),
-      stream: jest.fn().mockResolvedValue({
-        pipe: jest.fn(),
-        on: jest.fn((event, callback) => {
-          if (event === 'end') callback();
-          return { pipe: jest.fn(), on: jest.fn() };
+    (mockTransactionRepository as unknown as { createStreamQueryBuilder: jest.Mock }).createStreamQueryBuilder = jest
+      .fn()
+      .mockReturnValue({
+        orderBy: jest.fn().mockReturnThis(),
+        stream: jest.fn().mockResolvedValue({
+          pipe: jest.fn(),
+          on: jest.fn((event, callback) => {
+            if (event === 'end') callback();
+            return { pipe: jest.fn(), on: jest.fn() };
+          }),
         }),
-      }),
-    });
+      });
 
     // Configure other default behaviors
     mockTransactionRepository.save.mockImplementation((txn: any) =>
@@ -166,7 +163,6 @@ describe('FinanceService - Comprehensive Tests', () => {
         { provide: CurrencyService, useValue: mockCurrencyService },
         { provide: TenantsService, useValue: mockTenantsService },
         { provide: ExportService, useValue: mockExportService },
-        { provide: DashboardGateway, useValue: mockDashboardGateway },
         { provide: CacheUtilsService, useValue: mockCacheUtils },
         {
           provide: FinancialReportService,
@@ -175,9 +171,7 @@ describe('FinanceService - Comprehensive Tests', () => {
         { provide: WalletService, useValue: mockWalletService },
         {
           provide: EventBus,
-          useValue: {
-            publish: jest.fn(),
-          },
+          useValue: mockEventBus,
         },
       ],
     }).compile();
@@ -215,6 +209,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       const result = await service.createTransaction(dto);
       expect(result).toHaveProperty('id');
       expect(result.type).toBe(TransactionType.INCOME);
+      expect(mockEventBus.publish).toHaveBeenCalled();
     });
 
     it('should reject amounts with more than 2 decimal places (exponential notation)', async () => {
@@ -309,6 +304,21 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
   });
 
+  describe('createTransactionWithManager', () => {
+    it('should publish transaction created event', async () => {
+      const manager = mockQueryRunner.manager as unknown as EntityManager;
+
+      await service.createTransactionWithManager(manager, {
+        type: TransactionType.EXPENSE,
+        amount: 250,
+        category: 'Supplies',
+        transactionDate: new Date('2025-01-01T00:00:00.000Z'),
+      });
+
+      expect(mockEventBus.publish).toHaveBeenCalled();
+    });
+  });
+
   describe('findTransactionById', () => {
     it('should return transaction by valid id', async () => {
       const result = await service.findTransactionById('txn-uuid-123');
@@ -368,7 +378,9 @@ describe('FinanceService - Comprehensive Tests', () => {
     it('should stream transactions to response', async () => {
       const mockRes = createMockResponse();
       await service.exportTransactionsToCSV(mockRes);
-      expect(mockTransactionRepository.createStreamQueryBuilder).toHaveBeenCalledWith('t');
+      expect(
+        (mockTransactionRepository as unknown as { createStreamQueryBuilder: jest.Mock }).createStreamQueryBuilder,
+      ).toHaveBeenCalledWith('t');
       expect(mockExportService.streamFromStream).toHaveBeenCalledWith(
         mockRes,
         expect.anything(),

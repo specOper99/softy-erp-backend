@@ -1,8 +1,10 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DashboardController } from './dashboard.controller';
 import { DashboardGateway } from './dashboard.gateway';
 import { DashboardService } from './dashboard.service';
+import { DashboardBookingCreatedHandler } from './handlers/booking-created.handler';
+import { DashboardTransactionCreatedHandler } from './handlers/transaction-created.handler';
 import { DashboardWalletBalanceHandler } from './handlers/wallet-balance-updated.handler';
 import { UserPreferenceRepository } from './repositories/user-preference.repository';
 import { ReportGeneratorService } from './services/report-generator.service';
@@ -20,17 +22,19 @@ import { TasksModule } from '../tasks/tasks.module';
   imports: [
     TypeOrmModule.forFeature([UserPreference]),
     AuthModule,
-    forwardRef(() => FinanceModule),
+    FinanceModule,
     TasksModule,
-    forwardRef(() => BookingsModule),
+    BookingsModule,
     HrModule,
-    forwardRef(() => AnalyticsModule),
+    AnalyticsModule,
   ],
   controllers: [DashboardController],
   providers: [
     DashboardService,
     ReportGeneratorService,
     DashboardGateway,
+    DashboardBookingCreatedHandler,
+    DashboardTransactionCreatedHandler,
     DashboardWalletBalanceHandler,
     UserPreferenceRepository,
   ],

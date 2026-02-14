@@ -8,7 +8,6 @@ import {
   createMockBooking,
   createMockBookingStateMachine,
   createMockCatalogService,
-  createMockDashboardGateway,
   createMockDataSource,
   createMockEventBus,
   createMockFinanceService,
@@ -17,7 +16,6 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
-import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { FinanceService } from '../../finance/services/finance.service';
 import { CreateBookingDto } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
@@ -34,7 +32,6 @@ describe('BookingsService', () => {
   let auditService: ReturnType<typeof createMockAuditService>;
   let dataSource: ReturnType<typeof createMockDataSource>;
   let eventBus: ReturnType<typeof createMockEventBus>;
-  let dashboardGateway: ReturnType<typeof createMockDashboardGateway>;
   let stateMachine: ReturnType<typeof createMockBookingStateMachine>;
 
   const mockBooking = createMockBooking({
@@ -55,7 +52,6 @@ describe('BookingsService', () => {
     auditService = createMockAuditService();
     dataSource = createMockDataSource();
     eventBus = createMockEventBus();
-    dashboardGateway = createMockDashboardGateway();
     stateMachine = createMockBookingStateMachine();
 
     // Override dataSource transaction to return mock booking
@@ -96,10 +92,6 @@ describe('BookingsService', () => {
         {
           provide: EventBus,
           useValue: eventBus,
-        },
-        {
-          provide: DashboardGateway,
-          useValue: dashboardGateway,
         },
         {
           provide: BookingStateMachineService,
@@ -188,6 +180,7 @@ describe('BookingsService', () => {
     it('should return all bookings', async () => {
       const queryBuilder = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
@@ -212,6 +205,7 @@ describe('BookingsService', () => {
         andWhere: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
         innerJoin: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(mockBooking),
       };

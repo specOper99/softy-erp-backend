@@ -1,18 +1,17 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
-import type { AvailabilityService } from '../../client-portal/services/availability.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
-import { AuditService } from '../../audit/audit.service';
+import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
-import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { Task } from '../../tasks/entities/task.entity';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import {
@@ -46,14 +45,10 @@ export class BookingsService {
     private readonly catalogService: CatalogService,
 
     private readonly financeService: FinanceService,
-    private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
-
-    private readonly dashboardGateway: DashboardGateway,
     private readonly stateMachine: BookingStateMachineService,
     private readonly cacheUtils: CacheUtilsService,
-    @Optional() private readonly availabilityService?: AvailabilityService,
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
@@ -121,20 +116,12 @@ export class BookingsService {
       ),
     );
 
-    // Notify dashboard for real-time update
-    this.dashboardGateway.broadcastMetricsUpdate(tenantId, 'BOOKING', {
-      action: 'CREATED',
-      bookingId: savedBooking.id,
-    });
-
-    // Invalidate availability cache if service is available and packageId is present
-    if (this.availabilityService && savedBooking.eventDate && savedBooking.packageId) {
+    if (savedBooking.eventDate && savedBooking.packageId) {
       try {
         const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
         const pkgId = savedBooking.packageId as string;
         if (pkgId) {
           const pkgIdStr: string = String(pkgId);
-          // Invalidate availability cache directly via CacheUtils (avoids cross-module typing issues)
           await this.cacheUtils.del(`availability:${tenantId}:${pkgIdStr}:${dateStr}`);
         }
       } catch (err) {
@@ -152,7 +139,7 @@ export class BookingsService {
 
     qb.leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
-      .leftJoinAndSelect('booking.tasks', 'tasks')
+      .leftJoinAndSelect(Task, 'tasks', 'tasks.bookingId = booking.id AND tasks.tenantId = booking.tenantId')
       .leftJoinAndSelect('tasks.assignedUser', 'taskAssignedUser')
       .where('booking.tenantId = :tenantId', { tenantId });
 
@@ -192,7 +179,7 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.innerJoin('booking.tasks', 'task');
+      qb.innerJoin(Task, 'task', 'task.bookingId = booking.id AND task.tenantId = booking.tenantId');
       qb.andWhere('task.assignedUserId = :userId', { userId: user.id });
     }
 
@@ -249,7 +236,7 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.innerJoin('booking.tasks', 'task');
+      qb.innerJoin(Task, 'task', 'task.bookingId = booking.id AND task.tenantId = booking.tenantId');
       qb.andWhere('task.assignedUserId = :userId', { userId: user.id });
     }
 
@@ -267,9 +254,14 @@ export class BookingsService {
     // Apply standard relations
     qb.leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
-      .leftJoinAndSelect('servicePackage.packageItems', 'packageItems')
+      .leftJoinAndMapMany(
+        'servicePackage.packageItems',
+        PackageItem,
+        'packageItems',
+        'packageItems.packageId = servicePackage.id AND packageItems.tenantId = servicePackage.tenantId',
+      )
       .leftJoinAndSelect('packageItems.taskType', 'packageTaskType')
-      .leftJoinAndSelect('booking.tasks', 'tasks')
+      .leftJoinAndSelect(Task, 'tasks', 'tasks.bookingId = booking.id AND tasks.tenantId = booking.tenantId')
       .leftJoinAndSelect('tasks.assignedUser', 'assignedUser')
       .leftJoinAndSelect('tasks.taskType', 'taskTaskType');
 
@@ -356,14 +348,12 @@ export class BookingsService {
 
     this.eventBus.publish(new BookingUpdatedEvent(savedBooking.id, savedBooking.tenantId, allowedChanges, new Date()));
 
-    // Invalidate availability cache if date or status changed and packageId is present
-    if (this.availabilityService && (dto.eventDate || dto.status) && savedBooking.packageId) {
+    if ((dto.eventDate || dto.status) && savedBooking.packageId) {
       try {
         const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
         const pkgId = savedBooking.packageId as string;
         if (pkgId) {
           const pkgIdStr: string = String(pkgId);
-          // Invalidate availability cache directly via CacheUtils (avoids cross-module typing issues)
           await this.cacheUtils.del(`availability:${savedBooking.tenantId}:${pkgIdStr}:${dateStr}`);
         }
       } catch (err) {
@@ -382,14 +372,12 @@ export class BookingsService {
     }
     await this.bookingRepository.softRemove(booking);
 
-    // Invalidate availability cache
-    if (this.availabilityService && booking.eventDate && booking.packageId) {
+    if (booking.eventDate && booking.packageId) {
       try {
         const dateStr = booking.eventDate.toISOString().split('T')[0];
         const pkgId = booking.packageId as string;
         if (pkgId) {
           const pkgIdStr: string = String(pkgId);
-          // Invalidate availability cache directly via CacheUtils (avoids cross-module typing issues)
           await this.cacheUtils.del(`availability:${booking.tenantId}:${pkgIdStr}:${dateStr}`);
         }
       } catch (err) {

@@ -10,10 +10,8 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { DashboardGateway } from '../../dashboard/dashboard.gateway';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
-import { Task } from '../../tasks/entities/task.entity';
 import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingWorkflowService } from './booking-workflow.service';
@@ -53,8 +51,6 @@ describe('BookingWorkflowService', () => {
           },
         ]),
       } as unknown as Booking['servicePackage'],
-      // Tasks relation mock
-      tasks: Promise.resolve([]) as Promise<Task[]>,
     };
 
     const mockQR = createMockQueryRunner();
@@ -67,6 +63,13 @@ describe('BookingWorkflowService', () => {
       // Handle save(entity) or save(Entity, entity)
       return Promise.resolve(maybeEntity || targetOrEntity);
     });
+    (mockQR.manager.find as jest.Mock).mockResolvedValue([
+      {
+        taskTypeId: 'type-1',
+        quantity: 2,
+        taskType: { defaultCommissionAmount: 10 },
+      },
+    ]);
 
     dataSource = createMockDataSource() as unknown as DataSource;
     // Mock transaction to immediately execute callback with mock manager
@@ -110,12 +113,6 @@ describe('BookingWorkflowService', () => {
           },
         },
         { provide: BookingStateMachineService, useValue: mockStateMachine },
-        {
-          provide: DashboardGateway,
-          useValue: {
-            broadcastMetricsUpdate: jest.fn(),
-          },
-        },
       ],
     }).compile();
 

@@ -1,9 +1,9 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from '../../common/common.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
-import { BookingsModule } from '../bookings/bookings.module';
-import { DashboardModule } from '../dashboard/dashboard.module';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingRepository } from '../bookings/repositories/booking.repository';
 import { TenantsModule } from '../tenants/tenants.module';
 import { FinancialReportController } from './controllers/financial-report.controller';
 import { InvoiceController } from './controllers/invoice.controller';
@@ -43,12 +43,11 @@ import { PayoutRelayService } from './services/payout-relay.service';
       Payout,
       DepartmentBudget,
       Invoice,
+      Booking,
     ]),
     CommonModule,
     TenantsModule,
-    forwardRef(() => DashboardModule),
-    forwardRef(() => AnalyticsModule),
-    forwardRef(() => BookingsModule),
+    AnalyticsModule,
   ],
   controllers: [
     TransactionsController,
@@ -62,6 +61,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     CurrencyService,
     InvoiceService,
     InvoiceRepository,
+    BookingRepository,
     ExportService,
     RecurringTransactionService,
     DepartmentBudgetRepository,
