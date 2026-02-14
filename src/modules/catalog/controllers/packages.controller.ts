@@ -11,7 +11,17 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { ApiErrorResponses, Cacheable, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -23,12 +33,15 @@ import {
   ClonePackageDto,
   CreateServicePackageDto,
   PackageFilterDto,
+  ServicePackageCursorResponseDto,
+  ServicePackagePaginatedResponseDto,
+  ServicePackageSummaryResponseDto,
   UpdateServicePackageDto,
 } from '../dto';
 import { CatalogService } from '../services/catalog.service';
 
 @ApiTags('Service Packages')
-@ApiBearerAuth()
+@ApiBearerAuth('tenant-auth')
 @ApiErrorResponses(
   'BAD_REQUEST',
   'UNAUTHORIZED',
@@ -41,13 +54,14 @@ import { CatalogService } from '../services/catalog.service';
 @Controller('packages')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseInterceptors(GlobalCacheInterceptor)
+@ApiExtraModels(ServicePackageSummaryResponseDto, ServicePackagePaginatedResponseDto, ServicePackageCursorResponseDto)
 export class PackagesController {
   constructor(private readonly catalogService: CatalogService) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Create a new service package' })
-  @ApiResponse({ status: 201, description: 'Package created successfully' })
+  @ApiCreatedResponse({ description: 'Package created successfully', type: ServicePackageSummaryResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
@@ -65,7 +79,10 @@ export class PackagesController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
-  @ApiResponse({ status: 200, description: 'Return filtered packages with pagination meta' })
+  @ApiOkResponse({
+    description: 'Return filtered packages with pagination meta',
+    schema: { $ref: getSchemaPath(ServicePackagePaginatedResponseDto) },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAllWithFilters(@Query() query: PackageFilterDto) {
     return this.catalogService.findAllPackagesWithFilters(query);
@@ -80,7 +97,10 @@ export class PackagesController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
-  @ApiResponse({ status: 200, description: 'Return filtered packages with cursor pagination' })
+  @ApiOkResponse({
+    description: 'Return filtered packages with cursor pagination',
+    schema: { $ref: getSchemaPath(ServicePackageCursorResponseDto) },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAllWithFiltersCursor(@Query() query: PackageFilterDto) {
     return this.catalogService.findAllPackagesWithFiltersCursor(query);
@@ -88,7 +108,10 @@ export class PackagesController {
 
   @Get('cursor/no-filters')
   @ApiOperation({ summary: 'Get all packages with cursor pagination (no filters)' })
-  @ApiResponse({ status: 200, description: 'Return paginated packages' })
+  @ApiOkResponse({
+    description: 'Return paginated packages',
+    schema: { $ref: getSchemaPath(ServicePackageCursorResponseDto) },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAllCursor(@Query() query: CursorPaginationDto) {
     return this.catalogService.findAllPackagesCursor(query);
@@ -97,7 +120,7 @@ export class PackagesController {
   @Get(':id')
   @Cacheable()
   @ApiOperation({ summary: 'Get service package by ID' })
-  @ApiResponse({ status: 200, description: 'Package details' })
+  @ApiOkResponse({ description: 'Package details', type: ServicePackageSummaryResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Package not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
@@ -107,7 +130,7 @@ export class PackagesController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update service package' })
-  @ApiResponse({ status: 200, description: 'Package updated' })
+  @ApiOkResponse({ description: 'Package updated', type: ServicePackageSummaryResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
