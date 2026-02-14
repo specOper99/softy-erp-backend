@@ -26,7 +26,7 @@
  * increase code duplication without improving runtime safety.
  */
 
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import {
   DeepPartial,
   DeleteResult,
@@ -197,8 +197,10 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
 
     if (Array.isArray(entityOrEntities)) {
       this.validateTenantOwnerships(entityOrEntities as Array<T & { tenantId: string }>, tenantId);
-      // @ts-expect-error - TypeORM method overload doesn't play well with generic type
-      return await this.repository[action](entityOrEntities);
+      if (action === 'remove') {
+        return (await this.repository.remove(entityOrEntities as unknown as T[])) as E;
+      }
+      return (await this.repository.softRemove(entityOrEntities as unknown as T[])) as E;
     }
 
     const entity = entityOrEntities as T & { tenantId: string };
@@ -207,8 +209,10 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
       tenantId,
       action === 'remove' ? TenantMismatchOperation.DELETE : TenantMismatchOperation.DELETE,
     );
-    // @ts-expect-error - TypeORM method overload doesn't play well with generic type
-    return await this.repository[action](entity);
+    if (action === 'remove') {
+      return (await this.repository.remove(entity as unknown as T)) as E;
+    }
+    return (await this.repository.softRemove(entity as unknown as T)) as E;
   }
 
   private validateTenantOwnership(
@@ -275,6 +279,17 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
    */
   async queryWithTenantScope<R>(query: string, parameters: unknown[] = []): Promise<R[]> {
     const tenantId = this.getTenantId();
+
+    const expectsTenantFilter = /tenant_id\s*=\s*\$\d+|tenantId\s*=\s*\$\d+/i.test(query);
+    if (!expectsTenantFilter) {
+      throw new InternalServerErrorException('common.unsafe_tenant_query');
+    }
+
+    const tenantPlaceholder = `$${parameters.length + 1}`;
+    if (!query.includes(tenantPlaceholder)) {
+      throw new InternalServerErrorException('common.invalid_tenant_query_parameters');
+    }
+
     return this.repository.query(query, [...parameters, tenantId]) as Promise<R[]>;
   }
 
@@ -305,7 +320,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
       where: { id, tenantId } as unknown as FindOptionsWhere<T>,
     });
     if (!entity) {
-      throw new Error(`${this.entityName} with ID ${id} not found`);
+      throw new NotFoundException(`${this.entityName} with ID ${id} not found`);
     }
     return entity;
   }

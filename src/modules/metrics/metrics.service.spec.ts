@@ -25,6 +25,7 @@ describe('MetricsService', () => {
   afterEach(() => {
     // Reset environment variables
     delete process.env.METRICS_TOKEN;
+    delete process.env.METRICS_ALLOW_ANON;
     delete process.env.NODE_ENV;
   });
 
@@ -52,6 +53,7 @@ describe('MetricsService', () => {
   describe('isMetricsRequestAuthorized', () => {
     it('should return true when no token required in non-prod', () => {
       process.env.NODE_ENV = 'development';
+      process.env.METRICS_ALLOW_ANON = 'true';
       delete process.env.METRICS_TOKEN;
 
       const result = service.isMetricsRequestAuthorized();
@@ -61,6 +63,17 @@ describe('MetricsService', () => {
 
     it('should return false when no token required in production', () => {
       process.env.NODE_ENV = 'production';
+      process.env.METRICS_ALLOW_ANON = 'true';
+      delete process.env.METRICS_TOKEN;
+
+      const result = service.isMetricsRequestAuthorized();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when no token and anonymous metrics disabled', () => {
+      process.env.NODE_ENV = 'development';
+      process.env.METRICS_ALLOW_ANON = 'false';
       delete process.env.METRICS_TOKEN;
 
       const result = service.isMetricsRequestAuthorized();
@@ -69,15 +82,15 @@ describe('MetricsService', () => {
     });
 
     it('should return true when valid token provided', () => {
-      process.env.METRICS_TOKEN = 'secret-token';
+      process.env.METRICS_TOKEN = 'test-metrics-token';
 
-      const result = service.isMetricsRequestAuthorized('Bearer secret-token');
+      const result = service.isMetricsRequestAuthorized('Bearer test-metrics-token');
 
       expect(result).toBe(true);
     });
 
     it('should return false when invalid token provided', () => {
-      process.env.METRICS_TOKEN = 'secret-token';
+      process.env.METRICS_TOKEN = 'test-metrics-token';
 
       const result = service.isMetricsRequestAuthorized('Bearer wrong-token');
 
@@ -85,7 +98,7 @@ describe('MetricsService', () => {
     });
 
     it('should return false when no auth header and token required', () => {
-      process.env.METRICS_TOKEN = 'secret-token';
+      process.env.METRICS_TOKEN = 'test-metrics-token';
 
       const result = service.isMetricsRequestAuthorized();
 
@@ -93,7 +106,7 @@ describe('MetricsService', () => {
     });
 
     it('should return false when auth header is not a string', () => {
-      process.env.METRICS_TOKEN = 'secret-token';
+      process.env.METRICS_TOKEN = 'test-metrics-token';
 
       const result = service.isMetricsRequestAuthorized(undefined);
 
@@ -113,7 +126,7 @@ describe('MetricsService', () => {
 
     it('should return false in production with token', () => {
       process.env.NODE_ENV = 'production';
-      process.env.METRICS_TOKEN = 'secret-token';
+      process.env.METRICS_TOKEN = 'test-metrics-token';
 
       const result = service.shouldHideMetricsInProduction();
 

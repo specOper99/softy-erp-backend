@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { ExportService } from '../../../common/services/export.service';
 import { BookingRepository } from '../repositories/booking.repository';
@@ -16,46 +16,52 @@ export class BookingExportService {
   ) {}
 
   async exportBookingsToCSV(res: Response): Promise<void> {
-    const queryStream = await this.bookingRepository
-      .createQueryBuilder('booking')
-      .leftJoinAndSelect('booking.client', 'client')
-      .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
-      .orderBy('booking.createdAt', 'DESC')
-      .stream();
+    try {
+      const queryStream = await this.bookingRepository
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.client', 'client')
+        .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
+        .orderBy('booking.createdAt', 'DESC')
+        .stream();
 
-    const fields = ['id', 'clientName', 'clientEmail', 'package', 'eventDate', 'totalPrice', 'status', 'createdAt'];
+      const fields = ['id', 'clientName', 'clientEmail', 'package', 'eventDate', 'totalPrice', 'status', 'createdAt'];
 
-    const transformFn = (row: unknown): BookingExportRow => {
-      const typedRow = row as {
-        booking_id?: string;
-        client_name?: string;
-        client_email?: string;
-        servicePackage_name?: string;
-        booking_event_date?: string;
-        booking_total_price?: string;
-        booking_status?: string;
-        booking_created_at?: string;
+      const transformFn = (row: unknown): BookingExportRow => {
+        const typedRow = row as {
+          booking_id?: string;
+          client_name?: string;
+          client_email?: string;
+          servicePackage_name?: string;
+          booking_event_date?: string;
+          booking_total_price?: string;
+          booking_status?: string;
+          booking_created_at?: string;
+        };
+
+        return {
+          id: typedRow.booking_id ?? 'unknown',
+          clientName: typedRow.client_name ?? '',
+          clientEmail: typedRow.client_email ?? '',
+          package: typedRow.servicePackage_name ?? '',
+          eventDate: typedRow.booking_event_date ? new Date(typedRow.booking_event_date).toISOString() : '',
+          totalPrice: Number(typedRow.booking_total_price ?? 0),
+          status: typedRow.booking_status ?? 'UNKNOWN',
+          createdAt: typedRow.booking_created_at ? new Date(typedRow.booking_created_at).toISOString() : '',
+        };
       };
 
-      return {
-        id: typedRow.booking_id ?? 'unknown',
-        clientName: typedRow.client_name ?? '',
-        clientEmail: typedRow.client_email ?? '',
-        package: typedRow.servicePackage_name ?? '',
-        eventDate: typedRow.booking_event_date ? new Date(typedRow.booking_event_date).toISOString() : '',
-        totalPrice: Number(typedRow.booking_total_price ?? 0),
-        status: typedRow.booking_status ?? 'UNKNOWN',
-        createdAt: typedRow.booking_created_at ? new Date(typedRow.booking_created_at).toISOString() : '',
-      };
-    };
-
-    await this.exportService.streamFromStream(
-      res,
-      queryStream,
-      `bookings-export-${new Date().toISOString().split('T')[0]}.csv`,
-      fields,
-      transformFn,
-    );
+      await this.exportService.streamFromStream(
+        res,
+        queryStream,
+        `bookings-export-${new Date().toISOString().split('T')[0]}.csv`,
+        fields,
+        transformFn,
+      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to export bookings CSV: ${message}`);
+      throw new InternalServerErrorException('bookings.export_failed');
+    }
   }
 
   async exportClientsToCSV(res: Response): Promise<void> {

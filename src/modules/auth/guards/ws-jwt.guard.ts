@@ -83,13 +83,21 @@ export class WsJwtGuard implements CanActivate {
   }
 
   private extractTokenFromHandshake(client: Socket): string | undefined {
-    if (client.handshake.query.token) {
-      return client.handshake.query.token as string;
+    const authHeader = client.handshake.headers.authorization;
+    if (typeof authHeader === 'string') {
+      const [type, token] = authHeader.split(' ');
+      if (type === 'Bearer' && typeof token === 'string' && token.length > 0) {
+        return token;
+      }
     }
 
-    const authHeader = client.handshake.headers.authorization;
-    if (authHeader && authHeader.split(' ')[0] === 'Bearer') {
-      return authHeader.split(' ')[1];
+    const queryToken = client.handshake.query.token;
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    const allowQueryToken =
+      this.configService.get<string>('WS_ALLOW_QUERY_TOKEN') === 'true' || nodeEnv !== 'production';
+
+    if (allowQueryToken && typeof queryToken === 'string' && queryToken.length > 0) {
+      return queryToken;
     }
 
     return undefined;

@@ -12,6 +12,7 @@ import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
 describe('HealthController', () => {
   let controller: HealthController;
   let healthCheckService: HealthCheckService;
+  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -63,6 +64,9 @@ describe('HealthController', () => {
           useValue: {
             get: jest.fn((key: string) => {
               if (key === 'TEST_ERROR_KEY') return 'secret';
+              if (key === 'TEST_ERROR_ENABLED') return 'true';
+              if (key === 'NODE_ENV') return 'test';
+              if (key === 'HEALTH_CHECK_KEY') return null;
               return null;
             }),
           },
@@ -72,6 +76,7 @@ describe('HealthController', () => {
 
     controller = module.get<HealthController>(HealthController);
     healthCheckService = module.get<HealthCheckService>(HealthCheckService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
@@ -116,6 +121,17 @@ describe('HealthController', () => {
 
     it('should throw bad request if key missing', () => {
       expect(() => controller.testError('')).toThrow();
+    });
+
+    it('should be disabled in production', () => {
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'TEST_ERROR_ENABLED') return 'true';
+        if (key === 'TEST_ERROR_KEY') return 'secret';
+        return null;
+      });
+
+      expect(() => controller.testError('secret')).toThrow();
     });
   });
 });

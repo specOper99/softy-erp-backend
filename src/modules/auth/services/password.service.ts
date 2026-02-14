@@ -32,8 +32,7 @@ export class PasswordService {
 
     if (!user) {
       this.logger.warn({
-        message: 'Password reset requested for non-existent email',
-        email,
+        message: 'Password reset requested for unknown account',
       });
       return;
     }

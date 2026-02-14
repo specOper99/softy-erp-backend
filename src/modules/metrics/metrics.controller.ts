@@ -1,16 +1,12 @@
 import { Controller, Get, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
-import { SkipIpRateLimit } from '../../common/decorators/skip-ip-rate-limit.decorator';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { MetricsGuard } from './guards/metrics.guard';
 import { MetricsService } from './metrics.service';
 
 @ApiTags('Metrics')
 @Controller('metrics')
-@SkipThrottle() // Metrics should not be rate limited
-@SkipIpRateLimit() // Metrics should not be rate limited (custom IP limiter)
 @SkipTenant() // Metrics are global, not tenant-specific
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
@@ -24,6 +20,7 @@ export class MetricsController {
   }
 
   @Get('health')
+  @UseGuards(MetricsGuard)
   @ApiOperation({ summary: 'Simple health check for metrics' })
   health(): { status: string; timestamp: string } {
     return {

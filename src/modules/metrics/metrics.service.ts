@@ -61,10 +61,10 @@ export class MetricsService {
    */
   isMetricsRequestAuthorized(authHeader?: string): boolean {
     const requiredToken = process.env.METRICS_TOKEN;
+    const allowAnonymous = process.env.METRICS_ALLOW_ANON === 'true';
 
-    // No auth required in non-prod by default for local tooling.
     if (!requiredToken) {
-      return process.env.NODE_ENV !== 'production';
+      return process.env.NODE_ENV !== 'production' && allowAnonymous;
     }
 
     if (typeof authHeader !== 'string') {

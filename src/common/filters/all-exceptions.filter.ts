@@ -49,7 +49,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = isProduction ? 'An unexpected error occurred. Please try again later.' : exception.message;
+      message = 'An unexpected error occurred. Please try again later.';
 
       this.logger.error({
         message: 'Unhandled exception',
@@ -62,7 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       });
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = isProduction ? 'An unexpected error occurred. Please try again later.' : 'Unknown error occurred';
+      message = 'An unexpected error occurred. Please try again later.';
 
       this.logger.error({
         message: 'Unknown exception type',

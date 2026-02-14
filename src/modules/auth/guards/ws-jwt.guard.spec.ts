@@ -12,7 +12,7 @@ describe('WsJwtGuard', () => {
   let jwtService: jest.Mocked<JwtService>;
   let tokenBlacklistService: jest.Mocked<TokenBlacklistService>;
   let authService: jest.Mocked<AuthService>;
-  // let configService: jest.Mocked<ConfigService>;
+  let configService: jest.Mocked<ConfigService>;
 
   const createMockContext = (client: unknown) =>
     ({
@@ -43,6 +43,8 @@ describe('WsJwtGuard', () => {
             get: jest.fn((key: string) => {
               if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
               if (key === 'JWT_PUBLIC_KEY') return undefined;
+              if (key === 'NODE_ENV') return 'test';
+              if (key === 'WS_ALLOW_QUERY_TOKEN') return undefined;
               if (key === 'auth.jwtSecret') return 'test-secret';
               return undefined;
             }),
@@ -62,7 +64,7 @@ describe('WsJwtGuard', () => {
     jwtService = module.get(JwtService);
     tokenBlacklistService = module.get(TokenBlacklistService);
     authService = module.get(AuthService);
-    // configService = module.get(ConfigService);
+    configService = module.get(ConfigService);
   });
 
   it('should be defined', () => {
@@ -162,6 +164,28 @@ describe('WsJwtGuard', () => {
       const context = createMockContext(client);
 
       jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
+
+      await expect(guard.canActivate(context)).rejects.toThrow(WsException);
+    });
+
+    it('should reject query token in production unless explicitly allowed', async () => {
+      const client = {
+        handshake: {
+          query: { token: 'valid.token' },
+          headers: {},
+        },
+        data: {},
+      };
+      const context = createMockContext(client);
+
+      (configService.get as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
+        if (key === 'JWT_PUBLIC_KEY') return undefined;
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'WS_ALLOW_QUERY_TOKEN') return 'false';
+        if (key === 'auth.jwtSecret') return 'test-secret';
+        return undefined;
+      });
 
       await expect(guard.canActivate(context)).rejects.toThrow(WsException);
     });

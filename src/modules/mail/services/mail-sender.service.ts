@@ -166,7 +166,9 @@ export class MailSenderService {
 
   async sendMagicLink(data: MagicLinkEmailData, locale = 'en'): Promise<EmailResult> {
     const portalUrl = this.configService.get<string>('CLIENT_PORTAL_URL', 'https://portal.example.com');
-    const magicLinkUrl = `${portalUrl}/auth/verify?token=${data.token}&tenant=${encodeURIComponent(data.tenantSlug)}`;
+    const magicLinkUrl = this.buildAuthLink(portalUrl, '/auth/verify', data.token, {
+      tenant: data.tenantSlug,
+    });
 
     return this.sendEmail({
       to: data.clientEmail,
@@ -186,7 +188,7 @@ export class MailSenderService {
 
   async sendPasswordReset(data: PasswordResetEmailData): Promise<EmailResult> {
     const appUrl = this.configService.get<string>('FRONTEND_URL', 'https://app.example.com');
-    const resetUrl = `${appUrl}/auth/reset-password?token=${data.token}`;
+    const resetUrl = this.buildAuthLink(appUrl, '/auth/reset-password', data.token);
 
     return this.sendEmail({
       to: data.email,
@@ -205,7 +207,7 @@ export class MailSenderService {
 
   async sendEmailVerification(data: EmailVerificationEmailData): Promise<EmailResult> {
     const appUrl = this.configService.get<string>('FRONTEND_URL', 'https://app.example.com');
-    const verificationUrl = `${appUrl}/auth/verify-email?token=${data.token}`;
+    const verificationUrl = this.buildAuthLink(appUrl, '/auth/verify-email', data.token);
 
     return this.sendEmail({
       to: data.email,
@@ -259,5 +261,20 @@ export class MailSenderService {
         }),
       ),
     });
+  }
+
+  private buildAuthLink(baseUrl: string, path: string, token: string, query: Record<string, string> = {}): string {
+    const url = new URL(path, baseUrl);
+    for (const [key, value] of Object.entries(query)) {
+      url.searchParams.set(key, value);
+    }
+
+    const useLegacyQueryToken = this.configService.get<string>('MAIL_LEGACY_QUERY_TOKENS') === 'true';
+    if (useLegacyQueryToken) {
+      url.searchParams.set('token', token);
+    }
+
+    url.hash = new URLSearchParams({ token }).toString();
+    return url.toString();
   }
 }

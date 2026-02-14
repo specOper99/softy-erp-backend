@@ -249,7 +249,8 @@ export class StorageService implements OnModuleInit {
       return url;
     }
 
-    const match = new RegExp(`${this.bucket}/(.+)$`).exec(url);
+    const escapedBucket = this.bucket.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`${escapedBucket}/(.+)$`).exec(url);
     return match?.[1] ?? null;
   }
 

@@ -339,9 +339,9 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    return this.passwordService.resetPassword(token, newPassword, (userId) =>
-      this.logoutAllSessions(userId).then(() => {}),
-    );
+    return this.passwordService.resetPassword(token, newPassword, async (userId) => {
+      await this.logoutAllSessions(userId);
+    });
   }
 
   async verifyEmail(token: string): Promise<boolean> {
@@ -446,35 +446,29 @@ export class AuthService {
       throw new UnauthorizedException('MFA session expired or invalid. Please login again.');
     }
 
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    if (tempPayload.tenantId !== tenantId) {
-      throw new UnauthorizedException('Invalid MFA session tenant');
-    }
+    return TenantContextService.run(tempPayload.tenantId, async () => {
+      const user = await fetchUser(tempPayload.userId);
+      if (!user || user.tenantId !== tempPayload.tenantId) {
+        throw new UnauthorizedException('User not found');
+      }
 
-    const user = await fetchUser(tempPayload.userId);
-    if (!user || user.tenantId !== tenantId) {
-      throw new UnauthorizedException('User not found');
-    }
+      const isValid = await verifyFn(user, code);
+      if (!isValid) {
+        await this.lockoutService.recordFailedAttempt(user.email);
+        throw new UnauthorizedException(errorMessage);
+      }
 
-    // Check specific conditions if needed (like mfaSecret existence) inside the fetchUser or verifyFn
-    // But for basic user validity, the above is enough.
+      await this.mfaTokenService.consumeTempToken(tempToken);
+      await this.lockoutService.clearAttempts(user.email);
 
-    const isValid = await verifyFn(user, code);
-    if (!isValid) {
-      await this.lockoutService.recordFailedAttempt(user.email);
-      throw new UnauthorizedException(errorMessage);
-    }
+      if (context?.ipAddress) {
+        this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress, user.email).catch((error) => {
+          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+          this.logger.error(`Suspicious activity check failed: ${message}`);
+        });
+      }
 
-    await this.mfaTokenService.consumeTempToken(tempToken);
-    await this.lockoutService.clearAttempts(user.email);
-
-    if (context?.ipAddress) {
-      this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress, user.email).catch((error) => {
-        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-        this.logger.error(`Suspicious activity check failed: ${message}`);
-      });
-    }
-
-    return this.generateAuthResponse(user, context, tempPayload.rememberMe);
+      return this.generateAuthResponse(user, context, tempPayload.rememberMe);
+    });
   }
 }

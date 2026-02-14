@@ -1,7 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
 import { AuditService } from '../../modules/audit/audit.service';
 import { AUDIT_KEY, AuditOptions } from '../decorators/audit.decorator';
@@ -59,19 +59,21 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
+    const httpResponse = context.switchToHttp().getResponse<Response>();
     const user = (request as unknown as { user: User }).user;
     const startTime = Date.now();
 
     return next.handle().pipe(
       tap({
-        next: (response) => {
+        next: (responseBody) => {
           this.logAuditEvent(
             auditOptions,
             request,
             user,
             'SUCCESS',
             Date.now() - startTime,
-            auditOptions.includeResponse ? response : undefined,
+            httpResponse.statusCode,
+            auditOptions.includeResponse ? responseBody : undefined,
           ).catch((e) => {
             this.logger.error('AuditInterceptor logAuditEvent failed', e instanceof Error ? e.stack : String(e));
           });
@@ -83,6 +85,7 @@ export class AuditInterceptor implements NestInterceptor {
             user,
             'FAILURE',
             Date.now() - startTime,
+            httpResponse.statusCode,
             undefined,
             error instanceof Error ? error.message : String(error),
           ).catch((e) => {
@@ -99,6 +102,7 @@ export class AuditInterceptor implements NestInterceptor {
     user: User,
     status: 'SUCCESS' | 'FAILURE',
     durationMs: number,
+    statusCode: number,
     response?: unknown,
     error?: string,
   ): Promise<void> {
@@ -137,7 +141,7 @@ export class AuditInterceptor implements NestInterceptor {
         userAgent: auditData.userAgent,
         method: auditData.method,
         path: auditData.path,
-        statusCode: status === 'SUCCESS' ? 200 : 500, // Approximate. Ideally get real status.
+        statusCode,
         durationMs: auditData.durationMs,
       });
     } catch (e) {

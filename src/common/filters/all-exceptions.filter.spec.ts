@@ -68,7 +68,7 @@ describe('AllExceptionsFilter', () => {
       );
     });
 
-    it('should handle generic Error (non-prod shows real message)', () => {
+    it('should handle generic Error with sanitized message', () => {
       const exception = new Error('Something went wrong');
 
       filter.catch(exception, mockHost);
@@ -77,7 +77,7 @@ describe('AllExceptionsFilter', () => {
       expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          message: 'Something went wrong',
+          message: 'An unexpected error occurred. Please try again later.',
         }),
       );
     });
@@ -91,7 +91,7 @@ describe('AllExceptionsFilter', () => {
       expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          message: 'Unknown error occurred',
+          message: 'An unexpected error occurred. Please try again later.',
         }),
       );
     });

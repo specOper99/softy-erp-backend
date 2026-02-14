@@ -22,8 +22,11 @@ export class WebhookProcessor extends WorkerHost {
     const { webhook, event } = job.data;
     this.logger.log(`Processing webhook job ${job.id}: ${event.type} to ${webhook.url}`);
 
-    // Extract tenantId from webhook or event, with fallback
-    const tenantId = webhook.tenantId ?? event.tenantId ?? 'system';
+    const tenantId = webhook.tenantId ?? event.tenantId;
+
+    if (!tenantId) {
+      throw new Error(`Webhook job ${job.id} missing tenant context`);
+    }
 
     await TenantContextService.run(tenantId, async () => {
       try {

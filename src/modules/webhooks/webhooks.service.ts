@@ -323,10 +323,9 @@ export class WebhookService {
         return;
       } catch (error) {
         if (attempt === this.MAX_RETRIES - 1) {
-          this.logger.error(
-            `Webhook delivery failed to ${webhook.url} after ${this.MAX_RETRIES} attempts: ${error instanceof Error ? error.message : String(error)}`,
-          );
-          return;
+          const message = error instanceof Error ? error.message : String(error);
+          this.logger.error(`Webhook delivery failed to ${webhook.url} after ${this.MAX_RETRIES} attempts: ${message}`);
+          throw error;
         }
         // Exponential backoff with jitter to prevent thundering herd
         const baseDelay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);

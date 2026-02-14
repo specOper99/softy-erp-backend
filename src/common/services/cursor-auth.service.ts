@@ -20,10 +20,11 @@ export class CursorAuthService {
   private readonly secret: Buffer;
 
   constructor(private readonly configService: ConfigService) {
-    // Use a dedicated cursor secret, fallback to JWT secret if not set
-    const secretStr =
-      this.configService.get<string>('CURSOR_SECRET') ||
-      this.configService.get<string>('JWT_SECRET', 'default-dev-secret');
+    const secretStr = this.configService.get<string>('CURSOR_SECRET') || this.configService.get<string>('JWT_SECRET');
+
+    if (!secretStr) {
+      throw new Error('CURSOR_SECRET or JWT_SECRET must be configured');
+    }
 
     this.secret = Buffer.from(secretStr, 'utf-8');
   }

@@ -30,6 +30,7 @@ describe('AuditInterceptor', () => {
   const mockExecutionContext = {
     switchToHttp: jest.fn().mockReturnValue({
       getRequest: () => mockRequest,
+      getResponse: () => ({ statusCode: 201 }),
     }),
     getHandler: jest.fn(),
   } as unknown as ExecutionContext;
@@ -223,6 +224,7 @@ describe('AuditInterceptor', () => {
       const contextWithForwarded = {
         switchToHttp: jest.fn().mockReturnValue({
           getRequest: () => requestWithForwarded,
+          getResponse: () => ({ statusCode: 200 }),
         }),
         getHandler: jest.fn(),
       } as unknown as ExecutionContext;
