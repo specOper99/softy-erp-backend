@@ -1,11 +1,11 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Readable } from 'stream';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
 import { CreateClientDto, UpdateClientDto } from '../dto';
+import { Booking } from '../entities/booking.entity';
 import { Client } from '../entities/client.entity';
 import { ClientCreatedEvent, ClientDeletedEvent, ClientUpdatedEvent } from '../events/client.events';
 import type { StreamableResponse } from '../types/export.types';
@@ -19,8 +19,6 @@ import { ClientRepository } from '../repositories/client.repository';
 
 @Injectable()
 export class ClientsService {
-  private readonly logger = new Logger(ClientsService.name);
-
   constructor(
     private readonly clientRepository: ClientRepository,
     private readonly bookingRepository: BookingRepository,
@@ -53,7 +51,10 @@ export class ClientsService {
     return savedClient;
   }
 
-  async findAll(query: PaginationDto = new PaginationDto(), tags?: string[]): Promise<Client[]> {
+  async findAll(
+    query: { getSkip(): number; getTake(): number } = { getSkip: () => 0, getTake: () => 20 },
+    tags?: string[],
+  ): Promise<Client[]> {
     const queryBuilder = this.clientRepository
       .createQueryBuilder('client')
       // Tenant scoping handled by repository
@@ -166,7 +167,7 @@ export class ClientsService {
     return (
       this.clientRepository
         .createQueryBuilder('client')
-        .leftJoin('client.bookings', 'booking')
+        .leftJoin(Booking, 'booking', 'booking.clientId = client.id AND booking.tenantId = client.tenantId')
         // tenantId handled by repo
         .select(['client.id', 'client.name', 'client.email', 'client.phone', 'client.notes', 'client.createdAt'])
         .addSelect('COUNT(booking.id)', 'bookingCount')

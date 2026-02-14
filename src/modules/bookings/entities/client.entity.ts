@@ -1,7 +1,7 @@
-import { Column, Entity, Index, OneToMany } from 'typeorm';
-import { PII, SanitizeHtml } from '../../../common/decorators';
+import { Column, Entity, Index } from 'typeorm';
+import { PII } from '../../../common/decorators/pii.decorator';
+import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { Booking } from './booking.entity';
 
 @Entity('clients')
 @Index(['tenantId', 'id'], { unique: true })
@@ -50,9 +50,6 @@ export class Client extends BaseTenantEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   accessTokenExpiry: Date | null;
-
-  @OneToMany(() => Booking, (booking) => booking.client)
-  bookings: Promise<Booking[]>;
 
   isAccessTokenValid(): boolean {
     if (!this.accessTokenHash || !this.accessTokenExpiry) {

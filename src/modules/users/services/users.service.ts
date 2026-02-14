@@ -6,6 +6,7 @@ import { CursorAuthService } from '../../../common/services/cursor-auth.service'
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
+import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { CreateUserDto, UpdateUserDto, UserFilterDto } from '../dto';
 import { User } from '../entities/user.entity';
 import { UserCreatedEvent } from '../events/user-created.event';
@@ -106,7 +107,14 @@ export class UsersService {
   async findAll(query: UserFilterDto = new UserFilterDto()): Promise<User[]> {
     const qb = this.userRepository.createQueryBuilder('user');
 
-    qb.leftJoinAndSelect('user.wallet', 'wallet').orderBy('user.createdAt', 'DESC').addOrderBy('user.id', 'DESC');
+    qb.leftJoinAndMapOne(
+      'user.wallet',
+      EmployeeWallet,
+      'wallet',
+      'wallet.userId = user.id AND wallet.tenantId = user.tenantId',
+    )
+      .orderBy('user.createdAt', 'DESC')
+      .addOrderBy('user.id', 'DESC');
 
     if (query.role) {
       qb.andWhere('user.role = :role', { role: query.role });
@@ -130,7 +138,12 @@ export class UsersService {
 
     const qb = this.userRepository.createQueryBuilder('user');
 
-    qb.leftJoinAndSelect('user.wallet', 'wallet')
+    qb.leftJoinAndMapOne(
+      'user.wallet',
+      EmployeeWallet,
+      'wallet',
+      'wallet.userId = user.id AND wallet.tenantId = user.tenantId',
+    )
       .orderBy('user.createdAt', 'DESC')
       .addOrderBy('user.id', 'DESC')
       .take(limit + 1);
@@ -176,13 +189,21 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({
-      where: { id },
-      relations: ['wallet'],
-    });
+    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('common.user_not_found');
     }
+
+    const walletRepo = this.rawUserRepository.manager?.getRepository?.(EmployeeWallet);
+    if (walletRepo) {
+      const wallet = await walletRepo.findOne({
+        where: { userId: user.id, tenantId: user.tenantId },
+      });
+      if (wallet) {
+        (user as User & { wallet?: EmployeeWallet }).wallet = wallet;
+      }
+    }
+
     return user;
   }
 

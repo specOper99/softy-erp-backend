@@ -94,6 +94,21 @@ describe('CatalogService', () => {
     cacheUtils = module.get(CacheUtilsService);
 
     mockTenantContext(mockTenantId);
+
+    const qbMock = {
+      leftJoinAndMapMany: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([mockPackage]),
+      getOne: jest.fn().mockResolvedValue(mockPackage),
+      getCount: jest.fn().mockResolvedValue(1),
+    };
+    packageRepo.createQueryBuilder.mockReturnValue(qbMock as any);
   });
 
   afterEach(() => {
@@ -142,13 +157,12 @@ describe('CatalogService', () => {
       } as unknown as PaginationDto);
 
       expect(cacheUtils.get).toHaveBeenCalled();
-      expect(packageRepo.find).not.toHaveBeenCalled();
+      expect(packageRepo.createQueryBuilder).not.toHaveBeenCalled();
       expect(result).toEqual([mockPackage]);
     });
 
     it('should query database when cache miss', async () => {
       cacheUtils.get.mockResolvedValue(null);
-      packageRepo.find.mockResolvedValue([mockPackage] as unknown as ServicePackage[]);
 
       const result = await service.findAllPackages({
         page: 1,
@@ -157,7 +171,7 @@ describe('CatalogService', () => {
         getTake: () => 10,
       } as unknown as PaginationDto);
 
-      expect(packageRepo.find).toHaveBeenCalled();
+      expect(packageRepo.createQueryBuilder).toHaveBeenCalled();
       expect(cacheUtils.set).toHaveBeenCalled();
       expect(result).toHaveLength(1);
     });
@@ -165,15 +179,18 @@ describe('CatalogService', () => {
 
   describe('findPackageById', () => {
     it('should return package by id', async () => {
-      packageRepo.findOne.mockResolvedValue(mockPackage as unknown as ServicePackage);
-
       const result = await service.findPackageById('pkg-123');
 
       expect(result).toEqual(mockPackage);
     });
 
     it('should throw NotFoundException if not found', async () => {
-      packageRepo.findOne.mockResolvedValue(null);
+      packageRepo.createQueryBuilder.mockReturnValue({
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      } as any);
 
       await expect(service.findPackageById('not-found')).rejects.toThrow(NotFoundException);
     });
@@ -181,7 +198,7 @@ describe('CatalogService', () => {
 
   describe('updatePackage', () => {
     it('should update and return package', async () => {
-      packageRepo.findOne.mockResolvedValue({ ...mockPackage } as unknown as ServicePackage);
+      jest.spyOn(service, 'findPackageById').mockResolvedValue({ ...mockPackage } as unknown as ServicePackage);
       packageRepo.save.mockResolvedValue({
         ...mockPackage,
         price: 6000,
@@ -199,7 +216,7 @@ describe('CatalogService', () => {
 
   describe('deletePackage', () => {
     it('should delete package', async () => {
-      packageRepo.findOne.mockResolvedValue(mockPackage as unknown as ServicePackage);
+      jest.spyOn(service, 'findPackageById').mockResolvedValue(mockPackage as unknown as ServicePackage);
 
       await service.deletePackage('pkg-123');
 
@@ -212,16 +229,15 @@ describe('CatalogService', () => {
   describe('clonePackage', () => {
     it('should clone package with new name', async () => {
       const sourcePackage = { ...mockPackage, packageItems: [] };
-      packageRepo.findOne.mockResolvedValueOnce(sourcePackage as unknown as ServicePackage);
+      jest
+        .spyOn(service, 'findPackageById')
+        .mockResolvedValueOnce(sourcePackage as unknown as ServicePackage)
+        .mockResolvedValueOnce({ ...mockPackage, id: 'pkg-new' } as unknown as ServicePackage);
       packageRepo.create.mockReturnValue({
         ...mockPackage,
         id: 'pkg-new',
       } as unknown as ServicePackage);
       packageRepo.save.mockResolvedValue({
-        ...mockPackage,
-        id: 'pkg-new',
-      } as unknown as ServicePackage);
-      packageRepo.findOne.mockResolvedValueOnce({
         ...mockPackage,
         id: 'pkg-new',
       } as unknown as ServicePackage);
@@ -318,7 +334,7 @@ describe('CatalogService', () => {
         const dto = {
           items: [{ taskTypeId: 'tt-123', quantity: 1 }],
         };
-        packageRepo.findOne.mockResolvedValue(mockPackage as unknown as ServicePackage);
+        jest.spyOn(service, 'findPackageById').mockResolvedValue(mockPackage as unknown as ServicePackage);
         packageItemRepo.create.mockReturnValue(mockPackageItem as unknown as PackageItem);
         packageItemRepo.save.mockResolvedValue([mockPackageItem] as unknown as PackageItem[]);
 
@@ -331,7 +347,7 @@ describe('CatalogService', () => {
         const dto = {
           items: [{ taskTypeId: 'tt-123', quantity: 1 }],
         };
-        packageRepo.findOne.mockResolvedValue(null);
+        jest.spyOn(service, 'findPackageById').mockRejectedValue(new NotFoundException());
 
         await expect(service.addPackageItems('invalid', dto)).rejects.toThrow(NotFoundException);
       });

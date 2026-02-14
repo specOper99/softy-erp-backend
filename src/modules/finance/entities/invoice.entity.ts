@@ -2,8 +2,8 @@ import Decimal from 'decimal.js';
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
 import { MoneyColumn, PercentColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { Booking } from '../../bookings/entities/booking.entity';
-import { Client } from '../../bookings/entities/client.entity';
+import type { Booking } from '../../bookings/entities/booking.entity';
+import type { Client } from '../../bookings/entities/client.entity';
 
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
@@ -39,11 +39,11 @@ export class Invoice extends BaseTenantEntity {
   @Column({ name: 'client_id' })
   clientId: string;
 
-  @OneToOne(() => Booking, { nullable: true })
+  @OneToOne('Booking', { nullable: true })
   @JoinColumn({ name: 'booking_id' })
   booking: Booking | null;
 
-  @ManyToOne(() => Client)
+  @ManyToOne('Client')
   @JoinColumn({ name: 'client_id' })
   client: Client;
 

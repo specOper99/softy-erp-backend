@@ -1,5 +1,7 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { Booking } from '../../modules/bookings/entities/booking.entity';
+import { PackageItem } from '../../modules/catalog/entities/package-item.entity';
+import { Task } from '../../modules/tasks/entities/task.entity';
 
 /**
  * Shared query builder patterns for Booking entities.
@@ -14,7 +16,7 @@ export class BookingQueryHelper {
     return qb
       .leftJoinAndSelect(`${alias}.client`, 'client')
       .leftJoinAndSelect(`${alias}.servicePackage`, 'servicePackage')
-      .leftJoinAndSelect(`${alias}.tasks`, 'tasks')
+      .leftJoinAndSelect(Task, 'tasks', `tasks.bookingId = ${alias}.id AND tasks.tenantId = ${alias}.tenantId`)
       .leftJoinAndSelect('tasks.assignedUser', 'taskAssignedUser');
   }
 
@@ -34,7 +36,12 @@ export class BookingQueryHelper {
    */
   static withExtendedRelations(qb: SelectQueryBuilder<Booking>, alias = 'booking'): SelectQueryBuilder<Booking> {
     return BookingQueryHelper.withStandardRelations(qb, alias)
-      .leftJoinAndSelect('servicePackage.packageItems', 'packageItems')
+      .leftJoinAndMapMany(
+        'servicePackage.packageItems',
+        PackageItem,
+        'packageItems',
+        'packageItems.packageId = servicePackage.id AND packageItems.tenantId = servicePackage.tenantId',
+      )
       .leftJoinAndSelect('packageItems.taskType', 'packageTaskType')
       .leftJoinAndSelect('tasks.taskType', 'taskType');
   }

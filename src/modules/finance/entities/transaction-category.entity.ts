@@ -1,7 +1,6 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
-import { Transaction } from './transaction.entity';
 
 @Entity('transaction_categories')
 @Index(['tenantId', 'id'], { unique: true })
@@ -26,16 +25,13 @@ export class TransactionCategory extends BaseTenantEntity {
   @Column({ name: 'parent_id', type: 'uuid', nullable: true })
   parentId: string;
 
-  @ManyToOne(() => TransactionCategory, (category) => category.children, {
+  @ManyToOne('TransactionCategory', (category: TransactionCategory) => category.children, {
     nullable: true,
     onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'parent_id' })
   parent: TransactionCategory;
 
-  @OneToMany(() => TransactionCategory, (category) => category.parent)
+  @OneToMany('TransactionCategory', (category: TransactionCategory) => category.parent)
   children: Promise<TransactionCategory[]>;
-
-  @OneToMany(() => Transaction, (transaction) => transaction.categoryRelation)
-  transactions: Promise<Transaction[]>;
 }

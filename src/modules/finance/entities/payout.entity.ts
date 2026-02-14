@@ -1,9 +1,8 @@
-import { Column, Entity, Index, OneToMany } from 'typeorm';
+import { Column, Entity, Index } from 'typeorm';
 import { MoneyColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Currency } from '../enums/currency.enum';
 import { PayoutStatus } from '../enums/payout-status.enum';
-import { Transaction } from './transaction.entity';
 
 @Entity('payouts')
 @Index(['tenantId', 'id'], { unique: true })
@@ -48,7 +47,4 @@ export class Payout extends BaseTenantEntity {
 
   @Column({ type: 'text', nullable: true })
   notes: string;
-
-  @OneToMany(() => Transaction, (transaction) => transaction.payout)
-  transactions: Promise<Transaction[]>;
 }

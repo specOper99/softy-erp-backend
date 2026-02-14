@@ -1,5 +1,5 @@
 import { Column, DeleteDateColumn, Entity, Index } from 'typeorm';
-import { PII } from '../../../common/decorators';
+import { PII } from '../../../common/decorators/pii.decorator';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { User } from '../../users/entities/user.entity';
 import { ContractType } from '../enums/contract-type.enum';

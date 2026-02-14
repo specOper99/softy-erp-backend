@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreateBookingDto } from '../../bookings/dto';
@@ -12,6 +11,7 @@ import { BookingsService } from '../../bookings/services/bookings.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { NotificationType } from '../../notifications/enums/notification.enum';
 import { NotificationService } from '../../notifications/services/notification.service';
+import { Task } from '../../tasks/entities/task.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { CreateClientBookingDto } from '../dto/create-client-booking.dto';
@@ -50,7 +50,7 @@ export class ClientPortalService {
   async getMyBookings(
     clientId: string,
     _tenantId: string, // Kept for API compatibility; TenantAwareRepository handles scoping
-    query: PaginationDto = new PaginationDto(),
+    query: { getSkip(): number; getTake(): number } = { getSkip: () => 0, getTake: () => 20 },
   ): Promise<Booking[]> {
     return this.bookingRepository.find({
       where: { clientId },
@@ -62,10 +62,13 @@ export class ClientPortalService {
   }
 
   async getBooking(bookingId: string, clientId: string, _tenantId: string): Promise<Booking> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId, clientId },
-      relations: ['servicePackage', 'tasks'],
-    });
+    const booking = await this.bookingRepository
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
+      .leftJoinAndSelect(Task, 'tasks', 'tasks.bookingId = booking.id AND tasks.tenantId = booking.tenantId')
+      .where('booking.id = :bookingId', { bookingId })
+      .andWhere('booking.clientId = :clientId', { clientId })
+      .getOne();
 
     if (!booking) {
       throw new NotFoundException('Booking not found');
@@ -88,7 +91,7 @@ export class ClientPortalService {
       throw new NotFoundException('Package not found');
     }
 
-    await this.ensureSlotCapacity(client.tenantId, dto.packageId, eventDate, dto.startTime, tenant);
+    await this.ensureSlotCapacity(dto.packageId, eventDate, dto.startTime, tenant);
 
     const bookingInput: CreateBookingDto = {
       clientId: client.id,
@@ -111,7 +114,6 @@ export class ClientPortalService {
   }
 
   private async ensureSlotCapacity(
-    tenantId: string,
     packageId: string,
     eventDate: Date,
     startTime: string,

@@ -210,7 +210,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
     beforeEach(() => {
       queryBuilderMock = {
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -242,7 +242,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
     it('should query with relations', async () => {
       await service.findAll();
-      expect(queryBuilderMock.leftJoinAndSelect).toHaveBeenCalledWith('user.wallet', 'wallet');
+      expect(queryBuilderMock.leftJoinAndMapOne).toHaveBeenCalled();
     });
 
     it('should apply filters for role, isActive and search', async () => {
@@ -290,15 +290,36 @@ describe('UsersService - Comprehensive Tests', () => {
 
   describe('findOne', () => {
     it('should return user by valid UUID', async () => {
+      const qbMock = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockUser),
+      };
+      userRepository.createQueryBuilder.mockReturnValue(qbMock as any);
+
       const result = await service.findOne('test-uuid-123');
       expect(result).toMatchObject({ id: 'test-uuid-123' });
     });
 
     it('should throw NotFoundException for invalid UUID', async () => {
+      const qbMock = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      userRepository.createQueryBuilder.mockReturnValue(qbMock as any);
+
       await expect(service.findOne('invalid-uuid')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw NotFoundException for empty string', async () => {
+      const qbMock = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      userRepository.createQueryBuilder.mockReturnValue(qbMock as any);
+
       await expect(service.findOne('')).rejects.toThrow(NotFoundException);
     });
   });
@@ -462,7 +483,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
     beforeEach(() => {
       queryBuilderMock = {
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),

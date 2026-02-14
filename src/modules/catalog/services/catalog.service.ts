@@ -91,12 +91,18 @@ export class CatalogService {
       if (cached) return cached;
     }
 
-    const packages = await this.packageRepository.find({
-      where: {},
-      relations: ['packageItems', 'packageItems.taskType'],
-      skip: query.getSkip(),
-      take: query.getTake(),
-    });
+    const packages = await this.packageRepository
+      .createQueryBuilder('pkg')
+      .leftJoinAndMapMany(
+        'pkg.packageItems',
+        PackageItem,
+        'items',
+        'items.packageId = pkg.id AND items.tenantId = pkg.tenantId',
+      )
+      .leftJoinAndSelect('items.taskType', 'taskType')
+      .skip(query.getSkip())
+      .take(query.getTake())
+      .getMany();
 
     // Cache only default pagination
     if (!nocache && query.page === 1 && query.limit === 10) {
@@ -112,7 +118,12 @@ export class CatalogService {
   async findAllPackagesWithFilters(filter: PackageFilterDto): Promise<PaginatedResponseDto<ServicePackage>> {
     const qb = this.packageRepository
       .createQueryBuilder('pkg')
-      .leftJoinAndSelect('pkg.packageItems', 'items')
+      .leftJoinAndMapMany(
+        'pkg.packageItems',
+        PackageItem,
+        'items',
+        'items.packageId = pkg.id AND items.tenantId = pkg.tenantId',
+      )
       .leftJoinAndSelect('items.taskType', 'taskType');
 
     // Apply filters
@@ -137,7 +148,12 @@ export class CatalogService {
   ): Promise<{ data: ServicePackage[]; nextCursor: string | null }> {
     const qb = this.packageRepository
       .createQueryBuilder('pkg')
-      .leftJoinAndSelect('pkg.packageItems', 'items')
+      .leftJoinAndMapMany(
+        'pkg.packageItems',
+        PackageItem,
+        'items',
+        'items.packageId = pkg.id AND items.tenantId = pkg.tenantId',
+      )
       .leftJoinAndSelect('items.taskType', 'taskType');
 
     // Apply cursor pagination with filters
@@ -171,7 +187,12 @@ export class CatalogService {
     const limit = query.limit || 20;
 
     const qb = this.packageRepository.createQueryBuilder('pkg');
-    qb.leftJoinAndSelect('pkg.packageItems', 'items').leftJoinAndSelect('items.taskType', 'taskType');
+    qb.leftJoinAndMapMany(
+      'pkg.packageItems',
+      PackageItem,
+      'items',
+      'items.packageId = pkg.id AND items.tenantId = pkg.tenantId',
+    ).leftJoinAndSelect('items.taskType', 'taskType');
 
     return CursorPaginationHelper.paginate(qb, {
       cursor: query.cursor,
@@ -181,10 +202,17 @@ export class CatalogService {
   }
 
   async findPackageById(id: string): Promise<ServicePackage> {
-    const pkg = await this.packageRepository.findOne({
-      where: { id },
-      relations: ['packageItems', 'packageItems.taskType'],
-    });
+    const pkg = await this.packageRepository
+      .createQueryBuilder('pkg')
+      .leftJoinAndMapMany(
+        'pkg.packageItems',
+        PackageItem,
+        'items',
+        'items.packageId = pkg.id AND items.tenantId = pkg.tenantId',
+      )
+      .leftJoinAndSelect('items.taskType', 'taskType')
+      .where('pkg.id = :id', { id })
+      .getOne();
     if (!pkg) {
       throw new NotFoundException(`ServicePackage with ID ${id} not found`);
     }
@@ -415,10 +443,7 @@ export class CatalogService {
 
   async clonePackage(packageId: string, dto: ClonePackageDto): Promise<ServicePackage> {
     // Load source package with all items
-    const sourcePackage = await this.packageRepository.findOne({
-      where: { id: packageId },
-      relations: ['packageItems', 'packageItems.taskType'],
-    });
+    const sourcePackage = await this.findPackageById(packageId);
 
     if (!sourcePackage) {
       throw new NotFoundException(`ServicePackage with ID ${packageId} not found`);
@@ -437,7 +462,7 @@ export class CatalogService {
     const savedPackage = await this.packageRepository.save(newPackage);
 
     // Clone all package items
-    const sourceItems = await sourcePackage.packageItems;
+    const sourceItems = sourcePackage.packageItems ?? [];
     if (sourceItems && sourceItems.length > 0) {
       const clonedItems = sourceItems.map((item) =>
         this.packageItemRepository.create({

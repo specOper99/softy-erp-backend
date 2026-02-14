@@ -1,7 +1,6 @@
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Column, Entity } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { Booking } from '../../bookings/entities/booking.entity';
-import { PackageItem } from './package-item.entity';
+import type { PackageItem } from './package-item.entity';
 
 @Entity('service_packages')
 export class ServicePackage extends BaseTenantEntity {
@@ -23,9 +22,5 @@ export class ServicePackage extends BaseTenantEntity {
   @Column({ name: 'template_category', type: 'varchar', nullable: true })
   templateCategory: string | null;
 
-  @OneToMany(() => PackageItem, (item) => item.servicePackage)
-  packageItems: Promise<PackageItem[]>;
-
-  @OneToMany(() => Booking, (booking) => booking.servicePackage)
-  bookings: Promise<Booking[]>;
+  packageItems?: PackageItem[];
 }

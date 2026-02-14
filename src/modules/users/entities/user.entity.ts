@@ -5,13 +5,9 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
-  OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
-import { Task } from '../../tasks/entities/task.entity';
 import { Role } from '../enums/role.enum';
 
 @Entity('users')
@@ -69,10 +65,4 @@ export class User {
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
-
-  @OneToOne(() => EmployeeWallet, (wallet) => wallet.user)
-  wallet: EmployeeWallet;
-
-  @OneToMany(() => Task, (task) => task.assignedUser)
-  tasks: Promise<Task[]>;
 }

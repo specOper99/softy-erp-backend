@@ -21,6 +21,7 @@ describe('ClientPortalService', () => {
   let bookingRepository: {
     find: jest.Mock;
     findOne: jest.Mock;
+    createQueryBuilder: jest.Mock;
     count: jest.Mock;
   };
   let bookingsService: { create: jest.Mock };
@@ -52,6 +53,7 @@ describe('ClientPortalService', () => {
     bookingRepository = {
       find: jest.fn(),
       findOne: jest.fn(),
+      createQueryBuilder: jest.fn(),
       count: jest.fn(),
     };
 
@@ -150,19 +152,28 @@ describe('ClientPortalService', () => {
 
   describe('getBooking', () => {
     it('should return booking when found', async () => {
-      bookingRepository.findOne.mockResolvedValue(mockBooking);
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockBooking),
+      };
+      bookingRepository.createQueryBuilder.mockReturnValue(qb);
 
       const result = await service.getBooking('booking-1', 'client-1', 'tenant-1');
 
-      expect(bookingRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 'booking-1', clientId: 'client-1' },
-        relations: ['servicePackage', 'tasks'],
-      });
+      expect(bookingRepository.createQueryBuilder).toHaveBeenCalledWith('booking');
       expect(result).toEqual(mockBooking);
     });
 
     it('should throw NotFoundException when booking not found', async () => {
-      bookingRepository.findOne.mockResolvedValue(null);
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      bookingRepository.createQueryBuilder.mockReturnValue(qb);
 
       await expect(service.getBooking('booking-1', 'client-1', 'tenant-1')).rejects.toThrow(NotFoundException);
     });

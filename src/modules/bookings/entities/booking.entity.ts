@@ -1,13 +1,11 @@
-import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne } from 'typeorm';
-import { ServicePackage } from '../../catalog/entities/service-package.entity';
+import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
-import { Task } from '../../tasks/entities/task.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 
 import { MoneyColumn, PercentColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { Invoice } from '../../finance/entities/invoice.entity';
-import { Client } from './client.entity';
+import type { ServicePackage } from '../../catalog/entities/service-package.entity';
+import type { Client } from './client.entity';
 
 @Entity('bookings')
 @Index(['tenantId', 'status', 'eventDate'])
@@ -79,19 +77,13 @@ export class Booking extends BaseTenantEntity {
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
 
-  @ManyToOne(() => Client, (client) => client.bookings)
+  @ManyToOne('Client')
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
-  @ManyToOne(() => ServicePackage)
+  @ManyToOne('ServicePackage')
   @JoinColumn({ name: 'package_id' })
   servicePackage: ServicePackage;
-
-  @OneToMany(() => Task, (task) => task.booking)
-  tasks: Promise<Task[]>;
-
-  @OneToOne(() => Invoice, (invoice) => invoice.booking)
-  invoice: Promise<Invoice>;
 
   // ==================== Domain Methods ====================
 

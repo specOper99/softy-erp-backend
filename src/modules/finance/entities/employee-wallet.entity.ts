@@ -1,7 +1,7 @@
 import { Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
 import { MoneyColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 
 @Entity('employee_wallets')
 @Index(['tenantId', 'userId'], { unique: true })
@@ -23,7 +23,7 @@ export class EmployeeWallet extends BaseTenantEntity {
   @MoneyColumn('payable_balance')
   payableBalance: number;
 
-  @OneToOne(() => User)
+  @OneToOne('User')
   @JoinColumn({ name: 'user_id' })
   user: User;
 }
