@@ -107,7 +107,7 @@ async function bootstrap() {
     origin: corsOriginDelegate(allowlist),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'x-client-token'],
     exposedHeaders: ['Retry-After', 'X-Correlation-ID'],
   });
 
@@ -166,6 +166,15 @@ Tenant Admin can create studio-side users primarily with roles: \`OPS_MANAGER\`,
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Platform Admin JWT (MFA required)' },
       'platform-auth',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-client-token',
+        description: 'Client portal access token (magic-link session)',
+      },
+      'client-token',
     )
     // Public endpoints
     .addTag('Auth', '🔓 Authentication - Login, Register, Password Reset')

@@ -50,7 +50,7 @@ import {
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Auth')
-@ApiExtraModels(AuthResponseDto, TokensDto)
+@ApiExtraModels(AuthResponseDto, TokensDto, RecoveryCodesResponseDto)
 @ApiErrorResponses(
   'BAD_REQUEST',
   'UNAUTHORIZED',
@@ -186,20 +186,7 @@ export class AuthController {
   })
   @ApiOkResponse({
     description: 'MFA enabled, recovery codes returned',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(RecoveryCodesResponseDto) },
-        {
-          properties: {
-            codes: {
-              type: 'array',
-              items: { type: 'string', example: 'A1B2C3D4' },
-            },
-            remaining: { type: 'number', example: 10 },
-          },
-        },
-      ],
-    },
+    type: RecoveryCodesResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid verification code' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
