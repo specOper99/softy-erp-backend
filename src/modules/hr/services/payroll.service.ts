@@ -3,7 +3,6 @@ import { Cron } from '@nestjs/schedule';
 import pLimit from 'p-limit';
 import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -65,6 +64,7 @@ export class PayrollService {
 
         // Iterate all tenants since cron jobs don't have HTTP request context
         const tenants = await this.tenantsService.findAll();
+        const failedTenants: string[] = [];
 
         // PERFORMANCE FIX: Use bounded concurrency instead of sequential processing
         const limit = pLimit(5); // Max 5 concurrent tenant payroll runs
@@ -88,10 +88,15 @@ export class PayrollService {
             });
           } catch (error) {
             this.logger.error(`Payroll run failed for tenant ${tenant.slug}`, error);
+            failedTenants.push(tenant.slug);
           }
         };
 
         await Promise.all(tenants.map((tenant) => limit(() => processPayrollForTenant(tenant))));
+
+        if (failedTenants.length > 0) {
+          throw new Error(`Scheduled payroll failed for tenant(s): ${failedTenants.join(', ')}`);
+        }
 
         this.logger.log('Scheduled payroll run completed for all tenants');
         return { success: true };
@@ -126,6 +131,7 @@ export class PayrollService {
     let totalPayout = 0;
     let totalEmployeesProcessed = 0;
     const batchCount = Math.ceil(totalCount / this.PAYROLL_BATCH_SIZE);
+    const failedBatches: Array<{ batchIndex: number; reason: string }> = [];
 
     this.logger.log(`Starting payroll for tenant ${tenantId}: ${totalCount} profiles in ${batchCount} batches`);
 
@@ -144,9 +150,40 @@ export class PayrollService {
           `Payroll batch ${batchIndex + 1}/${batchCount} completed: ${batchResult.employeesProcessed} employees, $${batchResult.totalPayout}`,
         );
       } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        failedBatches.push({ batchIndex: batchIndex + 1, reason });
         this.logger.error(`Payroll batch ${batchIndex + 1}/${batchCount} failed for tenant ${tenantId}`, error);
-        // Continue with next batch - partial payroll is better than none
+        break;
       }
+    }
+
+    if (failedBatches.length > 0) {
+      const failedRun = this.payrollRunRepository.create({
+        totalEmployees: totalEmployeesProcessed,
+        totalPayout,
+        transactionIds: allTransactionIds,
+        processedAt: new Date(),
+        status: 'FAILED',
+        tenantId,
+        notes: `Payroll failed. Processed ${totalEmployeesProcessed}/${totalCount} employees. Failed batch ${failedBatches[0]?.batchIndex}: ${failedBatches[0]?.reason}`,
+      });
+      await this.payrollRunRepository.save(failedRun);
+
+      await this.auditService.log({
+        action: 'PAYROLL_RUN_FAILED',
+        entityName: 'Payroll',
+        entityId: `${tenantId}-${new Date().toISOString().slice(0, 7)}`,
+        newValues: {
+          totalEmployees: totalEmployeesProcessed,
+          totalPayout,
+          transactionIds: allTransactionIds,
+          batchCount,
+          failedBatches,
+        },
+        notes: `Payroll failed for tenant ${tenantId} at batch ${failedBatches[0]?.batchIndex}`,
+      });
+
+      throw new Error('hr.payroll_failed');
     }
 
     // Final audit log (outside batch transactions)
@@ -183,7 +220,9 @@ export class PayrollService {
     };
   }
 
-  async getPayrollHistory(query: PaginationDto = new PaginationDto()): Promise<PayrollRun[]> {
+  async getPayrollHistory(
+    query: { getSkip(): number; getTake(): number } = { getSkip: () => 0, getTake: () => 20 },
+  ): Promise<PayrollRun[]> {
     return this.payrollRunRepository.find({
       where: {},
       order: { processedAt: 'DESC' },
@@ -241,7 +280,7 @@ export class PayrollService {
 
     const limit = pLimit(5);
 
-    await Promise.allSettled(
+    const settled = await Promise.allSettled(
       profiles.map((profile) =>
         limit(async () => {
           const baseSalary = Number(profile.baseSalary) || 0;
@@ -322,11 +361,18 @@ export class PayrollService {
             }
           } catch (error) {
             this.logger.error(`Payroll processing failed for ${profile.firstName} ${profile.lastName}`, error);
-            // Continue with next employee - partial payroll is better than none
+            throw error;
           }
         }),
       ),
     );
+
+    const rejected = settled.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (rejected.length > 0) {
+      const firstReason = rejected[0]?.reason;
+      const reasonMessage = firstReason instanceof Error ? firstReason.message : String(firstReason);
+      throw new Error(`Payroll batch failed for ${rejected.length} employee(s): ${reasonMessage}`);
+    }
 
     return { transactionIds, totalPayout, employeesProcessed };
   }

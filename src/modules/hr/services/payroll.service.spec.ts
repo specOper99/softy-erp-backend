@@ -166,13 +166,16 @@ describe('PayrollService', () => {
       expect(mockQueryRunner.manager.save).not.toHaveBeenCalled();
     });
 
-    it('should continue processing after batch failure', async () => {
-      // We simulate failure during save or wallet processing
+    it('should fail payroll run and persist failed run status after batch failure', async () => {
       mockQueryRunner.manager.save.mockRejectedValueOnce(new Error('Fail DB'));
-      const result = await service.runPayroll();
-      // Service continues with next batch instead of rolling back entire payroll
-      expect(result).toBeDefined();
-      // Note: Service logs error but doesn't rollback - batch processing continues
+
+      await expect(service.runPayroll()).rejects.toThrow('hr.payroll_failed');
+      expect(mockPayrollRunRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'FAILED',
+        }),
+      );
+      expect(mockPayrollRunRepository.save).toHaveBeenCalled();
     });
   });
 

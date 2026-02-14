@@ -26,7 +26,7 @@ describe('DistributedLockService', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn().mockReturnValue('redis://localhost:9379'),
+    get: jest.fn().mockReturnValue('redis://localhost:6379'),
   };
 
   beforeEach(async () => {
