@@ -36,5 +36,6 @@ export class ClientTokenResponseDto {
     id: string;
     name: string;
     email: string;
+    tenantSlug?: string;
   };
 }

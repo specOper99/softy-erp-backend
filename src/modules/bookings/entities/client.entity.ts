@@ -37,6 +37,9 @@ export class Client extends BaseTenantEntity {
   notificationPreferences: {
     email: boolean;
     inApp: boolean;
+    marketing?: boolean;
+    reminders?: boolean;
+    updates?: boolean;
   };
 
   // Magic Link Authentication - SECURITY: Store hash, not plaintext

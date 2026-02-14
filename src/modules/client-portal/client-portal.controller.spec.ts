@@ -1,13 +1,13 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
-import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { ClientsService } from '../bookings/services/clients.service';
 import { CatalogService } from '../catalog/services/catalog.service';
 import { NotificationService } from '../notifications/services/notification.service';
 import { ReviewsService } from '../reviews/services/reviews.service';
+import { TenantsService } from '../tenants/tenants.service';
 import { ClientPortalController } from './client-portal.controller';
 import { AvailabilityService } from './services/availability.service';
 import { ClientAuthService } from './services/client-auth.service';
@@ -27,10 +27,14 @@ describe('ClientPortalController', () => {
   };
 
   const mockBooking: Partial<Booking> = {
-    id: 'booking-1',
+    id: '4ef8dcb8-e2c8-4fc8-b2cc-2d5f17faf001',
     clientId: 'client-1',
     tenantId: 'tenant-1',
     eventDate: new Date(),
+    createdAt: new Date(),
+    status: 'DRAFT' as Booking['status'],
+    packageId: '9f8cfe4d-5571-4634-bf9c-7ce6f7e4d9f1',
+    servicePackage: { name: 'Sample Listing' } as Booking['servicePackage'],
   };
 
   beforeEach(async () => {
@@ -43,6 +47,7 @@ describe('ClientPortalController', () => {
 
     const mockClientPortalService = {
       getMyBookings: jest.fn(),
+      getMyBookingsPaginated: jest.fn(),
       getBooking: jest.fn(),
       getClientProfile: jest.fn(),
       createBooking: jest.fn(),
@@ -74,6 +79,13 @@ describe('ClientPortalController', () => {
       update: jest.fn(),
     };
 
+    const mockTenantsService = {
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ id: 'tenant-1', slug: 'test-tenant', name: 'Test Tenant', address: 'Baghdad' }),
+      findBySlug: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ClientPortalController],
       providers: [
@@ -84,6 +96,7 @@ describe('ClientPortalController', () => {
         { provide: AvailabilityService, useValue: mockAvailabilityService },
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: ClientsService, useValue: mockClientsService },
+        { provide: TenantsService, useValue: mockTenantsService },
       ],
     }).compile();
 
@@ -149,7 +162,12 @@ describe('ClientPortalController', () => {
 
   describe('getMyBookings', () => {
     it('should return bookings for authenticated client', async () => {
-      clientPortalService.getMyBookings.mockResolvedValue([mockBooking as Booking]);
+      clientPortalService.getMyBookingsPaginated.mockResolvedValue({
+        items: [mockBooking as Booking],
+        total: 1,
+        page: 1,
+        pageSize: 10,
+      });
 
       const req = {
         client: mockClient,
@@ -157,8 +175,9 @@ describe('ClientPortalController', () => {
 
       const result = await controller.getMyBookings(req);
 
-      expect(clientPortalService.getMyBookings).toHaveBeenCalledWith('client-1', 'tenant-1', expect.any(PaginationDto));
-      expect(result).toEqual([mockBooking]);
+      expect(clientPortalService.getMyBookingsPaginated).toHaveBeenCalledWith('client-1', 'tenant-1', 1, 10);
+      expect(result.total).toBe(1);
+      expect(result.items).toHaveLength(1);
     });
 
     it('should throw UnauthorizedException for invalid token', async () => {
@@ -178,10 +197,14 @@ describe('ClientPortalController', () => {
         client: mockClient,
       } as unknown as Request;
 
-      const result = await controller.getBooking('booking-1', req);
+      const result = await controller.getBooking('4ef8dcb8-e2c8-4fc8-b2cc-2d5f17faf001', req);
 
-      expect(clientPortalService.getBooking).toHaveBeenCalledWith('booking-1', 'client-1', 'tenant-1');
-      expect(result).toEqual(mockBooking);
+      expect(clientPortalService.getBooking).toHaveBeenCalledWith(
+        '4ef8dcb8-e2c8-4fc8-b2cc-2d5f17faf001',
+        'client-1',
+        'tenant-1',
+      );
+      expect(result.id).toBe('4ef8dcb8-e2c8-4fc8-b2cc-2d5f17faf001');
     });
 
     it('should throw UnauthorizedException for invalid token', async () => {
@@ -189,7 +212,9 @@ describe('ClientPortalController', () => {
         client: undefined,
       } as unknown as Request;
 
-      await expect(controller.getBooking('booking-1', req)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getBooking('4ef8dcb8-e2c8-4fc8-b2cc-2d5f17faf001', req)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -214,6 +239,10 @@ describe('ClientPortalController', () => {
         name: 'Test Client',
         email: 'test@example.com',
         phone: '123-456-7890',
+        tenantSlug: 'test-tenant',
+        company: 'Test Tenant',
+        location: 'Baghdad',
+        joinedAt: undefined,
       });
     });
 

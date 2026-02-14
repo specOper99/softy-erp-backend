@@ -61,6 +61,24 @@ export class ClientPortalService {
     });
   }
 
+  async getMyBookingsPaginated(
+    clientId: string,
+    _tenantId: string,
+    page = 1,
+    pageSize = 10,
+  ): Promise<{ items: Booking[]; total: number; page: number; pageSize: number }> {
+    const [items, total] = await this.bookingRepository
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
+      .andWhere('booking.clientId = :clientId', { clientId })
+      .orderBy('booking.eventDate', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return { items, total, page, pageSize };
+  }
+
   async getBooking(bookingId: string, clientId: string, _tenantId: string): Promise<Booking> {
     const booking = await this.bookingRepository
       .createQueryBuilder('booking')
@@ -111,6 +129,22 @@ export class ClientPortalService {
     await this.sendBookingNotifications(client, tenant, savedBooking);
 
     return savedBooking;
+  }
+
+  async cancelMyBooking(bookingId: string, clientId: string, tenantId: string, reason?: string): Promise<Booking> {
+    const booking = await this.getBooking(bookingId, clientId, tenantId);
+
+    if (!booking.canBeCancelled()) {
+      throw new BadRequestException('Booking cannot be cancelled in its current status');
+    }
+
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancelledAt = new Date();
+    if (reason) {
+      booking.cancellationReason = reason;
+    }
+
+    return this.bookingRepository.save(booking);
   }
 
   private async ensureSlotCapacity(

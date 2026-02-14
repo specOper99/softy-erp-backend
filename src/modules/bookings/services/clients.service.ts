@@ -116,6 +116,13 @@ export class ClientsService {
       changes['tags'] = { old: client.tags, new: dto.tags };
       client.tags = dto.tags;
     }
+    if (dto.notificationPreferences !== undefined) {
+      changes['notificationPreferences'] = {
+        old: client.notificationPreferences,
+        new: dto.notificationPreferences,
+      };
+      client.notificationPreferences = dto.notificationPreferences;
+    }
 
     const savedClient = await this.clientRepository.save(client);
 

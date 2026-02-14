@@ -65,4 +65,18 @@ export class UpdateClientDto {
     description: 'Array of tags for client categorization',
   })
   tags?: string[];
+
+  @IsOptional()
+  @ApiProperty({
+    required: false,
+    description: 'Notification preferences for the client portal',
+    example: { email: true, inApp: true },
+  })
+  notificationPreferences?: {
+    email: boolean;
+    inApp: boolean;
+    marketing?: boolean;
+    reminders?: boolean;
+    updates?: boolean;
+  };
 }
