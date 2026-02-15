@@ -4,6 +4,7 @@ import './instrument';
 import { ClassSerializerInterceptor, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters';
@@ -19,6 +20,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   const isProd = process.env.NODE_ENV === 'production';
+  const swaggerEnabled = process.env.ENABLE_SWAGGER === 'true';
 
   // When behind a reverse proxy (e.g., Kubernetes ingress), enable proxy trust so req.ip is correct.
   // Keep this opt-in to avoid trusting spoofed X-Forwarded-* headers by default.
@@ -26,46 +28,70 @@ async function bootstrap() {
     app.set('trust proxy', 1);
   }
 
-  // Security: Apply Helmet for HTTP security headers.
-  // Security headers are now enabled in all environments for testing fidelity.
-  // CSP is configured to allow Swagger UI assets in non-production environments.
-  app.use(
-    helmet({
-      // Content Security Policy - strict mode for maximum security
-      contentSecurityPolicy: isProd
-        ? {
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: ["'self'"],
-              styleSrc: ["'self'"],
-              imgSrc: ["'self'", 'data:'],
-              connectSrc: ["'self'"],
-              objectSrc: ["'none'"],
-              baseUri: ["'self'"],
-              formAction: ["'self'"],
-              frameAncestors: ["'none'"],
-              ...(process.env.CSP_REPORT_URI ? { reportUri: process.env.CSP_REPORT_URI } : {}),
-            },
-            reportOnly: false,
-          }
-        : false, // Disable CSP in development for Swagger UI compatibility
-      // HTTP Strict Transport Security - enable with preload for production
-      hsts: isProd
-        ? { maxAge: 31536000, includeSubDomains: true, preload: true }
-        : { maxAge: 86400, includeSubDomains: false },
-      // Cross-Origin policies - relaxed for development to allow Swagger UI
-      crossOriginResourcePolicy: isProd ? { policy: 'same-site' } : false,
-      crossOriginOpenerPolicy: isProd ? { policy: 'same-origin' } : false,
-      crossOriginEmbedderPolicy: false, // Disabled to allow Swagger UI to load external resources
-      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-      // Additional security headers
-      xContentTypeOptions: true,
-      xDnsPrefetchControl: { allow: false },
-      xDownloadOptions: true,
-      xFrameOptions: { action: 'deny' },
-      xXssProtection: false, // Deprecated in modern browsers, Content-Security-Policy is preferred
-    }),
-  );
+  const strictCspDirectives = {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'"],
+    imgSrc: ["'self'", 'data:'],
+    connectSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+    ...(process.env.CSP_REPORT_URI ? { reportUri: process.env.CSP_REPORT_URI } : {}),
+  };
+
+  const strictHelmet = helmet({
+    contentSecurityPolicy: {
+      directives: strictCspDirectives,
+      reportOnly: false,
+    },
+    hsts: isProd
+      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+      : { maxAge: 86400, includeSubDomains: false },
+    crossOriginResourcePolicy: isProd ? { policy: 'same-site' } : false,
+    crossOriginOpenerPolicy: isProd ? { policy: 'same-origin' } : false,
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xContentTypeOptions: true,
+    xDnsPrefetchControl: { allow: false },
+    xDownloadOptions: true,
+    xFrameOptions: { action: 'deny' },
+    xXssProtection: false,
+  });
+
+  const swaggerHelmet = helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...strictCspDirectives,
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+      reportOnly: false,
+    },
+    hsts: isProd
+      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+      : { maxAge: 86400, includeSubDomains: false },
+    crossOriginResourcePolicy: isProd ? { policy: 'same-site' } : false,
+    crossOriginOpenerPolicy: isProd ? { policy: 'same-origin' } : false,
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xContentTypeOptions: true,
+    xDnsPrefetchControl: { allow: false },
+    xDownloadOptions: true,
+    xFrameOptions: { action: 'deny' },
+    xXssProtection: false,
+  });
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const isSwaggerDocsRoute = req.path === '/api/docs' || req.path.startsWith('/api/docs/');
+
+    if (swaggerEnabled && isSwaggerDocsRoute) {
+      return swaggerHelmet(req, res, next);
+    }
+
+    return strictHelmet(req, res, next);
+  });
 
   // Enable graceful shutdown hooks (SIGTERM, SIGINT)
   app.enableShutdownHooks();
@@ -202,7 +228,7 @@ Tenant Admin can create studio-side users primarily with roles: \`OPS_MANAGER\`,
     .setLicense(`Private - ${process.env.COMPANY_NAME || 'Softy'}`, process.env.COMPANY_URL || 'https://erp.soft-y.org')
     .build();
 
-  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
+  if (swaggerEnabled) {
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
   }
@@ -213,7 +239,7 @@ Tenant Admin can create studio-side users primarily with roles: \`OPS_MANAGER\`,
   const logger = new Logger('Bootstrap');
   logger.log(`Server running on http://localhost:${port}`);
   logger.log(`API Base: http://localhost:${port}/api/v1`);
-  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
+  if (swaggerEnabled) {
     logger.log(`Swagger: http://localhost:${port}/api/docs`);
   }
 }
