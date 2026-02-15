@@ -7,6 +7,7 @@ import { ClientsService } from '../bookings/services/clients.service';
 import { CatalogService } from '../catalog/services/catalog.service';
 import { NotificationService } from '../notifications/services/notification.service';
 import { ReviewsService } from '../reviews/services/reviews.service';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantsService } from '../tenants/tenants.service';
 import { ClientPortalController } from './client-portal.controller';
 import { AvailabilityService } from './services/availability.service';
@@ -17,6 +18,9 @@ describe('ClientPortalController', () => {
   let controller: ClientPortalController;
   let clientAuthService: jest.Mocked<ClientAuthService>;
   let clientPortalService: jest.Mocked<ClientPortalService>;
+  let catalogService: jest.Mocked<CatalogService>;
+  let reviewsService: jest.Mocked<ReviewsService>;
+  let tenantsService: jest.Mocked<TenantsService>;
 
   const mockClient: Partial<Client> = {
     id: 'client-1',
@@ -60,6 +64,7 @@ describe('ClientPortalController', () => {
 
     const mockReviewsService = {
       findApprovedByPackage: jest.fn(),
+      getApprovedAggregatesByPackageIds: jest.fn(),
       checkDuplicateReview: jest.fn(),
       create: jest.fn(),
     };
@@ -103,6 +108,9 @@ describe('ClientPortalController', () => {
     controller = module.get<ClientPortalController>(ClientPortalController);
     clientAuthService = module.get(ClientAuthService);
     clientPortalService = module.get(ClientPortalService);
+    catalogService = module.get(CatalogService);
+    reviewsService = module.get(ReviewsService);
+    tenantsService = module.get(TenantsService);
   });
 
   it('should be defined', () => {
@@ -252,6 +260,110 @@ describe('ClientPortalController', () => {
       } as unknown as Request;
 
       await expect(controller.getProfile(req)).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('getListings', () => {
+    it('uses one batch aggregate call and avoids per-package review calls', async () => {
+      tenantsService.findBySlug.mockResolvedValue({
+        id: 'tenant-1',
+        slug: 'test-tenant',
+        name: 'Test Tenant',
+        address: 'Baghdad',
+        baseCurrency: 'USD',
+      } as unknown as Tenant);
+      catalogService.findAllPackagesWithFilters.mockResolvedValue({
+        data: [
+          {
+            id: 'pkg-1',
+            tenantId: 'tenant-1',
+            isActive: true,
+            name: 'Package 1',
+            price: 100,
+            description: 'Desc 1',
+            packageItems: [],
+          },
+          {
+            id: 'pkg-2',
+            tenantId: 'tenant-1',
+            isActive: true,
+            name: 'Package 2',
+            price: 200,
+            description: 'Desc 2',
+            packageItems: [],
+          },
+        ],
+        meta: {
+          totalItems: 2,
+          page: 1,
+          pageSize: 6,
+        },
+      } as any);
+      reviewsService.getApprovedAggregatesByPackageIds.mockResolvedValue([
+        { packageId: 'pkg-1', avgRating: 4.5, reviewCount: 2 },
+      ]);
+
+      const result = await controller.getListings({ tenantSlug: 'test-tenant' });
+
+      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledTimes(1);
+      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledWith('tenant-1', ['pkg-1', 'pkg-2']);
+      expect(reviewsService.findApprovedByPackage).not.toHaveBeenCalled();
+      expect(result.items[0]?.rating).toBe(4.5);
+      expect(result.items[0]?.reviewCount).toBe(2);
+      expect(result.items[1]?.rating).toBe(0);
+      expect(result.items[1]?.reviewCount).toBe(0);
+    });
+  });
+
+  describe('getFeaturedListings', () => {
+    it('uses one batch aggregate call and avoids per-package review calls', async () => {
+      tenantsService.findBySlug.mockResolvedValue({
+        id: 'tenant-1',
+        slug: 'test-tenant',
+        name: 'Test Tenant',
+        address: 'Baghdad',
+        baseCurrency: 'USD',
+      } as unknown as Tenant);
+      catalogService.findAllPackagesWithFilters.mockResolvedValue({
+        data: [
+          {
+            id: 'pkg-1',
+            tenantId: 'tenant-1',
+            isActive: true,
+            name: 'Package 1',
+            price: 100,
+            description: 'Desc 1',
+            packageItems: [],
+          },
+          {
+            id: 'pkg-2',
+            tenantId: 'tenant-1',
+            isActive: true,
+            name: 'Package 2',
+            price: 200,
+            description: 'Desc 2',
+            packageItems: [],
+          },
+        ],
+        meta: {
+          totalItems: 2,
+          page: 1,
+          pageSize: 6,
+        },
+      } as any);
+      reviewsService.getApprovedAggregatesByPackageIds.mockResolvedValue([
+        { packageId: 'pkg-2', avgRating: 5, reviewCount: 1 },
+      ]);
+
+      const result = await controller.getFeaturedListings('test-tenant');
+
+      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledTimes(1);
+      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledWith('tenant-1', ['pkg-1', 'pkg-2']);
+      expect(reviewsService.findApprovedByPackage).not.toHaveBeenCalled();
+      expect(result[0]?.rating).toBe(0);
+      expect(result[0]?.reviewCount).toBe(0);
+      expect(result[1]?.rating).toBe(5);
+      expect(result[1]?.reviewCount).toBe(1);
     });
   });
 });

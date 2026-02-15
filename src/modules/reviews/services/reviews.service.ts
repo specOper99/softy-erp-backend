@@ -92,6 +92,32 @@ export class ReviewsService {
     });
   }
 
+  async getApprovedAggregatesByPackageIds(
+    tenantId: string,
+    packageIds: string[],
+  ): Promise<Array<{ packageId: string; avgRating: number; reviewCount: number }>> {
+    if (packageIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.reviewRepository
+      .createQueryBuilder('review')
+      .select('review.packageId', 'packageId')
+      .addSelect('AVG(review.rating)', 'avgRating')
+      .addSelect('COUNT(review.id)', 'reviewCount')
+      .where('review.tenantId = :tenantId', { tenantId })
+      .andWhere('review.status = :status', { status: ReviewStatus.APPROVED })
+      .andWhere('review.packageId IN (:...packageIds)', { packageIds })
+      .groupBy('review.packageId')
+      .getRawMany<{ packageId: string; avgRating: string; reviewCount: string }>();
+
+    return rows.map((row) => ({
+      packageId: row.packageId,
+      avgRating: Number.parseFloat(String(row.avgRating ?? 0)),
+      reviewCount: Number.parseInt(String(row.reviewCount ?? 0), 10),
+    }));
+  }
+
   async findOne(tenantId: string, id: string): Promise<Review> {
     const review = await this.reviewRepository.findOne({
       where: { id, tenantId },

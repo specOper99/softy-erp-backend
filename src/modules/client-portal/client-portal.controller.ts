@@ -35,6 +35,7 @@ import { Throttle } from '@nestjs/throttler';
 import { plainToInstance } from 'class-transformer';
 import type { Request } from 'express';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { UpdateClientDto } from '../bookings/dto/client.dto';
 import { Booking } from '../bookings/entities/booking.entity';
@@ -174,7 +175,9 @@ export class ClientPortalController {
     filter.page = query.page ?? 1;
     filter.limit = query.pageSize ?? 6;
 
-    const paginated = await this.catalogService.findAllPackagesWithFilters(filter);
+    const paginated = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findAllPackagesWithFilters(filter),
+    );
     let items = paginated.data.filter((pkg) => pkg.tenantId === tenant.id && pkg.isActive);
 
     if (query.minPrice !== undefined) {
@@ -184,18 +187,16 @@ export class ClientPortalController {
       items = items.filter((pkg) => Number(pkg.price) <= Number(query.maxPrice));
     }
 
-    const listingItems = await Promise.all(
-      items.map(async (pkg) => {
-        const [reviews, reviewCount] = await this.reviewsService.findApprovedByPackage(
-          tenant.id,
-          pkg.id,
-          new PaginationDto(),
-        );
-        const rating =
-          reviewCount > 0 ? reviews.reduce((acc, review) => acc + Number(review.rating || 0), 0) / reviewCount : 0;
-        return this.mapListingSummary(pkg, tenant, rating, reviewCount);
-      }),
+    const reviewAggregates = await this.reviewsService.getApprovedAggregatesByPackageIds(
+      tenant.id,
+      items.map((pkg) => pkg.id),
     );
+    const reviewStatsByPackageId = new Map(reviewAggregates.map((aggregate) => [aggregate.packageId, aggregate]));
+
+    const listingItems = items.map((pkg) => {
+      const aggregate = reviewStatsByPackageId.get(pkg.id);
+      return this.mapListingSummary(pkg, tenant, aggregate?.avgRating ?? 0, aggregate?.reviewCount ?? 0);
+    });
 
     return {
       items: listingItems,
@@ -221,21 +222,21 @@ export class ClientPortalController {
     filter.page = 1;
     filter.limit = 6;
 
-    const paginated = await this.catalogService.findAllPackagesWithFilters(filter);
+    const paginated = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findAllPackagesWithFilters(filter),
+    );
     const items = paginated.data.filter((pkg) => pkg.tenantId === tenant.id && pkg.isActive).slice(0, 6);
 
-    return Promise.all(
-      items.map(async (pkg) => {
-        const [reviews, reviewCount] = await this.reviewsService.findApprovedByPackage(
-          tenant.id,
-          pkg.id,
-          new PaginationDto(),
-        );
-        const rating =
-          reviewCount > 0 ? reviews.reduce((acc, review) => acc + Number(review.rating || 0), 0) / reviewCount : 0;
-        return this.mapListingSummary(pkg, tenant, rating, reviewCount);
-      }),
+    const reviewAggregates = await this.reviewsService.getApprovedAggregatesByPackageIds(
+      tenant.id,
+      items.map((pkg) => pkg.id),
     );
+    const reviewStatsByPackageId = new Map(reviewAggregates.map((aggregate) => [aggregate.packageId, aggregate]));
+
+    return items.map((pkg) => {
+      const aggregate = reviewStatsByPackageId.get(pkg.id);
+      return this.mapListingSummary(pkg, tenant, aggregate?.avgRating ?? 0, aggregate?.reviewCount ?? 0);
+    });
   }
 
   @Get('listings/:id')
@@ -248,7 +249,9 @@ export class ClientPortalController {
     @Query('tenantSlug') tenantSlug?: string,
   ): Promise<ClientPortalListingDetailsResponseDto> {
     const tenant = await this.resolveTenant(tenantSlug);
-    const servicePackage = await this.catalogService.findPackageById(id);
+    const servicePackage = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findPackageById(id),
+    );
     if (!servicePackage || servicePackage.tenantId !== tenant.id || !servicePackage.isActive) {
       throw new NotFoundException('Listing not found');
     }
@@ -322,7 +325,9 @@ export class ClientPortalController {
     filter.page = pagination.page ?? 1;
     filter.limit = pagination.limit ?? 10;
 
-    const paginated = await this.catalogService.findAllPackagesWithFilters(filter);
+    const paginated = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findAllPackagesWithFilters(filter),
+    );
     let data = paginated.data.filter((pkg) => pkg.tenantId === tenant.id && pkg.isActive);
 
     if (priceMin !== undefined) {
@@ -343,7 +348,9 @@ export class ClientPortalController {
   @Get(':slug/packages/:id')
   @ApiOperation({ summary: 'Get package details by ID' })
   async getPackage(@GetTenant() tenant: Tenant, @Param('id', ParseUUIDPipe) id: string): Promise<ServicePackage> {
-    const servicePackage = await this.catalogService.findPackageById(id);
+    const servicePackage = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findPackageById(id),
+    );
     if (!servicePackage || servicePackage.tenantId !== tenant.id || !servicePackage.isActive) {
       throw new NotFoundException('Package not found');
     }

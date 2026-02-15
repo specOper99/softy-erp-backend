@@ -1,7 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { Client } from '../../bookings/entities/client.entity';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { ClientAuthService } from '../services/client-auth.service';
 
 /**
@@ -22,7 +21,6 @@ export class ClientTokenGuard implements CanActivate {
     if (!client) {
       throw new UnauthorizedException('client-portal.token_invalid');
     }
-    TenantContextService.enter(client.tenantId);
     (request as Request & { client?: Client }).client = client;
     return true;
   }
