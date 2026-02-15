@@ -233,6 +233,44 @@ class EnvironmentVariables {
   @IsOptional()
   RATE_LIMIT_DELAY_MS: number = 500;
 
+  // Throttler (NestJS throttler module)
+  @IsNumber()
+  @IsOptional()
+  THROTTLE_SHORT_TTL_SECONDS: number = 1;
+
+  @IsNumber()
+  @IsOptional()
+  THROTTLE_SHORT_LIMIT: number = 3;
+
+  @IsNumber()
+  @IsOptional()
+  THROTTLE_MEDIUM_TTL_SECONDS: number = 10;
+
+  @IsNumber()
+  @IsOptional()
+  THROTTLE_MEDIUM_LIMIT: number = 20;
+
+  @IsNumber()
+  @IsOptional()
+  THROTTLE_LONG_TTL_SECONDS: number = 60;
+
+  @IsNumber()
+  @IsOptional()
+  THROTTLE_LONG_LIMIT: number = 100;
+
+  // Account Lockout
+  @IsNumber()
+  @IsOptional()
+  LOCKOUT_MAX_ATTEMPTS: number = 5;
+
+  @IsNumber()
+  @IsOptional()
+  LOCKOUT_DURATION_SECONDS: number = 1800;
+
+  @IsNumber()
+  @IsOptional()
+  LOCKOUT_WINDOW_SECONDS: number = 900;
+
   // Kill switch (tests only)
   @IsString()
   @IsOptional()

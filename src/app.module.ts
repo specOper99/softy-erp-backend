@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
-import { minutes, seconds, ThrottlerModule } from '@nestjs/throttler';
+import { seconds, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { RESILIENCE_CONSTANTS } from './common/constants';
@@ -54,24 +54,39 @@ import { CoreModule } from './modules/core/core.module';
     // Background job processing (BullMQ with Redis)
     QueueModule,
 
-    // Rate Limiting - Global: 60 requests per minute
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: seconds(1),
-        limit: 3, // 3 requests per second
+    // Rate Limiting - Global: configurable via env
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const getThrottleValue = (key: string, defaultValue: number): number => {
+          const value = configService.get<number | string>(key);
+          if (typeof value === 'number') {
+            return Number.isFinite(value) && value >= 1 ? Math.floor(value) : defaultValue;
+          }
+          const parsed = parseInt(String(value), 10);
+          return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : defaultValue;
+        };
+
+        return [
+          {
+            name: 'short',
+            ttl: seconds(getThrottleValue('THROTTLE_SHORT_TTL_SECONDS', 1)),
+            limit: getThrottleValue('THROTTLE_SHORT_LIMIT', 3),
+          },
+          {
+            name: 'medium',
+            ttl: seconds(getThrottleValue('THROTTLE_MEDIUM_TTL_SECONDS', 10)),
+            limit: getThrottleValue('THROTTLE_MEDIUM_LIMIT', 20),
+          },
+          {
+            name: 'long',
+            ttl: seconds(getThrottleValue('THROTTLE_LONG_TTL_SECONDS', 60)),
+            limit: getThrottleValue('THROTTLE_LONG_LIMIT', 100),
+          },
+        ];
       },
-      {
-        name: 'medium',
-        ttl: seconds(10),
-        limit: 20, // 20 requests per 10 seconds
-      },
-      {
-        name: 'long',
-        ttl: minutes(1),
-        limit: 100, // 100 requests per minute
-      },
-    ]),
+    }),
 
     // Database with Read Replica support
     TypeOrmModule.forRootAsync({
