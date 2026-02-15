@@ -16,6 +16,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { FinanceModule } from '../finance/finance.module';
 import { HrModule } from '../hr/hr.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { TasksModule } from '../tasks/tasks.module';
     BookingsModule,
     HrModule,
     AnalyticsModule,
+    NotificationsModule,
   ],
   controllers: [DashboardController],
   providers: [

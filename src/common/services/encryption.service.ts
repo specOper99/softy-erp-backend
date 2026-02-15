@@ -20,9 +20,10 @@ export class EncryptionService {
     const previousVersion = this.configService.get<string>('ENCRYPTION_KEY_PREVIOUS_VERSION');
 
     if (!currentKey) {
-      // CRITICAL: Encryption key MUST be configured in production
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('SECURITY: ENCRYPTION_KEY must be configured in production');
+      // CRITICAL: Encryption key MUST be configured in any environment except development/test
+      const env = process.env.NODE_ENV;
+      if (env !== 'development' && env !== 'test') {
+        throw new Error('SECURITY: ENCRYPTION_KEY must be configured in non-development environments');
       }
       this.logger.warn('ENCRYPTION_KEY not configured - using ephemeral development key');
       // Use random key per process to prevent cross-process test data leakage

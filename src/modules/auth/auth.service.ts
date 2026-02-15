@@ -31,7 +31,7 @@ export class AuthService {
    * This prevents attackers from pre-computing timing patterns and ensures
    * consistent response times regardless of user existence.
    */
-  private readonly dummyPasswordHash: string;
+  private readonly dummyPasswordHashPromise: Promise<string>;
   private readonly tenantTx: TenantScopedManager;
 
   constructor(
@@ -55,8 +55,8 @@ export class AuthService {
     // Generate a unique dummy hash at startup using cryptographically secure random bytes
     // This is never stored or exposed - it's solely for timing attack mitigation
     const randomPassword = crypto.randomBytes(32).toString('hex');
-    // Use synchronous hash generation at startup (one-time cost)
-    this.dummyPasswordHash = bcrypt.hashSync(randomPassword, 10);
+    // Use asynchronous hash generation at startup (one-time cost)
+    this.dummyPasswordHashPromise = bcrypt.hash(randomPassword, 10);
   }
 
   async register(registerDto: RegisterDto, context?: RequestContext): Promise<AuthResponseDto> {
@@ -128,8 +128,8 @@ export class AuthService {
         // Timing Attack Mitigation:
         // Perform a dummy bcrypt comparison so the response time roughly matches valid users.
         // This prevents attackers from easily enumerating valid email addresses by measuring response latency.
-        // The dummyPasswordHash is generated uniquely at service startup from random bytes.
-        await bcrypt.compare(loginDto.password, this.dummyPasswordHash);
+        // The dummy password hash is generated uniquely at service startup from random bytes.
+        await bcrypt.compare(loginDto.password, await this.dummyPasswordHashPromise);
         throw new UnauthorizedException('Invalid credentials');
       }
 

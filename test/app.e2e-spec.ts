@@ -1,27 +1,11 @@
-import { INestApplication, Module, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
-import { MailModule } from '../src/modules/mail/mail.module';
 import { MailService } from '../src/modules/mail/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
-
-@Module({
-  providers: [
-    {
-      provide: MailService,
-      useValue: {
-        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
-        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
-        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
-      },
-    },
-  ],
-  exports: [MailService],
-})
-class MockMailModule {}
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -32,8 +16,12 @@ describe('AppController (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideModule(MailModule)
-      .useModule(MockMailModule)
+      .overrideProvider(MailService)
+      .useValue({
+        sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
+        sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
+        sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -57,7 +45,9 @@ describe('AppController (e2e)', () => {
   });
 
   afterEach(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('/auth/login (POST) - should return 401 for invalid credentials', () => {

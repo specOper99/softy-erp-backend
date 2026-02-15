@@ -133,15 +133,45 @@ describe('EncryptionService', () => {
   });
 
   describe('without encryption key', () => {
-    it('should log warning when ENCRYPTION_KEY is not set', async () => {
+    const originalEnv = process.env.NODE_ENV;
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should construct with ephemeral key when ENCRYPTION_KEY is not set in test env', async () => {
+      process.env.NODE_ENV = 'test';
       const warnConfig = { get: jest.fn().mockReturnValue(undefined) };
       const module: TestingModule = await Test.createTestingModule({
         providers: [EncryptionService, { provide: ConfigService, useValue: warnConfig }],
       }).compile();
 
       const noKeyService = module.get<EncryptionService>(EncryptionService);
-      // Service should still exist but with placeholder key
       expect(noKeyService).toBeDefined();
+    });
+
+    it('should throw when ENCRYPTION_KEY is not set in staging environment', () => {
+      process.env.NODE_ENV = 'staging';
+      const noKeyConfig = { get: jest.fn().mockReturnValue(undefined) };
+      expect(() => new EncryptionService(noKeyConfig as unknown as ConfigService)).toThrow(
+        'SECURITY: ENCRYPTION_KEY must be configured in non-development environments',
+      );
+    });
+
+    it('should throw when ENCRYPTION_KEY is not set in production environment', () => {
+      process.env.NODE_ENV = 'production';
+      const noKeyConfig = { get: jest.fn().mockReturnValue(undefined) };
+      expect(() => new EncryptionService(noKeyConfig as unknown as ConfigService)).toThrow(
+        'SECURITY: ENCRYPTION_KEY must be configured in non-development environments',
+      );
+    });
+
+    it('should throw when ENCRYPTION_KEY is not set in undefined environment', () => {
+      process.env.NODE_ENV = undefined as unknown as string;
+      const noKeyConfig = { get: jest.fn().mockReturnValue(undefined) };
+      expect(() => new EncryptionService(noKeyConfig as unknown as ConfigService)).toThrow(
+        'SECURITY: ENCRYPTION_KEY must be configured in non-development environments',
+      );
     });
   });
 });

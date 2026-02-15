@@ -26,6 +26,12 @@ import { TicketingService } from './services/ticketing.service';
     NotificationPreferenceRepository,
     BookingCreatedNotificationHandler,
   ],
-  exports: [NotificationsService, NotificationPreferencesService, TicketingService, NotificationService],
+  exports: [
+    NotificationsService,
+    NotificationPreferencesService,
+    TicketingService,
+    NotificationService,
+    NotificationRepository,
+  ],
 })
 export class NotificationsModule {}
