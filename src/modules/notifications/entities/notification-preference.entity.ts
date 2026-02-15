@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, Unique } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import type { User } from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { NotificationFrequency, NotificationType } from '../enums/notification.enum';
 
 @Entity('notification_preferences')
@@ -9,7 +9,7 @@ export class NotificationPreference extends BaseTenantEntity {
   @Column({ name: 'user_id' })
   userId: string;
 
-  @ManyToOne('User', { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 

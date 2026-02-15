@@ -94,11 +94,11 @@ export class PerformanceReview extends BaseTenantEntity {
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt: Date | null;
 
-  @ManyToOne('User', { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @ManyToOne('User', { onDelete: 'SET NULL' })
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reviewer_id' })
   reviewer: User;
 

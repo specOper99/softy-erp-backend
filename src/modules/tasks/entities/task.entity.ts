@@ -2,9 +2,9 @@ import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMa
 import { TaskStatus } from '../enums/task-status.enum';
 
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import type { Booking } from '../../bookings/entities/booking.entity';
-import type { TaskType } from '../../catalog/entities/task-type.entity';
-import type { User } from '../../users/entities/user.entity';
+import { Booking } from '../../bookings/entities/booking.entity';
+import { TaskType } from '../../catalog/entities/task-type.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('tasks')
 @Index(['tenantId', 'status', 'dueDate'])
@@ -55,24 +55,24 @@ export class Task extends BaseTenantEntity {
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
 
-  @ManyToOne('Booking', {
+  @ManyToOne(() => Booking, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'booking_id' })
   booking: Booking;
 
-  @ManyToOne('TaskType')
+  @ManyToOne(() => TaskType)
   @JoinColumn({ name: 'task_type_id' })
   taskType: TaskType;
 
-  @ManyToOne('User', { nullable: true })
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'assigned_user_id' })
-  assignedUser: Promise<User | null>;
+  assignedUser: User | null;
 
-  @ManyToOne('Task', (task: Task) => task.subTasks, { nullable: true })
+  @ManyToOne(() => Task, (task: Task) => task.subTasks, { nullable: true })
   @JoinColumn({ name: 'parent_id' })
   parent: Task | null;
 
-  @OneToMany('Task', (task: Task) => task.parent)
-  subTasks: Promise<Task[]>;
+  @OneToMany(() => Task, (task: Task) => task.parent)
+  subTasks: Task[];
 }

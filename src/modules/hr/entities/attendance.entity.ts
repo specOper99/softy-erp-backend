@@ -74,11 +74,11 @@ export class Attendance extends BaseTenantEntity {
   @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
   approvedAt: Date | null;
 
-  @ManyToOne('User', { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @ManyToOne('User', { nullable: true })
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'approved_by' })
   approver: User | null;
 
