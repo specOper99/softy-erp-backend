@@ -10,6 +10,7 @@ import { BookingStatus } from '../../src/modules/bookings/enums/booking-status.e
 import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
 import { Transaction } from '../../src/modules/finance/entities/transaction.entity';
 import { Currency } from '../../src/modules/finance/enums/currency.enum';
+import { PaymentStatus } from '../../src/modules/finance/enums/payment-status.enum';
 import { TransactionType } from '../../src/modules/finance/enums/transaction-type.enum';
 import { MailService } from '../../src/modules/mail/mail.service';
 import { seedTestDatabase } from '../utils/seed-data';
@@ -118,6 +119,14 @@ describe('Financial Report Controller (e2e)', () => {
       clientId: client.id,
       eventDate: new Date('2023-01-15T10:00:00Z'),
       totalPrice: 5000,
+      subTotal: 4500,
+      taxRate: 10,
+      taxAmount: 450,
+      depositPercentage: 20,
+      depositAmount: 900,
+      amountPaid: 5000,
+      refundAmount: 0,
+      paymentStatus: PaymentStatus.FULLY_PAID,
       status: BookingStatus.COMPLETED,
     });
     // Link client if necessary, or assume minimal booking for finance report tests

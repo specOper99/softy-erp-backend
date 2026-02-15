@@ -9,6 +9,7 @@ import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.
 import { MathUtils } from '../../../common/utils/math.utils';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
+import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { Task } from '../../tasks/entities/task.entity';
@@ -95,6 +96,9 @@ export class BookingsService {
       status: BookingStatus.DRAFT,
       depositPercentage: pricing.depositPercentage,
       depositAmount: pricing.depositAmount,
+      amountPaid: 0,
+      refundAmount: 0,
+      paymentStatus: PaymentStatus.UNPAID,
     });
 
     const savedBooking = await this.bookingRepository.save(booking);

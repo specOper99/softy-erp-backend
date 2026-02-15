@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
+import { unwrapListData } from './utils/e2e-response';
 import { seedTestDatabase } from './utils/seed-data';
 
 describe('Bookings Workflow E2E Tests', () => {
@@ -13,6 +14,7 @@ describe('Bookings Workflow E2E Tests', () => {
   let packageId: string;
   let clientId: string;
   let bookingId: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     // Get password from environment variable (after dotenv has loaded)
@@ -53,7 +55,7 @@ describe('Bookings Workflow E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     const tenantId = seedData.tenantId;
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as seeded admin user
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
@@ -66,8 +68,9 @@ describe('Bookings Workflow E2E Tests', () => {
     // Get existing package from seed data
     const packagesRes = await request(app.getHttpServer())
       .get('/api/v1/packages')
+      .set('Host', tenantHost)
       .set('Authorization', `Bearer ${adminToken}`);
-    packageId = packagesRes.body.data[0]?.id;
+    packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id;
 
     // Store tenantId for tests
     globalThis.testTenantId = tenantId;
@@ -81,6 +84,7 @@ describe('Bookings Workflow E2E Tests', () => {
     it('Step 0: Create Client', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/clients')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'John Doe',
@@ -96,6 +100,7 @@ describe('Bookings Workflow E2E Tests', () => {
     it('Step 1: Create Booking (DRAFT)', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/bookings')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           clientId,
@@ -112,6 +117,7 @@ describe('Bookings Workflow E2E Tests', () => {
     it('Step 2: Get Booking Details', async () => {
       const response = await request(app.getHttpServer())
         .get(`/api/v1/bookings/${bookingId}`)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
@@ -122,6 +128,7 @@ describe('Bookings Workflow E2E Tests', () => {
     it('Step 3: Confirm Booking (creates tasks + income)', async () => {
       const response = await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
@@ -134,11 +141,12 @@ describe('Bookings Workflow E2E Tests', () => {
     it('Step 4: Verify Tasks were Created', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      const tasks = response.body.data || response.body;
-      const bookingTasks = tasks.filter((t: any) => t.bookingId === bookingId);
+      const tasks = unwrapListData<{ bookingId: string; status: string }>(response.body);
+      const bookingTasks = tasks.filter((t) => t.bookingId === bookingId);
       expect(bookingTasks.length).toBeGreaterThan(0);
       expect(bookingTasks[0].status).toBe('PENDING');
     });
@@ -146,12 +154,13 @@ describe('Bookings Workflow E2E Tests', () => {
     it('Step 5: Verify Income Transaction was Created', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/transactions')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      const transactions = response.body.data || response.body;
+      const transactions = unwrapListData<{ type: string; bookingId: string }>(response.body);
       console.log('E2E DEBUG: All transactions:', JSON.stringify(transactions, null, 2));
-      const incomeTransaction = transactions.find((t: any) => t.type === 'INCOME' && t.bookingId === bookingId);
+      const incomeTransaction = transactions.find((t) => t.type === 'INCOME' && t.bookingId === bookingId);
       console.log('E2E DEBUG: Looking for bookingId:', bookingId);
       expect(incomeTransaction).toBeDefined();
     });
@@ -160,6 +169,7 @@ describe('Bookings Workflow E2E Tests', () => {
       const paymentAmount = 500;
       await request(app.getHttpServer())
         .post(`/api/v1/bookings/${bookingId}/payments`)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           amount: paymentAmount,
@@ -171,6 +181,7 @@ describe('Bookings Workflow E2E Tests', () => {
       // Verify Booking was updated (amountPaid)
       const bookingRes = await request(app.getHttpServer())
         .get(`/api/v1/bookings/${bookingId}`)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
@@ -179,12 +190,15 @@ describe('Bookings Workflow E2E Tests', () => {
       // Verify Transaction was created
       const transactionsRes = await request(app.getHttpServer())
         .get('/api/v1/transactions')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      const transactions = transactionsRes.body.data || transactionsRes.body;
+      const transactions = unwrapListData<{ bookingId: string; description: string; amount: number | string }>(
+        transactionsRes.body,
+      );
       const paymentTx = transactions.find(
-        (t: any) =>
+        (t) =>
           t.bookingId === bookingId &&
           t.description.includes('Payment for booking') &&
           Number(t.amount) === paymentAmount,
@@ -200,6 +214,7 @@ describe('Bookings Workflow E2E Tests', () => {
     it('should reject booking without required fields', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/bookings')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           clientId,
@@ -211,6 +226,7 @@ describe('Bookings Workflow E2E Tests', () => {
     it('should reject confirming already confirmed booking', async () => {
       await request(app.getHttpServer())
         .patch(`/api/v1/bookings/${bookingId}/confirm`)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`)
 
         .expect(400);

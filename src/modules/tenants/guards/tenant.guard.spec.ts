@@ -1,4 +1,4 @@
-import { BadRequestException, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
@@ -81,11 +81,23 @@ describe('TenantGuard', () => {
       await expect(guard.canActivate(mockExecutionContext) as Promise<boolean>).rejects.toThrow(ForbiddenException);
     });
 
-    it('should throw BadRequestException when no tenantId', () => {
+    it('should throw ForbiddenException when tenant not found (null)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
+      cache.get.mockResolvedValue(undefined);
+      tenantsService.findOne.mockResolvedValue(null);
+
+      await expect(guard.canActivate(mockExecutionContext) as Promise<boolean>).rejects.toThrow(ForbiddenException);
+      await expect(guard.canActivate(mockExecutionContext) as Promise<boolean>).rejects.toThrow(
+        'tenants.tenant_suspended',
+      );
+    });
+
+    it('should throw UnauthorizedException when no tenantId', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
 
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(BadRequestException);
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow(UnauthorizedException);
       expect(() => guard.canActivate(mockExecutionContext)).toThrow('Tenant context missing');
     });
 

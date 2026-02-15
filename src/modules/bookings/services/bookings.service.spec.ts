@@ -16,6 +16,7 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
+import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { CreateBookingDto } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
@@ -131,6 +132,9 @@ describe('BookingsService', () => {
         expect.objectContaining({
           clientId: dto.clientId,
           status: BookingStatus.DRAFT,
+          amountPaid: 0,
+          refundAmount: 0,
+          paymentStatus: PaymentStatus.UNPAID,
           // tenantId should NOT be manually passed here, but repository handles it.
           // The service passes an object WITHOUT tenantId to repository.create.
           // The repository.create method will add tenantId.

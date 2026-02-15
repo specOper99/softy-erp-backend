@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
+import { unwrapListData } from './utils/e2e-response';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests
@@ -20,6 +21,7 @@ describe('Catalog Module E2E Tests', () => {
   let accessToken: string;
   let createdPackageId: string;
   let createdTaskTypeId: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -58,7 +60,7 @@ describe('Catalog Module E2E Tests', () => {
     // Seed database and get tenant
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin to get access token
     const loginResponse = await request(app.getHttpServer())
@@ -82,6 +84,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should create a service package (Admin)', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/packages')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             name: 'Wedding Photography Package',
@@ -108,6 +111,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/packages')
+          .set('Host', tenantHost)
           .send({
             name: 'Unauthorized Package',
             price: 100,
@@ -118,6 +122,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should fail with invalid data', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/packages')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             // Missing required 'name' field
@@ -131,11 +136,13 @@ describe('Catalog Module E2E Tests', () => {
       it('should return all service packages', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/packages')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
-        expect(response.body.data).toBeInstanceOf(Array);
-        expect(response.body.data.length).toBeGreaterThan(0);
+        const packages = unwrapListData<{ id: string }>(response.body);
+        expect(packages).toBeInstanceOf(Array);
+        expect(packages.length).toBeGreaterThan(0);
       });
     });
 
@@ -143,6 +150,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should return a specific package', async () => {
         const response = await request(app.getHttpServer())
           .get(`/api/v1/packages/${createdPackageId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -153,6 +161,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should return 404 for non-existent package', async () => {
         await request(app.getHttpServer())
           .get('/api/v1/packages/00000000-0000-0000-0000-000000000000')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);
       });
@@ -162,6 +171,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should update a package', async () => {
         const response = await request(app.getHttpServer())
           .patch(`/api/v1/packages/${createdPackageId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             price: 3000,
@@ -179,6 +189,7 @@ describe('Catalog Module E2E Tests', () => {
         // First create a package to delete
         const createResponse = await request(app.getHttpServer())
           .post('/api/v1/packages')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             name: 'Package To Delete',
@@ -189,12 +200,14 @@ describe('Catalog Module E2E Tests', () => {
 
         await request(app.getHttpServer())
           .delete(`/api/v1/packages/${packageIdToDelete}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
         // Verify it's deleted
         await request(app.getHttpServer())
           .get(`/api/v1/packages/${packageIdToDelete}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);
       });
@@ -207,6 +220,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should create a task type (Admin)', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/task-types')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             name: 'Photography',
@@ -223,6 +237,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/task-types')
+          .set('Host', tenantHost)
           .send({
             name: 'Unauthorized Task Type',
           })
@@ -234,6 +249,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should return all task types', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/task-types')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -246,6 +262,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should return a specific task type', async () => {
         const response = await request(app.getHttpServer())
           .get(`/api/v1/task-types/${createdTaskTypeId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -258,6 +275,7 @@ describe('Catalog Module E2E Tests', () => {
       it('should update a task type', async () => {
         const response = await request(app.getHttpServer())
           .patch(`/api/v1/task-types/${createdTaskTypeId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             description: 'Advanced video editing task',
@@ -275,6 +293,7 @@ describe('Catalog Module E2E Tests', () => {
         // Create a task type to delete
         const createResponse = await request(app.getHttpServer())
           .post('/api/v1/task-types')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             name: 'Task Type To Delete',
@@ -286,12 +305,14 @@ describe('Catalog Module E2E Tests', () => {
 
         await request(app.getHttpServer())
           .delete(`/api/v1/task-types/${taskTypeIdToDelete}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
         // Verify it's deleted
         await request(app.getHttpServer())
           .get(`/api/v1/task-types/${taskTypeIdToDelete}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);
       });

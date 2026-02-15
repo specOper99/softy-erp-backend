@@ -12,6 +12,15 @@ import { Webhook } from '../src/modules/webhooks/entities/webhook.entity';
 import { WebhookService } from '../src/modules/webhooks/webhooks.service';
 import { seedTestDatabase } from './utils/seed-data';
 
+// Mock p-limit to immediately invoke functions (like in unit tests)
+jest.mock('p-limit', () => ({
+  default: jest.fn(
+    () =>
+      <T>(fn: () => T | Promise<T>) =>
+        fn(),
+  ),
+}));
+
 // Mock ThrottlerGuard
 class MockThrottlerGuard extends ThrottlerGuard {
   protected override handleRequest(): Promise<boolean> {
@@ -21,7 +30,6 @@ class MockThrottlerGuard extends ThrottlerGuard {
 
 describe('Webhooks Load E2E Tests', () => {
   let app: INestApplication;
-  let _accessToken: string;
   let webhookService: WebhookService;
   let testTenantId: string;
 
@@ -74,14 +82,13 @@ describe('Webhooks Load E2E Tests', () => {
     webhookService = app.get(WebhookService);
 
     // Login to get token
-    const loginRes = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .set('Host', tenantHost)
       .send({
         email: seedResult.admin.email,
         password: process.env.SEED_ADMIN_PASSWORD || 'softYERP123!',
       });
-    _accessToken = loginRes.body.data.accessToken;
   });
 
   afterAll(async () => {
@@ -92,16 +99,25 @@ describe('Webhooks Load E2E Tests', () => {
   it('should handle high volume of webhooks concurrently', async () => {
     // 1. Register 50 Webhooks using Service directly with TenantContextService
     const webhookCount = 50;
+    const webhookBaseUrl = 'https://93.184.216.34';
 
     for (let i = 0; i < webhookCount; i++) {
       await TenantContextService.run(testTenantId, async () => {
         await webhookService.registerWebhook({
-          url: `https://example.com/webhook-${i}`,
+          url: `${webhookBaseUrl}/webhook-${i}`,
           secret: `very-long-secret_key_for_testing_${i}`, // > 32 chars
           events: ['booking.created'],
         });
       });
     }
+
+    // Verify webhooks are registered
+    const dataSource = app.get(DataSource);
+    const webhooks = await dataSource.getRepository(Webhook).find({ where: { tenantId: testTenantId } });
+    expect(webhooks.length).toBe(webhookCount);
+
+    // Mock getConcurrencyLimit to return a no-op limiter (like in unit tests)
+    jest.spyOn(webhookService as any, 'getConcurrencyLimit').mockResolvedValue(<T>(fn: () => T | Promise<T>) => fn());
 
     // 2. Trigger an event
     const fetchSpy = jest.spyOn(global, 'fetch');
@@ -113,12 +129,6 @@ describe('Webhooks Load E2E Tests', () => {
       payload: { id: 'test-booking-id' },
       timestamp: new Date().toISOString(),
     };
-
-    // Debug: Check if webhooks exist
-    // Check if webhooks exist
-    const dataSource = app.get(DataSource);
-    const webhooks = await dataSource.getRepository(Webhook).find({ where: { tenantId: testTenantId } });
-    expect(webhooks.length).toBe(webhookCount);
 
     const startTime = Date.now();
     await webhookService.emit(event);

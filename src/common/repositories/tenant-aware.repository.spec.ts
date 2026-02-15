@@ -37,7 +37,7 @@ describe('TenantAwareRepository', () => {
       createQueryBuilder: jest.fn(),
       remove: jest.fn(),
       softRemove: jest.fn(),
-      metadata: { name: 'TestEntity' },
+      metadata: { name: 'TestEntity', deleteDateColumn: null },
     } as unknown as Repository<TestEntity>;
 
     repository = new TestRepository(mockTypeOrmRepository);
@@ -393,8 +393,22 @@ describe('TenantAwareRepository', () => {
       });
     });
 
-    it('should apply tenant validation for softRemove', async () => {
+    it('should fallback to hard remove when entity has no deleteDateColumn', async () => {
       const entity = { id: '1', name: 'test' } as unknown as TestEntity;
+      (mockTypeOrmRepository.remove as unknown as jest.Mock).mockResolvedValue(entity);
+
+      await TenantContextService.run('default-tenant', async () => {
+        await repository.softRemove(entity);
+      });
+
+      expect(entity.tenantId).toBe('default-tenant');
+      expect(mockTypeOrmRepository.remove).toHaveBeenCalledWith(entity);
+      expect(mockTypeOrmRepository.softRemove).not.toHaveBeenCalled();
+    });
+
+    it('should use TypeORM softRemove when deleteDateColumn exists', async () => {
+      const entity = { id: '1', name: 'test' } as unknown as TestEntity;
+      (mockTypeOrmRepository.metadata as unknown as { deleteDateColumn: object | null }).deleteDateColumn = {};
       (mockTypeOrmRepository.softRemove as unknown as jest.Mock).mockResolvedValue(entity);
 
       await TenantContextService.run('default-tenant', async () => {
@@ -403,6 +417,7 @@ describe('TenantAwareRepository', () => {
 
       expect(entity.tenantId).toBe('default-tenant');
       expect(mockTypeOrmRepository.softRemove).toHaveBeenCalledWith(entity);
+      expect(mockTypeOrmRepository.remove).not.toHaveBeenCalled();
     });
   });
 });

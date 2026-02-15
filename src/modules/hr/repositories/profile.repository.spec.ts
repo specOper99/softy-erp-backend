@@ -20,7 +20,7 @@ describe('ProfileRepository', () => {
       })),
       softRemove: jest.fn(),
       remove: jest.fn(),
-      metadata: { name: 'Profile' },
+      metadata: { name: 'Profile', deleteDateColumn: { propertyName: 'deletedAt' } },
     } as unknown as Repository<Profile>;
 
     const module: TestingModule = await Test.createTestingModule({

@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
@@ -32,7 +32,11 @@ export class TenantGuard implements CanActivate {
       return true;
     }
 
-    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const tenantId = TenantContextService.getTenantId();
+    if (!tenantId) {
+      throw new UnauthorizedException('Tenant context missing');
+    }
+
     return this.assertTenantActiveOrAllowed(tenantId);
   }
 
@@ -55,6 +59,9 @@ export class TenantGuard implements CanActivate {
 
   private async loadTenantStatus(tenantId: string): Promise<TenantStatus> {
     const tenant = await this.tenantsService.findOne(tenantId);
+    if (!tenant) {
+      throw new ForbiddenException('tenants.tenant_suspended');
+    }
     return tenant.status;
   }
 }

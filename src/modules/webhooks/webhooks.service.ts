@@ -219,13 +219,23 @@ export class WebhookService {
       const webhooks = await qb.getMany();
 
       const deliveries = webhooks.map(async (webhook) => {
+        const rawEvents: unknown = webhook.events;
+        const webhookEvents = Array.isArray(rawEvents)
+          ? rawEvents
+          : typeof rawEvents === 'string'
+            ? rawEvents
+                .split(',')
+                .map((value: string) => value.trim())
+                .filter((value: string) => value.length > 0)
+            : [];
+
         // Safety check for malformed webhooks
-        if (!webhook.events || !Array.isArray(webhook.events)) {
+        if (webhookEvents.length === 0) {
           this.logger.warn(`Webhook ${webhook.id} has no events defined`);
           return;
         }
 
-        if (!webhook.events.includes(event.type) && !webhook.events.includes('*')) {
+        if (!webhookEvents.includes(event.type) && !webhookEvents.includes('*')) {
           return;
         }
 
@@ -239,7 +249,7 @@ export class WebhookService {
                 tenantId: webhook.tenantId,
                 url: webhook.url,
                 secret: webhook.secret,
-                events: webhook.events,
+                events: webhookEvents,
               },
               event,
             },
@@ -263,31 +273,16 @@ export class WebhookService {
   private applyActiveEventFilter(qb: SelectQueryBuilder<Webhook>, eventType: string): void {
     qb.andWhere('webhook.isActive = :isActive', { isActive: true });
 
-    // Webhook.events is a TypeORM simple-array (comma-separated string). Filter in DB to avoid
-    // scanning all active webhooks in memory.
-    const ev = eventType;
-    const wc = '*';
-
     qb.andWhere(
       `(
-        webhook.events = :evExact OR
-        webhook.events LIKE :evPrefix OR
-        webhook.events LIKE :evSuffix OR
-        webhook.events LIKE :evMiddle OR
-        webhook.events = :wcExact OR
-        webhook.events LIKE :wcPrefix OR
-        webhook.events LIKE :wcSuffix OR
-        webhook.events LIKE :wcMiddle
+        webhook.events = :ev OR
+        webhook.events = :wc OR
+        :ev = ANY(string_to_array(COALESCE(webhook.events, ''), ',')) OR
+        :wc = ANY(string_to_array(COALESCE(webhook.events, ''), ','))
       )`,
       {
-        evExact: ev,
-        evPrefix: `${ev},%`,
-        evSuffix: `%,${ev}`,
-        evMiddle: `%,${ev},%`,
-        wcExact: wc,
-        wcPrefix: `${wc},%`,
-        wcSuffix: `%,${wc}`,
-        wcMiddle: `%,${wc},%`,
+        ev: eventType,
+        wc: '*',
       },
     );
   }

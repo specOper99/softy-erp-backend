@@ -12,13 +12,13 @@ import { ReviewStatus } from '../enums/review-status.enum';
 @Unique(['clientId', 'bookingId'])
 @Check(`rating >= 1 AND rating <= 5`)
 export class Review extends BaseTenantEntity {
-  @Column({ name: 'client_id' })
+  @Column({ name: 'client_id', type: 'uuid' })
   clientId: string;
 
-  @Column({ name: 'booking_id' })
+  @Column({ name: 'booking_id', type: 'uuid' })
   bookingId: string;
 
-  @Column({ name: 'package_id' })
+  @Column({ name: 'package_id', type: 'uuid' })
   packageId: string;
 
   @Column({ type: 'int' })

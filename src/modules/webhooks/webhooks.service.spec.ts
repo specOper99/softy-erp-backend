@@ -222,6 +222,24 @@ describe('WebhookService', () => {
       );
     });
 
+    it('should apply database event filter for exact and wildcard matches', async () => {
+      qb.getMany.mockResolvedValue([]);
+
+      await service.emit(event);
+
+      expect(qb.andWhere).toHaveBeenNthCalledWith(1, 'webhook.isActive = :isActive', { isActive: true });
+      expect(qb.andWhere).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining(":ev = ANY(string_to_array(COALESCE(webhook.events, ''), ','))"),
+        { ev: 'booking.created', wc: '*' },
+      );
+      expect(qb.andWhere).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining(":wc = ANY(string_to_array(COALESCE(webhook.events, ''), ','))"),
+        { ev: 'booking.created', wc: '*' },
+      );
+    });
+
     it('should send webhook if wildcard event is registered', async () => {
       const wildcardConfig = { ...config, events: ['*'] };
       const webhook = createWebhookEntity(wildcardConfig);

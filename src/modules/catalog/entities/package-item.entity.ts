@@ -4,10 +4,10 @@ import type { TaskType } from './task-type.entity';
 
 @Entity('package_items')
 export class PackageItem extends BaseTenantEntity {
-  @Column({ name: 'package_id' })
+  @Column({ name: 'package_id', type: 'uuid' })
   packageId: string;
 
-  @Column({ name: 'task_type_id' })
+  @Column({ name: 'task_type_id', type: 'uuid' })
   taskTypeId: string;
 
   @Column({ type: 'integer', default: 1 })

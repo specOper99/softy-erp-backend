@@ -12,7 +12,7 @@ import type { Client } from './client.entity';
 @Index(['tenantId', 'clientId', 'eventDate'])
 @Index(['tenantId', 'createdAt']) // Optimize default pagination
 export class Booking extends BaseTenantEntity {
-  @Column({ name: 'client_id' })
+  @Column({ name: 'client_id', type: 'uuid' })
   @Index()
   clientId: string;
 
@@ -41,7 +41,7 @@ export class Booking extends BaseTenantEntity {
   @MoneyColumn('tax_amount')
   taxAmount: number;
 
-  @Column({ name: 'package_id' })
+  @Column({ name: 'package_id', type: 'uuid' })
   @Index()
   packageId: string;
 

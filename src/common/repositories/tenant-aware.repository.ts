@@ -192,12 +192,19 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     return this.handleRemoval(entityOrEntities, 'softRemove');
   }
 
+  private canSoftRemove(): boolean {
+    return Boolean(this.repository.metadata.deleteDateColumn);
+  }
+
   private async handleRemoval<E extends T | T[]>(entityOrEntities: E, action: 'remove' | 'softRemove'): Promise<E> {
     const tenantId = this.getTenantId();
 
     if (Array.isArray(entityOrEntities)) {
       this.validateTenantOwnerships(entityOrEntities as Array<T & { tenantId: string }>, tenantId);
       if (action === 'remove') {
+        return (await this.repository.remove(entityOrEntities as unknown as T[])) as E;
+      }
+      if (!this.canSoftRemove()) {
         return (await this.repository.remove(entityOrEntities as unknown as T[])) as E;
       }
       return (await this.repository.softRemove(entityOrEntities as unknown as T[])) as E;
@@ -210,6 +217,9 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
       action === 'remove' ? TenantMismatchOperation.DELETE : TenantMismatchOperation.DELETE,
     );
     if (action === 'remove') {
+      return (await this.repository.remove(entity as unknown as T)) as E;
+    }
+    if (!this.canSoftRemove()) {
       return (await this.repository.remove(entity as unknown as T)) as E;
     }
     return (await this.repository.softRemove(entity as unknown as T)) as E;
