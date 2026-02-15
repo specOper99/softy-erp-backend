@@ -1,8 +1,9 @@
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, LessThan, Repository } from 'typeorm';
 import { ImpersonationSession } from '../entities/impersonation-session.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { ImpersonationService } from './impersonation.service';
@@ -39,6 +40,7 @@ describe('ImpersonationService', () => {
       find: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      update: jest.fn(),
     };
 
     const mockAuditService = {
@@ -47,6 +49,18 @@ describe('ImpersonationService', () => {
 
     const mockJwtService = {
       sign: jest.fn().mockReturnValue('mock-jwt-token'),
+    };
+
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
+        return undefined;
+      }),
+      getOrThrow: jest.fn().mockImplementation((key: string) => {
+        if (key === 'auth.jwtSecret') return 'test-jwt-secret';
+        if (key === 'JWT_PRIVATE_KEY') return 'test-private-key';
+        throw new Error(`Config key not found: ${key}`);
+      }),
     };
 
     const mockDataSource = {
@@ -77,6 +91,10 @@ describe('ImpersonationService', () => {
         {
           provide: DataSource,
           useValue: mockDataSource,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -141,7 +159,9 @@ describe('ImpersonationService', () => {
           impersonatedBy: platformUserId,
           aud: 'tenant',
         }),
-        { expiresIn: '4h' },
+        expect.objectContaining({
+          expiresIn: '4h',
+        }),
       );
     });
 
@@ -376,47 +396,33 @@ describe('ImpersonationService', () => {
   });
 
   describe('cleanupExpiredSessions', () => {
-    it('should end sessions older than 4 hours', async () => {
-      const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000);
-      const expiredSession = {
-        ...mockSession,
-        startedAt: fiveHoursAgo,
-        isActive: true,
-      } as ImpersonationSession;
-
-      sessionRepository.find.mockResolvedValue([expiredSession]);
-      sessionRepository.save.mockResolvedValue(expiredSession);
+    it('should use a set-based update for sessions older than 4 hours', async () => {
+      sessionRepository.update.mockResolvedValue({ affected: 2, generatedMaps: [], raw: {} });
 
       await service.cleanupExpiredSessions();
 
-      expect(sessionRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(sessionRepository.update).toHaveBeenCalledWith(
+        {
+          isActive: true,
+          startedAt: LessThan(expect.any(Date)),
+        },
+        {
           isActive: false,
+          endedAt: expect.any(Date),
           endReason: 'Automatically ended due to timeout (4 hours)',
-        }),
+        },
       );
-    });
-
-    it('should not end sessions within 4 hours', async () => {
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-      const activeSession = {
-        ...mockSession,
-        startedAt: twoHoursAgo,
-        isActive: true,
-      } as ImpersonationSession;
-
-      sessionRepository.find.mockResolvedValue([activeSession]);
-
-      await service.cleanupExpiredSessions();
-
+      expect(sessionRepository.find).not.toHaveBeenCalled();
       expect(sessionRepository.save).not.toHaveBeenCalled();
     });
 
-    it('should handle no expired sessions', async () => {
-      sessionRepository.find.mockResolvedValue([]);
+    it('should still avoid per-row operations when no sessions are expired', async () => {
+      sessionRepository.update.mockResolvedValue({ affected: 0, generatedMaps: [], raw: {} });
 
       await service.cleanupExpiredSessions();
 
+      expect(sessionRepository.update).toHaveBeenCalledTimes(1);
+      expect(sessionRepository.find).not.toHaveBeenCalled();
       expect(sessionRepository.save).not.toHaveBeenCalled();
     });
   });

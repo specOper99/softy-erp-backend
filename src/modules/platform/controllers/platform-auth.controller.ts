@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Logger, Post, Request, UseGuards } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
@@ -53,7 +54,8 @@ export class PlatformAuthController {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
     const userAgent: string = req.headers['user-agent'] ?? 'unknown';
 
-    this.logger.log(`Platform login attempt for email: ${dto.email}`);
+    const emailHash = createHash('sha256').update(dto.email).digest('hex').slice(0, 12);
+    this.logger.log(`Platform login attempt for email hash: ${emailHash} (ip: ${ipAddress}, ua: ${userAgent})`);
 
     return this.authService.login(dto, ipAddress, userAgent);
   }

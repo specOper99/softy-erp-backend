@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlatformTimeEntryQueryDto, PlatformTimeEntryUpdateDto } from '../dto/platform-time-entries.dto';
@@ -110,8 +110,12 @@ export class PlatformTimeEntriesService {
       entry.endTime = new Date(dto.endTime);
     }
 
+    if (entry.startTime && entry.endTime && entry.endTime < entry.startTime) {
+      throw new BadRequestException('End time cannot be earlier than start time');
+    }
+
     if ((dto.startTime || dto.endTime) && entry.status === TimeEntryStatus.STOPPED && entry.endTime) {
-      entry.durationMinutes = Math.round((entry.endTime.getTime() - entry.startTime.getTime()) / 60000);
+      entry.durationMinutes = Math.max(0, Math.round((entry.endTime.getTime() - entry.startTime.getTime()) / 60000));
     }
 
     const saved = await this.timeEntryRepository.save(entry);

@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
@@ -115,5 +115,34 @@ describe('PlatformTimeEntriesService', () => {
         }),
       }),
     );
+  });
+
+  it('rejects updates that produce endTime earlier than startTime', async () => {
+    const entry = {
+      id: 'entry-1',
+      tenantId: 'tenant-1',
+      status: TimeEntryStatus.STOPPED,
+      startTime: new Date('2026-01-01T10:00:00Z'),
+      endTime: new Date('2026-01-01T11:00:00Z'),
+      durationMinutes: 60,
+    } as TimeEntry;
+
+    repo.findOne.mockResolvedValue(entry);
+
+    await expect(
+      service.update(
+        'tenant-1',
+        'entry-1',
+        {
+          endTime: '2026-01-01T09:00:00Z',
+        },
+        'platform-user-1',
+        '127.0.0.1',
+        'test-agent',
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 });

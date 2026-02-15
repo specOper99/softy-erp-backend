@@ -1,6 +1,6 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
@@ -114,7 +114,7 @@ export class PlatformSupportController {
   @ApiResponse({ status: 404, description: 'Session not found' })
   @ApiResponse({ status: 409, description: 'Session already ended' })
   async endImpersonation(
-    @Param('sessionId') sessionId: string,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
     @Body() dto: EndImpersonationDto,
     @Req() req: PlatformSupportRequest,
   ) {

@@ -42,7 +42,7 @@ export class PlatformTimeEntriesController {
   @RequirePlatformPermissions(PlatformPermission.SUPPORT_TIME_ENTRIES)
   @ApiOperation({ summary: 'Get time entry by id for a tenant' })
   @ApiQuery({ name: 'tenantId', description: 'Tenant UUID', required: true })
-  findOne(@Param('id', ParseUUIDPipe) id: string, @Query('tenantId') tenantId: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string, @TargetTenant() tenantId: string) {
     return this.service.findOne(tenantId, id);
   }
 
@@ -52,7 +52,7 @@ export class PlatformTimeEntriesController {
   @ApiQuery({ name: 'tenantId', description: 'Tenant UUID', required: true })
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('tenantId') tenantId: string,
+    @TargetTenant() tenantId: string,
     @Body() dto: PlatformTimeEntryUpdateDto,
     @Req() req: PlatformRequest,
   ) {

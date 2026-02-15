@@ -40,6 +40,7 @@ import { DepartmentBudget } from '../modules/finance/entities/department-budget.
 import { Attendance } from '../modules/hr/entities/attendance.entity';
 import { PerformanceReview } from '../modules/hr/entities/performance-review.entity';
 import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
+import { ImpersonationSession } from '../modules/platform/entities/impersonation-session.entity';
 import { PlatformSession } from '../modules/platform/entities/platform-session.entity';
 import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
 import { PrivacyRequest } from '../modules/privacy/entities/privacy-request.entity';
@@ -90,6 +91,7 @@ export const dataSourceOptions: DataSourceOptions = {
     PlatformUser,
     PlatformSession,
     PlatformAuditLog,
+    ImpersonationSession,
     PrivacyRequest,
     TaskTemplate,
     TenantSubscription,

@@ -1,11 +1,22 @@
+// Disable rate limiting for E2E tests
+process.env.RATE_LIMIT_ENABLED = 'false';
+
 import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import request, { Response } from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
 import { MailService } from '../src/modules/mail/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
+
+// Mock ThrottlerGuard
+class MockThrottlerGuard extends ThrottlerGuard {
+  protected override handleRequest(): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+}
 
 describe('Platform E2E Tests', () => {
   let app: INestApplication;
@@ -17,6 +28,8 @@ describe('Platform E2E Tests', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideGuard(ThrottlerGuard)
+      .useClass(MockThrottlerGuard)
       .overrideProvider(MailService)
       .useValue({
         sendMagicLink: jest.fn().mockResolvedValue(undefined),
@@ -67,6 +80,8 @@ describe('Platform E2E Tests', () => {
           expect(res.body.data).toHaveProperty('refreshToken');
           expect(res.body.data).toHaveProperty('user');
           expect(res.body.data.user).toHaveProperty('email', 'admin@erp.soft-y.org');
+          expect(typeof res.body.data.accessToken).toBe('string');
+          expect(res.body.data.accessToken.length).toBeGreaterThan(0);
           platformToken = res.body.data.accessToken;
         });
     });
@@ -276,6 +291,94 @@ describe('Platform E2E Tests', () => {
         .expect((res: Response) => {
           expect(res.body.data).toHaveProperty('revokedSessions');
           expect(typeof res.body.data.revokedSessions).toBe('number');
+        });
+    });
+  });
+
+  describe('Support - Impersonation', () => {
+    it('should use impersonation token on tenant auth me endpoint', async () => {
+      const impersonation = await request(app.getHttpServer())
+        .post('/api/v1/platform/support/impersonate')
+        .set('Authorization', `Bearer ${platformToken}`)
+        .send({
+          tenantId: testTenantId,
+          userId: testTenantUserId,
+          reason: 'Investigating tenant admin auth issue for support ticket #90210',
+          approvalTicketId: 'SUP-90210',
+        })
+        .expect(201);
+
+      expect(impersonation.body.data).toHaveProperty('token');
+
+      const token = impersonation.body.data.token as string;
+
+      await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Host', `${testTenantId}.example.com`)
+        .expect(200)
+        .expect((res: Response) => {
+          expect(res.body.data.id).toBe(testTenantUserId);
+        });
+    });
+
+    it('should reject invalid UUID for sessionId with 400', () => {
+      return request(app.getHttpServer())
+        .delete('/api/v1/platform/support/impersonate/not-a-uuid')
+        .set('Authorization', `Bearer ${platformToken}`)
+        .send({
+          reason: 'Testing invalid UUID',
+        })
+        .expect(400);
+    });
+  });
+
+  describe('Support - Time Entries Validation', () => {
+    const validTimeEntryId = '00000000-0000-0000-0000-000000000001';
+
+    it('should reject GET time entry without tenantId with 403', () => {
+      return request(app.getHttpServer())
+        .get(`/api/v1/platform/time-entries/${validTimeEntryId}`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .expect(403)
+        .expect((res: Response) => {
+          expect(res.body.message).toContain('platform.target_tenant_required');
+        });
+    });
+
+    it('should reject GET time entry with invalid tenantId format with 403', () => {
+      return request(app.getHttpServer())
+        .get(`/api/v1/platform/time-entries/${validTimeEntryId}?tenantId=not-a-uuid`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .expect(403)
+        .expect((res: Response) => {
+          expect(res.body.message).toContain('platform.invalid_tenant_id_format');
+        });
+    });
+
+    it('should reject PATCH time entry without tenantId with 403', () => {
+      return request(app.getHttpServer())
+        .patch(`/api/v1/platform/time-entries/${validTimeEntryId}`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .send({
+          notes: 'Test note',
+        })
+        .expect(403)
+        .expect((res: Response) => {
+          expect(res.body.message).toContain('platform.target_tenant_required');
+        });
+    });
+
+    it('should reject PATCH time entry with invalid tenantId format with 403', () => {
+      return request(app.getHttpServer())
+        .patch(`/api/v1/platform/time-entries/${validTimeEntryId}?tenantId=not-a-uuid`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .send({
+          notes: 'Test note',
+        })
+        .expect(403)
+        .expect((res: Response) => {
+          expect(res.body.message).toContain('platform.invalid_tenant_id_format');
         });
     });
   });

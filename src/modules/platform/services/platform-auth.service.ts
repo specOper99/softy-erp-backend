@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'node:crypto';
@@ -48,6 +49,7 @@ export class PlatformAuthService {
     @InjectRepository(PlatformSession)
     private readonly sessionRepository: Repository<PlatformSession>,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     private readonly passwordHashService: PasswordHashService,
     private readonly auditService: PlatformAuditService,
     private readonly mfaService: MFAService,
@@ -307,7 +309,10 @@ export class PlatformAuthService {
         sessionId,
         aud: 'platform',
       },
-      { expiresIn: this.SESSION_DURATION / 1000 },
+      {
+        secret: this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET'),
+        expiresIn: this.SESSION_DURATION / 1000,
+      },
     );
   }
 
@@ -319,7 +324,10 @@ export class PlatformAuthService {
         type: 'refresh',
         aud: 'platform',
       },
-      { expiresIn: 30 * 24 * 60 * 60 },
+      {
+        secret: this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET'),
+        expiresIn: 30 * 24 * 60 * 60,
+      },
     );
   }
 

@@ -1,9 +1,10 @@
 import { ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { createHash } from 'node:crypto';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, LessThan, Repository } from 'typeorm';
 import { User } from '../../../modules/users/entities/user.entity';
 import { StartImpersonationDto } from '../dto/support.dto';
 import { ImpersonationSession } from '../entities/impersonation-session.entity';
@@ -23,6 +24,7 @@ export class ImpersonationService {
     private readonly sessionRepository: Repository<ImpersonationSession>,
     private readonly auditService: PlatformAuditService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -88,6 +90,18 @@ export class ImpersonationService {
     }
 
     // Generate JWT for impersonation
+    const algorithm = this.resolveJwtAlgorithm();
+    const signingOptions =
+      algorithm === 'RS256'
+        ? {
+            algorithm,
+            privateKey: this.configService.getOrThrow<string>('JWT_PRIVATE_KEY'),
+          }
+        : {
+            algorithm,
+            secret: this.configService.getOrThrow<string>('auth.jwtSecret'),
+          };
+
     const token = this.jwtService.sign(
       {
         sub: dto.userId,
@@ -98,6 +112,7 @@ export class ImpersonationService {
       },
       {
         expiresIn: '4h', // Shorter expiry for impersonation
+        ...signingOptions,
       },
     );
 
@@ -125,6 +140,21 @@ export class ImpersonationService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private resolveJwtAlgorithm(): 'HS256' | 'RS256' {
+    const rawAlgorithms = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
+    const parsed = rawAlgorithms
+      .split(',')
+      .map((a) => a.trim().toUpperCase())
+      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
+
+    const unique = Array.from(new Set(parsed));
+    if (unique.length !== 1) {
+      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
+    }
+
+    return unique[0] ?? 'HS256';
   }
 
   /**
@@ -230,26 +260,23 @@ export class ImpersonationService {
    * Automatically end sessions that exceed time limit
    */
   async cleanupExpiredSessions(): Promise<void> {
+    const now = new Date();
     const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
 
-    const expiredSessions = await this.sessionRepository.find({
-      where: { isActive: true },
-    });
+    const result = await this.sessionRepository.update(
+      {
+        isActive: true,
+        startedAt: LessThan(fourHoursAgo),
+      },
+      {
+        isActive: false,
+        endedAt: now,
+        endReason: 'Automatically ended due to timeout (4 hours)',
+      },
+    );
 
-    const toEnd = expiredSessions.filter((s) => s.startedAt < fourHoursAgo);
-
-    for (const session of toEnd) {
-      session.isActive = false;
-      session.endedAt = new Date();
-      session.endReason = 'Automatically ended due to timeout (4 hours)';
-
-      await this.sessionRepository.save(session);
-
-      this.logger.warn(`Auto-ended expired impersonation session: ${session.id}`);
-    }
-
-    if (toEnd.length > 0) {
-      this.logger.log(`Cleaned up ${toEnd.length} expired impersonation sessions`);
+    if ((result.affected ?? 0) > 0) {
+      this.logger.log(`Cleaned up ${result.affected} expired impersonation sessions`);
     }
   }
 }

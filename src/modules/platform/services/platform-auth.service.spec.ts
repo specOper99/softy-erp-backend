@@ -1,4 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -99,6 +100,22 @@ describe('PlatformAuthService', () => {
           useValue: {
             create: jest.fn(),
             consume: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockImplementation((key: string) => {
+              if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
+              return undefined;
+            }),
+            getOrThrow: jest.fn().mockImplementation((key: string) => {
+              if (key === 'auth.jwtSecret') return 'test-jwt-secret';
+              if (key === 'JWT_PRIVATE_KEY') return 'test-private-key';
+              if (key === 'PLATFORM_JWT_SECRET') return 'test-platform-jwt-secret';
+              if (key === 'PLATFORM_SESSION_DURATION') return 28800;
+              throw new Error(`Config key not found: ${key}`);
+            }),
           },
         },
       ],
