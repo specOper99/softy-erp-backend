@@ -44,6 +44,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
       passwordHash: platformAdminPasswordHash,
       role: PlatformRole.SUPER_ADMIN,
       status: 'active',
+      mfaEnabled: false,
     });
     platformAdmin = await platformUserRepo.save(platformAdmin);
   } else {
@@ -51,6 +52,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
     platformAdmin.passwordHash = platformAdminPasswordHash;
     platformAdmin.status = 'active';
     platformAdmin.role = PlatformRole.SUPER_ADMIN;
+    platformAdmin.mfaEnabled = false;
     platformAdmin = await platformUserRepo.save(platformAdmin);
   }
 
@@ -67,7 +69,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
       email: mfaUserEmail,
       fullName: 'MFA Test User',
       passwordHash: mfaUserPasswordHash,
-      role: PlatformRole.ADMIN,
+      role: PlatformRole.SUPPORT_ADMIN,
       status: 'active',
       mfaEnabled: true,
     });
@@ -76,7 +78,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
     // Ensure deterministic credentials + MFA flag for repeatable E2E runs.
     mfaUser.passwordHash = mfaUserPasswordHash;
     mfaUser.status = 'active';
-    mfaUser.role = PlatformRole.ADMIN;
+    mfaUser.role = PlatformRole.SUPPORT_ADMIN;
     mfaUser.mfaEnabled = true;
     mfaUser = await platformUserRepo.save(mfaUser);
   }

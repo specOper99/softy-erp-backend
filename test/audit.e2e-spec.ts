@@ -18,6 +18,7 @@ class MockThrottlerGuard extends ThrottlerGuard {
 describe('Audit Log E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -54,7 +55,7 @@ describe('Audit Log E2E Tests', () => {
     // Seed database
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.admin.email,
@@ -66,6 +67,7 @@ describe('Audit Log E2E Tests', () => {
     // Create some entities to generate audit logs
     await request(app.getHttpServer())
       .post('/api/v1/clients')
+      .set('Host', tenantHost)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         name: 'Audit Test Client',
@@ -83,6 +85,7 @@ describe('Audit Log E2E Tests', () => {
       it('should return paginated audit logs', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/audit?limit=10')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -94,6 +97,7 @@ describe('Audit Log E2E Tests', () => {
         // First request
         const firstResponse = await request(app.getHttpServer())
           .get('/api/v1/audit?limit=5')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -103,6 +107,7 @@ describe('Audit Log E2E Tests', () => {
           // Second request with cursor
           const secondResponse = await request(app.getHttpServer())
             .get(`/api/v1/audit?limit=5&cursor=${nextCursor}`)
+            .set('Host', tenantHost)
             .set('Authorization', `Bearer ${accessToken}`)
             .expect(200);
 
@@ -116,6 +121,7 @@ describe('Audit Log E2E Tests', () => {
       it('should filter by entity name', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/audit?entityName=Client')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -127,6 +133,7 @@ describe('Audit Log E2E Tests', () => {
       it('should filter by action', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/audit?action=CREATE')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -139,6 +146,7 @@ describe('Audit Log E2E Tests', () => {
         const today = new Date().toISOString().split('T')[0];
         const response = await request(app.getHttpServer())
           .get(`/api/v1/audit?startDate=${today}&endDate=${today}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -146,7 +154,7 @@ describe('Audit Log E2E Tests', () => {
       });
 
       it('should fail without authentication', async () => {
-        await request(app.getHttpServer()).get('/api/v1/audit').expect(401);
+        await request(app.getHttpServer()).get('/api/v1/audit').set('Host', tenantHost).expect(401);
       });
     });
 
@@ -155,6 +163,7 @@ describe('Audit Log E2E Tests', () => {
         // First get some logs
         const listResponse = await request(app.getHttpServer())
           .get('/api/v1/audit?limit=1')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -163,6 +172,7 @@ describe('Audit Log E2E Tests', () => {
         if (logId) {
           const response = await request(app.getHttpServer())
             .get(`/api/v1/audit/${logId}`)
+            .set('Host', tenantHost)
             .set('Authorization', `Bearer ${accessToken}`)
             .expect(200);
 
@@ -173,6 +183,7 @@ describe('Audit Log E2E Tests', () => {
       it('should return 404 for non-existent log', async () => {
         await request(app.getHttpServer())
           .get('/api/v1/audit/ffffffff-ffff-ffff-ffff-ffffffffffff')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);
       });

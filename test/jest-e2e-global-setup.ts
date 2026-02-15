@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 import * as path from 'node:path';
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
-import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
 const jestE2eGlobalSetup = async () => {
   // 1. Load base .env file
@@ -15,6 +15,39 @@ const jestE2eGlobalSetup = async () => {
 
   process.env.NODE_ENV = 'test';
   process.env.CSRF_ENABLED = 'false';
+  process.env.DB_LOGGING = 'false';
+
+  console.log('\n🐳 Starting PostgreSQL container for e2e tests...');
+
+  const postgresContainer = await new PostgreSqlContainer('postgres:15-alpine')
+    .withDatabase('test_db')
+    .withUsername('test_user')
+    .withPassword('test_password')
+    .withExposedPorts(5432)
+    .start();
+
+  const host = postgresContainer.getHost();
+  const port = postgresContainer.getPort();
+  const username = postgresContainer.getUsername();
+  const password = postgresContainer.getPassword();
+  const database = postgresContainer.getDatabase();
+
+  process.env.DB_HOST = host;
+  process.env.DB_PORT = String(port);
+  process.env.DB_USERNAME = username;
+  process.env.DB_PASSWORD = password;
+  process.env.DB_DATABASE = database;
+
+  globalThis.__POSTGRES_CONTAINER__ = postgresContainer;
+  globalThis.__DB_CONFIG__ = {
+    host,
+    port,
+    username,
+    password,
+    database,
+  };
+
+  console.log(`✅ PostgreSQL container started on ${host}:${port}`);
 
   const databaseName = process.env.DB_DATABASE;
   if (!databaseName) {
@@ -26,90 +59,24 @@ const jestE2eGlobalSetup = async () => {
     throw new Error(`Refusing to run e2e migrations against non-test database: ${databaseName}.`);
   }
 
-  const allowDestructive = process.env.E2E_ALLOW_DESTRUCTIVE_DB === 'true';
-
-  const adminDatabase = process.env.DB_ADMIN_DATABASE || 'postgres';
-  const adminOptions = {
-    type: 'postgres',
-    host: process.env.DB_HOST,
-    port: Number.parseInt(process.env.DB_PORT || '5432', 10),
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: adminDatabase,
-    entities: [],
-    migrations: [],
-    logging: false,
-  } satisfies PostgresConnectionOptions;
-  const adminDataSource = new DataSource(adminOptions);
-
-  try {
-    await adminDataSource.initialize();
-    const exists = await adminDataSource.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName]);
-    if (!exists?.length) {
-      await adminDataSource.query(`CREATE DATABASE "${databaseName}"`);
-    }
-
-    // Connect to test database for extension and reset.
-    // (Avoid spreading DataSource.options since it is a wide union type.)
-    const testDbOptions = {
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: Number.parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: databaseName,
-      entities: [],
-      migrations: [],
-      logging: false,
-    } satisfies PostgresConnectionOptions;
-
-    const testDbDataSource = new DataSource(testDbOptions);
-    try {
-      await testDbDataSource.initialize();
-
-      if (process.env.E2E_DB_RESET === 'true') {
-        if (!allowDestructive) {
-          throw new Error('Refusing to reset schema without E2E_ALLOW_DESTRUCTIVE_DB=true');
-        }
-        await testDbDataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
-        await testDbDataSource.query('CREATE SCHEMA public');
-      }
-
-      await testDbDataSource.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
-    } finally {
-      if (testDbDataSource.isInitialized) {
-        await testDbDataSource.destroy();
-      }
-    }
-  } finally {
-    if (adminDataSource.isInitialized) {
-      await adminDataSource.destroy();
-    }
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const migrationDataSource = require('../src/database/data-source').default;
+  const migrationDataSource = require('../src/database/data-source').default as DataSource;
 
   const registeredEntities = (migrationDataSource.options.entities as unknown[]).map((entity) =>
     typeof entity === 'function' ? entity.name : entity,
   );
   console.log('E2E Migration DataSource Entities:', registeredEntities);
 
-  try {
-    if (!migrationDataSource.isInitialized) {
-      await migrationDataSource.initialize();
-    }
+  if (!migrationDataSource.isInitialized) {
+    await migrationDataSource.initialize();
+  }
 
-    if (process.env.E2E_DB_RESET === 'true') {
-      if (!allowDestructive) {
-        throw new Error('Refusing to reset schema without E2E_ALLOW_DESTRUCTIVE_DB=true');
-      }
-      // E2E-only: reset schema from entity metadata for a clean slate.
-      await migrationDataSource.synchronize(true);
-    } else {
-      // If not resetting, apply any pending migrations.
-      await migrationDataSource.runMigrations();
-    }
+  globalThis.__DATA_SOURCE__ = migrationDataSource;
+
+  try {
+    await migrationDataSource.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+
+    await migrationDataSource.synchronize(true);
 
     // 4. Seed base data
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -117,12 +84,18 @@ const jestE2eGlobalSetup = async () => {
     await seedTestDatabase(migrationDataSource);
 
     console.log('E2E Global Setup Complete: Database migrated and seeded.');
-  } finally {
-    if (migrationDataSource.isInitialized) {
-      await migrationDataSource.destroy();
+  } catch (error) {
+    if (globalThis.__DATA_SOURCE__?.isInitialized) {
+      await globalThis.__DATA_SOURCE__.destroy();
+      globalThis.__DATA_SOURCE__ = undefined;
     }
+    if (globalThis.__POSTGRES_CONTAINER__) {
+      await globalThis.__POSTGRES_CONTAINER__.stop();
+      globalThis.__POSTGRES_CONTAINER__ = undefined;
+    }
+    throw error;
   }
 
-  console.log('E2E Global Setup Complete: Database migrated.');
+  console.log('E2E Global Setup Complete: Database ready.');
 };
 export default jestE2eGlobalSetup;

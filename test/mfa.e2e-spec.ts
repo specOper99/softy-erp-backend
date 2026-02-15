@@ -1,13 +1,53 @@
 import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { authenticator } from 'otplib';
+import { createHmac } from 'crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { IpRateLimitGuard } from '../src/common/guards/ip-rate-limit.guard';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
+
+function decodeBase32(secret: string): Buffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const normalized = secret.toUpperCase().replace(/=+$/g, '').replace(/\s+/g, '');
+  let bits = '';
+
+  for (const char of normalized) {
+    const value = alphabet.indexOf(char);
+    if (value === -1) {
+      throw new Error(`Invalid base32 character: ${char}`);
+    }
+    bits += value.toString(2).padStart(5, '0');
+  }
+
+  const bytes: number[] = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(Number.parseInt(bits.slice(i, i + 8), 2));
+  }
+
+  return Buffer.from(bytes);
+}
+
+function generateTotp(secret: string, timestamp = Date.now()): string {
+  const timeStep = 30;
+  const digits = 6;
+  const counter = Math.floor(timestamp / 1000 / timeStep);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+
+  const hmac = createHmac('sha1', decodeBase32(secret)).update(counterBuffer).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const binary =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+
+  return (binary % 10 ** digits).toString().padStart(digits, '0');
+}
 
 // Mock ThrottlerGuard to always allow requests in tests
 class MockThrottlerGuard extends ThrottlerGuard {
@@ -23,13 +63,18 @@ describe('MFA E2E Tests', () => {
   const testPassword = 'ComplexPass123!';
   let mfaSecret: string;
   let userTenantId: string;
+  const originalRateLimitEnabled = process.env.RATE_LIMIT_ENABLED;
 
   beforeAll(async () => {
+    process.env.RATE_LIMIT_ENABLED = 'false';
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideGuard(ThrottlerGuard)
       .useClass(MockThrottlerGuard)
+      .overrideGuard(IpRateLimitGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
       .overrideProvider(MailService)
       .useValue({
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
@@ -72,6 +117,7 @@ describe('MFA E2E Tests', () => {
   });
 
   afterAll(async () => {
+    process.env.RATE_LIMIT_ENABLED = originalRateLimitEnabled;
     await app.close();
   });
 
@@ -103,7 +149,7 @@ describe('MFA E2E Tests', () => {
   });
 
   it('3. Enable MFA', async () => {
-    const code = authenticator.generate(mfaSecret);
+    const code = generateTotp(mfaSecret);
     await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/enable')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -132,9 +178,10 @@ describe('MFA E2E Tests', () => {
       .send({
         email: testEmail,
         password: testPassword,
-      });
+      })
+      .expect(200);
 
-    const code = authenticator.generate(mfaSecret);
+    const code = generateTotp(mfaSecret);
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/verify-totp')
       .set('Host', `${userTenantId}.example.com`)
@@ -154,9 +201,10 @@ describe('MFA E2E Tests', () => {
       .send({
         email: testEmail,
         password: testPassword,
-      });
+      })
+      .expect(200);
 
-    const code = authenticator.generate(mfaSecret);
+    const code = generateTotp(mfaSecret);
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/verify-totp')
       .set('Host', `${userTenantId}.example.com`)
@@ -200,7 +248,7 @@ describe('MFA E2E Tests', () => {
 
     mfaSecret = generateRes.body.data.secret;
 
-    const code = authenticator.generate(mfaSecret);
+    const code = generateTotp(mfaSecret);
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/enable')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -227,7 +275,8 @@ describe('MFA E2E Tests', () => {
       .send({
         email: testEmail,
         password: testPassword,
-      });
+      })
+      .expect(200);
 
     const recoveryCode = recoveryCodes[0];
     const response = await request(app.getHttpServer())
@@ -250,7 +299,8 @@ describe('MFA E2E Tests', () => {
       .send({
         email: testEmail,
         password: testPassword,
-      });
+      })
+      .expect(200);
 
     const recoveryCode = recoveryCodes[0];
     await request(app.getHttpServer())
@@ -283,7 +333,8 @@ describe('MFA E2E Tests', () => {
         .send({
           email: testEmail,
           password: testPassword,
-        });
+        })
+        .expect(200);
 
       const response = await request(app.getHttpServer())
         .post('/api/v1/auth/mfa/verify-recovery')
@@ -332,7 +383,8 @@ describe('MFA E2E Tests', () => {
       .send({
         email: testEmail,
         password: testPassword,
-      });
+      })
+      .expect(200);
 
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/verify-recovery')
@@ -352,7 +404,8 @@ describe('MFA E2E Tests', () => {
       .send({
         email: testEmail,
         password: testPassword,
-      });
+      })
+      .expect(200);
 
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/verify-recovery')
@@ -372,9 +425,10 @@ describe('MFA E2E Tests', () => {
       .send({
         email: testEmail,
         password: testPassword,
-      });
+      })
+      .expect(200);
 
-    const code = authenticator.generate(mfaSecret);
+    const code = generateTotp(mfaSecret);
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/verify-totp')
       .set('Host', `${userTenantId}.example.com`)

@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
+import { unwrapListData } from './utils/e2e-response';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests
@@ -20,6 +21,7 @@ describe('Time Entries E2E Tests', () => {
   let accessToken: string;
   let createdTaskId: string;
   let activeTimerId: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -56,7 +58,7 @@ describe('Time Entries E2E Tests', () => {
     // Seed database
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.admin.email,
@@ -64,19 +66,17 @@ describe('Time Entries E2E Tests', () => {
     });
 
     accessToken = loginResponse.body.data?.accessToken;
-    (globalThis as { e2eTenantHost?: string }).e2eTenantHost = tenantHost;
-
     // Get package ID from seed data
     const packagesRes = await request(app.getHttpServer())
       .get('/api/v1/packages')
-      .set('Host', (globalThis as { e2eTenantHost?: string }).e2eTenantHost)
+      .set('Host', tenantHost)
       .set('Authorization', `Bearer ${accessToken}`);
-    const packageId = packagesRes.body.data?.[0]?.id;
+    const packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id;
 
     // Create client for booking
     const clientRes = await request(app.getHttpServer())
       .post('/api/v1/clients')
-      .set('Host', (globalThis as { e2eTenantHost?: string }).e2eTenantHost)
+      .set('Host', tenantHost)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         name: 'Timer Test Client',
@@ -89,6 +89,7 @@ describe('Time Entries E2E Tests', () => {
       // Create booking
       const bookingRes = await request(app.getHttpServer())
         .post('/api/v1/bookings')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           clientId,
@@ -101,14 +102,18 @@ describe('Time Entries E2E Tests', () => {
         // Confirm booking to create tasks
         await request(app.getHttpServer())
           .patch(`/api/v1/bookings/${bookingId}/confirm`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`);
 
         // Get the first task from this booking
         const tasksRes = await request(app.getHttpServer())
           .get('/api/v1/tasks')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`);
 
-        const bookingTasks = tasksRes.body.data?.filter((t: any) => t.bookingId === bookingId);
+        const bookingTasks = unwrapListData<{ bookingId: string; id: string }>(tasksRes.body).filter(
+          (t) => t.bookingId === bookingId,
+        );
         if (bookingTasks?.length > 0) {
           createdTaskId = bookingTasks[0].id;
         }
@@ -125,6 +130,7 @@ describe('Time Entries E2E Tests', () => {
       it('should start a new timer', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/tasks/time-entries/start')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             taskId: createdTaskId,
@@ -141,6 +147,7 @@ describe('Time Entries E2E Tests', () => {
       it('should fail when starting timer with active one', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/tasks/time-entries/start')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             taskId: createdTaskId,
@@ -153,6 +160,7 @@ describe('Time Entries E2E Tests', () => {
       it('should return active timer', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/tasks/time-entries/active')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -165,6 +173,7 @@ describe('Time Entries E2E Tests', () => {
       it('should stop active timer', async () => {
         const response = await request(app.getHttpServer())
           .post(`/api/v1/tasks/time-entries/${activeTimerId}/stop`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             notes: 'Finished work',
@@ -178,6 +187,7 @@ describe('Time Entries E2E Tests', () => {
       it('should fail stopping already stopped timer', async () => {
         await request(app.getHttpServer())
           .post(`/api/v1/tasks/time-entries/${activeTimerId}/stop`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(400);
       });
@@ -187,6 +197,7 @@ describe('Time Entries E2E Tests', () => {
       it('should return time entries for task', async () => {
         const response = await request(app.getHttpServer())
           .get(`/api/v1/tasks/time-entries/task/${createdTaskId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -201,6 +212,7 @@ describe('Time Entries E2E Tests', () => {
       it('should update time entry notes', async () => {
         const response = await request(app.getHttpServer())
           .patch(`/api/v1/tasks/time-entries/${activeTimerId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             notes: 'Updated notes for E2E test',
@@ -217,6 +229,7 @@ describe('Time Entries E2E Tests', () => {
       it('should delete time entry', async () => {
         await request(app.getHttpServer())
           .delete(`/api/v1/tasks/time-entries/${activeTimerId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
       });
@@ -224,6 +237,7 @@ describe('Time Entries E2E Tests', () => {
       it('should return 404 for deleted entry', async () => {
         await request(app.getHttpServer())
           .get(`/api/v1/tasks/time-entries/${activeTimerId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);
       });

@@ -18,6 +18,7 @@ describe('Media Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
   let createdAttachmentId: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -55,7 +56,7 @@ describe('Media Module E2E Tests', () => {
 
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
@@ -75,6 +76,7 @@ describe('Media Module E2E Tests', () => {
       it('should create an attachment record', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/media')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             name: 'test-document.pdf',
@@ -97,6 +99,7 @@ describe('Media Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/media')
+          .set('Host', tenantHost)
           .send({
             filename: 'unauthorized.pdf',
             mimeType: 'application/pdf',
@@ -109,6 +112,7 @@ describe('Media Module E2E Tests', () => {
       it('should return all attachments', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/media')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -122,6 +126,7 @@ describe('Media Module E2E Tests', () => {
 
         const response = await request(app.getHttpServer())
           .get(`/api/v1/media/${createdAttachmentId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -131,6 +136,7 @@ describe('Media Module E2E Tests', () => {
       it('should return 404 for non-existent attachment', async () => {
         await request(app.getHttpServer())
           .get('/api/v1/media/00000000-0000-0000-0000-000000000000')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);
       });
@@ -140,6 +146,7 @@ describe('Media Module E2E Tests', () => {
       it('should get presigned upload URL', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/media/presigned-upload')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             filename: 'upload-test.jpg',
@@ -158,6 +165,7 @@ describe('Media Module E2E Tests', () => {
 
         await request(app.getHttpServer())
           .delete(`/api/v1/media/${createdAttachmentId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
       });

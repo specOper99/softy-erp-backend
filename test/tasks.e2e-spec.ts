@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
+import { unwrapListData } from './utils/e2e-response';
 import { seedTestDatabase } from './utils/seed-data';
 
 class MockThrottlerGuard extends ThrottlerGuard {
@@ -17,6 +18,7 @@ class MockThrottlerGuard extends ThrottlerGuard {
 describe('Tasks Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -52,7 +54,7 @@ describe('Tasks Module E2E Tests', () => {
 
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
@@ -71,14 +73,15 @@ describe('Tasks Module E2E Tests', () => {
     it('should return all tasks (Admin/OpsManager)', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toBeInstanceOf(Array);
+      expect(unwrapListData(response.body)).toBeInstanceOf(Array);
     });
 
     it('should fail without authentication', async () => {
-      await request(app.getHttpServer()).get('/api/v1/tasks').expect(401);
+      await request(app.getHttpServer()).get('/api/v1/tasks').set('Host', tenantHost).expect(401);
     });
   });
 
@@ -86,10 +89,11 @@ describe('Tasks Module E2E Tests', () => {
     it('should return current user tasks', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/tasks/my-tasks')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toBeInstanceOf(Array);
+      expect(unwrapListData(response.body)).toBeInstanceOf(Array);
     });
   });
 
@@ -101,15 +105,18 @@ describe('Tasks Module E2E Tests', () => {
       // Get all tasks first
       const tasksResponse = await request(app.getHttpServer())
         .get('/api/v1/tasks')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
+      const tasks = unwrapListData<{ id: string }>(tasksResponse.body);
 
       // If there are tasks, test getting one by ID
-      if (tasksResponse.body.data?.length > 0) {
-        const taskId = tasksResponse.body.data[0].id;
+      if (tasks.length > 0) {
+        const taskId = tasks[0].id;
 
         const response = await request(app.getHttpServer())
           .get(`/api/v1/tasks/${taskId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -123,6 +130,7 @@ describe('Tasks Module E2E Tests', () => {
     it('should return 404 for non-existent task', async () => {
       await request(app.getHttpServer())
         .get('/api/v1/tasks/00000000-0000-0000-0000-000000000000')
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
     });
@@ -134,6 +142,7 @@ describe('Tasks Module E2E Tests', () => {
       // First page
       const response1 = await request(app.getHttpServer())
         .get(`/api/v1/tasks/cursor?limit=${limit}`)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -147,6 +156,7 @@ describe('Tasks Module E2E Tests', () => {
         // Second page
         const response2 = await request(app.getHttpServer())
           .get(`/api/v1/tasks/cursor?limit=${limit}&cursor=${result1.nextCursor}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 

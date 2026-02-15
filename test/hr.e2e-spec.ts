@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { Profile } from '../src/modules/hr/entities/profile.entity';
 import { MailService } from '../src/modules/mail/mail.service';
+import { unwrapListData } from './utils/e2e-response';
 import { seedTestDatabase } from './utils/seed-data';
 
 class MockThrottlerGuard extends ThrottlerGuard {
@@ -21,6 +22,7 @@ describe('HR Module E2E Tests', () => {
   let tenantId: string;
   let createdProfileId: string;
   let testUserId: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
@@ -54,7 +56,7 @@ describe('HR Module E2E Tests', () => {
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     tenantId = seedData.tenantId;
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     // Find the profile created for staff in seeder
     const profileRepo = dataSource.getRepository(Profile);
@@ -93,6 +95,7 @@ describe('HR Module E2E Tests', () => {
 
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             userId: currentTestUserId,
@@ -102,6 +105,7 @@ describe('HR Module E2E Tests', () => {
 
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             userId: currentTestUserId,
@@ -113,6 +117,7 @@ describe('HR Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/hr/profiles')
+          .set('Host', tenantHost)
           .send({
             userId: testUserId,
             baseSalary: 3000,
@@ -125,10 +130,11 @@ describe('HR Module E2E Tests', () => {
       it('should return all profiles', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/hr/profiles')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
-        expect(response.body.data).toBeInstanceOf(Array);
+        expect(unwrapListData(response.body)).toBeInstanceOf(Array);
       });
     });
 
@@ -138,6 +144,7 @@ describe('HR Module E2E Tests', () => {
 
         const response = await request(app.getHttpServer())
           .get(`/api/v1/hr/profiles/${createdProfileId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -151,6 +158,7 @@ describe('HR Module E2E Tests', () => {
 
         const response = await request(app.getHttpServer())
           .patch(`/api/v1/hr/profiles/${createdProfileId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             baseSalary: 6000,
@@ -167,6 +175,7 @@ describe('HR Module E2E Tests', () => {
       it('should run payroll (Admin only)', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/hr/payroll/run')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(201);
 
@@ -178,6 +187,7 @@ describe('HR Module E2E Tests', () => {
           const txnId = response.body.data.transactionIds[0];
           const txnRes = await request(app.getHttpServer())
             .get(`/api/v1/transactions/${txnId}`)
+            .set('Host', tenantHost)
             .set('Authorization', `Bearer ${accessToken}`)
             .expect(200);
 

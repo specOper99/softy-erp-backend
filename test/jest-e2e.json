@@ -1,32 +1,17 @@
 {
-  "moduleFileExtensions": [
-    "js",
-    "json",
-    "ts"
-  ],
+  "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "globalSetup": "<rootDir>/jest-e2e-global-setup.ts",
+  "globalTeardown": "<rootDir>/jest-e2e-global-teardown.ts",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
-  "transformIgnorePatterns": [
-    "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
-  ],
-  "moduleDirectories": [
-    "node_modules",
-    "<rootDir>/../"
-  ],
-  "testPathIgnorePatterns": [
-    "<rootDir>/../.worktrees/"
-  ],
-  "modulePathIgnorePatterns": [
-    "<rootDir>/../.worktrees/"
-  ],
-  "setupFilesAfterEnv": [
-    "<rootDir>/jest-setup.ts",
-    "<rootDir>/jest-e2e-setup.ts"
-  ],
+  "transformIgnorePatterns": ["node_modules/(?!(uuid|p-limit|yocto-queue)/)"],
+  "moduleDirectories": ["node_modules", "<rootDir>/../"],
+  "testPathIgnorePatterns": ["<rootDir>/../.worktrees/"],
+  "modulePathIgnorePatterns": ["<rootDir>/../.worktrees/"],
+  "setupFilesAfterEnv": ["<rootDir>/jest-setup.ts", "<rootDir>/jest-e2e-setup.ts"],
   "maxWorkers": 1
 }

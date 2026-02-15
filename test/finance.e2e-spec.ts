@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
+import { unwrapListData } from './utils/e2e-response';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests
@@ -19,6 +20,7 @@ describe('Finance Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
   let createdTransactionId: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -62,7 +64,7 @@ describe('Finance Module E2E Tests', () => {
     // Seed database and get tenant
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     // Login as admin
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
@@ -84,6 +86,7 @@ describe('Finance Module E2E Tests', () => {
         // Create dependencies
         const clientRes = await request(app.getHttpServer())
           .post('/api/v1/clients')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             name: 'Finance Init Client',
@@ -94,21 +97,25 @@ describe('Finance Module E2E Tests', () => {
 
         const packagesRes = await request(app.getHttpServer())
           .get('/api/v1/packages')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
+        const packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id;
 
         const bookingRes = await request(app.getHttpServer())
           .post('/api/v1/bookings')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             clientId: clientRes.body.data.id,
             eventDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now (booking validation requires 1 hour minimum)
-            packageId: packagesRes.body.data[0]?.id,
+            packageId,
           })
           .expect(201);
 
         const response = await request(app.getHttpServer())
           .post('/api/v1/transactions')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             type: 'INCOME',
@@ -132,6 +139,7 @@ describe('Finance Module E2E Tests', () => {
         // Create a client for this test to avoid shared state issues
         const clientRes = await request(app.getHttpServer())
           .post('/api/v1/clients')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             name: 'Finance Test Client',
@@ -144,13 +152,15 @@ describe('Finance Module E2E Tests', () => {
         // Get a package
         const packagesRes = await request(app.getHttpServer())
           .get('/api/v1/packages')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
-        const packageId = packagesRes.body.data[0]?.id;
+        const packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id;
 
         // Create a booking
         const bookingRes = await request(app.getHttpServer())
           .post('/api/v1/bookings')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             clientId: testClientId,
@@ -162,6 +172,7 @@ describe('Finance Module E2E Tests', () => {
 
         const response = await request(app.getHttpServer())
           .post('/api/v1/transactions')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             type: 'INCOME',
@@ -180,6 +191,7 @@ describe('Finance Module E2E Tests', () => {
       it('should fail without authentication', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/transactions')
+          .set('Host', tenantHost)
           .send({
             type: 'EXPENSE',
             amount: 500,
@@ -191,6 +203,7 @@ describe('Finance Module E2E Tests', () => {
       it('should fail with invalid transaction type', async () => {
         await request(app.getHttpServer())
           .post('/api/v1/transactions')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             type: 'INVALID_TYPE',
@@ -204,20 +217,23 @@ describe('Finance Module E2E Tests', () => {
       it('should return all transactions', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/transactions')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
-        expect(response.body.data).toBeInstanceOf(Array);
+        expect(unwrapListData(response.body)).toBeInstanceOf(Array);
       });
 
       it('should filter transactions by type', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/transactions?type=INCOME')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
-        expect(response.body.data).toBeInstanceOf(Array);
-        response.body.data.forEach((t: { type: string }) => {
+        const transactions = unwrapListData<{ type: string }>(response.body);
+        expect(transactions).toBeInstanceOf(Array);
+        transactions.forEach((t) => {
           expect(t.type).toBe('INCOME');
         });
       });
@@ -227,6 +243,7 @@ describe('Finance Module E2E Tests', () => {
       it('should return a specific transaction', async () => {
         const response = await request(app.getHttpServer())
           .get(`/api/v1/transactions/${createdTransactionId}`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -236,6 +253,7 @@ describe('Finance Module E2E Tests', () => {
       it('should return 404 for non-existent transaction', async () => {
         await request(app.getHttpServer())
           .get('/api/v1/transactions/ffffffff-ffff-ffff-ffff-ffffffffffff')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);
       });
@@ -245,6 +263,7 @@ describe('Finance Module E2E Tests', () => {
       it('should return financial summary (Admin only)', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/transactions/summary')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -260,6 +279,7 @@ describe('Finance Module E2E Tests', () => {
           .get(
             `/api/v1/analytics/tax-report?startDate=${new Date().getFullYear()}-01-01&endDate=${new Date().getFullYear()}-12-31`,
           )
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -276,14 +296,15 @@ describe('Finance Module E2E Tests', () => {
       it('should return all employee wallets (Admin)', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/wallets')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
-        expect(response.body.data).toBeInstanceOf(Array);
+        expect(unwrapListData(response.body)).toBeInstanceOf(Array);
       });
 
       it('should fail without authentication', async () => {
-        await request(app.getHttpServer()).get('/api/v1/wallets').expect(401);
+        await request(app.getHttpServer()).get('/api/v1/wallets').set('Host', tenantHost).expect(401);
       });
     });
   });

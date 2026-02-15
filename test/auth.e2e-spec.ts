@@ -22,14 +22,12 @@ describe('Auth & Users E2E Tests', () => {
   let _accessToken: string;
   let _refreshToken: string;
   let testEmail: string;
-  let _adminPassword: string;
   let registeredTenantHost: string;
+  let adminTenantHost: string;
   const testPassword = process.env.TEST_MOCK_PASSWORD || 'TestUser123!'; // OK for dynamically created test users
 
   beforeAll(async () => {
     // Get seeder password from environment variable (after dotenv has loaded)
-    _adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
-
     // Validate required environment variables (for tests using seeded users)
     if (!process.env.SEED_ADMIN_PASSWORD) {
       console.warn('Warning: SEED_ADMIN_PASSWORD not set, using default.');
@@ -72,9 +70,9 @@ describe('Auth & Users E2E Tests', () => {
 
     // Seed and get Tenant ID
     const dataSource = app.get(DataSource);
-    const { tenantId } = await seedTestDatabase(dataSource);
+    const { tenantId, tenantSlug } = await seedTestDatabase(dataSource);
     globalThis.testTenantId = tenantId;
-    registeredTenantHost = `${tenantId}.example.com`;
+    registeredTenantHost = `${tenantSlug}.example.com`;
 
     testEmail = `test-${Date.now()}@example.com`;
   });
@@ -97,7 +95,7 @@ describe('Auth & Users E2E Tests', () => {
       expect(response.body.data).toHaveProperty('accessToken');
       expect(response.body.data).toHaveProperty('user');
       _accessToken = response.body.data.accessToken;
-      registeredTenantHost = `${response.body.data.user.tenantId}.example.com`;
+      registeredTenantHost = `${response.body.data.user.tenantSlug || response.body.data.user.tenantId}.example.com`;
     });
 
     it('should fail with invalid email', async () => {
@@ -192,7 +190,7 @@ describe('Auth & Users E2E Tests', () => {
       expect(adminReg.status).toBe(201);
       const adminId = adminReg.body.data.user.id;
       const adminTenantId = adminReg.body.data.user.tenantId;
-      const adminTenantHost = `${adminTenantId}.example.com`;
+      adminTenantHost = `${adminReg.body.data.user.tenantSlug || adminTenantId}.example.com`;
 
       // 2. Manually elevate user to ADMIN role in database
       const userRepo = app.get(getRepositoryToken(User));
@@ -219,12 +217,13 @@ describe('Auth & Users E2E Tests', () => {
     });
 
     it('should reject access without token', async () => {
-      await request(app.getHttpServer()).get('/api/v1/users').expect(401);
+      await request(app.getHttpServer()).get('/api/v1/users').set('Host', adminTenantHost).expect(401);
     });
 
     it('should reject access with invalid token', async () => {
       await request(app.getHttpServer())
         .get('/api/v1/users')
+        .set('Host', adminTenantHost)
 
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);

@@ -1,3 +1,5 @@
+import { EventEmitter } from 'events';
+
 /**
  * E2E-specific Jest setup.
  * This file contains mocks and logic designed to prevent background processes
@@ -38,12 +40,66 @@ jest.mock('cache-manager-redis-yet', () => ({
 }));
 
 jest.mock('ioredis', () => {
-  return class Redis {
-    on = jest.fn();
-    set = jest.fn().mockResolvedValue('OK');
-    eval = jest.fn().mockResolvedValue(1);
-    exists = jest.fn().mockResolvedValue(0);
-    quit = jest.fn().mockResolvedValue('OK');
+  const createMockRedis = function () {
+    const instance = Object.create(EventEmitter.prototype);
+    instance.on = jest.fn();
+    instance.once = jest.fn();
+    instance.set = jest.fn().mockResolvedValue('OK');
+    instance.eval = jest.fn().mockResolvedValue(1);
+    instance.exists = jest.fn().mockResolvedValue(0);
+    instance.quit = jest.fn().mockResolvedValue('OK');
+    instance.disconnect = jest.fn();
+    instance.duplicate = jest.fn().mockImplementation(() => createMockRedis());
+    instance.status = 'ready';
+    instance.connect = jest.fn().mockResolvedValue(undefined);
+    instance.ping = jest.fn().mockResolvedValue('PONG');
+    // Implement defineCommand to actually attach the command to the instance
+    // BullMQ registers commands (e.g., "dismiss", "moveToWaitingChildren") and later calls them by name
+    instance.defineCommand = jest.fn(function (name: string) {
+      instance[name] = jest.fn().mockResolvedValue([]);
+    });
+    instance.sendCommand = jest.fn().mockResolvedValue({});
+    instance.info = jest.fn().mockResolvedValue('redis_version:7.0.0');
+    instance.get = jest.fn().mockResolvedValue(null);
+    instance.hset = jest.fn().mockResolvedValue(1);
+    instance.hget = jest.fn().mockResolvedValue(null);
+    instance.hgetall = jest.fn().mockResolvedValue({});
+    instance.del = jest.fn().mockResolvedValue(0);
+    instance.expire = jest.fn().mockResolvedValue(1);
+    instance.ttl = jest.fn().mockResolvedValue(-1);
+    instance.sadd = jest.fn().mockResolvedValue(1);
+    instance.srem = jest.fn().mockResolvedValue(1);
+    instance.smembers = jest.fn().mockResolvedValue([]);
+    instance.sismember = jest.fn().mockResolvedValue(0);
+    instance.zadd = jest.fn().mockResolvedValue(1);
+    instance.zrem = jest.fn().mockResolvedValue(1);
+    instance.zrange = jest.fn().mockResolvedValue([]);
+    instance.zrangebyscore = jest.fn().mockResolvedValue([]);
+    instance.zcard = jest.fn().mockResolvedValue(0);
+    // BullMQ uses blocking sorted set commands
+    // Add delay to prevent busy-loop - BullMQ will poll with timeout, so we return null after delay
+    instance.bzpopmin = jest
+      .fn()
+      .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(null), 50)));
+    instance.bzpopmax = jest
+      .fn()
+      .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(null), 50)));
+    instance.zpopmin = jest.fn().mockResolvedValue([]);
+    instance.zpopmax = jest.fn().mockResolvedValue([]);
+    instance.incr = jest.fn().mockResolvedValue(1);
+    instance.decr = jest.fn().mockResolvedValue(0);
+    instance.lpush = jest.fn().mockResolvedValue(1);
+    instance.rpop = jest.fn().mockResolvedValue(null);
+    instance.llen = jest.fn().mockResolvedValue(0);
+    instance.keys = jest.fn().mockResolvedValue([]);
+    instance.flushdb = jest.fn().mockResolvedValue('OK');
+    return instance;
+  };
+
+  return {
+    __esModule: true,
+    default: createMockRedis,
+    Redis: createMockRedis,
   };
 });
 
@@ -74,6 +130,16 @@ dotenv.config({
   path: path.resolve(__dirname, '../.env.test'),
   override: true,
 });
+
+// 3. Restore testcontainer DB settings (global-setup sets these before this file runs)
+// The .env.test override above would overwrite them, so we restore from globalThis.__DB_CONFIG__
+if (globalThis.__DB_CONFIG__) {
+  process.env.DB_HOST = globalThis.__DB_CONFIG__.host;
+  process.env.DB_PORT = String(globalThis.__DB_CONFIG__.port);
+  process.env.DB_USERNAME = globalThis.__DB_CONFIG__.username;
+  process.env.DB_PASSWORD = globalThis.__DB_CONFIG__.password;
+  process.env.DB_DATABASE = globalThis.__DB_CONFIG__.database;
+}
 
 // Ensure NODE_ENV is set to test
 process.env.NODE_ENV = 'test';

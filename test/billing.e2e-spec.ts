@@ -63,6 +63,7 @@ const mockStripeService = {
 describe('Billing Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -101,7 +102,7 @@ describe('Billing Module E2E Tests', () => {
     // Seed database and login
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.admin.email,
@@ -120,6 +121,7 @@ describe('Billing Module E2E Tests', () => {
       it('should return list of products', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/billing/products')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -128,7 +130,7 @@ describe('Billing Module E2E Tests', () => {
       });
 
       it('should fail without authentication', async () => {
-        await request(app.getHttpServer()).get('/api/v1/billing/products').expect(401);
+        await request(app.getHttpServer()).get('/api/v1/billing/products').set('Host', tenantHost).expect(401);
       });
     });
 
@@ -136,6 +138,7 @@ describe('Billing Module E2E Tests', () => {
       it('should return list of prices', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/billing/prices')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -149,6 +152,7 @@ describe('Billing Module E2E Tests', () => {
       it('should return list of invoices', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/billing/invoices')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -162,6 +166,7 @@ describe('Billing Module E2E Tests', () => {
       it('should create checkout session', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/billing/checkout-session')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             priceId: 'price_test1',
@@ -178,6 +183,7 @@ describe('Billing Module E2E Tests', () => {
       it('should create portal session', async () => {
         const response = await request(app.getHttpServer())
           .post('/api/v1/billing/portal-session')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
             returnUrl: 'https://example.com/dashboard',
@@ -194,6 +200,7 @@ describe('Billing Module E2E Tests', () => {
       it('should return subscription status', async () => {
         const response = await request(app.getHttpServer())
           .get('/api/v1/billing/subscription')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 

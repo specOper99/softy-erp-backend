@@ -18,6 +18,7 @@ class MockThrottlerGuard extends ThrottlerGuard {
 describe('Analytics Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
+  let tenantHost: string;
 
   beforeAll(async () => {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -54,7 +55,7 @@ describe('Analytics Module E2E Tests', () => {
     // Seed database and login
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
-    const tenantHost = `${seedData.tenantId}.example.com`;
+    tenantHost = `${seedData.tenantId}.example.com`;
 
     const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').set('Host', tenantHost).send({
       email: seedData.admin.email,
@@ -74,6 +75,7 @@ describe('Analytics Module E2E Tests', () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
           .get(`/api/v1/analytics/revenue-by-package?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -83,12 +85,16 @@ describe('Analytics Module E2E Tests', () => {
       it('should fail without date filters', async () => {
         await request(app.getHttpServer())
           .get('/api/v1/analytics/revenue-by-package')
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(400);
       });
 
       it('should fail without authentication', async () => {
-        await request(app.getHttpServer()).get('/api/v1/analytics/revenue-by-package').expect(401);
+        await request(app.getHttpServer())
+          .get('/api/v1/analytics/revenue-by-package')
+          .set('Host', tenantHost)
+          .expect(401);
       });
     });
   });
@@ -99,6 +105,7 @@ describe('Analytics Module E2E Tests', () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
           .get(`/api/v1/analytics/tax-report?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -111,6 +118,7 @@ describe('Analytics Module E2E Tests', () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
           .get(`/api/v1/analytics/tax-report?startDate=${currentYear}-01-01&endDate=${currentYear}-06-30`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -123,6 +131,7 @@ describe('Analytics Module E2E Tests', () => {
         const currentYear = new Date().getFullYear();
         const response = await request(app.getHttpServer())
           .get(`/api/v1/analytics/revenue-by-package/pdf?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
+          .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -139,12 +148,14 @@ describe('Analytics Module E2E Tests', () => {
       // First request
       const firstResponse = await request(app.getHttpServer())
         .get(url)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       // Second request (should be cached)
       const secondResponse = await request(app.getHttpServer())
         .get(url)
+        .set('Host', tenantHost)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
