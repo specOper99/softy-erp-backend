@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import pLimit from 'p-limit';
-import { DataSource, LessThanOrEqual } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
@@ -83,14 +83,12 @@ export class RecurringTransactionService {
         this.logger.log('Processing recurring transactions...');
 
         // Intentionally global query for cron - processes all tenants, each in its own context
-        // eslint-disable-next-line local-rules/no-unsafe-tenant-context
-        const dueTransactions = await this.dataSource.getRepository(RecurringTransaction).find({
-          where: {
-            status: RecurringStatus.ACTIVE,
-            nextRunDate: LessThanOrEqual(new Date()),
-          },
-          take: FINANCE.BATCH.MAX_BATCH_SIZE,
-        });
+        const dueTransactions = await this.dataSource
+          .createQueryBuilder(RecurringTransaction, 'rt')
+          .where('rt.status = :status', { status: RecurringStatus.ACTIVE })
+          .andWhere('rt.nextRunDate <= :now', { now: new Date() })
+          .take(FINANCE.BATCH.MAX_BATCH_SIZE)
+          .getMany();
 
         // Use bounded concurrency to prevent resource exhaustion
         const limit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);

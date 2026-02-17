@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
 import { AuthService } from '../auth.service';
 import { TokenPayload } from '../services/token.service';
 
@@ -15,18 +16,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly authService: AuthService,
     private readonly tokenBlacklistService: TokenBlacklistService,
   ) {
-    const rawAlgorithms = configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
-    const parsed = rawAlgorithms
-      .split(',')
-      .map((a) => a.trim().toUpperCase())
-      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
-
-    const unique = Array.from(new Set(parsed));
-    if (unique.length !== 1) {
-      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
-    }
-
-    const algorithm = unique[0] ?? 'HS256';
+    const algorithm = getAllowedJwtAlgorithm(configService);
 
     const secretOrKey = (() => {
       if (algorithm === 'RS256') {

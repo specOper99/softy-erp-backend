@@ -298,10 +298,9 @@ describe('Platform E2E Tests', () => {
   describe('Support - Impersonation', () => {
     it('should use impersonation token on tenant auth me endpoint', async () => {
       const impersonation = await request(app.getHttpServer())
-        .post('/api/v1/platform/support/impersonate')
+        .post(`/api/v1/platform/support/tenants/${testTenantId}/impersonate`)
         .set('Authorization', `Bearer ${platformToken}`)
         .send({
-          tenantId: testTenantId,
           userId: testTenantUserId,
           reason: 'Investigating tenant admin auth issue for support ticket #90210',
           approvalTicketId: 'SUP-90210',

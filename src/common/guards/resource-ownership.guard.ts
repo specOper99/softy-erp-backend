@@ -138,15 +138,12 @@ export class ResourceOwnershipGuard implements CanActivate {
 
     try {
       // Query the resource to check ownership
-
-      const repository = this.dataSource.getRepository(config.resourceType);
-      const resource = await repository.findOne({
-        where: {
-          id: resourceId,
-          tenantId,
-        } as Record<string, unknown>,
-        select: ['id', config.ownerField] as string[],
-      });
+      const resource = await this.dataSource
+        .createQueryBuilder(config.resourceType, 'resource')
+        .select(['resource.id', `resource.${config.ownerField}`])
+        .where('resource.id = :resourceId', { resourceId })
+        .andWhere('resource.tenantId = :tenantId', { tenantId })
+        .getOne();
 
       if (!resource) {
         throw new NotFoundException(`${config.resourceType} ${resourceId} not found`);
@@ -181,11 +178,12 @@ export class ResourceOwnershipGuard implements CanActivate {
           return null;
         }
 
-        const clientRepo = this.dataSource.getRepository(Client);
-        const client = await clientRepo.findOne({
-          where: { tenantId, email: user.email },
-          select: ['id'],
-        });
+        const client = await this.dataSource
+          .createQueryBuilder(Client, 'client')
+          .select(['client.id'])
+          .where('client.tenantId = :tenantId', { tenantId })
+          .andWhere('client.email = :email', { email: user.email })
+          .getOne();
 
         return client?.id ?? null;
       }

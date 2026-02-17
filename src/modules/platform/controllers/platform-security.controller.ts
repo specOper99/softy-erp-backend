@@ -18,6 +18,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@ne
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { RequirePlatformPermissions } from '../decorators/platform-permissions.decorator';
 import { RequireReason } from '../decorators/require-reason.decorator';
 import {
@@ -78,10 +79,12 @@ export class PlatformSecurityController {
     @Request() req: PlatformSecurityRequest,
   ) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
-    await this.securityService.forcePasswordReset(
-      { tenantId, userId, reason: dto.reason, notifyUser: dto.notifyUser },
-      req.user.userId,
-      ipAddress,
+    await TenantContextService.run(tenantId, async () =>
+      this.securityService.forcePasswordReset(
+        { tenantId, userId, reason: dto.reason, notifyUser: dto.notifyUser },
+        req.user.userId,
+        ipAddress,
+      ),
     );
   }
 
@@ -116,10 +119,8 @@ export class PlatformSecurityController {
     @Request() req: PlatformSecurityRequest,
   ) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
-    const count = await this.securityService.revokeAllSessions(
-      { tenantId, reason: dto.reason },
-      req.user.userId,
-      ipAddress,
+    const count = await TenantContextService.run(tenantId, async () =>
+      this.securityService.revokeAllSessions({ tenantId, reason: dto.reason }, req.user.userId, ipAddress),
     );
     return { revokedSessions: count };
   }
@@ -146,10 +147,12 @@ export class PlatformSecurityController {
     @Request() req: PlatformSecurityRequest,
   ) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
-    await this.securityService.updateIpAllowlist(
-      { tenantId, allowedIps: dto.ipAddresses, reason: dto.reason },
-      req.user.userId,
-      ipAddress,
+    await TenantContextService.run(tenantId, async () =>
+      this.securityService.updateIpAllowlist(
+        { tenantId, allowedIps: dto.ipAddresses, reason: dto.reason },
+        req.user.userId,
+        ipAddress,
+      ),
     );
   }
 
@@ -186,10 +189,12 @@ export class PlatformSecurityController {
     @Request() req: PlatformSecurityRequest,
   ) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
-    return this.securityService.initiateDataExport(
-      { tenantId, exportType: 'gdpr', reason: dto.reason },
-      req.user.userId,
-      ipAddress,
+    return TenantContextService.run(tenantId, async () =>
+      this.securityService.initiateDataExport(
+        { tenantId, exportType: 'gdpr', reason: dto.reason },
+        req.user.userId,
+        ipAddress,
+      ),
     );
   }
 
@@ -225,10 +230,12 @@ export class PlatformSecurityController {
     @Request() req: PlatformSecurityRequest,
   ) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
-    return this.securityService.initiateDataDeletion(
-      { tenantId, scheduleDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), reason: dto.reason },
-      req.user.userId,
-      ipAddress,
+    return TenantContextService.run(tenantId, async () =>
+      this.securityService.initiateDataDeletion(
+        { tenantId, scheduleDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), reason: dto.reason },
+        req.user.userId,
+        ipAddress,
+      ),
     );
   }
 
@@ -263,7 +270,9 @@ Risk factors include: login patterns, failed attempts, IP anomalies, configurati
     },
   })
   async getTenantRiskScore(@TargetTenant() tenantId: string) {
-    const riskScore = await this.securityService.getTenantRiskScore(tenantId);
+    const riskScore = await TenantContextService.run(tenantId, async () =>
+      this.securityService.getTenantRiskScore(tenantId),
+    );
     return {
       tenantId,
       riskScore: {

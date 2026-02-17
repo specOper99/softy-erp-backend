@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { PlatformAnalyticsService } from '../services/platform-analytics.service';
 import { PlatformAnalyticsController } from './platform-analytics.controller';
 
 describe('PlatformAnalyticsController', () => {
   let controller: PlatformAnalyticsController;
   let analyticsService: PlatformAnalyticsService;
+  let tenantContextRunSpy: jest.SpyInstance;
 
   const mockMetrics = {
     totalTenants: 150,
@@ -54,6 +56,10 @@ describe('PlatformAnalyticsController', () => {
   };
 
   beforeEach(async () => {
+    tenantContextRunSpy = jest
+      .spyOn(TenantContextService, 'run')
+      .mockImplementation((_: string, callback: () => unknown) => callback());
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PlatformAnalyticsController],
       providers: [
@@ -74,6 +80,7 @@ describe('PlatformAnalyticsController', () => {
   });
 
   afterEach(() => {
+    tenantContextRunSpy.mockRestore();
     jest.clearAllMocks();
   });
 

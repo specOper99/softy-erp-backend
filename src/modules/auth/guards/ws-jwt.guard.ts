@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
+import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
 import { AuthService } from '../auth.service';
 import { TokenBlacklistService } from '../services/token-blacklist.service';
 import { TokenPayload } from '../services/token.service';
@@ -55,17 +56,7 @@ export class WsJwtGuard implements CanActivate {
   }
 
   private getAllowedJwtAlgorithm(): 'HS256' | 'RS256' {
-    const raw = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
-    const parsed = raw
-      .split(',')
-      .map((a) => a.trim().toUpperCase())
-      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
-
-    const unique = Array.from(new Set(parsed));
-    if (unique.length !== 1) {
-      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
-    }
-    return unique[0] ?? 'HS256';
+    return getAllowedJwtAlgorithm(this.configService);
   }
 
   private getJwtSecretOrKey(): string {

@@ -177,10 +177,19 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
   createQueryBuilder(alias: string) {
     const tenantId = this.getTenantId();
     const queryBuilder = this.repository.createQueryBuilder(alias).where(`${alias}.tenantId = :tenantId`, { tenantId });
+
     const baseAndWhere = queryBuilder.andWhere.bind(queryBuilder);
     queryBuilder.where = (...parameters: Parameters<SelectQueryBuilder<T>['where']>) => {
       return baseAndWhere(...parameters);
     };
+
+    queryBuilder.orWhere = (...parameters: Parameters<SelectQueryBuilder<T>['orWhere']>) => {
+      void parameters;
+      throw new InternalServerErrorException(
+        'Unsafe .orWhere() on tenant-scoped QueryBuilder. Use .andWhere(new Brackets((qb) => qb.where(...).orWhere(...))) to preserve tenant isolation.',
+      );
+    };
+
     return queryBuilder;
   }
 

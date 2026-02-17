@@ -1,3 +1,4 @@
+import { TargetTenant } from '../../../common/decorators/target-tenant.decorator';
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
@@ -32,7 +33,7 @@ interface PlatformSupportRequest {
 export class PlatformSupportController {
   constructor(private readonly impersonationService: ImpersonationService) {}
 
-  @Post('impersonate')
+  @Post('tenants/:tenantId/impersonate')
   @RequirePlatformPermissions(PlatformPermission.SUPPORT_IMPERSONATE)
   @ApiOperation({
     summary: 'Start impersonation session',
@@ -68,8 +69,14 @@ export class PlatformSupportController {
     },
   })
   @ApiResponse({ status: 409, description: 'Active session already exists' })
-  async startImpersonation(@Body() dto: StartImpersonationDto, @Req() req: PlatformSupportRequest) {
+  @ApiParam({ name: 'tenantId', description: 'Tenant UUID', format: 'uuid' })
+  async startImpersonation(
+    @TargetTenant() tenantId: string,
+    @Body() dto: StartImpersonationDto,
+    @Req() req: PlatformSupportRequest,
+  ) {
     const result = await this.impersonationService.startImpersonation(
+      tenantId,
       dto,
       req.user.userId,
       req.ip,

@@ -1,28 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CreateReviewDto } from '../dto/create-review.dto';
 import { UpdateReviewStatusDto } from '../dto/update-review-status.dto';
 import { Review } from '../entities/review.entity';
 import { ReviewStatus } from '../enums/review-status.enum';
+import { ReviewRepository } from '../repositories/review.repository';
 
 @Injectable()
 export class ReviewsService {
-  constructor(
-    @InjectRepository(Review)
-    private readonly reviewRepository: Repository<Review>,
-  ) {}
+  constructor(private readonly reviewRepository: ReviewRepository) {}
 
-  async create(
-    tenantId: string,
-    clientId: string,
-    bookingId: string,
-    packageId: string,
-    dto: CreateReviewDto,
-  ): Promise<Review> {
+  async create(clientId: string, bookingId: string, packageId: string, dto: CreateReviewDto): Promise<Review> {
     const review = this.reviewRepository.create({
-      tenantId,
       clientId,
       bookingId,
       packageId,
@@ -35,7 +24,6 @@ export class ReviewsService {
   }
 
   async findAll(
-    tenantId: string,
     filters: {
       status?: ReviewStatus;
       packageId?: string;
@@ -45,7 +33,6 @@ export class ReviewsService {
   ): Promise<[Review[], number]> {
     const query = this.reviewRepository
       .createQueryBuilder('review')
-      .where('review.tenantId = :tenantId', { tenantId })
       .leftJoinAndSelect('review.client', 'client')
       .leftJoinAndSelect('review.package', 'package')
       .leftJoinAndSelect('review.booking', 'booking');
@@ -70,30 +57,22 @@ export class ReviewsService {
     return query.getManyAndCount();
   }
 
-  async findApprovedByPackage(
-    tenantId: string,
-    packageId: string,
-    pagination: PaginationDto,
-  ): Promise<[Review[], number]> {
+  async findApprovedByPackage(packageId: string, pagination: PaginationDto): Promise<[Review[], number]> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 10;
 
-    return this.reviewRepository.findAndCount({
-      where: {
-        tenantId,
-        packageId,
-        status: ReviewStatus.APPROVED,
-      },
-      order: {
-        createdAt: 'DESC',
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    return this.reviewRepository
+      .createQueryBuilder('review')
+      .leftJoinAndSelect('review.client', 'client')
+      .andWhere('review.packageId = :packageId', { packageId })
+      .andWhere('review.status = :status', { status: ReviewStatus.APPROVED })
+      .orderBy('review.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
   }
 
   async getApprovedAggregatesByPackageIds(
-    tenantId: string,
     packageIds: string[],
   ): Promise<Array<{ packageId: string; avgRating: number; reviewCount: number }>> {
     if (packageIds.length === 0) {
@@ -105,7 +84,6 @@ export class ReviewsService {
       .select('review.packageId', 'packageId')
       .addSelect('AVG(review.rating)', 'avgRating')
       .addSelect('COUNT(review.id)', 'reviewCount')
-      .where('review.tenantId = :tenantId', { tenantId })
       .andWhere('review.status = :status', { status: ReviewStatus.APPROVED })
       .andWhere('review.packageId IN (:...packageIds)', { packageIds })
       .groupBy('review.packageId')
@@ -118,9 +96,9 @@ export class ReviewsService {
     }));
   }
 
-  async findOne(tenantId: string, id: string): Promise<Review> {
+  async findOne(id: string): Promise<Review> {
     const review = await this.reviewRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: ['client', 'package', 'booking'],
     });
 
@@ -131,18 +109,17 @@ export class ReviewsService {
     return review;
   }
 
-  async updateStatus(tenantId: string, id: string, dto: UpdateReviewStatusDto): Promise<Review> {
-    const review = await this.findOne(tenantId, id);
+  async updateStatus(id: string, dto: UpdateReviewStatusDto): Promise<Review> {
+    const review = await this.findOne(id);
 
     review.status = dto.status;
 
     return this.reviewRepository.save(review);
   }
 
-  async checkDuplicateReview(tenantId: string, clientId: string, bookingId: string): Promise<boolean> {
+  async checkDuplicateReview(clientId: string, bookingId: string): Promise<boolean> {
     const existingReview = await this.reviewRepository.findOne({
       where: {
-        tenantId,
         clientId,
         bookingId,
       },

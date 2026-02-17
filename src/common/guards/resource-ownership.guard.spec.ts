@@ -7,19 +7,25 @@ import { TenantContextService } from '../services/tenant-context.service';
 import { ResourceOwnershipGuard } from './resource-ownership.guard';
 
 describe('ResourceOwnershipGuard', () => {
-  const invoiceRepo = {
-    findOne: jest.fn(),
+  const invoiceQueryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getOne: jest.fn(),
   };
 
-  const clientRepo = {
-    findOne: jest.fn(),
+  const clientQueryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getOne: jest.fn(),
   };
 
   const dataSource = {
-    getRepository: jest.fn((entity: unknown) => {
-      if (entity === 'Invoice') return invoiceRepo;
-      if (entity === Client) return clientRepo;
-      return invoiceRepo;
+    createQueryBuilder: jest.fn((entity: unknown) => {
+      if (entity === 'Invoice') return invoiceQueryBuilder;
+      if (entity === Client) return clientQueryBuilder;
+      return invoiceQueryBuilder;
     }),
   } as unknown as DataSource;
 
@@ -73,17 +79,18 @@ describe('ResourceOwnershipGuard', () => {
       allowRoles: [Role.ADMIN, Role.OPS_MANAGER],
     });
 
-    clientRepo.findOne.mockResolvedValue({ id: 'client-1' });
-    invoiceRepo.findOne.mockResolvedValue({ id: 'invoice-1', clientId: 'client-1' });
+    clientQueryBuilder.getOne.mockResolvedValue({ id: 'client-1' });
+    invoiceQueryBuilder.getOne.mockResolvedValue({ id: 'invoice-1', clientId: 'client-1' });
 
     const allowed = await TenantContextService.run('tenant-1', () =>
       guard.canActivate(createContext({ id: 'user-1', email: 'client@example.com', role: Role.CLIENT })),
     );
 
     expect(allowed).toBe(true);
-    expect(clientRepo.findOne).toHaveBeenCalledWith({
-      where: { tenantId: 'tenant-1', email: 'client@example.com' },
-      select: ['id'],
+    expect(clientQueryBuilder.select).toHaveBeenCalledWith(['client.id']);
+    expect(clientQueryBuilder.where).toHaveBeenCalledWith('client.tenantId = :tenantId', { tenantId: 'tenant-1' });
+    expect(clientQueryBuilder.andWhere).toHaveBeenCalledWith('client.email = :email', {
+      email: 'client@example.com',
     });
   });
 
@@ -96,8 +103,8 @@ describe('ResourceOwnershipGuard', () => {
       allowRoles: [Role.ADMIN, Role.OPS_MANAGER],
     });
 
-    clientRepo.findOne.mockResolvedValue({ id: 'client-2' });
-    invoiceRepo.findOne.mockResolvedValue({ id: 'invoice-1', clientId: 'client-1' });
+    clientQueryBuilder.getOne.mockResolvedValue({ id: 'client-2' });
+    invoiceQueryBuilder.getOne.mockResolvedValue({ id: 'invoice-1', clientId: 'client-1' });
 
     await expect(
       TenantContextService.run('tenant-1', () =>
@@ -115,8 +122,8 @@ describe('ResourceOwnershipGuard', () => {
       allowRoles: [Role.ADMIN, Role.OPS_MANAGER],
     });
 
-    clientRepo.findOne.mockResolvedValue({ id: 'client-1' });
-    invoiceRepo.findOne.mockResolvedValue(null);
+    clientQueryBuilder.getOne.mockResolvedValue({ id: 'client-1' });
+    invoiceQueryBuilder.getOne.mockResolvedValue(null);
 
     await expect(
       TenantContextService.run('tenant-1', () =>

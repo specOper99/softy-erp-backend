@@ -1,0 +1,159 @@
+{
+  "generatedAt": "2026-02-16T08:19:53.221Z",
+  "totalCount": 14,
+  "classifications": {
+    "tenant-agnostic": 12,
+    "tenant-specific-unauthenticated": 1,
+    "auth-bootstrap": 1
+  },
+  "entries": [
+    {
+      "filePath": "src/modules/auth/auth.controller.ts",
+      "controllerClass": "AuthController",
+      "module": "auth",
+      "classification": "auth-bootstrap",
+      "decoratorMatches": [
+        69,
+        84,
+        130,
+        213,
+        232,
+        348,
+        366,
+        383,
+        393
+      ],
+      "notes": "Authentication bootstrap endpoints"
+    },
+    {
+      "filePath": "src/modules/billing/controllers/billing.controller.ts",
+      "controllerClass": "BillingWebhookController",
+      "module": "billing",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        140
+      ],
+      "notes": "Platform billing webhooks"
+    },
+    {
+      "filePath": "src/modules/client-portal/client-portal.controller.ts",
+      "controllerClass": "ClientPortalController",
+      "module": "client-portal",
+      "classification": "tenant-specific-unauthenticated",
+      "decoratorMatches": [
+        105
+      ],
+      "notes": "Client portal with magic link auth - uses slug routes"
+    },
+    {
+      "filePath": "src/modules/health/health.controller.ts",
+      "controllerClass": "HealthController",
+      "module": "health",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        19
+      ],
+      "notes": "Health check endpoints"
+    },
+    {
+      "filePath": "src/modules/metrics/metrics.controller.ts",
+      "controllerClass": "MetricsController",
+      "module": "metrics",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        10
+      ],
+      "notes": "Prometheus metrics endpoint"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/mfa-login.controller.ts",
+      "controllerClass": "PlatformMfaLoginController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        23
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/mfa.controller.ts",
+      "controllerClass": "MFAController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        31
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/platform-analytics.controller.ts",
+      "controllerClass": "PlatformAnalyticsController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        21
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/platform-audit.controller.ts",
+      "controllerClass": "PlatformAuditController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        20
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/platform-auth.controller.ts",
+      "controllerClass": "PlatformAuthController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        27
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/platform-security.controller.ts",
+      "controllerClass": "PlatformSecurityController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        49
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/platform-support.controller.ts",
+      "controllerClass": "PlatformSupportController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        28
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/platform-tenants.controller.ts",
+      "controllerClass": "PlatformTenantsController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        50
+      ],
+      "notes": "Platform-only admin endpoints"
+    },
+    {
+      "filePath": "src/modules/platform/controllers/platform-time-entries.controller.ts",
+      "controllerClass": "PlatformTimeEntriesController",
+      "module": "platform",
+      "classification": "tenant-agnostic",
+      "decoratorMatches": [
+        25
+      ],
+      "notes": "Platform-only admin endpoints"
+    }
+  ]
+}

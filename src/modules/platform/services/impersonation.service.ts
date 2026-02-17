@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { createHash } from 'node:crypto';
 import { DataSource, LessThan, Repository } from 'typeorm';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { User } from '../../../modules/users/entities/user.entity';
 import { StartImpersonationDto } from '../dto/support.dto';
 import { ImpersonationSession } from '../entities/impersonation-session.entity';
@@ -32,26 +33,29 @@ export class ImpersonationService {
    * Start an impersonation session
    */
   async startImpersonation(
+    tenantId: string,
     dto: StartImpersonationDto,
     platformUserId: string,
     ipAddress: string,
     userAgent: string,
   ): Promise<{ session: ImpersonationSession; token: string }> {
     // Fetch target user to validate existence and get email for audit trail
-    const targetUser = await this.dataSource.manager.findOne(User, {
-      where: { id: dto.userId, tenantId: dto.tenantId },
-      select: ['id', 'email', 'tenantId'],
-    });
+    const targetUser = await TenantContextService.run(tenantId, async () =>
+      this.dataSource.manager.findOne(User, {
+        where: { id: dto.userId, tenantId },
+        select: ['id', 'email', 'tenantId'],
+      }),
+    );
 
     if (!targetUser) {
-      throw new NotFoundException(`User ${dto.userId} not found in tenant ${dto.tenantId}`);
+      throw new NotFoundException(`User ${dto.userId} not found in tenant ${tenantId}`);
     }
 
     // Check if there's already an active session
     const activeSession = await this.sessionRepository.findOne({
       where: {
         platformUserId,
-        tenantId: dto.tenantId,
+        tenantId,
         targetUserId: dto.userId,
         isActive: true,
       },
@@ -68,7 +72,7 @@ export class ImpersonationService {
     // Create session with verified user email
     const session = this.sessionRepository.create({
       platformUserId,
-      tenantId: dto.tenantId,
+      tenantId,
       targetUserId: dto.userId,
       targetUserEmail: targetUser.email,
       reason: dto.reason,
@@ -105,7 +109,7 @@ export class ImpersonationService {
     const token = this.jwtService.sign(
       {
         sub: dto.userId,
-        tenantId: dto.tenantId,
+        tenantId,
         impersonatedBy: platformUserId,
         impersonationSessionId: saved.id,
         aud: 'tenant', // Impersonation uses tenant context
@@ -120,7 +124,7 @@ export class ImpersonationService {
     await this.auditService.log({
       platformUserId,
       action: PlatformAction.IMPERSONATION_STARTED,
-      targetTenantId: dto.tenantId,
+      targetTenantId: tenantId,
       targetUserId: dto.userId,
       ipAddress,
       userAgent,
@@ -131,9 +135,7 @@ export class ImpersonationService {
       },
     });
 
-    this.logger.warn(
-      `Impersonation started: Platform user ${platformUserId} → Tenant ${dto.tenantId} User ${dto.userId}`,
-    );
+    this.logger.warn(`Impersonation started: Platform user ${platformUserId} → Tenant ${tenantId} User ${dto.userId}`);
 
     return { session: saved, token };
   }

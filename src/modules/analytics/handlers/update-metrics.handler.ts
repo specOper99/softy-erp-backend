@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
@@ -47,30 +48,32 @@ export class UpdateMetricsHandler
       dateStr = new Date().toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
     }
 
-    try {
-      if (event instanceof BookingConfirmedEvent) {
-        await this.incrementMetric(tenantId, dateStr, {
-          bookingsCount: 1,
-          // totalRevenue removed here. Tracked on payment.
-        });
-      } else if (event instanceof TaskCompletedEvent) {
-        await this.incrementMetric(tenantId, dateStr, {
-          tasksCompletedCount: 1,
-        });
-      } else if (event instanceof BookingCancelledEvent) {
-        await this.incrementMetric(tenantId, dateStr, {
-          cancellationsCount: 1,
-        });
-      } else if (event instanceof PaymentRecordedEvent) {
-        await this.incrementMetric(tenantId, dateStr, {
-          totalRevenue: event.amount,
-        });
+    await TenantContextService.run(tenantId, async () => {
+      try {
+        if (event instanceof BookingConfirmedEvent) {
+          await this.incrementMetric(tenantId, dateStr, {
+            bookingsCount: 1,
+            // totalRevenue removed here. Tracked on payment.
+          });
+        } else if (event instanceof TaskCompletedEvent) {
+          await this.incrementMetric(tenantId, dateStr, {
+            tasksCompletedCount: 1,
+          });
+        } else if (event instanceof BookingCancelledEvent) {
+          await this.incrementMetric(tenantId, dateStr, {
+            cancellationsCount: 1,
+          });
+        } else if (event instanceof PaymentRecordedEvent) {
+          await this.incrementMetric(tenantId, dateStr, {
+            totalRevenue: event.amount,
+          });
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to update daily metrics for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
-    } catch (error) {
-      this.logger.error(
-        `Failed to update daily metrics for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+    });
   }
 
   private async incrementMetric(

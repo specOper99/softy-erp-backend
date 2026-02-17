@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { MockRepository, createMockRepository } from '../../../../test/helpers/mock-factories';
+import { MockRepository, createMockTenantAwareRepository } from '../../../../test/helpers/mock-factories';
 import { Review } from '../entities/review.entity';
 import { ReviewStatus } from '../enums/review-status.enum';
+import { ReviewRepository } from '../repositories/review.repository';
 import { ReviewsService } from './reviews.service';
 
 describe('ReviewsService', () => {
@@ -10,13 +10,13 @@ describe('ReviewsService', () => {
   let reviewRepository: MockRepository<Review>;
 
   beforeEach(async () => {
-    reviewRepository = createMockRepository<Review>();
+    reviewRepository = createMockTenantAwareRepository<Review>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ReviewsService,
         {
-          provide: getRepositoryToken(Review),
+          provide: ReviewRepository,
           useValue: reviewRepository,
         },
       ],
@@ -40,10 +40,9 @@ describe('ReviewsService', () => {
       };
       reviewRepository.createQueryBuilder.mockReturnValue(queryBuilder);
 
-      const result = await service.getApprovedAggregatesByPackageIds('tenant-1', ['pkg-1', 'pkg-2']);
+      const result = await service.getApprovedAggregatesByPackageIds(['pkg-1', 'pkg-2']);
 
       expect(reviewRepository.createQueryBuilder).toHaveBeenCalledWith('review');
-      expect(queryBuilder.where).toHaveBeenCalledWith('review.tenantId = :tenantId', { tenantId: 'tenant-1' });
       expect(queryBuilder.andWhere).toHaveBeenCalledWith('review.status = :status', { status: ReviewStatus.APPROVED });
       expect(queryBuilder.andWhere).toHaveBeenCalledWith('review.packageId IN (:...packageIds)', {
         packageIds: ['pkg-1', 'pkg-2'],
@@ -55,7 +54,7 @@ describe('ReviewsService', () => {
     });
 
     it('handles empty package id list safely', async () => {
-      const result = await service.getApprovedAggregatesByPackageIds('tenant-1', []);
+      const result = await service.getApprovedAggregatesByPackageIds([]);
 
       expect(result).toEqual([]);
       expect(reviewRepository.createQueryBuilder).not.toHaveBeenCalled();

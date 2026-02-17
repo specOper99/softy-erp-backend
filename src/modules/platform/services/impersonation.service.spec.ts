@@ -18,11 +18,12 @@ describe('ImpersonationService', () => {
   const platformUserId = 'platform-user-123';
   const ipAddress = '192.168.1.100';
   const userAgent = 'Mozilla/5.0';
+  const targetTenantId = 'tenant-456';
 
   const mockSession: Partial<ImpersonationSession> = {
     id: 'session-123',
     platformUserId,
-    tenantId: 'tenant-456',
+    tenantId: targetTenantId,
     targetUserId: 'user-789',
     targetUserEmail: 'user@tenant.com',
     reason: 'Customer support request',
@@ -68,7 +69,7 @@ describe('ImpersonationService', () => {
         findOne: jest.fn().mockResolvedValue({
           id: 'user-123',
           email: 'user@example.com',
-          tenantId: 'tenant-456',
+          tenantId: targetTenantId,
         }),
       },
     };
@@ -111,7 +112,6 @@ describe('ImpersonationService', () => {
 
   describe('startImpersonation', () => {
     const dto = {
-      tenantId: 'tenant-456',
       userId: 'user-789',
       reason: 'Customer reported billing issue - Ticket #12345',
       approvalTicketId: 'TICKET-12345',
@@ -122,7 +122,7 @@ describe('ImpersonationService', () => {
       sessionRepository.create.mockReturnValue(mockSession as ImpersonationSession);
       sessionRepository.save.mockResolvedValue(mockSession as ImpersonationSession);
 
-      const result = await service.startImpersonation(dto, platformUserId, ipAddress, userAgent);
+      const result = await service.startImpersonation(targetTenantId, dto, platformUserId, ipAddress, userAgent);
 
       expect(result).toHaveProperty('session');
       expect(result).toHaveProperty('token');
@@ -134,7 +134,7 @@ describe('ImpersonationService', () => {
       sessionRepository.create.mockReturnValue(mockSession as ImpersonationSession);
       sessionRepository.save.mockResolvedValue(mockSession as ImpersonationSession);
 
-      await service.startImpersonation(dto, platformUserId, ipAddress, userAgent);
+      await service.startImpersonation(targetTenantId, dto, platformUserId, ipAddress, userAgent);
 
       // Verify create was called with email from the mocked DataSource user
       // The global mock returns { email: 'user@example.com' }
@@ -150,12 +150,12 @@ describe('ImpersonationService', () => {
       sessionRepository.create.mockReturnValue(mockSession as ImpersonationSession);
       sessionRepository.save.mockResolvedValue(mockSession as ImpersonationSession);
 
-      await service.startImpersonation(dto, platformUserId, ipAddress, userAgent);
+      await service.startImpersonation(targetTenantId, dto, platformUserId, ipAddress, userAgent);
 
       expect(jwtService.sign).toHaveBeenCalledWith(
         expect.objectContaining({
           sub: dto.userId,
-          tenantId: dto.tenantId,
+          tenantId: targetTenantId,
           impersonatedBy: platformUserId,
           aud: 'tenant',
         }),
@@ -170,13 +170,13 @@ describe('ImpersonationService', () => {
       sessionRepository.create.mockReturnValue(mockSession as ImpersonationSession);
       sessionRepository.save.mockResolvedValue(mockSession as ImpersonationSession);
 
-      await service.startImpersonation(dto, platformUserId, ipAddress, userAgent);
+      await service.startImpersonation(targetTenantId, dto, platformUserId, ipAddress, userAgent);
 
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
           platformUserId,
           action: PlatformAction.IMPERSONATION_STARTED,
-          targetTenantId: dto.tenantId,
+          targetTenantId,
           targetUserId: dto.userId,
           reason: dto.reason,
         }),
@@ -186,9 +186,9 @@ describe('ImpersonationService', () => {
     it('should throw ConflictException if active session exists', async () => {
       sessionRepository.findOne.mockResolvedValue(mockSession as ImpersonationSession);
 
-      await expect(service.startImpersonation(dto, platformUserId, ipAddress, userAgent)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.startImpersonation(targetTenantId, dto, platformUserId, ipAddress, userAgent),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should map unique-constraint insert race to ConflictException', async () => {
@@ -196,9 +196,9 @@ describe('ImpersonationService', () => {
       sessionRepository.create.mockReturnValue(mockSession as ImpersonationSession);
       sessionRepository.save.mockRejectedValue({ code: '23505' });
 
-      await expect(service.startImpersonation(dto, platformUserId, ipAddress, userAgent)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.startImpersonation(targetTenantId, dto, platformUserId, ipAddress, userAgent),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should include approval ticket ID when provided', async () => {
@@ -206,7 +206,7 @@ describe('ImpersonationService', () => {
       sessionRepository.create.mockReturnValue(mockSession as ImpersonationSession);
       sessionRepository.save.mockResolvedValue(mockSession as ImpersonationSession);
 
-      await service.startImpersonation(dto, platformUserId, ipAddress, userAgent);
+      await service.startImpersonation(targetTenantId, dto, platformUserId, ipAddress, userAgent);
 
       expect(sessionRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({

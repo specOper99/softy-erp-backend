@@ -3,7 +3,6 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards/roles.guard';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
 import { UpdateReviewStatusDto } from '../dto/update-review-status.dto';
@@ -29,8 +28,7 @@ export class ReviewsController {
     @Query('packageId') packageId?: string,
     @Query() pagination: PaginationDto = new PaginationDto(),
   ): Promise<{ data: Review[]; total: number; page: number; limit: number }> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const [data, total] = await this.reviewsService.findAll(tenantId, { status, packageId }, pagination);
+    const [data, total] = await this.reviewsService.findAll({ status, packageId }, pagination);
 
     return {
       data,
@@ -44,7 +42,6 @@ export class ReviewsController {
   @ApiOperation({ summary: 'Update review status (Admin only)' })
   @Roles(Role.ADMIN)
   async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateReviewStatusDto): Promise<Review> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    return this.reviewsService.updateStatus(tenantId, id, dto);
+    return this.reviewsService.updateStatus(id, dto);
   }
 }

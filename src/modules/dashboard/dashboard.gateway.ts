@@ -6,6 +6,7 @@ import { Server, Socket } from 'socket.io';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
 import { corsOriginDelegate, getCorsOriginAllowlist } from '../../common/utils/cors-origins.util';
+import { getAllowedJwtAlgorithm } from '../../common/utils/jwt-algorithm.util';
 
 const corsAllowlist = getCorsOriginAllowlist({
   raw: process.env.CORS_ORIGINS,
@@ -103,17 +104,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   private getAllowedJwtAlgorithm(): 'HS256' | 'RS256' {
-    const raw = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
-    const parsed = raw
-      .split(',')
-      .map((a) => a.trim().toUpperCase())
-      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
-
-    const unique = Array.from(new Set(parsed));
-    if (unique.length !== 1) {
-      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
-    }
-    return unique[0] ?? 'HS256';
+    return getAllowedJwtAlgorithm(this.configService);
   }
 
   private extractToken(client: AuthenticatedSocket): string | undefined {

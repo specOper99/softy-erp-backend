@@ -1,0 +1,100 @@
+Tenant Contract Report
+Generated: 2026-02-17T08:13:46.433Z
+Scanned files: 564
+Tenant-owned entities detected: 31
+Violations (fail): 0
+Warnings (no fail): 34
+
+Violations (fail):
+TENANT_ID_FROM_REQUEST (0)
+
+RAW_REPOSITORY_IN_TENANT_MODULE (0)
+
+SKIP_TENANT_EXPLICIT_CONTEXT (0)
+
+SKIP_TENANT_USAGE (0)
+
+Warnings (no fail):
+TENANT_ID_FROM_REQUEST (0)
+
+RAW_REPOSITORY_IN_TENANT_MODULE (12)
+- src/modules/audit/audit.processor.ts:34 Service/module injects raw Repository<AuditLog>; prefer TenantAwareRepository derivative.
+  @InjectRepository(AuditLog)
+- src/modules/billing/services/subscription.service.ts:27 Service/module injects raw Repository<Subscription>; prefer TenantAwareRepository derivative.
+  @InjectRepository(Subscription)
+- src/modules/billing/services/subscription.service.ts:29 Service/module injects raw Repository<BillingCustomer>; prefer TenantAwareRepository derivative.
+  @InjectRepository(BillingCustomer)
+- src/modules/billing/services/subscription.service.ts:31 Service/module injects raw Repository<PaymentMethod>; prefer TenantAwareRepository derivative.
+  @InjectRepository(PaymentMethod)
+- src/modules/client-portal/services/availability.service.ts:34 Service/module injects raw Repository<Booking>; prefer TenantAwareRepository derivative.
+  @InjectRepository(Booking)
+- src/modules/finance/services/payout-relay.service.ts:25 Service/module injects raw Repository<Payout>; prefer TenantAwareRepository derivative.
+  @InjectRepository(Payout)
+- src/modules/mail/services/mail-template.service.ts:28 Service/module injects raw Repository<EmailTemplate>; prefer TenantAwareRepository derivative.
+  @InjectRepository(EmailTemplate)
+- src/modules/privacy/consent.service.ts:18 Service/module injects raw Repository<Consent>; prefer TenantAwareRepository derivative.
+  @InjectRepository(Consent)
+- src/modules/privacy/privacy.service.ts:47 Service/module injects raw Repository<PrivacyRequest>; prefer TenantAwareRepository derivative.
+  @InjectRepository(PrivacyRequest)
+- src/modules/tasks/services/tasks-export.service.ts:12 Service/module injects raw Repository<Task>; prefer TenantAwareRepository derivative.
+  @InjectRepository(Task)
+- src/modules/tasks/services/time-entries.service.ts:14 Service/module injects raw Repository<TimeEntry>; prefer TenantAwareRepository derivative.
+  @InjectRepository(TimeEntry)
+- src/modules/users/services/users.service.ts:44 Service/module injects raw Repository<User>; prefer TenantAwareRepository derivative.
+  @InjectRepository(User) private readonly rawUserRepository: Repository<User>,
+
+SKIP_TENANT_EXPLICIT_CONTEXT (0)
+
+SKIP_TENANT_USAGE (22)
+- src/modules/auth/auth.controller.ts:69 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:84 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:130 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:213 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:232 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:348 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:366 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:383 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/auth/auth.controller.ts:393 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/billing/controllers/billing.controller.ts:140 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/client-portal/client-portal.controller.ts:104 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/health/health.controller.ts:19 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/metrics/metrics.controller.ts:10 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant() // Metrics are global, not tenant-specific
+- src/modules/platform/controllers/mfa-login.controller.ts:23 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/mfa.controller.ts:31 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/platform-analytics.controller.ts:22 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/platform-audit.controller.ts:20 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/platform-auth.controller.ts:27 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/platform-security.controller.ts:50 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/platform-support.controller.ts:29 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/platform-tenants.controller.ts:50 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/platform/controllers/platform-time-entries.controller.ts:26 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+
+Allowlist (explicit and conservative):
+- entity:Tenant -> Tenant table is global metadata and must be resolved outside tenant-scoped repositories.
+- entity:OutboxEvent -> Outbox relay is infrastructure-level and not tenant-owned domain persistence.
+- pathPrefix:src/modules/platform/ -> Platform module operates cross-tenant with explicit target tenant controls.
+- pathPrefix:src/modules/tenants/ -> Tenant lifecycle management is global and cannot be tenant-scoped by repository base.
+- pathExact:src/modules/client-portal/decorators/validate-tenant-slug.decorator.ts -> Slug middleware resolves Tenant identity for public routes before tenant context is established.
+- pathExact:src/common/services/outbox-relay.service.ts -> Outbox relay is a global publisher loop and intentionally uses raw outbox repository access.

@@ -7,6 +7,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags }
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { RequirePlatformPermissions } from '../decorators/platform-permissions.decorator';
 import { PlatformPermission } from '../enums/platform-permission.enum';
 import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
@@ -83,7 +84,7 @@ Health factors: API response times, error rates, resource utilization`,
     },
   })
   async getTenantHealth(@TargetTenant() tenantId: string) {
-    return this.analyticsService.getTenantHealth(tenantId);
+    return TenantContextService.run(tenantId, async () => this.analyticsService.getTenantHealth(tenantId));
   }
 
   @Get('revenue')

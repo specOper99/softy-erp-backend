@@ -8,12 +8,20 @@ import { Client } from '../../bookings/entities/client.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { BookingsService } from '../../bookings/services/bookings.service';
+import { PackageFilterDto } from '../../catalog/dto/package-filter.dto';
+import { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { NotificationType } from '../../notifications/enums/notification.enum';
 import { NotificationService } from '../../notifications/services/notification.service';
+import { ReviewsService } from '../../reviews/services/reviews.service';
 import { Task } from '../../tasks/entities/task.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantsService } from '../../tenants/tenants.service';
+import {
+  ClientPortalListingsQueryDto,
+  ClientPortalListingsResponseDto,
+  ClientPortalListingSummaryDto,
+} from '../dto/client-portal-openapi.dto';
 import { CreateClientBookingDto } from '../dto/create-client-booking.dto';
 import { AvailabilityService } from './availability.service';
 
@@ -25,10 +33,61 @@ export class ClientPortalService {
     private readonly bookingRepository: BookingRepository,
     private readonly bookingsService: BookingsService,
     private readonly catalogService: CatalogService,
+    private readonly reviewsService: ReviewsService,
     private readonly tenantsService: TenantsService,
     private readonly availabilityService: AvailabilityService,
     private readonly notificationService: NotificationService,
   ) {}
+
+  async getListingsForTenant(
+    tenant: Tenant,
+    query: ClientPortalListingsQueryDto,
+  ): Promise<ClientPortalListingsResponseDto> {
+    const filter = this.buildPackageFilter(query.search, query.page ?? 1, query.pageSize ?? 6);
+    const paginated = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findAllPackagesWithFilters(filter),
+    );
+    const items = this.filterByTenantAndPrice(paginated.data, tenant.id, query.minPrice, query.maxPrice);
+    const listingItems = await this.mapListingSummariesWithAggregates(items, tenant);
+
+    return {
+      items: listingItems,
+      total: paginated.meta.totalItems,
+      page: paginated.meta.page,
+      pageSize: paginated.meta.pageSize,
+    };
+  }
+
+  async getFeaturedListingsForTenant(tenant: Tenant): Promise<ClientPortalListingSummaryDto[]> {
+    const filter = this.buildPackageFilter(undefined, 1, 6);
+    const paginated = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findAllPackagesWithFilters(filter),
+    );
+    const items = paginated.data.filter((pkg) => pkg.tenantId === tenant.id && pkg.isActive).slice(0, 6);
+    return this.mapListingSummariesWithAggregates(items, tenant);
+  }
+
+  async getPackagesForTenant(
+    tenant: Tenant,
+    search?: string,
+    priceMin?: number,
+    priceMax?: number,
+    page = 1,
+    limit = 10,
+  ): Promise<{ data: ServicePackage[]; total: number; page: number; limit: number }> {
+    const filter = this.buildPackageFilter(search, page, limit);
+    const paginated = await TenantContextService.run(tenant.id, async () =>
+      this.catalogService.findAllPackagesWithFilters(filter),
+    );
+    const data = this.filterByTenantAndPrice(paginated.data, tenant.id, priceMin, priceMax);
+
+    return {
+      data,
+      total: paginated.meta.totalItems,
+      page: paginated.meta.page,
+      limit: paginated.meta.pageSize,
+    };
+  }
 
   async getClientProfile(clientId: string, tenantId: string): Promise<Partial<Client>> {
     const client = await this.clientRepository.findOne({
@@ -200,5 +259,67 @@ export class ClientPortalService {
     if (tenant.notificationEmails && tenant.notificationEmails.length > 0) {
       // Mail dispatch intentionally handled by existing async handlers.
     }
+  }
+
+  private buildPackageFilter(search: string | undefined, page: number, limit: number): PackageFilterDto {
+    const filter = new PackageFilterDto();
+    filter.search = search;
+    filter.isActive = true;
+    filter.page = page;
+    filter.limit = limit;
+    return filter;
+  }
+
+  private filterByTenantAndPrice(
+    packages: ServicePackage[],
+    tenantId: string,
+    priceMin?: number,
+    priceMax?: number,
+  ): ServicePackage[] {
+    let filtered = packages.filter((pkg) => pkg.tenantId === tenantId && pkg.isActive);
+
+    if (priceMin !== undefined) {
+      filtered = filtered.filter((pkg) => Number(pkg.price) >= Number(priceMin));
+    }
+    if (priceMax !== undefined) {
+      filtered = filtered.filter((pkg) => Number(pkg.price) <= Number(priceMax));
+    }
+
+    return filtered;
+  }
+
+  private async mapListingSummariesWithAggregates(
+    packages: ServicePackage[],
+    tenant: Tenant,
+  ): Promise<ClientPortalListingSummaryDto[]> {
+    const reviewAggregates = await TenantContextService.run(tenant.id, async () =>
+      this.reviewsService.getApprovedAggregatesByPackageIds(packages.map((pkg) => pkg.id)),
+    );
+    const reviewStatsByPackageId = new Map(reviewAggregates.map((aggregate) => [aggregate.packageId, aggregate]));
+
+    return packages.map((servicePackage) => {
+      const aggregate = reviewStatsByPackageId.get(servicePackage.id);
+      return this.mapListingSummary(servicePackage, tenant, aggregate?.avgRating ?? 0, aggregate?.reviewCount ?? 0);
+    });
+  }
+
+  private mapListingSummary(
+    servicePackage: ServicePackage,
+    tenant: Tenant,
+    rating: number,
+    reviewCount = 0,
+  ): ClientPortalListingSummaryDto {
+    return {
+      id: servicePackage.id,
+      title: servicePackage.name,
+      shortDescription: servicePackage.description ?? '',
+      location: tenant.address ?? undefined,
+      priceFrom: Number(servicePackage.price),
+      currency: tenant.baseCurrency,
+      rating,
+      reviewCount,
+      imageUrl: undefined,
+      tags: (servicePackage.packageItems ?? []).map((item) => item.taskType?.name).filter(Boolean) as string[],
+    };
   }
 }

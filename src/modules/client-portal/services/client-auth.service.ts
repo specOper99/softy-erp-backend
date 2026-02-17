@@ -9,6 +9,7 @@ import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
 import { Client } from '../../bookings/entities/client.entity';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
@@ -84,17 +85,7 @@ export class ClientAuthService {
   }
 
   private getAllowedJwtAlgorithm(): 'HS256' | 'RS256' {
-    const raw = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
-    const parsed = raw
-      .split(',')
-      .map((a) => a.trim().toUpperCase())
-      .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
-
-    const unique = Array.from(new Set(parsed));
-    if (unique.length !== 1) {
-      throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
-    }
-    return unique[0] ?? 'HS256';
+    return getAllowedJwtAlgorithm(this.configService);
   }
 
   async requestMagicLink(slug: string, email: string): Promise<{ message: string }> {

@@ -9,14 +9,20 @@ import { ProfileRepository } from './profile.repository';
 describe('ProfileRepository', () => {
   let repository: ProfileRepository;
   let mockTypeOrmRepository: Repository<Profile>;
+  let whereMock: jest.Mock;
+  let andWhereMock: jest.Mock;
 
   beforeEach(async () => {
+    whereMock = jest.fn().mockReturnThis();
+    andWhereMock = jest.fn().mockReturnThis();
+
     mockTypeOrmRepository = {
       find: jest.fn(),
       findOne: jest.fn(),
       count: jest.fn(),
       createQueryBuilder: jest.fn(() => ({
-        andWhere: jest.fn().mockReturnThis(),
+        where: whereMock,
+        andWhere: andWhereMock,
       })),
       softRemove: jest.fn(),
       remove: jest.fn(),
@@ -48,15 +54,15 @@ describe('ProfileRepository', () => {
   });
 
   it('should create query builder with tenant filter', () => {
-    const queryBuilder = repository.createQueryBuilder('p');
+    repository.createQueryBuilder('p');
     expect(mockTypeOrmRepository.createQueryBuilder).toHaveBeenCalledWith('p');
-    expect(queryBuilder.andWhere).toHaveBeenCalledWith('p.tenantId = :tenantId', { tenantId: 'tenant-1' });
+    expect(whereMock).toHaveBeenCalledWith('p.tenantId = :tenantId', { tenantId: 'tenant-1' });
   });
 
   describe('softRemove', () => {
     it('should soft remove entity with matching tenant', async () => {
       const entity = { tenantId: 'tenant-1' } as Profile;
-      mockTypeOrmRepository.softRemove.mockResolvedValue(entity as any);
+      (mockTypeOrmRepository.softRemove as jest.Mock).mockResolvedValue(entity as any);
 
       await repository.softRemove(entity);
 
@@ -69,18 +75,15 @@ describe('ProfileRepository', () => {
     });
 
     it('should throw exception if invalid entity type (soft remove)', () => {
-      const _entity = { tenantId: 'tenant-1' } as Profile; // Not instanceof Profile
       // Note: instanceof check might pass if mocked object is simple object,
       // but our mock setup doesn't mock instanceof checks directly unless we use real classes.
       // Given 'entity instanceof Profile' check, we should probably instantiate if possible or rely on simple object behavior in tests?
       // Actually, 'instanceof Profile' will fail for plain objects.
       // We need to make sure we pass something that fails or passes as needed.
       // However, Typescript usually handles type safety. The runtime check is extra defence.
-
       // To properly test the instanceof check failure, we pass a plain object which is NOT a Profile instance.
       // Wait, Profile is a class, so new Profile() works.
       // If we just use {} as Profile, it might not be an instance of Profile unless we set prototype.
-
       // Let's rely on standard case being a Profile instance.
     });
   });
@@ -92,7 +95,7 @@ describe('ProfileRepository', () => {
       // If the code uses `instanceof Profile`, we must provide a Profile instance.
       Object.setPrototypeOf(entity, Profile.prototype);
 
-      mockTypeOrmRepository.remove.mockResolvedValue(entity as any);
+      (mockTypeOrmRepository.remove as jest.Mock).mockResolvedValue(entity as any);
 
       await repository.remove(entity);
 

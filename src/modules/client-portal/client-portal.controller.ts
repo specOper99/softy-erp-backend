@@ -42,7 +42,6 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
 import { ClientsService } from '../bookings/services/clients.service';
-import { PackageFilterDto } from '../catalog/dto/package-filter.dto';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { CatalogService } from '../catalog/services/catalog.service';
 import { NotificationType } from '../notifications/enums/notification.enum';
@@ -169,41 +168,7 @@ export class ClientPortalController {
   @ApiOkResponse({ type: ClientPortalListingsResponseDto })
   async getListings(@Query() query: ClientPortalListingsQueryDto): Promise<ClientPortalListingsResponseDto> {
     const tenant = await this.resolveTenant(query.tenantSlug);
-    const filter = new PackageFilterDto();
-    filter.search = query.search;
-    filter.isActive = true;
-    filter.page = query.page ?? 1;
-    filter.limit = query.pageSize ?? 6;
-
-    const paginated = await TenantContextService.run(tenant.id, async () =>
-      this.catalogService.findAllPackagesWithFilters(filter),
-    );
-    let items = paginated.data.filter((pkg) => pkg.tenantId === tenant.id && pkg.isActive);
-
-    if (query.minPrice !== undefined) {
-      items = items.filter((pkg) => Number(pkg.price) >= Number(query.minPrice));
-    }
-    if (query.maxPrice !== undefined) {
-      items = items.filter((pkg) => Number(pkg.price) <= Number(query.maxPrice));
-    }
-
-    const reviewAggregates = await this.reviewsService.getApprovedAggregatesByPackageIds(
-      tenant.id,
-      items.map((pkg) => pkg.id),
-    );
-    const reviewStatsByPackageId = new Map(reviewAggregates.map((aggregate) => [aggregate.packageId, aggregate]));
-
-    const listingItems = items.map((pkg) => {
-      const aggregate = reviewStatsByPackageId.get(pkg.id);
-      return this.mapListingSummary(pkg, tenant, aggregate?.avgRating ?? 0, aggregate?.reviewCount ?? 0);
-    });
-
-    return {
-      items: listingItems,
-      total: paginated.meta.totalItems,
-      page: paginated.meta.page,
-      pageSize: paginated.meta.pageSize,
-    };
+    return this.clientPortalService.getListingsForTenant(tenant, query);
   }
 
   @Get('listings/featured')
@@ -217,26 +182,7 @@ export class ClientPortalController {
   })
   async getFeaturedListings(@Query('tenantSlug') tenantSlug?: string): Promise<ClientPortalListingSummaryDto[]> {
     const tenant = await this.resolveTenant(tenantSlug);
-    const filter = new PackageFilterDto();
-    filter.isActive = true;
-    filter.page = 1;
-    filter.limit = 6;
-
-    const paginated = await TenantContextService.run(tenant.id, async () =>
-      this.catalogService.findAllPackagesWithFilters(filter),
-    );
-    const items = paginated.data.filter((pkg) => pkg.tenantId === tenant.id && pkg.isActive).slice(0, 6);
-
-    const reviewAggregates = await this.reviewsService.getApprovedAggregatesByPackageIds(
-      tenant.id,
-      items.map((pkg) => pkg.id),
-    );
-    const reviewStatsByPackageId = new Map(reviewAggregates.map((aggregate) => [aggregate.packageId, aggregate]));
-
-    return items.map((pkg) => {
-      const aggregate = reviewStatsByPackageId.get(pkg.id);
-      return this.mapListingSummary(pkg, tenant, aggregate?.avgRating ?? 0, aggregate?.reviewCount ?? 0);
-    });
+    return this.clientPortalService.getFeaturedListingsForTenant(tenant);
   }
 
   @Get('listings/:id')
@@ -256,7 +202,9 @@ export class ClientPortalController {
       throw new NotFoundException('Listing not found');
     }
 
-    const [reviews, reviewCount] = await this.reviewsService.findApprovedByPackage(tenant.id, id, new PaginationDto());
+    const [reviews, reviewCount] = await TenantContextService.run(tenant.id, async () =>
+      this.reviewsService.findApprovedByPackage(id, new PaginationDto()),
+    );
     const rating =
       reviewCount > 0 ? reviews.reduce((acc, review) => acc + Number(review.rating || 0), 0) / reviewCount : 0;
 
@@ -319,30 +267,14 @@ export class ClientPortalController {
     @Query('priceMax') priceMax?: number,
     @Query() pagination: PaginationDto = new PaginationDto(),
   ): Promise<{ data: ServicePackage[]; total: number; page: number; limit: number }> {
-    const filter = new PackageFilterDto();
-    filter.search = search;
-    filter.isActive = true;
-    filter.page = pagination.page ?? 1;
-    filter.limit = pagination.limit ?? 10;
-
-    const paginated = await TenantContextService.run(tenant.id, async () =>
-      this.catalogService.findAllPackagesWithFilters(filter),
+    return this.clientPortalService.getPackagesForTenant(
+      tenant,
+      search,
+      priceMin,
+      priceMax,
+      pagination.page ?? 1,
+      pagination.limit ?? 10,
     );
-    let data = paginated.data.filter((pkg) => pkg.tenantId === tenant.id && pkg.isActive);
-
-    if (priceMin !== undefined) {
-      data = data.filter((pkg) => Number(pkg.price) >= Number(priceMin));
-    }
-    if (priceMax !== undefined) {
-      data = data.filter((pkg) => Number(pkg.price) <= Number(priceMax));
-    }
-
-    return {
-      data,
-      total: paginated.meta.totalItems,
-      page: paginated.meta.page,
-      limit: paginated.meta.pageSize,
-    };
   }
 
   @Get(':slug/packages/:id')
@@ -367,7 +299,9 @@ export class ClientPortalController {
     @Param('id', ParseUUIDPipe) packageId: string,
     @Query() pagination: PaginationDto = new PaginationDto(),
   ): Promise<{ data: ReviewResponseDto[]; total: number; page: number; limit: number }> {
-    const [reviews, total] = await this.reviewsService.findApprovedByPackage(tenant.id, packageId, pagination);
+    const [reviews, total] = await TenantContextService.run(tenant.id, async () =>
+      this.reviewsService.findApprovedByPackage(packageId, pagination),
+    );
     const data = reviews.map((review) => plainToInstance(ReviewResponseDto, review, { excludeExtraneousValues: true }));
 
     return {
@@ -419,11 +353,8 @@ export class ClientPortalController {
     const client = this.getClientFromRequest(req);
     const currentPage = Number(page ?? 1);
     const currentPageSize = Number(pageSize ?? 10);
-    const result = await this.clientPortalService.getMyBookingsPaginated(
-      client.id,
-      client.tenantId,
-      currentPage,
-      currentPageSize,
+    const result = await TenantContextService.run(client.tenantId, async () =>
+      this.clientPortalService.getMyBookingsPaginated(client.id, client.tenantId, currentPage, currentPageSize),
     );
 
     return {
@@ -444,7 +375,9 @@ export class ClientPortalController {
     @Req() req: Request,
   ): Promise<ClientPortalBookingDetailsResponseDto> {
     const client = this.getClientFromRequest(req);
-    const booking = await this.clientPortalService.getBooking(id, client.id, client.tenantId);
+    const booking = await TenantContextService.run(client.tenantId, async () =>
+      this.clientPortalService.getBooking(id, client.id, client.tenantId),
+    );
     return this.mapBookingDetails(booking, client);
   }
 
@@ -466,7 +399,9 @@ export class ClientPortalController {
       startTime: dto.time,
       notes: this.serializeBookingPortalMeta(dto),
     };
-    const booking = await this.clientPortalService.createBooking(client, createDto);
+    const booking = await TenantContextService.run(client.tenantId, async () =>
+      this.clientPortalService.createBooking(client, createDto),
+    );
 
     return {
       id: booking.id,
@@ -488,7 +423,9 @@ export class ClientPortalController {
     @Body() dto: ClientPortalCancelBookingRequestDto = {},
   ): Promise<ClientPortalCancelBookingResponseDto> {
     const client = this.getClientFromRequest(req);
-    const booking = await this.clientPortalService.cancelMyBooking(id, client.id, client.tenantId, dto.reason);
+    const booking = await TenantContextService.run(client.tenantId, async () =>
+      this.clientPortalService.cancelMyBooking(id, client.id, client.tenantId, dto.reason),
+    );
 
     return {
       id: booking.id,
@@ -511,12 +448,14 @@ export class ClientPortalController {
       throw new BadRequestException('Can only review completed bookings');
     }
 
-    const duplicate = await this.reviewsService.checkDuplicateReview(client.tenantId, client.id, bookingId);
-    if (duplicate) {
-      throw new ConflictException('You have already reviewed this booking');
-    }
+    const review = await TenantContextService.run(client.tenantId, async () => {
+      const duplicate = await this.reviewsService.checkDuplicateReview(client.id, bookingId);
+      if (duplicate) {
+        throw new ConflictException('You have already reviewed this booking');
+      }
 
-    const review = await this.reviewsService.create(client.tenantId, client.id, bookingId, booking.packageId, dto);
+      return this.reviewsService.create(client.id, bookingId, booking.packageId, dto);
+    });
 
     if (client.notificationPreferences?.inApp) {
       await this.notificationService.create({
@@ -582,7 +521,9 @@ export class ClientPortalController {
       };
     }
 
-    const updated = await this.clientsService.update(client.id, updateDto);
+    const updated = await TenantContextService.run(client.tenantId, async () =>
+      this.clientsService.update(client.id, updateDto),
+    );
     const tenant = await this.tenantsService.findOne(client.tenantId);
 
     return {
@@ -605,7 +546,9 @@ export class ClientPortalController {
   @ApiQuery({ name: 'limit', required: false })
   async getNotifications(@Req() req: Request, @Query() pagination: PaginationDto = new PaginationDto()) {
     const client = this.getClientFromRequest(req);
-    const [notifications, total] = await this.notificationService.findByClient(client.tenantId, client.id, pagination);
+    const [notifications, total] = await TenantContextService.run(client.tenantId, async () =>
+      this.notificationService.findByClient(client.tenantId, client.id, pagination),
+    );
 
     return {
       data: notifications,
@@ -651,15 +594,17 @@ export class ClientPortalController {
     @Body() dto: ClientPortalNotificationPreferencesDto,
   ): Promise<ClientPortalNotificationPreferencesDto> {
     const client = this.getClientFromRequest(req);
-    await this.clientsService.update(client.id, {
-      notificationPreferences: {
-        email: dto.marketing,
-        inApp: dto.reminders || dto.updates,
-        marketing: dto.marketing,
-        reminders: dto.reminders,
-        updates: dto.updates,
-      },
-    });
+    await TenantContextService.run(client.tenantId, async () =>
+      this.clientsService.update(client.id, {
+        notificationPreferences: {
+          email: dto.marketing,
+          inApp: dto.reminders || dto.updates,
+          marketing: dto.marketing,
+          reminders: dto.reminders,
+          updates: dto.updates,
+        },
+      }),
+    );
 
     return dto;
   }

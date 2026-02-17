@@ -10,9 +10,16 @@ describe('Tenant scoping in QueryBuilder usages', () => {
     expect(content).toContain('baseAndWhere');
   });
 
+  it('ProfileRepository createQueryBuilder should delegate to TenantAwareRepository safety patch', () => {
+    const repoFile = path.join(__dirname, '..', '..', 'src', 'modules', 'hr', 'repositories', 'profile.repository.ts');
+    const content = fs.readFileSync(repoFile, 'utf8');
+
+    expect(content).toContain('createQueryBuilder(alias: string)');
+    expect(content).toContain('return super.createQueryBuilder(alias);');
+  });
+
   it('all createQueryBuilder calls should apply tenant filters or use TenantAwareRepository', () => {
     const srcDir = path.join(__dirname, '..', '..', 'src');
-    const _files = fs.readdirSync(srcDir, { withFileTypes: true });
 
     function walk(dir: string, acc: string[] = []) {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

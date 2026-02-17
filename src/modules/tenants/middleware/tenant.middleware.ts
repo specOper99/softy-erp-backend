@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { NextFunction, Request, Response } from 'express';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
 
 interface JwtPayload {
   sub: string;
@@ -48,17 +49,7 @@ export class TenantMiddleware implements NestMiddleware {
       // Verify JWT signature to prevent spoofing
       // Note: We don't check expiration here necessarily, but verify() usually does by default.
       // If it's expired, verify() throws, so we won't extract tenantId, which is safer.
-      const rawAlgorithms = this.configService.get<string>('JWT_ALLOWED_ALGORITHMS') ?? 'HS256';
-      const parsed = rawAlgorithms
-        .split(',')
-        .map((a) => a.trim().toUpperCase())
-        .filter((a): a is 'HS256' | 'RS256' => a === 'HS256' || a === 'RS256');
-
-      const unique = Array.from(new Set(parsed));
-      if (unique.length !== 1) {
-        throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
-      }
-      const algorithm = unique[0] ?? 'HS256';
+      const algorithm = getAllowedJwtAlgorithm(this.configService);
 
       if (algorithm === 'RS256') {
         const publicKey = this.configService.get<string>('JWT_PUBLIC_KEY');

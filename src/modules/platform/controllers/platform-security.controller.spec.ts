@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { PlatformSecurityService } from '../services/platform-security.service';
 import { PlatformSecurityController } from './platform-security.controller';
 
@@ -13,8 +14,13 @@ interface PlatformSecurityRequest {
 describe('PlatformSecurityController', () => {
   let controller: PlatformSecurityController;
   let securityService: PlatformSecurityService;
+  let tenantContextRunSpy: jest.SpyInstance;
 
   beforeEach(async () => {
+    tenantContextRunSpy = jest
+      .spyOn(TenantContextService, 'run')
+      .mockImplementation((_: string, callback: () => unknown) => callback());
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PlatformSecurityController],
       providers: [
@@ -45,6 +51,7 @@ describe('PlatformSecurityController', () => {
   });
 
   afterEach(() => {
+    tenantContextRunSpy.mockRestore();
     jest.clearAllMocks();
   });
 

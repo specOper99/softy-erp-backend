@@ -3,9 +3,6 @@ import { IsDateString, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'cla
 
 export class StartImpersonationDto {
   @IsUUID()
-  tenantId: string;
-
-  @IsUUID()
   userId: string;
 
   @IsString()

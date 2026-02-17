@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { ClientsService } from '../bookings/services/clients.service';
@@ -18,9 +19,8 @@ describe('ClientPortalController', () => {
   let controller: ClientPortalController;
   let clientAuthService: jest.Mocked<ClientAuthService>;
   let clientPortalService: jest.Mocked<ClientPortalService>;
-  let catalogService: jest.Mocked<CatalogService>;
-  let reviewsService: jest.Mocked<ReviewsService>;
   let tenantsService: jest.Mocked<TenantsService>;
+  let tenantContextRunSpy: jest.SpyInstance;
 
   const mockClient: Partial<Client> = {
     id: 'client-1',
@@ -42,6 +42,10 @@ describe('ClientPortalController', () => {
   };
 
   beforeEach(async () => {
+    tenantContextRunSpy = jest
+      .spyOn(TenantContextService, 'run')
+      .mockImplementation((_: string, callback: () => unknown) => callback());
+
     const mockClientAuthService = {
       requestMagicLink: jest.fn(),
       verifyMagicLink: jest.fn(),
@@ -55,6 +59,9 @@ describe('ClientPortalController', () => {
       getBooking: jest.fn(),
       getClientProfile: jest.fn(),
       createBooking: jest.fn(),
+      getListingsForTenant: jest.fn(),
+      getFeaturedListingsForTenant: jest.fn(),
+      getPackagesForTenant: jest.fn(),
     };
 
     const mockCatalogService = {
@@ -108,9 +115,11 @@ describe('ClientPortalController', () => {
     controller = module.get<ClientPortalController>(ClientPortalController);
     clientAuthService = module.get(ClientAuthService);
     clientPortalService = module.get(ClientPortalService);
-    catalogService = module.get(CatalogService);
-    reviewsService = module.get(ReviewsService);
     tenantsService = module.get(TenantsService);
+  });
+
+  afterEach(() => {
+    tenantContextRunSpy.mockRestore();
   });
 
   it('should be defined', () => {
@@ -264,7 +273,7 @@ describe('ClientPortalController', () => {
   });
 
   describe('getListings', () => {
-    it('uses one batch aggregate call and avoids per-package review calls', async () => {
+    it('delegates listing filters/mapping to client portal service', async () => {
       tenantsService.findBySlug.mockResolvedValue({
         id: 'tenant-1',
         slug: 'test-tenant',
@@ -272,51 +281,38 @@ describe('ClientPortalController', () => {
         address: 'Baghdad',
         baseCurrency: 'USD',
       } as unknown as Tenant);
-      catalogService.findAllPackagesWithFilters.mockResolvedValue({
-        data: [
+      clientPortalService.getListingsForTenant.mockResolvedValue({
+        items: [
           {
             id: 'pkg-1',
-            tenantId: 'tenant-1',
-            isActive: true,
-            name: 'Package 1',
-            price: 100,
-            description: 'Desc 1',
-            packageItems: [],
-          },
-          {
-            id: 'pkg-2',
-            tenantId: 'tenant-1',
-            isActive: true,
-            name: 'Package 2',
-            price: 200,
-            description: 'Desc 2',
-            packageItems: [],
+            title: 'Package 1',
+            shortDescription: 'Desc 1',
+            location: 'Baghdad',
+            priceFrom: 100,
+            currency: 'USD',
+            rating: 4.5,
+            reviewCount: 2,
+            tags: [],
           },
         ],
-        meta: {
-          totalItems: 2,
-          page: 1,
-          pageSize: 6,
-        },
-      } as any);
-      reviewsService.getApprovedAggregatesByPackageIds.mockResolvedValue([
-        { packageId: 'pkg-1', avgRating: 4.5, reviewCount: 2 },
-      ]);
+        total: 1,
+        page: 1,
+        pageSize: 6,
+      });
 
       const result = await controller.getListings({ tenantSlug: 'test-tenant' });
 
-      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledTimes(1);
-      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledWith('tenant-1', ['pkg-1', 'pkg-2']);
-      expect(reviewsService.findApprovedByPackage).not.toHaveBeenCalled();
+      expect(clientPortalService.getListingsForTenant).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'tenant-1' }),
+        expect.objectContaining({ tenantSlug: 'test-tenant' }),
+      );
       expect(result.items[0]?.rating).toBe(4.5);
       expect(result.items[0]?.reviewCount).toBe(2);
-      expect(result.items[1]?.rating).toBe(0);
-      expect(result.items[1]?.reviewCount).toBe(0);
     });
   });
 
   describe('getFeaturedListings', () => {
-    it('uses one batch aggregate call and avoids per-package review calls', async () => {
+    it('delegates featured listing mapping to client portal service', async () => {
       tenantsService.findBySlug.mockResolvedValue({
         id: 'tenant-1',
         slug: 'test-tenant',
@@ -324,46 +320,27 @@ describe('ClientPortalController', () => {
         address: 'Baghdad',
         baseCurrency: 'USD',
       } as unknown as Tenant);
-      catalogService.findAllPackagesWithFilters.mockResolvedValue({
-        data: [
-          {
-            id: 'pkg-1',
-            tenantId: 'tenant-1',
-            isActive: true,
-            name: 'Package 1',
-            price: 100,
-            description: 'Desc 1',
-            packageItems: [],
-          },
-          {
-            id: 'pkg-2',
-            tenantId: 'tenant-1',
-            isActive: true,
-            name: 'Package 2',
-            price: 200,
-            description: 'Desc 2',
-            packageItems: [],
-          },
-        ],
-        meta: {
-          totalItems: 2,
-          page: 1,
-          pageSize: 6,
+      clientPortalService.getFeaturedListingsForTenant.mockResolvedValue([
+        {
+          id: 'pkg-2',
+          title: 'Package 2',
+          shortDescription: 'Desc 2',
+          location: 'Baghdad',
+          priceFrom: 200,
+          currency: 'USD',
+          rating: 5,
+          reviewCount: 1,
+          tags: [],
         },
-      } as any);
-      reviewsService.getApprovedAggregatesByPackageIds.mockResolvedValue([
-        { packageId: 'pkg-2', avgRating: 5, reviewCount: 1 },
       ]);
 
       const result = await controller.getFeaturedListings('test-tenant');
 
-      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledTimes(1);
-      expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledWith('tenant-1', ['pkg-1', 'pkg-2']);
-      expect(reviewsService.findApprovedByPackage).not.toHaveBeenCalled();
-      expect(result[0]?.rating).toBe(0);
-      expect(result[0]?.reviewCount).toBe(0);
-      expect(result[1]?.rating).toBe(5);
-      expect(result[1]?.reviewCount).toBe(1);
+      expect(clientPortalService.getFeaturedListingsForTenant).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'tenant-1' }),
+      );
+      expect(result[0]?.rating).toBe(5);
+      expect(result[0]?.reviewCount).toBe(1);
     });
   });
 });

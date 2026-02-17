@@ -13,7 +13,6 @@ describe('Support DTOs', () => {
   describe('StartImpersonationDto', () => {
     it('should validate with required fields', async () => {
       const dto = plainToInstance(StartImpersonationDto, {
-        tenantId: '550e8400-e29b-41d4-a716-446655440000',
         userId: '550e8400-e29b-41d4-a716-446655440001',
         reason: 'Customer support request #12345',
       });
@@ -21,61 +20,36 @@ describe('Support DTOs', () => {
       expect(errors).toHaveLength(0);
     });
 
-    it('should fail validation without tenantId', async () => {
-      const dto = plainToInstance(StartImpersonationDto, {
-        userId: '550e8400-e29b-41d4-a716-446655440001',
-        reason: 'Support request',
-      });
-      const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('tenantId');
-    });
-
     it('should fail validation without userId', async () => {
       const dto = plainToInstance(StartImpersonationDto, {
-        tenantId: '550e8400-e29b-41d4-a716-446655440000',
         reason: 'Support request',
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('userId');
+      expect(errors[0]?.property).toBe('userId');
     });
 
     it('should fail validation without reason', async () => {
       const dto = plainToInstance(StartImpersonationDto, {
-        tenantId: '550e8400-e29b-41d4-a716-446655440000',
         userId: '550e8400-e29b-41d4-a716-446655440001',
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
-    });
-
-    it('should fail validation with invalid tenantId UUID', async () => {
-      const dto = plainToInstance(StartImpersonationDto, {
-        tenantId: 'not-a-uuid',
-        userId: '550e8400-e29b-41d4-a716-446655440001',
-        reason: 'Support request',
-      });
-      const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('tenantId');
+      expect(errors[0]?.property).toBe('reason');
     });
 
     it('should fail validation with invalid userId UUID', async () => {
       const dto = plainToInstance(StartImpersonationDto, {
-        tenantId: '550e8400-e29b-41d4-a716-446655440000',
         userId: 'invalid-uuid',
         reason: 'Support request',
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('userId');
+      expect(errors[0]?.property).toBe('userId');
     });
 
     it('should validate with optional approvalTicketId', async () => {
       const dto = plainToInstance(StartImpersonationDto, {
-        tenantId: '550e8400-e29b-41d4-a716-446655440000',
         userId: '550e8400-e29b-41d4-a716-446655440001',
         reason: 'Customer support request',
         approvalTicketId: 'TICKET-12345',
@@ -114,7 +88,7 @@ describe('Support DTOs', () => {
       const dto = plainToInstance(SearchTenantsDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('query');
+      expect(errors[0]?.property).toBe('query');
     });
 
     it('should validate with limit within range', async () => {
@@ -133,7 +107,7 @@ describe('Support DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('limit');
+      expect(errors[0]?.property).toBe('limit');
     });
 
     it('should fail validation with limit below min (1)', async () => {
@@ -143,7 +117,7 @@ describe('Support DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('limit');
+      expect(errors[0]?.property).toBe('limit');
     });
   });
 
@@ -185,7 +159,7 @@ describe('Support DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('startDate');
+      expect(errors[0]?.property).toBe('startDate');
     });
 
     it('should validate with limit within range', async () => {
@@ -202,7 +176,7 @@ describe('Support DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('limit');
+      expect(errors[0]?.property).toBe('limit');
     });
   });
 
@@ -244,7 +218,7 @@ describe('Support DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('limit');
+      expect(errors[0]?.property).toBe('limit');
     });
 
     it('should fail validation with limit below min (1)', async () => {
@@ -253,7 +227,7 @@ describe('Support DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('limit');
+      expect(errors[0]?.property).toBe('limit');
     });
   });
 });
