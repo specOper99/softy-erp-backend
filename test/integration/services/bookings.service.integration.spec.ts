@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { BookingRepository } from '../../../src/modules/bookings/repositories/booking.repository';
+import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 
 void globalThis.fetch;
 import { v4 as uuidv4 } from 'uuid';
@@ -118,6 +119,12 @@ describe('BookingsService Integration Tests', () => {
             publish: jest.fn(),
           },
         },
+        {
+          provide: CacheUtilsService,
+          useValue: {
+            del: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -169,14 +176,16 @@ describe('BookingsService Integration Tests', () => {
       expect(result.clientId).toBe(client.id);
       expect(result.packageId).toBe(pkg.id);
       expect(result.status).toBe(BookingStatus.DRAFT);
-      expect(result.totalPrice).toBe('3000.00');
+      expect(result.totalPrice).toBeDefined();
+      expect(Number(result.totalPrice)).toBe(3000);
 
       // Verify database persistence
       const persisted = await bookingRepository.findOne({
         where: { id: result.id },
       });
       expect(persisted).toBeDefined();
-      expect(persisted?.totalPrice).toBe('3000.00');
+      expect(persisted?.totalPrice).toBeDefined();
+      expect(Number(persisted?.totalPrice)).toBe(3000);
     });
 
     it('should enforce tenant isolation in service layer', async () => {
@@ -229,6 +238,13 @@ describe('BookingsService Integration Tests', () => {
         packageId: pkg.id,
         eventDate: new Date('2026-09-01'),
         totalPrice: 10000,
+        subTotal: 10000,
+        taxRate: 0,
+        taxAmount: 0,
+        depositPercentage: 0,
+        depositAmount: 0,
+        amountPaid: 0,
+        refundAmount: 0,
         status: BookingStatus.CONFIRMED,
         tenantId: tenant1,
       });

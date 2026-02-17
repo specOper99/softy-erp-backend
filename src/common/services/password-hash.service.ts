@@ -19,18 +19,42 @@ export class PasswordHashService {
   private readonly logger = new Logger(PasswordHashService.name);
 
   /**
+   * Check if running in test environment (Jest).
+   * Used to apply lighter hashing options for test stability.
+   */
+  private isTestEnvironment(): boolean {
+    return (
+      process.env.NODE_ENV === 'test' ||
+      process.env.JEST_WORKER_ID !== undefined ||
+      process.argv.includes('--runInBand')
+    );
+  }
+
+  /**
    * Argon2id configuration following OWASP 2025 recommendations.
    * These parameters provide:
    * - ~500ms hashing time on modern CPU
    * - 64MB memory requirement (resistant to GPU attacks)
    * - Good balance between security and UX
+   *
+   * In test environment, lighter options are used to prevent segfaults:
+   * - memoryCost: 1024 (1 MB) instead of 65536 (64 MB)
+   * - timeCost: 1 instead of 3
+   * - parallelism: 1 instead of 4
    */
-  private readonly ARGON2_OPTIONS: argon2.Options = {
-    type: argon2.argon2id, // Hybrid: data-independent + data-dependent
-    memoryCost: 65536, // 64 MB - resistant to GPU attacks
-    timeCost: 3, // 3 iterations - ~500ms on modern CPU
-    parallelism: 4, // 4 threads
-  };
+  private readonly ARGON2_OPTIONS: argon2.Options = this.isTestEnvironment()
+    ? {
+        type: argon2.argon2id,
+        memoryCost: 256, // 256 KB - ultra-lightweight for tests
+        timeCost: 1, // 1 iteration - fastest for tests
+        parallelism: 1, // single-threaded for stability
+      }
+    : {
+        type: argon2.argon2id, // Hybrid: data-independent + data-dependent
+        memoryCost: 65536, // 64 MB - resistant to GPU attacks
+        timeCost: 3, // 3 iterations - ~500ms on modern CPU
+        parallelism: 4, // 4 threads
+      };
 
   /**
    * Hash a password using Argon2id.

@@ -22,9 +22,8 @@ import { WalletService } from '../../../src/modules/finance/services/wallet.serv
 import { PayrollRun } from '../../../src/modules/hr/entities/payroll-run.entity';
 import { Profile } from '../../../src/modules/hr/entities/profile.entity';
 import { HrService } from '../../../src/modules/hr/services/hr.service';
-
-void globalThis.fetch;
 import { ProfileRepository } from '../../../src/modules/hr/repositories/profile.repository';
+import { PayrollRunRepository } from '../../../src/modules/hr/repositories/payroll-run.repository';
 import { PayrollService } from '../../../src/modules/hr/services/payroll.service';
 import { MockPaymentGatewayService } from '../../../src/modules/hr/services/payment-gateway.service';
 import { MailService } from '../../../src/modules/mail/mail.service';
@@ -144,6 +143,10 @@ describe('HR Payroll Workflow Integration', () => {
         {
           provide: getRepositoryToken(PayrollRun),
           useValue: payrollRunRepository,
+        },
+        {
+          provide: PayrollRunRepository,
+          useValue: new PayrollRunRepository(payrollRunRepository),
         },
         {
           provide: getRepositoryToken(EmployeeWallet),
@@ -370,6 +373,7 @@ describe('HR Payroll Workflow Integration', () => {
 
     await walletRepository.save({
       userId: user.id,
+      pendingBalance: 0,
       payableBalance: 0,
       tenantId,
     });

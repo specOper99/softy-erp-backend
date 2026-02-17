@@ -27,9 +27,12 @@ const mockConfigService = {
   }),
 };
 
-// Mock fetch
 const mockFetch = jest.fn();
-globalThis.fetch = mockFetch;
+Object.defineProperty(globalThis, 'fetch', {
+  value: mockFetch,
+  writable: true,
+  configurable: true,
+});
 
 describe('Webhook Delivery Integration', () => {
   let module: TestingModule;
@@ -96,6 +99,8 @@ describe('Webhook Delivery Integration', () => {
 
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
     jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
+
+    (webhookService as any).concurrencyLimitPromise = Promise.resolve((fn: any) => Promise.resolve(fn()));
   });
 
   it('should register and deliver a webhook successfully', async () => {

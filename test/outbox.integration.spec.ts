@@ -1,62 +1,41 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { CommonModule } from '../src/common/common.module';
 import { OutboxEvent, OutboxStatus } from '../src/common/entities/outbox-event.entity';
 import { OutboxRelayService } from '../src/common/services/outbox-relay.service';
-import { databaseConfig } from '../src/config';
 
 describe('Transactional Outbox Integration', () => {
-  let moduleRef: TestingModule;
   let dataSource: DataSource;
   let outboxRepository: Repository<OutboxEvent>;
   let relayService: OutboxRelayService;
 
   beforeAll(async () => {
-    moduleRef = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          load: [databaseConfig],
-          isGlobal: true,
-        }),
-        TypeOrmModule.forRootAsync({
-          imports: [ConfigModule],
-          inject: [ConfigService],
-          useFactory: (configService: ConfigService) => ({
-            type: 'postgres',
-            host: configService.get<string>('database.host'),
-            port: configService.get<number>('database.port'),
-            username: configService.get<string>('database.username'),
-            password: configService.get<string>('database.password'),
-            database: configService.get<string>('database.database'),
-            entities: [OutboxEvent],
-            synchronize: true, // Use generic true for test env
-            dropSchema: true,
-          }),
-        }),
-        CommonModule,
-      ],
-    }).compile();
+    dataSource = globalThis.__DATA_SOURCE__;
 
-    dataSource = moduleRef.get<DataSource>(DataSource);
-    outboxRepository = dataSource.getRepository(OutboxEvent);
-    relayService = moduleRef.get<OutboxRelayService>(OutboxRelayService);
+    if (!dataSource || !dataSource.isInitialized) {
+      throw new Error('DataSource not initialized. Ensure integration setup ran.');
+    }
 
-    await moduleRef.init();
+    outboxRepository = dataSource.getRepository('OutboxEvent') as Repository<OutboxEvent>;
+    relayService = new OutboxRelayService(outboxRepository);
   });
 
   afterAll(async () => {
-    await moduleRef.close();
+    if (dataSource?.isInitialized) {
+      await outboxRepository.delete({});
+    }
+  });
+
+  beforeEach(async () => {
+    if (dataSource?.isInitialized) {
+      await outboxRepository.delete({});
+    }
   });
 
   it('should save OutboxEvent within a transaction', async () => {
     const aggregateId = 'user-123';
 
     await dataSource.transaction(async (manager) => {
-      // Simulate saving a user (not actually needing User entity here)
-      const event = manager.create(OutboxEvent, {
+      const event = manager.create('OutboxEvent', {
         aggregateId,
         type: 'UserCreated',
         payload: { email: 'test@example.com' },
