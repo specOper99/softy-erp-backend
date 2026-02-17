@@ -14,6 +14,10 @@ import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
+import { BookingCancelledEvent } from '../events/booking-cancelled.event';
+import { BookingCompletedEvent } from '../events/booking-completed.event';
+import { BookingConfirmedEvent } from '../events/booking-confirmed.event';
+import { BookingCreatedEvent } from '../events/booking-created.event';
 import { BookingWorkflowService } from './booking-workflow.service';
 
 import { BookingStateMachineService } from '../services/booking-state-machine.service';
@@ -33,12 +37,20 @@ describe('BookingWorkflowService', () => {
 
   beforeEach(async () => {
     mockTenantContext('tenant-1');
+    mockStateMachine.validateTransition.mockReset();
 
     mockBooking = {
       id: 'booking-1',
       tenantId: 'tenant-1',
       status: BookingStatus.DRAFT,
       totalPrice: 100,
+      subTotal: 90,
+      taxRate: 10,
+      taxAmount: 10,
+      depositPercentage: 20,
+      depositAmount: 20,
+      amountPaid: 0,
+      refundAmount: 0,
       eventDate: new Date(),
       client: { name: 'Test Client', email: 'test@example.com' } as Booking['client'],
       servicePackage: {
@@ -72,6 +84,11 @@ describe('BookingWorkflowService', () => {
     ]);
 
     dataSource = createMockDataSource() as unknown as DataSource;
+    (dataSource as unknown as { manager: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock } }).manager = {
+      findOne: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+    };
     // Mock transaction to immediately execute callback with mock manager
     (dataSource.transaction as jest.Mock).mockImplementation((cb) => {
       return cb(mockQR.manager);
@@ -163,7 +180,11 @@ describe('BookingWorkflowService', () => {
       expect(auditService.log).toHaveBeenCalled();
 
       // Verify Event
-      expect(eventBus.publish).toHaveBeenCalled();
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingConfirmedEvent));
+      const event = (eventBus.publish as jest.Mock).mock.calls[0][0] as BookingConfirmedEvent;
+      expect(event.bookingId).toBe('booking-1');
+      expect(event.tenantId).toBe('tenant-1');
 
       expect(result.tasksCreated).toBe(2);
     });
@@ -197,6 +218,94 @@ describe('BookingWorkflowService', () => {
       });
 
       await expect(service.confirmBooking('booking-1')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('cancelBooking', () => {
+    it('publishes BookingCancelledEvent once after cancellation commit', async () => {
+      const cancelledAt = new Date();
+      const bookingToCancel = {
+        ...mockBooking,
+        status: BookingStatus.CONFIRMED,
+        eventDate: new Date(Date.now() + 86400000),
+      };
+
+      (queryRunner.manager.findOne as jest.Mock).mockResolvedValue(bookingToCancel);
+      queryRunner.manager.save = jest.fn().mockImplementation(async (entity) => ({ ...entity, cancelledAt }));
+
+      await service.cancelBooking('booking-1', { reason: 'Client request' });
+
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingCancelledEvent));
+      const event = (eventBus.publish as jest.Mock).mock.calls[0][0] as BookingCancelledEvent;
+      expect(event.bookingId).toBe('booking-1');
+      expect(event.tenantId).toBe('tenant-1');
+      expect(event.cancellationReason).toBe('Client request');
+    });
+  });
+
+  describe('completeBooking', () => {
+    it('publishes BookingCompletedEvent once after completion commit', async () => {
+      const completedBooking = {
+        ...mockBooking,
+        status: BookingStatus.CONFIRMED,
+      };
+
+      (queryRunner.manager.findOne as jest.Mock).mockResolvedValue(completedBooking);
+      (queryRunner.manager.find as jest.Mock).mockResolvedValue([{ status: 'COMPLETED' }, { status: 'COMPLETED' }]);
+
+      await service.completeBooking('booking-1');
+
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingCompletedEvent));
+      const event = (eventBus.publish as jest.Mock).mock.calls[0][0] as BookingCompletedEvent;
+      expect(event.bookingId).toBe('booking-1');
+      expect(event.tenantId).toBe('tenant-1');
+    });
+  });
+
+  describe('duplicateBooking', () => {
+    it('publishes BookingCreatedEvent once for duplicated booking', async () => {
+      const savedDuplicate = {
+        ...mockBooking,
+        id: 'booking-2',
+        createdAt: new Date(),
+      };
+
+      (dataSource.manager as unknown as { findOne: jest.Mock; create: jest.Mock; save: jest.Mock }).findOne = jest
+        .fn()
+        .mockResolvedValue(mockBooking);
+      const mockCreate = jest.fn().mockReturnValue(savedDuplicate);
+      const mockSave = jest.fn().mockResolvedValue(savedDuplicate);
+      (dataSource.manager as unknown as { findOne: jest.Mock; create: jest.Mock; save: jest.Mock }).create = mockCreate;
+      (dataSource.manager as unknown as { findOne: jest.Mock; create: jest.Mock; save: jest.Mock }).save = mockSave;
+
+      await service.duplicateBooking('booking-1');
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        Booking,
+        expect.objectContaining({
+          clientId: mockBooking.clientId,
+          eventDate: mockBooking.eventDate,
+          packageId: mockBooking.packageId,
+          totalPrice: mockBooking.totalPrice,
+          subTotal: mockBooking.subTotal,
+          taxRate: mockBooking.taxRate,
+          taxAmount: mockBooking.taxAmount,
+          depositPercentage: mockBooking.depositPercentage,
+          depositAmount: mockBooking.depositAmount,
+          amountPaid: 0,
+          refundAmount: 0,
+          status: BookingStatus.DRAFT,
+          tenantId: mockBooking.tenantId,
+        }),
+      );
+
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingCreatedEvent));
+      const event = (eventBus.publish as jest.Mock).mock.calls[0][0] as BookingCreatedEvent;
+      expect(event.bookingId).toBe('booking-2');
+      expect(event.tenantId).toBe('tenant-1');
     });
   });
 });

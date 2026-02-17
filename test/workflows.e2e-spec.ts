@@ -6,8 +6,10 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { BookingStatus } from '../src/modules/bookings/enums/booking-status.enum';
+import { DashboardGateway } from '../src/modules/dashboard/dashboard.gateway';
 import { Transaction } from '../src/modules/finance/entities/transaction.entity';
 import { TransactionType } from '../src/modules/finance/enums/transaction-type.enum';
+import { WalletService } from '../src/modules/finance/services/wallet.service';
 import { MailService } from '../src/modules/mail/mail.service';
 import { Task } from '../src/modules/tasks/entities/task.entity';
 import { TaskStatus } from '../src/modules/tasks/enums/task-status.enum';
@@ -21,6 +23,10 @@ class MockThrottlerGuard extends ThrottlerGuard {
   }
 }
 
+const mockDashboardGateway = {
+  broadcastMetricsUpdate: jest.fn(),
+};
+
 describe('Workflow Integration Tests (E2E)', () => {
   let app: INestApplication;
   let _dataSource: DataSource;
@@ -28,6 +34,7 @@ describe('Workflow Integration Tests (E2E)', () => {
   let staffToken: string;
   let staffUserId: string;
   let tenantHost: string;
+  let walletService: WalletService;
 
   beforeAll(async () => {
     // Get passwords from environment variables (after dotenv has loaded)
@@ -50,6 +57,8 @@ describe('Workflow Integration Tests (E2E)', () => {
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
       })
+      .overrideProvider(DashboardGateway)
+      .useValue(mockDashboardGateway)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -68,6 +77,7 @@ describe('Workflow Integration Tests (E2E)', () => {
     await app.init();
 
     _dataSource = moduleFixture.get(DataSource);
+    walletService = moduleFixture.get(WalletService);
 
     // Seed Test DB and Get Tenant ID and Client
     const seedData = await seedTestDatabase(_dataSource);
@@ -242,6 +252,8 @@ describe('Workflow Integration Tests (E2E)', () => {
         return;
       }
 
+      mockDashboardGateway.broadcastMetricsUpdate.mockClear();
+
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/tasks/${taskId}/complete`)
         .set('Host', tenantHost)
@@ -250,6 +262,16 @@ describe('Workflow Integration Tests (E2E)', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.walletUpdated).toBe(true);
       expect(res.body.data.commissionAccrued).toBeGreaterThan(0);
+
+      expect(mockDashboardGateway.broadcastMetricsUpdate).toHaveBeenCalledWith(
+        globalThis.testTenantId,
+        'REVENUE',
+        expect.objectContaining({
+          userId: staffUserId,
+          balanceType: 'paid',
+          reason: 'Commission moved to payable',
+        }),
+      );
     });
 
     it('should have updated wallet payable balance', async () => {
@@ -259,6 +281,129 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
       expect(Number.parseFloat(res.body.data.payableBalance)).toBeGreaterThan(0);
+    });
+
+    it('should rollback task completion when wallet payable movement fails', async () => {
+      const tasksRes = await request(app.getHttpServer())
+        .get('/api/v1/tasks')
+        .set('Host', tenantHost)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const tasks = unwrapListData<Task>(tasksRes.body);
+      let rollbackTask = tasks.find(
+        (task) =>
+          task.status === TaskStatus.PENDING &&
+          Number(task.commissionSnapshot) > 0 &&
+          (!task.assignedUserId || task.assignedUserId === staffUserId),
+      );
+
+      if (!rollbackTask) {
+        const packagesRes = await request(app.getHttpServer())
+          .get('/api/v1/packages')
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        const packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id;
+        if (!packageId) {
+          console.log('Skipping - no package available to create rollback task');
+          return;
+        }
+
+        const eventDate = new Date();
+        eventDate.setDate(eventDate.getDate() + 14);
+
+        const bookingRes = await request(app.getHttpServer())
+          .post('/api/v1/bookings')
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            clientId: (globalThis as unknown as { testClientId: string }).testClientId,
+            eventDate: eventDate.toISOString(),
+            packageId,
+            notes: 'Rollback invariant booking',
+          })
+          .expect(201);
+
+        await request(app.getHttpServer())
+          .patch(`/api/v1/bookings/${bookingRes.body.data.id}/confirm`)
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        const refreshedTasksRes = await request(app.getHttpServer())
+          .get('/api/v1/tasks')
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        const refreshedTasks = unwrapListData<Task>(refreshedTasksRes.body);
+        rollbackTask = refreshedTasks.find(
+          (task) =>
+            task.bookingId === bookingRes.body.data.id &&
+            task.status === TaskStatus.PENDING &&
+            Number(task.commissionSnapshot) > 0 &&
+            (!task.assignedUserId || task.assignedUserId === staffUserId),
+        );
+      }
+
+      if (!rollbackTask) {
+        console.log('Skipping - no pending task with commission for rollback test');
+        return;
+      }
+
+      if (!rollbackTask.assignedUserId) {
+        await request(app.getHttpServer())
+          .patch(`/api/v1/tasks/${rollbackTask.id}/assign`)
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ userId: staffUserId })
+          .expect(200);
+      }
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/tasks/${rollbackTask.id}/start`)
+        .set('Host', tenantHost)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const walletBeforeRes = await request(app.getHttpServer())
+        .get(`/api/v1/wallets/user/${staffUserId}`)
+        .set('Host', tenantHost)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const pendingBefore = Number.parseFloat(walletBeforeRes.body.data.pendingBalance);
+      const payableBefore = Number.parseFloat(walletBeforeRes.body.data.payableBalance);
+
+      const moveToPayableSpy = jest
+        .spyOn(walletService, 'moveToPayable')
+        .mockRejectedValueOnce(new Error('Simulated moveToPayable failure'));
+
+      try {
+        const completeRes = await request(app.getHttpServer())
+          .patch(`/api/v1/tasks/${rollbackTask.id}/complete`)
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(completeRes.status).toBeGreaterThanOrEqual(400);
+        expect(moveToPayableSpy).toHaveBeenCalledTimes(1);
+
+        const persistedTask = await _dataSource.getRepository(Task).findOne({ where: { id: rollbackTask.id } });
+        expect(persistedTask?.status).toBe(TaskStatus.IN_PROGRESS);
+
+        const walletAfterRes = await request(app.getHttpServer())
+          .get(`/api/v1/wallets/user/${staffUserId}`)
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Number.parseFloat(walletAfterRes.body.data.pendingBalance)).toBeCloseTo(pendingBefore, 2);
+        expect(Number.parseFloat(walletAfterRes.body.data.payableBalance)).toBeCloseTo(payableBefore, 2);
+      } finally {
+        moveToPayableSpy.mockRestore();
+      }
     });
   });
 

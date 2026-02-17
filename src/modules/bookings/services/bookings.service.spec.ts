@@ -20,6 +20,10 @@ import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { CreateBookingDto } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
+import { BookingCreatedEvent } from '../events/booking-created.event';
+import { BookingPriceChangedEvent } from '../events/booking-price-changed.event';
+import { BookingUpdatedEvent } from '../events/booking-updated.event';
+import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingStateMachineService } from './booking-state-machine.service';
 import { BookingsService } from './bookings.service';
@@ -145,6 +149,9 @@ describe('BookingsService', () => {
       // Verify tenantId was NOT passed to create manually (service logic check)
       const createCallArg = bookingRepository.create.mock.calls[0][0];
       expect(createCallArg.tenantId).toBeUndefined();
+
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingCreatedEvent));
     });
 
     it('should round tax amount to 2 decimal places', async () => {
@@ -177,6 +184,106 @@ describe('BookingsService', () => {
       };
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('update', () => {
+    beforeEach(() => {
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockBooking),
+      });
+    });
+
+    it('publishes BookingUpdatedEvent and BookingPriceChangedEvent once when pricing changes', async () => {
+      const lockedBooking = {
+        ...mockBooking,
+        subTotal: 100,
+        taxAmount: 10,
+        totalPrice: 110,
+      };
+      const savedBooking = {
+        ...mockBooking,
+        subTotal: 200,
+        taxAmount: 20,
+        totalPrice: 220,
+      };
+
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(lockedBooking),
+          save: jest.fn().mockResolvedValue(savedBooking),
+        }),
+      );
+
+      await service.update('booking-123', { notes: 'updated notes' });
+
+      expect(eventBus.publish).toHaveBeenCalledTimes(2);
+      expect(eventBus.publish).toHaveBeenNthCalledWith(1, expect.any(BookingUpdatedEvent));
+      expect(eventBus.publish).toHaveBeenNthCalledWith(2, expect.any(BookingPriceChangedEvent));
+    });
+
+    it('publishes only BookingUpdatedEvent when pricing does not change', async () => {
+      const lockedBooking = {
+        ...mockBooking,
+        subTotal: 100,
+        taxAmount: 10,
+        totalPrice: 110,
+      };
+      const savedBooking = {
+        ...mockBooking,
+        subTotal: 100,
+        taxAmount: 10,
+        totalPrice: 110,
+      };
+
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(lockedBooking),
+          save: jest.fn().mockResolvedValue(savedBooking),
+        }),
+      );
+
+      await service.update('booking-123', { notes: 'updated notes' });
+
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingUpdatedEvent));
+    });
+  });
+
+  describe('recordPayment', () => {
+    it('publishes PaymentRecordedEvent once after successful payment write', async () => {
+      const foundBooking = {
+        ...mockBooking,
+        amountPaid: 0,
+        totalPrice: 1000,
+        client: { email: 'client@example.com', name: 'Client' },
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(foundBooking),
+      });
+
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(foundBooking),
+          update: jest.fn().mockResolvedValue({ affected: 1 }),
+        }),
+      );
+
+      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'CARD', reference: 'ref-1' });
+
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(PaymentRecordedEvent));
+      const event = (eventBus.publish as jest.Mock).mock.calls[0][0] as PaymentRecordedEvent;
+      expect(event.bookingId).toBe('booking-123');
+      expect(event.amount).toBe(250);
+      expect(event.tenantId).toBe('tenant-1');
     });
   });
 

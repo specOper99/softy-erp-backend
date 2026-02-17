@@ -13,6 +13,7 @@ import { CancelBookingDto, ConfirmBookingResponseDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCancelledEvent } from '../events/booking-cancelled.event';
+import { BookingCompletedEvent } from '../events/booking-completed.event';
 import { BookingConfirmedEvent } from '../events/booking-confirmed.event';
 import { BookingCreatedEvent } from '../events/booking-created.event';
 import { BookingStateMachineService } from './booking-state-machine.service';
@@ -222,8 +223,9 @@ export class BookingWorkflowService {
    */
   async completeBooking(id: string): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
+    let eventToPublish: BookingCompletedEvent | null = null;
 
-    return this.dataSource.transaction(async (manager) => {
+    const savedBooking = await this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(Booking, {
         where: { id, tenantId },
       });
@@ -260,8 +262,16 @@ export class BookingWorkflowService {
         newValues: { status: BookingStatus.COMPLETED },
       });
 
+      eventToPublish = new BookingCompletedEvent(savedBooking.id, savedBooking.tenantId, new Date());
+
       return savedBooking;
     });
+
+    if (eventToPublish) {
+      this.eventBus.publish(eventToPublish);
+    }
+
+    return savedBooking;
   }
 
   async duplicateBooking(id: string): Promise<Booking> {
@@ -283,6 +293,13 @@ export class BookingWorkflowService {
       packageId: booking.packageId,
       notes: booking.notes ? `[Copy] ${booking.notes} ` : '[Copy]',
       totalPrice: booking.totalPrice,
+      subTotal: booking.subTotal,
+      taxRate: booking.taxRate,
+      taxAmount: booking.taxAmount,
+      depositPercentage: booking.depositPercentage,
+      depositAmount: booking.depositAmount,
+      amountPaid: 0,
+      refundAmount: 0,
       status: BookingStatus.DRAFT,
       tenantId,
     });

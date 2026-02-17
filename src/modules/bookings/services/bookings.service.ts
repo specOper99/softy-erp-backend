@@ -28,6 +28,7 @@ import { Booking } from '../entities/booking.entity';
 
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCreatedEvent } from '../events/booking-created.event';
+import { BookingPriceChangedEvent } from '../events/booking-price-changed.event';
 import { BookingUpdatedEvent } from '../events/booking-updated.event';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
@@ -311,7 +312,7 @@ export class BookingsService {
       }
     }
 
-    const savedBooking = await this.dataSource.transaction(async (manager) => {
+    const { savedBooking, previousPricing } = await this.dataSource.transaction(async (manager) => {
       // Re-fetch with pessimistic lock inside transaction to prevent lost updates
       const booking = await manager.findOne(Booking, {
         where: { id, tenantId: existingBooking.tenantId },
@@ -322,6 +323,12 @@ export class BookingsService {
         throw new NotFoundException('Booking not found');
       }
 
+      const originalPricing = {
+        subTotal: Number(booking.subTotal || 0),
+        taxAmount: Number(booking.taxAmount || 0),
+        totalPrice: Number(booking.totalPrice || 0),
+      };
+
       if (dto.eventDate) {
         booking.eventDate = new Date(dto.eventDate);
       }
@@ -331,7 +338,9 @@ export class BookingsService {
         eventDate: dto.eventDate ? new Date(dto.eventDate) : booking.eventDate,
       });
 
-      return manager.save(booking);
+      const saved = await manager.save(booking);
+
+      return { savedBooking: saved, previousPricing: originalPricing };
     });
 
     // Publish event AFTER transaction commits successfully
@@ -351,6 +360,28 @@ export class BookingsService {
     }
 
     this.eventBus.publish(new BookingUpdatedEvent(savedBooking.id, savedBooking.tenantId, allowedChanges, new Date()));
+
+    const oldSubTotal = previousPricing.subTotal;
+    const oldTaxAmount = previousPricing.taxAmount;
+    const oldTotalPrice = previousPricing.totalPrice;
+    const newSubTotal = Number(savedBooking.subTotal || 0);
+    const newTaxAmount = Number(savedBooking.taxAmount || 0);
+    const newTotalPrice = Number(savedBooking.totalPrice || 0);
+
+    if (oldSubTotal !== newSubTotal || oldTaxAmount !== newTaxAmount || oldTotalPrice !== newTotalPrice) {
+      this.eventBus.publish(
+        new BookingPriceChangedEvent(
+          savedBooking.id,
+          savedBooking.tenantId,
+          oldSubTotal,
+          newSubTotal,
+          oldTaxAmount,
+          newTaxAmount,
+          oldTotalPrice,
+          newTotalPrice,
+        ),
+      );
+    }
 
     if ((dto.eventDate || dto.status) && savedBooking.packageId) {
       try {
