@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
+  BookingRescheduledStaffEmailData,
   BookingEmailData,
   CancellationEmailData,
   EmailResult,
@@ -16,6 +17,7 @@ import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 
 export type {
+  BookingRescheduledStaffEmailData,
   BookingCancellationJobData,
   BookingEmailData,
   CancellationEmailData,
@@ -32,8 +34,6 @@ export type {
 
 @Injectable()
 export class MailService {
-  private readonly logger = new Logger(MailService.name);
-
   constructor(
     private readonly queueService: MailQueueService,
     private readonly senderService: MailSenderService,
@@ -77,6 +77,10 @@ export class MailService {
 
   async sendTaskAssignment(data: TaskAssignmentEmailData): Promise<EmailResult> {
     return this.senderService.sendTaskAssignment(data);
+  }
+
+  async sendBookingRescheduleNotification(data: BookingRescheduledStaffEmailData): Promise<EmailResult> {
+    return this.senderService.sendBookingRescheduleNotification(data);
   }
 
   async sendPayrollNotification(data: PayrollEmailData): Promise<EmailResult> {

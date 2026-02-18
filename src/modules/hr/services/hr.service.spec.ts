@@ -66,7 +66,7 @@ describe('HrService - Comprehensive Tests', () => {
     manager: {
       find: jest.fn().mockResolvedValue([mockProfile]),
       findOne: jest.fn().mockResolvedValue(mockWallet),
-      create: jest.fn().mockImplementation((entity, data) => data),
+      create: jest.fn().mockImplementation((_entity, data) => data),
       save: jest.fn().mockImplementation((data) => {
         if (Array.isArray(data)) {
           return Promise.resolve(data.map((item, i) => ({ id: `id-${i}`, ...item })));
@@ -78,6 +78,7 @@ describe('HrService - Comprehensive Tests', () => {
 
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    query: jest.fn().mockResolvedValue([]),
     getRepository: jest.fn().mockImplementation(() => {
       return {
         create: jest.fn(),
@@ -262,7 +263,7 @@ describe('HrService - Comprehensive Tests', () => {
       mockUsersService.findMany.mockResolvedValueOnce([]);
       const result = await service.findAllProfiles();
       expect(result).toHaveLength(1);
-      expect(result[0].user).toBeUndefined();
+      expect(result[0]?.user).toBeUndefined();
     });
   });
 
@@ -346,6 +347,65 @@ describe('HrService - Comprehensive Tests', () => {
       mockProfileRepository.findOne.mockReturnValueOnce(null);
       await service.softDeleteProfileByUserId('non-existent-user');
       expect(mockProfileRepository.softRemove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getAvailabilityWindows', () => {
+    it('maps raw rows to windows and deduplicates by userId and bookingId', async () => {
+      mockDataSource.query.mockResolvedValueOnce([
+        {
+          user_id: 'user-1',
+          booking_id: 'booking-1',
+          package_id: 'package-1',
+          event_date: '2026-04-10T00:00:00.000Z',
+          start_time: '09:30',
+          duration_minutes: '60',
+        },
+        {
+          user_id: 'user-1',
+          booking_id: 'booking-1',
+          package_id: 'package-1',
+          event_date: '2026-04-10T00:00:00.000Z',
+          start_time: '09:30',
+          duration_minutes: '60',
+        },
+        {
+          user_id: 'user-2',
+          booking_id: 'booking-2',
+          package_id: 'package-2',
+          event_date: '2026-04-11T00:00:00.000Z',
+          start_time: '11:00',
+          duration_minutes: 90,
+        },
+      ]);
+
+      const result = await service.getAvailabilityWindows({
+        start: '2026-04-01T00:00:00.000Z',
+        end: '2026-04-30T23:59:59.999Z',
+      });
+
+      expect(mockDataSource.query).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+      const first = result[0];
+      const second = result[1];
+
+      expect(first).toBeDefined();
+      expect(second).toBeDefined();
+
+      expect(first).toMatchObject({
+        userId: 'user-1',
+        bookingId: 'booking-1',
+        packageId: 'package-1',
+      });
+      expect(first?.start.getTime()).toBeGreaterThan(0);
+      expect((first?.end.getTime() ?? 0) - (first?.start.getTime() ?? 0)).toBe(60 * 60 * 1000);
+      expect(second).toMatchObject({
+        userId: 'user-2',
+        bookingId: 'booking-2',
+        packageId: 'package-2',
+      });
+      expect(second?.start.getTime()).toBeGreaterThan(0);
+      expect((second?.end.getTime() ?? 0) - (second?.start.getTime() ?? 0)).toBe(90 * 60 * 1000);
     });
   });
 });

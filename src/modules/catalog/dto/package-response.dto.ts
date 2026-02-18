@@ -13,6 +13,15 @@ export class ServicePackageSummaryResponseDto {
   @ApiProperty({ example: 120 })
   price: number;
 
+  @ApiProperty({ example: 90 })
+  durationMinutes: number;
+
+  @ApiProperty({ example: 2 })
+  requiredStaffCount: number;
+
+  @ApiProperty({ example: 'REV-SERVICES' })
+  revenueAccountCode: string;
+
   @ApiProperty()
   isActive: boolean;
 

@@ -82,7 +82,7 @@ describe('TimeEntriesService', () => {
 
   describe('startTimer', () => {
     it('should start a new timer using pessimistic locking', async () => {
-      const dto = { taskId: 'task-123', billable: true } as StartTimeEntryDto;
+      const dto = { taskId: 'task-123', billable: true, latitude: 33.3152, longitude: 44.3661 } as StartTimeEntryDto;
 
       const result = await service.startTimer(mockUserId, dto);
 
@@ -93,6 +93,8 @@ describe('TimeEntriesService', () => {
         taskId: dto.taskId,
         status: TimeEntryStatus.RUNNING,
         billable: true,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
       });
     });
 
@@ -167,6 +169,26 @@ describe('TimeEntriesService', () => {
       } as StopTimeEntryDto);
 
       expect(runningEntry.stop).toHaveBeenCalledWith(new Date('2024-01-15T18:00:00Z'));
+    });
+
+    it('should update coordinates when provided on stop', async () => {
+      const runningEntry = createMockTimeEntry({
+        ...mockTimeEntry,
+        status: TimeEntryStatus.RUNNING,
+        latitude: null,
+        longitude: null,
+      }) as unknown as TimeEntry;
+      timeEntryRepo.findOne.mockResolvedValue(runningEntry);
+      timeEntryRepo.save.mockResolvedValue(runningEntry);
+
+      await service.stopTimer(mockUserId, 'entry-123', {
+        latitude: 33.3152,
+        longitude: 44.3661,
+      } as StopTimeEntryDto);
+
+      expect(runningEntry.latitude).toBe(33.3152);
+      expect(runningEntry.longitude).toBe(44.3661);
+      expect(timeEntryRepo.save).toHaveBeenCalledWith(runningEntry);
     });
   });
 

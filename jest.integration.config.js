@@ -26,6 +26,7 @@ module.exports = {
   }),
   testTimeout: 30000, // 30s for integration tests
   maxWorkers: 1, // Run integration tests sequentially
+  forceExit: true, // Force exit after tests complete (required for testcontainers/Redis connections)
   globalSetup: '<rootDir>/test/integration/setup.ts',
   globalTeardown: '<rootDir>/test/integration/teardown.ts',
   testPathIgnorePatterns: ['<rootDir>/.worktrees/', '<rootDir>/dist/'],

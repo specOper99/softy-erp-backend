@@ -97,6 +97,14 @@ export interface PaymentReceiptEmailData {
   amountPaid: number;
 }
 
+export interface BookingRescheduledStaffEmailData {
+  employeeEmail: string;
+  employeeName: string;
+  bookingId: string;
+  eventDate: Date;
+  startTime: string | null;
+}
+
 export const EMAIL_QUEUE = 'email';
 
 // Base interface for all email jobs with tenant context

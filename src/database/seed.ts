@@ -65,6 +65,7 @@ import { Invoice } from '../modules/finance/entities/invoice.entity';
 import { Payout } from '../modules/finance/entities/payout.entity';
 import { TransactionCategory } from '../modules/finance/entities/transaction-category.entity';
 import { Transaction } from '../modules/finance/entities/transaction.entity';
+import { TransactionType } from '../modules/finance/enums/transaction-type.enum';
 import { Profile } from '../modules/hr/entities/profile.entity';
 import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
 import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
@@ -129,6 +130,7 @@ async function seed() {
     const packageRepo = AppDataSource.getRepository(ServicePackage);
     const taskTypeRepo = AppDataSource.getRepository(TaskType);
     const packageItemRepo = AppDataSource.getRepository(PackageItem);
+    const categoryRepo = AppDataSource.getRepository(TransactionCategory);
 
     // ============ 0. CREATE DEFAULT TENANT ============
     SeedLogger.log('Creating default tenant...');
@@ -433,7 +435,33 @@ async function seed() {
       SeedLogger.log('   Exists: ops@erp.soft-y.org');
     }
 
-    // ============ 6. CREATE PLATFORM ADMIN USER ============
+    // ============ 6. CREATE DEFAULT TRANSACTION CATEGORIES ============
+    SeedLogger.log('\nCreating default transaction categories...');
+    const defaultCategories = [
+      { name: 'Operational', description: 'Operational expenses', applicableType: TransactionType.EXPENSE },
+      { name: 'Admin', description: 'Administrative expenses', applicableType: TransactionType.EXPENSE },
+      { name: 'Marketing', description: 'Marketing and advertising expenses', applicableType: TransactionType.EXPENSE },
+    ];
+
+    for (const catData of defaultCategories) {
+      const existing = await categoryRepo.findOne({
+        where: { name: catData.name, tenantId },
+      });
+      if (!existing) {
+        const category = categoryRepo.create({
+          name: catData.name,
+          description: catData.description,
+          applicableType: catData.applicableType,
+          tenantId,
+        });
+        await categoryRepo.save(category);
+        SeedLogger.log(`   Created category: ${catData.name}`);
+      } else {
+        SeedLogger.log(`   Exists: ${catData.name}`);
+      }
+    }
+
+    // ============ 7. CREATE PLATFORM ADMIN USER ============
     SeedLogger.log('\nCreating platform admin user...');
     const platformUserRepo = AppDataSource.getRepository(PlatformUser);
     const existingPlatformAdmin = await platformUserRepo.findOne({

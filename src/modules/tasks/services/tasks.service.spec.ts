@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { createMockRepository, createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -9,6 +10,8 @@ import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
+import { TaskAssignee } from '../entities/task-assignee.entity';
+import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
 import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
@@ -77,9 +80,25 @@ describe('TasksService - Comprehensive Tests', () => {
     release: jest.fn(),
     isTransactionActive: true,
     manager: {
+      create: jest.fn().mockImplementation((_entity, payload) => payload),
       save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      createQueryBuilder: jest.fn(),
     },
+  };
+
+  const mockAssigneeQueryBuilder = {
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getExists: jest.fn().mockResolvedValue(true),
+  };
+
+  const mockTaskAssigneeRepository = {
+    createQueryBuilder: jest.fn(() => mockAssigneeQueryBuilder),
+    find: jest.fn().mockResolvedValue([]),
   };
 
   const mockTasksExportService = {
@@ -88,6 +107,7 @@ describe('TasksService - Comprehensive Tests', () => {
 
   const mockDataSource = {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    getRepository: jest.fn().mockReturnValue(mockTaskAssigneeRepository),
   };
 
   beforeEach(async () => {
@@ -100,6 +120,7 @@ describe('TasksService - Comprehensive Tests', () => {
         { provide: EventBus, useValue: mockEventBus },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: getRepositoryToken(TaskAssignee), useValue: mockTaskAssigneeRepository },
         { provide: EventBus, useValue: mockEventBus },
         { provide: TasksExportService, useValue: mockTasksExportService },
       ],
@@ -109,6 +130,15 @@ describe('TasksService - Comprehensive Tests', () => {
 
     // Reset mocks
     jest.clearAllMocks();
+
+    const mockUpdateQueryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    mockQueryRunner.manager.createQueryBuilder.mockReturnValue(mockUpdateQueryBuilder);
 
     // Default behavior for repository findOne
     mockTaskRepository.findOne.mockImplementation(({ where }) => {
@@ -126,6 +156,7 @@ describe('TasksService - Comprehensive Tests', () => {
       }
       return Promise.resolve(null);
     });
+    mockQueryRunner.manager.find.mockResolvedValue([]);
 
     jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue('tenant-123');
   });
@@ -379,6 +410,166 @@ describe('TasksService - Comprehensive Tests', () => {
     });
   });
 
+  describe('task assignees', () => {
+    it('adding LEAD creates task assignee and updates pending wallet', async () => {
+      const task = {
+        ...mockTask,
+        id: 'task-uuid-123',
+        tenantId: 'tenant-123',
+        assignedUserId: null,
+        commissionSnapshot: 120,
+      } as Task;
+
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 'lead-user', tenantId: 'tenant-123' });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'assignee-lead',
+        tenantId: 'tenant-123',
+        taskId: task.id,
+        userId: 'lead-user',
+        role: TaskAssigneeRole.LEAD,
+      } as TaskAssignee);
+
+      const result = await service.addTaskAssignee('task-uuid-123', {
+        userId: 'lead-user',
+        role: TaskAssigneeRole.LEAD,
+      });
+
+      expect(result.userId).toBe('lead-user');
+      expect(result.role).toBe(TaskAssigneeRole.LEAD);
+      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
+        mockQueryRunner.manager,
+        null,
+        'lead-user',
+        120,
+      );
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ taskId: 'task-uuid-123', userId: 'lead-user' }),
+      );
+    });
+
+    it('adding ASSISTANT creates task assignee and updates pending wallet', async () => {
+      const task = {
+        ...mockTask,
+        id: 'task-uuid-123',
+        tenantId: 'tenant-123',
+        assignedUserId: 'lead-user',
+        commissionSnapshot: 80,
+      } as Task;
+
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 'assistant-user', tenantId: 'tenant-123' });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'assignee-existing-lead',
+        tenantId: 'tenant-123',
+        taskId: task.id,
+        userId: 'lead-user',
+        role: TaskAssigneeRole.LEAD,
+      } as TaskAssignee);
+
+      const result = await service.addTaskAssignee('task-uuid-123', {
+        userId: 'assistant-user',
+        role: TaskAssigneeRole.ASSISTANT,
+      });
+
+      expect(result.userId).toBe('assistant-user');
+      expect(result.role).toBe(TaskAssigneeRole.ASSISTANT);
+      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
+        mockQueryRunner.manager,
+        null,
+        'assistant-user',
+        80,
+      );
+    });
+
+    it('removing assignee reverses pending wallet commission', async () => {
+      const task = {
+        ...mockTask,
+        id: 'task-uuid-123',
+        tenantId: 'tenant-123',
+        assignedUserId: 'lead-user',
+      } as Task;
+
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'assignee-assistant',
+        tenantId: 'tenant-123',
+        taskId: task.id,
+        userId: 'assistant-user',
+        role: TaskAssigneeRole.ASSISTANT,
+        commissionSnapshot: 70,
+      } as TaskAssignee);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'assignee-existing-lead',
+        tenantId: 'tenant-123',
+        taskId: task.id,
+        userId: 'lead-user',
+        role: TaskAssigneeRole.LEAD,
+      } as TaskAssignee);
+
+      await service.removeTaskAssignee('task-uuid-123', 'assistant-user');
+
+      expect(mockQueryRunner.manager.delete).toHaveBeenCalledWith(TaskAssignee, {
+        tenantId: 'tenant-123',
+        taskId: 'task-uuid-123',
+        userId: 'assistant-user',
+      });
+      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
+        mockQueryRunner.manager,
+        'assistant-user',
+        undefined,
+        70,
+      );
+    });
+
+    it('adding LEAD demotes previous lead and syncs task.assignedUserId', async () => {
+      const task = {
+        ...mockTask,
+        id: 'task-uuid-123',
+        tenantId: 'tenant-123',
+        assignedUserId: 'old-lead-user',
+        commissionSnapshot: 100,
+      } as Task;
+
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 'new-lead-user', tenantId: 'tenant-123' });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        id: 'assignee-new-lead',
+        tenantId: 'tenant-123',
+        taskId: task.id,
+        userId: 'new-lead-user',
+        role: TaskAssigneeRole.LEAD,
+      } as TaskAssignee);
+
+      await service.addTaskAssignee('task-uuid-123', {
+        userId: 'new-lead-user',
+        role: TaskAssigneeRole.LEAD,
+        commissionSnapshot: 95,
+      });
+
+      expect(mockQueryRunner.manager.createQueryBuilder).toHaveBeenCalled();
+      const qbResult = mockQueryRunner.manager.createQueryBuilder.mock.results.at(-1);
+      expect(qbResult).toBeDefined();
+      const demoteLeadQueryBuilder = qbResult?.value as {
+        execute: jest.Mock;
+      };
+      expect(demoteLeadQueryBuilder.execute).toHaveBeenCalled();
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ assignedUserId: 'new-lead-user' }),
+      );
+      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
+        mockQueryRunner.manager,
+        null,
+        'new-lead-user',
+        95,
+      );
+    });
+  });
+
   // ============ START TASK TESTS ============
   describe('startTask', () => {
     it('should start pending task', async () => {
@@ -435,6 +626,180 @@ describe('TasksService - Comprehensive Tests', () => {
 
   // ============ COMPLETE TASK TESTS ============
   describe('completeTask', () => {
+    it('should complete multi-assignee task and credit each assignee wallet', async () => {
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: null,
+        commissionSnapshot: 999,
+      });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: null,
+        commissionSnapshot: 999,
+      });
+      mockQueryRunner.manager.find.mockResolvedValueOnce([
+        {
+          id: 'assignee-1',
+          tenantId: 'tenant-123',
+          taskId: 'task-uuid-123',
+          userId: 'staff-1',
+          role: TaskAssigneeRole.LEAD,
+          commissionSnapshot: 60,
+        },
+        {
+          id: 'assignee-2',
+          tenantId: 'tenant-123',
+          taskId: 'task-uuid-123',
+          userId: 'staff-2',
+          role: TaskAssigneeRole.ASSISTANT,
+          commissionSnapshot: 40,
+        },
+      ] as TaskAssignee[]);
+
+      const result = await service.completeTask('task-uuid-123', adminUser);
+
+      expect(mockWalletService.moveToPayable).toHaveBeenCalledTimes(2);
+      expect(mockWalletService.moveToPayable).toHaveBeenNthCalledWith(1, mockQueryRunner.manager, 'staff-1', 60);
+      expect(mockWalletService.moveToPayable).toHaveBeenNthCalledWith(2, mockQueryRunner.manager, 'staff-2', 40);
+      expect(result.commissionAccrued).toBe(100);
+      expect(result.walletUpdated).toBe(true);
+    });
+
+    it('should use assignee commission snapshots and not legacy task commission when assignees exist', async () => {
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: 'legacy-user',
+        commissionSnapshot: 500,
+      });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: 'legacy-user',
+        commissionSnapshot: 500,
+      });
+      mockQueryRunner.manager.find.mockResolvedValueOnce([
+        {
+          id: 'assignee-1',
+          tenantId: 'tenant-123',
+          taskId: 'task-uuid-123',
+          userId: 'staff-1',
+          role: TaskAssigneeRole.LEAD,
+          commissionSnapshot: 80,
+        },
+        {
+          id: 'assignee-2',
+          tenantId: 'tenant-123',
+          taskId: 'task-uuid-123',
+          userId: 'staff-2',
+          role: TaskAssigneeRole.ASSISTANT,
+          commissionSnapshot: 20,
+        },
+      ] as TaskAssignee[]);
+
+      const result = await service.completeTask('task-uuid-123', adminUser);
+
+      expect(mockWalletService.moveToPayable).toHaveBeenCalledTimes(2);
+      expect(mockWalletService.moveToPayable).toHaveBeenCalledWith(mockQueryRunner.manager, 'staff-1', 80);
+      expect(mockWalletService.moveToPayable).toHaveBeenCalledWith(mockQueryRunner.manager, 'staff-2', 20);
+      expect(mockWalletService.moveToPayable).not.toHaveBeenCalledWith(mockQueryRunner.manager, 'legacy-user', 500);
+      expect(result.commissionAccrued).toBe(100);
+    });
+
+    it('should return commissionAccrued as sum of assignee commission snapshots', async () => {
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+      });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+      });
+      mockQueryRunner.manager.find.mockResolvedValueOnce([
+        {
+          id: 'assignee-1',
+          tenantId: 'tenant-123',
+          taskId: 'task-uuid-123',
+          userId: 'staff-1',
+          role: TaskAssigneeRole.LEAD,
+          commissionSnapshot: 33.33,
+        },
+        {
+          id: 'assignee-2',
+          tenantId: 'tenant-123',
+          taskId: 'task-uuid-123',
+          userId: 'staff-2',
+          role: TaskAssigneeRole.ASSISTANT,
+          commissionSnapshot: 66.67,
+        },
+      ] as TaskAssignee[]);
+
+      const result = await service.completeTask('task-uuid-123', adminUser);
+
+      expect(result.commissionAccrued).toBe(100);
+      expect(result.walletUpdated).toBe(true);
+    });
+
+    it('should forbid field staff if task has assignees but user is not among them', async () => {
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: 'another-user',
+      });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: 'another-user',
+      });
+      mockQueryRunner.manager.find.mockResolvedValueOnce([
+        {
+          id: 'assignee-1',
+          tenantId: 'tenant-123',
+          taskId: 'task-uuid-123',
+          userId: 'different-staff',
+          role: TaskAssigneeRole.LEAD,
+          commissionSnapshot: 100,
+        },
+      ] as TaskAssignee[]);
+
+      await expect(service.completeTask('task-uuid-123', staffUser)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should fallback to legacy single-assignee commission accrual when no task assignees exist', async () => {
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: 'legacy-user',
+        commissionSnapshot: 120,
+      });
+      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
+        ...mockTask,
+        tenantId: 'tenant-123',
+        status: TaskStatus.IN_PROGRESS,
+        assignedUserId: 'legacy-user',
+        commissionSnapshot: 120,
+      });
+      mockQueryRunner.manager.find.mockResolvedValueOnce([]);
+
+      const result = await service.completeTask('task-uuid-123', adminUser);
+
+      expect(mockWalletService.moveToPayable).toHaveBeenCalledTimes(1);
+      expect(mockWalletService.moveToPayable).toHaveBeenCalledWith(mockQueryRunner.manager, 'legacy-user', 120);
+      expect(result.commissionAccrued).toBe(120);
+      expect(result.walletUpdated).toBe(true);
+    });
+
     it('should complete in-progress task and accrue commission', async () => {
       // Lock call
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({

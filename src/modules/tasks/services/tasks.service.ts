@@ -1,7 +1,15 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { Response } from 'express';
-import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
+import { Brackets, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -15,8 +23,17 @@ import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { AssignTaskDto, CompleteTaskResponseDto, TaskFilterDto, UpdateTaskDto } from '../dto';
+import {
+  AddTaskAssigneeDto,
+  AssignTaskDto,
+  CompleteTaskResponseDto,
+  TaskFilterDto,
+  UpdateTaskAssigneeDto,
+  UpdateTaskDto,
+} from '../dto';
+import { TaskAssignee } from '../entities/task-assignee.entity';
 import { Task } from '../entities/task.entity';
+import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
@@ -40,6 +57,7 @@ export class TasksService {
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
     private readonly tasksExportService: TasksExportService,
+    @InjectRepository(TaskAssignee) private readonly taskAssigneeRepository: Repository<TaskAssignee>,
   ) {
     this.tenantTx = new TenantScopedManager(dataSource);
   }
@@ -267,6 +285,143 @@ export class TasksService {
     return result.savedTask;
   }
 
+  async addTaskAssignee(id: string, dto: AddTaskAssigneeDto): Promise<TaskAssignee> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    return this.tenantTx.run(async (manager) => {
+      const task = await this.findTaskWithLock(manager, id, tenantId);
+      await this.validateUserInTenant(manager, dto.userId, tenantId);
+
+      const commissionAmount = MathUtils.round(Number(dto.commissionSnapshot ?? task.commissionSnapshot) || 0);
+      if (commissionAmount <= 0) {
+        throw new BadRequestException('commissionSnapshot must be greater than 0');
+      }
+
+      const role = dto.role ?? TaskAssigneeRole.ASSISTANT;
+
+      if (role === TaskAssigneeRole.LEAD) {
+        await manager
+          .createQueryBuilder()
+          .update(TaskAssignee)
+          .set({ role: TaskAssigneeRole.ASSISTANT })
+          .where('tenant_id = :tenantId', { tenantId })
+          .andWhere('task_id = :taskId', { taskId: id })
+          .andWhere('role = :leadRole', { leadRole: TaskAssigneeRole.LEAD })
+          .andWhere('user_id != :userId', { userId: dto.userId })
+          .execute();
+      }
+
+      const assignee = manager.create(TaskAssignee, {
+        tenantId,
+        taskId: id,
+        userId: dto.userId,
+        role,
+        commissionSnapshot: commissionAmount,
+      });
+
+      let savedAssignee: TaskAssignee;
+      try {
+        savedAssignee = await manager.save(assignee);
+      } catch (error) {
+        if ((error as { code?: string })?.code === '23505') {
+          throw new ConflictException('tasks.assignee_already_exists');
+        }
+        throw error;
+      }
+
+      await this.financeService.transferPendingCommission(manager, null, dto.userId, commissionAmount);
+      await this.syncLegacyAssignedUserIdWithLead(manager, task, tenantId);
+
+      return savedAssignee;
+    });
+  }
+
+  async updateTaskAssignee(id: string, userId: string, dto: UpdateTaskAssigneeDto): Promise<TaskAssignee> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    return this.tenantTx.run(async (manager) => {
+      const task = await this.findTaskWithLock(manager, id, tenantId);
+
+      const assignee = await manager.findOne(TaskAssignee, {
+        where: { tenantId, taskId: id, userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!assignee) {
+        throw new NotFoundException(`Task assignee not found for user ${userId}`);
+      }
+
+      if (dto.role === TaskAssigneeRole.LEAD) {
+        await manager.update(
+          TaskAssignee,
+          { tenantId, taskId: id, role: TaskAssigneeRole.LEAD },
+          { role: TaskAssigneeRole.ASSISTANT },
+        );
+      }
+
+      assignee.role = dto.role;
+      const updated = await manager.save(assignee);
+
+      await this.syncLegacyAssignedUserIdWithLead(manager, task, tenantId);
+
+      return updated;
+    });
+  }
+
+  async removeTaskAssignee(id: string, userId: string): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    await this.tenantTx.run(async (manager) => {
+      const task = await this.findTaskWithLock(manager, id, tenantId);
+
+      const assignee = await manager.findOne(TaskAssignee, {
+        where: { tenantId, taskId: id, userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!assignee) {
+        throw new NotFoundException(`Task assignee not found for user ${userId}`);
+      }
+
+      const commissionAmount = MathUtils.round(Number(assignee.commissionSnapshot) || 0);
+      if (commissionAmount <= 0) {
+        throw new BadRequestException('commissionSnapshot must be greater than 0');
+      }
+
+      await manager.delete(TaskAssignee, { tenantId, taskId: id, userId });
+      await this.financeService.transferPendingCommission(manager, userId, undefined, commissionAmount);
+      await this.syncLegacyAssignedUserIdWithLead(manager, task, tenantId);
+    });
+  }
+
+  async listTaskAssignees(id: string, user: User): Promise<TaskAssignee[]> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const task = await this.taskRepository.findOne({ where: { id, tenantId } });
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    if (user.role === Role.FIELD_STAFF) {
+      const isAssignee = await this.taskAssigneeRepository
+        .createQueryBuilder('assignee')
+        .where('assignee.tenantId = :tenantId', { tenantId })
+        .andWhere('assignee.taskId = :taskId', { taskId: id })
+        .andWhere('assignee.userId = :userId', { userId: user.id })
+        .getExists();
+
+      if (!isAssignee && task.assignedUserId !== user.id) {
+        throw new ForbiddenException('Not allowed to read this task assignees list');
+      }
+    }
+
+    return this.taskAssigneeRepository.find({
+      where: { tenantId, taskId: id },
+      relations: ['user'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
   private async validateUserInTenant(
     manager: import('typeorm').EntityManager,
     userId: string | undefined,
@@ -320,6 +475,23 @@ export class TasksService {
     }
   }
 
+  private async syncLegacyAssignedUserIdWithLead(
+    manager: import('typeorm').EntityManager,
+    task: Task,
+    tenantId: string,
+  ): Promise<void> {
+    const leadAssignee = await manager.findOne(TaskAssignee, {
+      where: { tenantId, taskId: task.id, role: TaskAssigneeRole.LEAD },
+      order: { createdAt: 'ASC' },
+    });
+
+    const nextAssignedUserId = leadAssignee?.userId ?? null;
+    if (task.assignedUserId !== nextAssignedUserId) {
+      task.assignedUserId = nextAssignedUserId;
+      await manager.save(task);
+    }
+  }
+
   async startTask(id: string, user: User): Promise<Task> {
     const task = await this.findOne(id);
 
@@ -361,14 +533,25 @@ export class TasksService {
       // applied to the nullable side of an outer join (which TypeORM uses for relations)
       const task = await this.findTaskWithLock(manager, id, tenantId);
 
-      this.assertCanUpdateTaskStatus(user, task);
+      const taskAssignees = await manager.find(TaskAssignee, {
+        where: { tenantId, taskId: task.id },
+      });
+
+      const canFieldStaffComplete =
+        user.role !== Role.FIELD_STAFF ||
+        task.assignedUserId === user.id ||
+        taskAssignees.some((assignee) => assignee.userId === user.id);
+
+      if (!canFieldStaffComplete) {
+        throw new ForbiddenException('Not allowed to modify this task');
+      }
+
+      if (user.role !== Role.FIELD_STAFF) {
+        this.assertCanUpdateTaskStatus(user, task);
+      }
 
       if (task.status === TaskStatus.COMPLETED) {
         throw new BadRequestException('Task is already completed');
-      }
-
-      if (!task.assignedUserId) {
-        throw new BadRequestException('Cannot complete task: no user assigned');
       }
 
       // Step 2: Update task status to COMPLETED
@@ -378,12 +561,31 @@ export class TasksService {
       await manager.save(task);
 
       // Step 3: Move commission to payable balance (NaN-safe)
-      const commissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
+      let commissionAmount = 0;
       let walletUpdated = false;
 
-      if (commissionAmount > 0) {
-        await this.walletService.moveToPayable(manager, task.assignedUserId, commissionAmount);
-        walletUpdated = true;
+      if (taskAssignees.length > 0) {
+        for (const assignee of taskAssignees) {
+          const assigneeCommission = MathUtils.round(Number(assignee.commissionSnapshot) || 0);
+          if (assigneeCommission <= 0) {
+            continue;
+          }
+
+          await this.walletService.moveToPayable(manager, assignee.userId, assigneeCommission);
+          commissionAmount = MathUtils.add(commissionAmount, assigneeCommission);
+          walletUpdated = true;
+        }
+      } else {
+        if (!task.assignedUserId) {
+          throw new BadRequestException('Cannot complete task: no user assigned');
+        }
+
+        const legacyCommissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
+        if (legacyCommissionAmount > 0) {
+          await this.walletService.moveToPayable(manager, task.assignedUserId, legacyCommissionAmount);
+          commissionAmount = legacyCommissionAmount;
+          walletUpdated = true;
+        }
       }
 
       // Step 4: Audit Log

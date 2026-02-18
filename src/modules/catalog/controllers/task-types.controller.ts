@@ -28,7 +28,7 @@ export class TaskTypesController {
   constructor(private readonly catalogService: CatalogService) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create a new task type' })
   create(@Body() dto: CreateTaskTypeDto) {
     return this.catalogService.createTaskType(dto);
@@ -49,7 +49,7 @@ export class TaskTypesController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update task type' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTaskTypeDto) {
     return this.catalogService.updateTaskType(id, dto);

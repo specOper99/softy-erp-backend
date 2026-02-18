@@ -14,6 +14,7 @@ import { User } from '../../src/modules/users/entities/user.entity';
 import { Role } from '../../src/modules/users/enums/role.enum';
 
 import { SubscriptionPlan } from '../../src/modules/tenants/enums/subscription-plan.enum';
+import { TaskTypeEligibility } from '../../src/modules/hr/entities/task-type-eligibility.entity';
 
 export async function seedTestDatabase(dataSource: DataSource) {
   const tenantRepo = dataSource.getRepository(Tenant);
@@ -25,6 +26,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const packageItemRepo = dataSource.getRepository(PackageItem);
   const clientRepo = dataSource.getRepository(Client);
   const platformUserRepo = dataSource.getRepository(PlatformUser);
+  const eligibilityRepo = dataSource.getRepository(TaskTypeEligibility);
 
   // Initialize password hash service
   const passwordHashService = new PasswordHashService();
@@ -235,6 +237,24 @@ export async function seedTestDatabase(dataSource: DataSource) {
 
   if (!taskType) {
     throw new Error('Failed to seed/find task type');
+  }
+
+  // Create TaskTypeEligibility for staff user to allow conflict checks
+  try {
+    const existingEligibility = await eligibilityRepo.findOne({
+      where: { tenantId, userId: staff.id, taskTypeId: taskType.id },
+    });
+    if (!existingEligibility) {
+      await eligibilityRepo.save(
+        eligibilityRepo.create({
+          tenantId,
+          userId: staff.id,
+          taskTypeId: taskType.id,
+        }),
+      );
+    }
+  } catch {
+    // Eligibility may already exist, continue
   }
 
   // 5. Create Package

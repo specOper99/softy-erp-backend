@@ -1,12 +1,36 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
+import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
 import { TaskStatus } from '../enums/task-status.enum';
 
 export class AssignTaskDto {
   @ApiProperty({ description: 'User ID to assign the task to' })
   @IsUUID()
   userId: string;
+}
+
+export class AddTaskAssigneeDto {
+  @ApiProperty({ description: 'User ID to assign to this task' })
+  @IsUUID()
+  userId: string;
+
+  @ApiPropertyOptional({ enum: TaskAssigneeRole, default: TaskAssigneeRole.ASSISTANT })
+  @IsOptional()
+  @IsEnum(TaskAssigneeRole)
+  role?: TaskAssigneeRole;
+
+  @ApiPropertyOptional({ description: 'Pending commission snapshot for this assignee (must be > 0)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.01)
+  commissionSnapshot?: number;
+}
+
+export class UpdateTaskAssigneeDto {
+  @ApiProperty({ enum: TaskAssigneeRole })
+  @IsEnum(TaskAssigneeRole)
+  role: TaskAssigneeRole;
 }
 
 export class UpdateTaskDto {

@@ -36,6 +36,12 @@ export class TimeEntry extends BaseTenantEntity {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ type: 'double precision', nullable: true })
+  latitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude: number | null;
+
   @Column({
     type: 'enum',
     enum: TimeEntryStatus,

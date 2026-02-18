@@ -302,6 +302,67 @@ describe('FinanceService - Comprehensive Tests', () => {
       };
       await expect(service.createTransaction(dto)).rejects.toThrow('finance.amount_must_be_positive');
     });
+
+    it('should allow negative INCOME when bookingId is present', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: -100,
+        bookingId: 'booking-uuid-123',
+        category: 'Adjustment',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      const result = await service.createTransaction(dto);
+      expect(result).toHaveProperty('id');
+      expect(result.amount).toBe(-100);
+    });
+
+    it('should allow negative INCOME when category contains refund marker', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: -100,
+        category: 'Refund',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      const result = await service.createTransaction(dto);
+      expect(result).toHaveProperty('id');
+      expect(result.amount).toBe(-100);
+    });
+
+    it('should reject negative INCOME without bookingId or refund/reversal marker', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: -100,
+        category: 'Adjustment',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      await expect(service.createTransaction(dto)).rejects.toThrow('finance.amount_must_be_positive');
+    });
+
+    it('should reject negative EXPENSE amount', async () => {
+      const dto = {
+        type: TransactionType.EXPENSE,
+        amount: -100,
+        category: 'Refund',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      await expect(service.createTransaction(dto)).rejects.toThrow('finance.amount_must_be_positive');
+    });
+
+    it('should apply maximum amount rule to absolute value for negative income', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: -1000000000,
+        bookingId: 'booking-uuid-123',
+        category: 'Refund',
+        transactionDate: '2024-12-31T00:00:00Z',
+      };
+
+      await expect(service.createTransaction(dto)).rejects.toThrow('finance.amount_exceeds_maximum');
+    });
   });
 
   describe('createTransactionWithManager', () => {

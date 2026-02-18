@@ -153,6 +153,114 @@ describe('PayrollService', () => {
       expect(result.totalEmployees).toBe(1);
     });
 
+    it('should consume payable commissions for multiple assignees and reset each wallet after payout', async () => {
+      const profileA = {
+        ...mockProfile,
+        id: 'profile-a',
+        userId: 'assignee-user-a',
+        baseSalary: 2000,
+        firstName: 'Alice',
+        lastName: 'Lead',
+      };
+      const profileB = {
+        ...mockProfile,
+        id: 'profile-b',
+        userId: 'assignee-user-b',
+        baseSalary: 1800,
+        firstName: 'Bob',
+        lastName: 'Assist',
+      };
+
+      mockProfileRepository.count.mockResolvedValueOnce(2);
+      mockProfileRepository.find.mockResolvedValueOnce([profileA, profileB]);
+      mockWalletService.getOrCreateWalletWithManager
+        .mockResolvedValueOnce({ payableBalance: 70 })
+        .mockResolvedValueOnce({ payableBalance: 30 });
+
+      const result = await service.runPayroll();
+
+      expect(mockWalletService.getOrCreateWalletWithManager).toHaveBeenNthCalledWith(
+        1,
+        mockQueryRunner.manager,
+        'assignee-user-a',
+      );
+      expect(mockWalletService.getOrCreateWalletWithManager).toHaveBeenNthCalledWith(
+        2,
+        mockQueryRunner.manager,
+        'assignee-user-b',
+      );
+      expect(mockWalletService.resetPayableBalance).toHaveBeenCalledTimes(2);
+      expect(mockWalletService.resetPayableBalance).toHaveBeenNthCalledWith(
+        1,
+        mockQueryRunner.manager,
+        'assignee-user-a',
+      );
+      expect(mockWalletService.resetPayableBalance).toHaveBeenNthCalledWith(
+        2,
+        mockQueryRunner.manager,
+        'assignee-user-b',
+      );
+
+      const payoutSaves = mockQueryRunner.manager.save.mock.calls
+        .map((call) => call[0])
+        .filter((entity) => entity?.status === 'PENDING');
+      expect(payoutSaves).toHaveLength(2);
+      expect(payoutSaves[0]).toEqual(
+        expect.objectContaining({
+          amount: 2070,
+          commissionAmount: 70,
+          metadata: expect.objectContaining({ userId: 'assignee-user-a' }),
+        }),
+      );
+      expect(payoutSaves[1]).toEqual(
+        expect.objectContaining({
+          amount: 1830,
+          commissionAmount: 30,
+          metadata: expect.objectContaining({ userId: 'assignee-user-b' }),
+        }),
+      );
+
+      expect(result.totalPayout).toBe(3900);
+      expect(result.totalEmployees).toBe(2);
+    });
+
+    it('should consume payable commissions via legacy assigned-user payout flow when no task-assignee context exists', async () => {
+      const legacyProfile = {
+        ...mockProfile,
+        id: 'legacy-profile',
+        userId: 'legacy-user',
+        baseSalary: 1000,
+        firstName: 'Legacy',
+        lastName: 'Staff',
+      };
+
+      mockProfileRepository.count.mockResolvedValueOnce(1);
+      mockProfileRepository.find.mockResolvedValueOnce([legacyProfile]);
+      mockWalletService.getOrCreateWalletWithManager.mockResolvedValueOnce({ payableBalance: 120 });
+
+      const result = await service.runPayroll();
+
+      expect(mockWalletService.getOrCreateWalletWithManager).toHaveBeenCalledWith(
+        mockQueryRunner.manager,
+        'legacy-user',
+      );
+      expect(mockWalletService.resetPayableBalance).toHaveBeenCalledWith(mockQueryRunner.manager, 'legacy-user');
+
+      const payoutSaves = mockQueryRunner.manager.save.mock.calls
+        .map((call) => call[0])
+        .filter((entity) => entity?.status === 'PENDING');
+      expect(payoutSaves[0]).toEqual(
+        expect.objectContaining({
+          amount: 1120,
+          commissionAmount: 120,
+          metadata: expect.objectContaining({ userId: 'legacy-user' }),
+        }),
+      );
+
+      expect(result.totalPayout).toBe(1120);
+      expect(result.totalEmployees).toBe(1);
+    });
+
     it('should skip employees with zero payout', async () => {
       mockProfileRepository.find.mockResolvedValueOnce([
         {

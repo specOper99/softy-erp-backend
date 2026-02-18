@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as CircuitBreaker from 'opossum';
 import {
+  BookingRescheduledStaffEmailData,
   BookingEmailData,
   EmailResult,
   EmailVerificationEmailData,
@@ -141,6 +142,31 @@ export class MailSenderService {
           clientName: data.clientName,
           eventDate: this.templateService.formatDate(data.eventDate),
           commission: this.templateService.formatCurrency(data.commission),
+        }),
+      ),
+    });
+  }
+
+  async sendBookingRescheduleNotification(data: BookingRescheduledStaffEmailData): Promise<EmailResult> {
+    const templateData = await this.templateService.resolveTemplate(
+      'booking-rescheduled-staff',
+      'booking-rescheduled-staff',
+      {
+        employeeName: data.employeeName,
+      },
+    );
+
+    return this.sendEmail({
+      to: data.employeeEmail,
+      subject: `Booking Rescheduled: ${data.bookingId}`,
+      logLabel: 'Booking reschedule notification',
+      resolutionResult: templateData,
+      context: this.templateService.sanitizeContext(
+        this.templateService.buildCommonContext({
+          employeeName: data.employeeName,
+          bookingId: data.bookingId,
+          eventDate: this.templateService.formatDate(data.eventDate),
+          startTime: data.startTime || 'Not specified',
         }),
       ),
     });

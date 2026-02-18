@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -40,6 +41,24 @@ export class BaseServicePackageDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: 120, description: 'Package duration in minutes' })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  durationMinutes?: number;
+
+  @ApiPropertyOptional({ example: 2, description: 'Minimum staff required for delivery' })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  requiredStaffCount?: number;
+
+  @ApiPropertyOptional({ example: 'REV-SERVICES' })
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  revenueAccountCode?: string;
 }
 
 export class BaseTaskTypeDto {
@@ -78,6 +97,21 @@ export class CreateServicePackageDto extends OmitType(BaseServicePackageDto, ['n
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
+
+  @ApiProperty({ example: 120, description: 'Package duration in minutes' })
+  @IsInt()
+  @Min(1)
+  durationMinutes: number;
+
+  @ApiProperty({ example: 2, description: 'Minimum staff required for delivery' })
+  @IsInt()
+  @Min(1)
+  requiredStaffCount: number;
+
+  @ApiProperty({ example: 'REV-SERVICES' })
+  @IsString()
+  @IsNotEmpty()
+  revenueAccountCode: string;
 }
 
 export class UpdateServicePackageDto extends PartialType(BaseServicePackageDto) {}
@@ -129,6 +163,15 @@ export class ServicePackageResponseDto extends OmitType(BaseServicePackageDto, [
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty()
+  durationMinutes: number;
+
+  @ApiProperty()
+  requiredStaffCount: number;
+
+  @ApiProperty()
+  revenueAccountCode: string;
 
   @ApiProperty()
   createdAt: Date;

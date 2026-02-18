@@ -13,6 +13,7 @@ import { BookingRepository } from '../../../src/modules/bookings/repositories/bo
 import { BookingStateMachineService } from '../../../src/modules/bookings/services/booking-state-machine.service';
 import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import { BookingWorkflowService } from '../../../src/modules/bookings/services/booking-workflow.service';
+import { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
 import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
@@ -101,6 +102,16 @@ describe('Booking -> Finance Integrity Integration', () => {
       get: jest.fn((_key: string, fallback?: number) => fallback),
     } as unknown as ConfigService;
 
+    const staffConflictService = {
+      checkPackageStaffAvailability: jest.fn().mockResolvedValue({
+        ok: true,
+        requiredStaffCount: 0,
+        eligibleCount: 0,
+        busyCount: 0,
+        availableCount: 0,
+      }),
+    } as unknown as StaffConflictService;
+
     return new BookingWorkflowService(
       financeService,
       auditPublisher,
@@ -108,10 +119,21 @@ describe('Booking -> Finance Integrity Integration', () => {
       configService,
       eventBus,
       new BookingStateMachineService(),
+      staffConflictService,
     );
   };
 
   const createBookingsService = (eventBus: EventBus): BookingsService => {
+    const staffConflictService = {
+      checkPackageStaffAvailability: jest.fn().mockResolvedValue({
+        ok: true,
+        requiredStaffCount: 0,
+        eligibleCount: 0,
+        busyCount: 0,
+        availableCount: 0,
+      }),
+    } as unknown as StaffConflictService;
+
     return new BookingsService(
       new BookingRepository(bookingRepository),
       {} as never,
@@ -122,6 +144,7 @@ describe('Booking -> Finance Integrity Integration', () => {
       {
         del: jest.fn().mockResolvedValue(undefined),
       } as never,
+      staffConflictService,
     );
   };
 
@@ -170,7 +193,7 @@ describe('Booking -> Finance Integrity Integration', () => {
       clientId: client.id,
       packageId: servicePackage.id,
       eventDate: new Date('2032-01-20T10:00:00.000Z'),
-      startTime: null,
+      startTime: '10:00',
       status: BookingStatus.DRAFT,
       subTotal,
       taxRate,

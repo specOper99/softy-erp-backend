@@ -13,7 +13,7 @@ export class PackageCreatedEvent implements IEvent {
     public readonly tenantId: string,
     public readonly name: string,
     public readonly price: number,
-    public readonly duration: number,
+    public readonly durationMinutes: number,
     public readonly isActive: boolean,
     public readonly createdAt: Date,
   ) {}

@@ -7,10 +7,21 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
+import { BookingStatus } from '../../bookings/enums/booking-status.enum';
+import { computeBookingWindow } from '../../bookings/utils/booking-window.util';
 import { WalletService } from '../../finance/services/wallet.service';
+import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { Role } from '../../users/enums/role.enum';
 import { UsersService } from '../../users/services/users.service';
-import { CreateProfileDto, CreateStaffDto, CreateStaffResponseDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
+import {
+  AvailabilityQueryDto,
+  AvailabilityWindowDto,
+  CreateProfileDto,
+  CreateStaffDto,
+  CreateStaffResponseDto,
+  ProfileFilterDto,
+  UpdateProfileDto,
+} from '../dto';
 import { Profile } from '../entities';
 import { ProfileRepository } from '../repositories/profile.repository';
 
@@ -93,6 +104,103 @@ export class HrService {
 
       throw error;
     }
+  }
+
+  async getAvailabilityWindows(query: AvailabilityQueryDto): Promise<AvailabilityWindowDto[]> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const filterByUser = query.userId ? 'AND rows.user_id = $4' : '';
+    const params = query.userId
+      ? [tenantId, query.start, query.end, query.userId, BookingStatus.CANCELLED, TaskStatus.CANCELLED]
+      : [tenantId, query.start, query.end, BookingStatus.CANCELLED, TaskStatus.CANCELLED];
+
+    const rawRows = await this.dataSource.query(
+      `
+      SELECT DISTINCT rows.user_id, rows.booking_id, rows.package_id, rows.event_date, rows.start_time, rows.duration_minutes
+      FROM (
+        SELECT
+          ta.user_id,
+          booking.id AS booking_id,
+          booking.package_id,
+          booking.event_date,
+          booking.start_time,
+          booking.duration_minutes
+        FROM task_assignees ta
+        INNER JOIN tasks task
+          ON task.id = ta.task_id
+          AND task.tenant_id = $1
+          AND task.deleted_at IS NULL
+        INNER JOIN bookings booking
+          ON booking.id = task.booking_id
+          AND booking.tenant_id = $1
+          AND booking.deleted_at IS NULL
+        WHERE ta.tenant_id = $1
+          AND booking.event_date >= $2
+          AND booking.event_date <= $3
+          AND booking.status != $${query.userId ? '5' : '4'}
+          AND task.status != $${query.userId ? '6' : '5'}
+          AND booking.start_time IS NOT NULL
+          AND booking.duration_minutes > 0
+
+        UNION ALL
+
+        SELECT
+          task.assigned_user_id AS user_id,
+          booking.id AS booking_id,
+          booking.package_id,
+          booking.event_date,
+          booking.start_time,
+          booking.duration_minutes
+        FROM tasks task
+        INNER JOIN bookings booking
+          ON booking.id = task.booking_id
+          AND booking.tenant_id = $1
+          AND booking.deleted_at IS NULL
+        WHERE task.tenant_id = $1
+          AND task.deleted_at IS NULL
+          AND task.assigned_user_id IS NOT NULL
+          AND booking.event_date >= $2
+          AND booking.event_date <= $3
+          AND booking.status != $${query.userId ? '5' : '4'}
+          AND task.status != $${query.userId ? '6' : '5'}
+          AND booking.start_time IS NOT NULL
+          AND booking.duration_minutes > 0
+      ) rows
+      WHERE 1 = 1
+      ${filterByUser}
+      ORDER BY rows.user_id ASC, rows.booking_id ASC
+      `,
+      params,
+    );
+
+    const windowsByAssignment = new Map<string, AvailabilityWindowDto>();
+
+    type AvailabilityRawRow = {
+      user_id: string;
+      booking_id: string;
+      package_id: string;
+      event_date: Date | string;
+      start_time: string;
+      duration_minutes: number | string;
+    };
+
+    for (const row of rawRows as AvailabilityRawRow[]) {
+      const key = `${row.user_id}:${row.booking_id}`;
+      if (windowsByAssignment.has(key)) {
+        continue;
+      }
+
+      const window = computeBookingWindow(new Date(row.event_date), row.start_time, Number(row.duration_minutes));
+      windowsByAssignment.set(key, {
+        userId: row.user_id,
+        bookingId: row.booking_id,
+        packageId: row.package_id,
+        start: window.start,
+        end: window.end,
+      });
+    }
+
+    return Array.from(windowsByAssignment.values());
   }
 
   // Profile Methods

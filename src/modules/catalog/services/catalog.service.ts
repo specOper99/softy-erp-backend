@@ -454,6 +454,9 @@ export class CatalogService {
       name: dto.newName,
       description: dto.description ?? sourcePackage.description,
       price: dto.newPrice ?? sourcePackage.price,
+      durationMinutes: sourcePackage.durationMinutes,
+      requiredStaffCount: sourcePackage.requiredStaffCount,
+      revenueAccountCode: sourcePackage.revenueAccountCode,
       isActive: true,
       isTemplate: false, // Clones are not templates by default
       templateCategory: null,

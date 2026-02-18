@@ -1,11 +1,29 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
-import { BudgetResponseDto, CreateBudgetDto, FinancialReportFilterDto } from '../dto';
+import {
+  BudgetResponseDto,
+  CreateBudgetDto,
+  FinancialReportFilterDto,
+  PackageProfitabilityDto,
+  ProfitabilityQueryDto,
+} from '../dto';
 import { DepartmentBudget } from '../entities/department-budget.entity';
+import { PurchaseInvoice } from '../entities/purchase-invoice.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { PnLEntry } from '../types/report.types';
+import { TaskStatus } from '../../tasks/enums/task-status.enum';
+import {
+  ClientStatementQueryDto,
+  EmployeeStatementQueryDto,
+  StatementLineDto,
+  StatementResponseDto,
+  StatementTotalsDto,
+  VendorStatementQueryDto,
+} from '../dto/statement.dto';
 
 import { DepartmentBudgetRepository } from '../repositories/department-budget.repository';
 import { TransactionRepository } from '../repositories/transaction.repository';
@@ -16,6 +34,8 @@ export class FinancialReportService {
     private readonly transactionRepository: TransactionRepository,
     private readonly budgetRepository: DepartmentBudgetRepository,
     private readonly cacheUtils: CacheUtilsService,
+    @InjectRepository(PurchaseInvoice)
+    private readonly purchaseInvoiceRepository: Repository<PurchaseInvoice>,
   ) {}
 
   // Cache TTL: 5 minutes for financial reports (staleness allowed for performance)
@@ -132,7 +152,7 @@ export class FinancialReportService {
   }
 
   async getBudgetReport(period: string): Promise<BudgetResponseDto[]> {
-    const _tenantId = TenantContextService.getTenantIdOrThrow();
+    TenantContextService.getTenantIdOrThrow();
 
     const budgets = await this.budgetRepository.find({
       where: { period },
@@ -200,4 +220,241 @@ export class FinancialReportService {
 
     return report;
   }
+
+  async getPackageProfitability(query: ProfitabilityQueryDto): Promise<PackageProfitabilityDto[]> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const rows = await this.transactionRepository
+      .createQueryBuilder('tq')
+      .select('b.package_id', 'packageId')
+      .addSelect(
+        `COALESCE(SUM((
+          SELECT COALESCE(SUM(CASE WHEN t.type = :incomeType THEN t.amount ELSE 0 END), 0)
+          FROM transactions t
+          WHERE t.tenant_id = b.tenant_id
+            AND t.booking_id = b.id
+            AND t.transaction_date >= :startDate
+            AND t.transaction_date <= :endDate
+        )), 0)`,
+        'revenue',
+      )
+      .addSelect(
+        `COALESCE(SUM((
+          SELECT COALESCE(SUM(CASE WHEN t.type = :expenseType THEN t.amount ELSE 0 END), 0)
+          FROM transactions t
+          WHERE t.tenant_id = b.tenant_id
+            AND t.booking_id = b.id
+            AND t.transaction_date >= :startDate
+            AND t.transaction_date <= :endDate
+        )), 0)`,
+        'expenses',
+      )
+      .addSelect(
+        `COALESCE(SUM((
+          SELECT COALESCE(
+            SUM(
+              CASE
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM task_assignees ta
+                  WHERE ta.tenant_id = task.tenant_id
+                    AND ta.task_id = task.id
+                ) THEN (
+                  SELECT COALESCE(SUM(ta2.commission_snapshot), 0)
+                  FROM task_assignees ta2
+                  WHERE ta2.tenant_id = task.tenant_id
+                    AND ta2.task_id = task.id
+                )
+                ELSE COALESCE(task.commission_snapshot, 0)
+              END
+            ),
+            0
+          )
+          FROM tasks task
+          WHERE task.tenant_id = b.tenant_id
+            AND task.booking_id = b.id
+            AND task.status = :completedTaskStatus
+        )), 0)`,
+        'commissions',
+      )
+      .from('bookings', 'b')
+      .where('b.tenant_id = :tenantId', { tenantId })
+      .andWhere('b.event_date >= :startDate', { startDate: query.startDate })
+      .andWhere('b.event_date <= :endDate', { endDate: query.endDate })
+      .groupBy('b.package_id')
+      .orderBy('revenue', 'DESC')
+      .setParameters({
+        incomeType: TransactionType.INCOME,
+        expenseType: TransactionType.EXPENSE,
+        completedTaskStatus: TaskStatus.COMPLETED,
+      })
+      .getRawMany<{
+        packageId: string;
+        revenue: string | number;
+        commissions: string | number;
+        expenses: string | number;
+      }>();
+
+    return rows
+      .map((row) => {
+        const revenue = MathUtils.parseFinancialAmount(row.revenue);
+        const commissions = MathUtils.parseFinancialAmount(row.commissions);
+        const expenses = MathUtils.parseFinancialAmount(row.expenses);
+
+        return {
+          packageId: row.packageId,
+          revenue,
+          commissions,
+          expenses,
+          netProfit: MathUtils.subtract(MathUtils.subtract(revenue, commissions), expenses),
+        };
+      })
+      .sort((a, b) => {
+        if (b.revenue !== a.revenue) {
+          return b.revenue - a.revenue;
+        }
+        return a.packageId.localeCompare(b.packageId);
+      });
+  }
+
+  async getClientStatement(query: ClientStatementQueryDto): Promise<StatementResponseDto> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const rows = await this.transactionRepository
+      .createQueryBuilder('t')
+      .innerJoin('bookings', 'b', 'b.id = t.booking_id AND b.tenant_id = t.tenant_id')
+      .select('t.id', 'id')
+      .addSelect('t.type', 'type')
+      .addSelect('t.amount', 'amount')
+      .addSelect('t.category', 'category')
+      .addSelect('t.description', 'description')
+      .addSelect('t.transaction_date', 'transactionDate')
+      .addSelect('t.booking_id', 'referenceId')
+      .addSelect('t.currency', 'currency')
+      .where('t.tenant_id = :tenantId', { tenantId })
+      .andWhere('b.client_id = :clientId', { clientId: query.clientId })
+      .andWhere('t.transaction_date >= :startDate', { startDate: query.startDate })
+      .andWhere('t.transaction_date <= :endDate', { endDate: query.endDate })
+      .andWhere('t.type IN (:...types)', {
+        types: [TransactionType.INCOME, TransactionType.EXPENSE],
+      })
+      .orderBy('t.transaction_date', 'ASC')
+      .addOrderBy('t.created_at', 'ASC')
+      .getRawMany<StatementRawRow>();
+
+    return this.buildStatementResponse(query.clientId, query.startDate, query.endDate, rows);
+  }
+
+  async getVendorStatement(query: VendorStatementQueryDto): Promise<StatementResponseDto> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const rows = await this.purchaseInvoiceRepository
+      .createQueryBuilder('pi')
+      .innerJoin('transactions', 't', 't.id = pi.transaction_id AND t.tenant_id = pi.tenant_id')
+      .select('t.id', 'id')
+      .addSelect('t.type', 'type')
+      .addSelect('t.amount', 'amount')
+      .addSelect('t.category', 'category')
+      .addSelect('t.description', 'description')
+      .addSelect('t.transaction_date', 'transactionDate')
+      .addSelect('pi.invoice_number', 'referenceId')
+      .addSelect('t.currency', 'currency')
+      .where('pi.tenant_id = :tenantId', { tenantId })
+      .andWhere('pi.vendor_id = :vendorId', { vendorId: query.vendorId })
+      .andWhere('pi.invoice_date >= :startDate', { startDate: query.startDate })
+      .andWhere('pi.invoice_date <= :endDate', { endDate: query.endDate })
+      .orderBy('pi.invoice_date', 'ASC')
+      .addOrderBy('pi.created_at', 'ASC')
+      .getRawMany<StatementRawRow>();
+
+    return this.buildStatementResponse(query.vendorId, query.startDate, query.endDate, rows);
+  }
+
+  async getEmployeeStatement(query: EmployeeStatementQueryDto): Promise<StatementResponseDto> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const rows = await this.transactionRepository
+      .createQueryBuilder('t')
+      .innerJoin('payouts', 'p', 'p.id = t.payout_id AND p.tenant_id = t.tenant_id')
+      .select('t.id', 'id')
+      .addSelect('t.type', 'type')
+      .addSelect('t.amount', 'amount')
+      .addSelect('t.category', 'category')
+      .addSelect('t.description', 'description')
+      .addSelect('t.transaction_date', 'transactionDate')
+      .addSelect('t.payout_id', 'referenceId')
+      .addSelect('t.currency', 'currency')
+      .where('t.tenant_id = :tenantId', { tenantId })
+      .andWhere('t.type = :type', { type: TransactionType.PAYROLL })
+      .andWhere('t.transaction_date >= :startDate', { startDate: query.startDate })
+      .andWhere('t.transaction_date <= :endDate', { endDate: query.endDate })
+      .andWhere("p.metadata->>'userId' = :userId", { userId: query.userId })
+      .orderBy('t.transaction_date', 'ASC')
+      .addOrderBy('t.created_at', 'ASC')
+      .getRawMany<StatementRawRow>();
+
+    return this.buildStatementResponse(query.userId, query.startDate, query.endDate, rows);
+  }
+
+  private buildStatementResponse(
+    entityId: string,
+    startDate: string,
+    endDate: string,
+    rows: StatementRawRow[],
+  ): StatementResponseDto {
+    const lines: StatementLineDto[] = rows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      amount: MathUtils.parseFinancialAmount(row.amount),
+      category: row.category,
+      description: row.description,
+      transactionDate: row.transactionDate instanceof Date ? row.transactionDate : new Date(row.transactionDate),
+      referenceId: row.referenceId ?? undefined,
+    }));
+
+    const totals = this.calculateStatementTotals(lines);
+
+    return {
+      entityId,
+      startDate,
+      endDate,
+      currency: rows[0]?.currency,
+      totals,
+      lines,
+    };
+  }
+
+  private calculateStatementTotals(lines: StatementLineDto[]): StatementTotalsDto {
+    const totals: StatementTotalsDto = {
+      income: 0,
+      expense: 0,
+      payroll: 0,
+      net: 0,
+    };
+
+    for (const line of lines) {
+      if (line.type === TransactionType.INCOME) {
+        totals.income += line.amount;
+      } else if (line.type === TransactionType.EXPENSE) {
+        totals.expense += line.amount;
+      } else if (line.type === TransactionType.PAYROLL) {
+        totals.payroll += line.amount;
+      }
+    }
+
+    totals.net = MathUtils.subtract(MathUtils.subtract(totals.income, totals.expense), totals.payroll);
+
+    return totals;
+  }
+}
+
+interface StatementRawRow {
+  id: string;
+  type: TransactionType;
+  amount: string | number;
+  category: string | null;
+  description: string | null;
+  transactionDate: Date | string;
+  referenceId: string | null;
+  currency: string;
 }

@@ -56,6 +56,9 @@ describe('Workflow Integration Tests (E2E)', () => {
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+        sendBookingRescheduleNotification: jest.fn().mockResolvedValue(undefined),
+        sendPaymentReceipt: jest.fn().mockResolvedValue(undefined),
+        sendCancellationEmail: jest.fn().mockResolvedValue(undefined),
       })
       .overrideProvider(DashboardGateway)
       .useValue(mockDashboardGateway)
@@ -139,6 +142,7 @@ describe('Workflow Integration Tests (E2E)', () => {
           eventDate: eventDate.toISOString(),
           packageId: packageId,
           notes: 'E2E workflow test booking',
+          startTime: '10:00',
         });
 
       // Debug if failed
@@ -323,6 +327,7 @@ describe('Workflow Integration Tests (E2E)', () => {
             eventDate: eventDate.toISOString(),
             packageId,
             notes: 'Rollback invariant booking',
+            startTime: '14:00',
           })
           .expect(201);
 

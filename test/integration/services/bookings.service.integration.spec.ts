@@ -18,6 +18,7 @@ import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { BookingStateMachineService } from '../../../src/modules/bookings/services/booking-state-machine.service';
 import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
+import { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { CatalogService } from '../../../src/modules/catalog/services/catalog.service';
 import { DashboardGateway } from '../../../src/modules/dashboard/dashboard.gateway';
@@ -123,6 +124,18 @@ describe('BookingsService Integration Tests', () => {
           provide: CacheUtilsService,
           useValue: {
             del: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: StaffConflictService,
+          useValue: {
+            checkPackageStaffAvailability: jest.fn().mockResolvedValue({
+              ok: true,
+              requiredStaffCount: 0,
+              eligibleCount: 0,
+              busyCount: 0,
+              availableCount: 0,
+            }),
           },
         },
       ],

@@ -271,6 +271,7 @@ export function createMockMailService() {
     // Direct send methods
     sendBookingConfirmation: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
     sendTaskAssignment: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
+    sendBookingRescheduleNotification: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
     sendPayrollNotification: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
     sendMagicLink: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
     sendPasswordReset: jest.fn().mockResolvedValue({ success: true, messageId: 'mock-id' }),
@@ -425,7 +426,9 @@ export function createMockDataSource() {
  */
 export function createMockCatalogService() {
   return {
-    findPackageById: jest.fn().mockResolvedValue({ id: 'pkg-1', price: 100, name: 'Test Package' }),
+    findPackageById: jest
+      .fn()
+      .mockResolvedValue({ id: 'pkg-1', price: 100, name: 'Test Package', durationMinutes: 60 }),
     findTaskTypeById: jest.fn().mockResolvedValue({ id: 'task-type-1', name: 'Test Task Type' }),
     findAllPackages: jest.fn().mockResolvedValue([]),
     findAllTaskTypes: jest.fn().mockResolvedValue([]),
@@ -576,6 +579,8 @@ export function createMockBooking(overrides: Partial<MockBooking> = {}): MockBoo
     packageId: 'pkg-1',
     status: 'DRAFT' as unknown as Booking['status'],
     eventDate: new Date(),
+    startTime: null,
+    durationMinutes: 60,
     totalPrice: 1000,
     amountPaid: 0,
     depositAmount: 200,
@@ -740,6 +745,9 @@ export function createMockServicePackage(overrides: Partial<MockServicePackage> 
     tenantId: 'tenant-123',
     name: 'Wedding Package',
     price: 5000,
+    durationMinutes: 60,
+    requiredStaffCount: 1,
+    revenueAccountCode: 'SERVICES',
     isActive: true,
     packageItems: [],
     createdAt: new Date(),

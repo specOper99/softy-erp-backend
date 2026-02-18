@@ -1,11 +1,49 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Validate,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
 
 // Transaction DTOs
+@ValidatorConstraint({ name: 'negativeAmountRefundOrReversal', async: false })
+class NegativeAmountRefundOrReversalConstraint implements ValidatorConstraintInterface {
+  validate(amount: number, args?: ValidationArguments): boolean {
+    if (amount >= 0) {
+      return true;
+    }
+
+    const dto = args?.object as CreateTransactionDto | undefined;
+    if (!dto) {
+      return false;
+    }
+    if (dto.type !== TransactionType.INCOME) {
+      return false;
+    }
+
+    const hasBookingId = typeof dto.bookingId === 'string' && dto.bookingId.trim().length > 0;
+    const normalizedCategory = typeof dto.category === 'string' ? dto.category.toLowerCase() : '';
+    const hasRefundOrReversalMarker = normalizedCategory.includes('refund') || normalizedCategory.includes('reversal');
+
+    return hasBookingId || hasRefundOrReversalMarker;
+  }
+
+  defaultMessage(): string {
+    return 'amount can be negative only for INCOME refunds/reversals with bookingId or refund/reversal category';
+  }
+}
+
 export class CreateTransactionDto {
   @ApiProperty({ enum: TransactionType })
   @IsEnum(TransactionType)
@@ -13,7 +51,7 @@ export class CreateTransactionDto {
 
   @ApiProperty({ example: 1500.0 })
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @Validate(NegativeAmountRefundOrReversalConstraint)
   amount: number;
 
   @ApiPropertyOptional({ example: 'Booking Payment' })

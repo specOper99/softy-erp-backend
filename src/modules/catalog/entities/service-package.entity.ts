@@ -13,6 +13,15 @@ export class ServicePackage extends BaseTenantEntity {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   price: number;
 
+  @Column({ name: 'duration_minutes', type: 'int', default: 60 })
+  durationMinutes: number;
+
+  @Column({ name: 'required_staff_count', type: 'int', default: 1 })
+  requiredStaffCount: number;
+
+  @Column({ name: 'revenue_account_code', type: 'varchar', length: 64, default: 'SERVICES' })
+  revenueAccountCode: string;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

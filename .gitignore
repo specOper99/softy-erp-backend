@@ -113,3 +113,4 @@ scripts/load-testing/reports/
 
 # Git worktrees
 .worktrees/
+tenant-contract-report.txt

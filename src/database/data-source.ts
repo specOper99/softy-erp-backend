@@ -23,6 +23,7 @@ import { Attachment } from '../modules/media/entities/attachment.entity';
 import { NotificationPreference } from '../modules/notifications/entities/notification-preference.entity';
 import { Consent } from '../modules/privacy/entities/consent.entity';
 import { Task } from '../modules/tasks/entities/task.entity';
+import { TaskAssignee } from '../modules/tasks/entities/task-assignee.entity';
 import { TimeEntry } from '../modules/tasks/entities/time-entry.entity';
 import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
@@ -39,6 +40,7 @@ import { UserPreference } from '../modules/dashboard/entities/user-preference.en
 import { DepartmentBudget } from '../modules/finance/entities/department-budget.entity';
 import { Attendance } from '../modules/hr/entities/attendance.entity';
 import { PerformanceReview } from '../modules/hr/entities/performance-review.entity';
+import { TaskTypeEligibility } from '../modules/hr/entities/task-type-eligibility.entity';
 import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
 import { ImpersonationSession } from '../modules/platform/entities/impersonation-session.entity';
 import { PlatformSession } from '../modules/platform/entities/platform-session.entity';
@@ -63,6 +65,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Booking,
     Client,
     Task,
+    TaskAssignee,
     TimeEntry,
     OutboxEvent,
     Transaction,
@@ -88,6 +91,7 @@ export const dataSourceOptions: DataSourceOptions = {
     DepartmentBudget,
     Attendance,
     PerformanceReview,
+    TaskTypeEligibility,
     PlatformUser,
     PlatformSession,
     PlatformAuditLog,

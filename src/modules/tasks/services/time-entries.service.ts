@@ -49,6 +49,8 @@ export class TimeEntriesService {
         status: TimeEntryStatus.RUNNING,
         billable: dto.billable ?? false,
         notes: dto.notes,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
       });
 
       return manager.save(timeEntry);
@@ -71,6 +73,14 @@ export class TimeEntriesService {
 
     if (dto?.notes) {
       timeEntry.notes = dto.notes;
+    }
+
+    if (dto?.latitude !== undefined) {
+      timeEntry.latitude = dto.latitude;
+    }
+
+    if (dto?.longitude !== undefined) {
+      timeEntry.longitude = dto.longitude;
     }
 
     timeEntry.stop(dto?.endTime ? new Date(dto.endTime) : undefined);

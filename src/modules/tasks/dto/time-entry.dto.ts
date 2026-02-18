@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class StartTimeEntryDto {
   @ApiProperty({ description: 'Task ID to track time for' })
@@ -15,6 +15,20 @@ export class StartTimeEntryDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Latitude coordinate in decimal degrees (-90 to 90)' })
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  @IsOptional()
+  latitude?: number;
+
+  @ApiPropertyOptional({ description: 'Longitude coordinate in decimal degrees (-180 to 180)' })
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  @IsOptional()
+  longitude?: number;
 }
 
 export class StopTimeEntryDto {
@@ -27,6 +41,20 @@ export class StopTimeEntryDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Latitude coordinate in decimal degrees (-90 to 90)' })
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  @IsOptional()
+  latitude?: number;
+
+  @ApiPropertyOptional({ description: 'Longitude coordinate in decimal degrees (-180 to 180)' })
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  @IsOptional()
+  longitude?: number;
 }
 
 export class UpdateTimeEntryDto {

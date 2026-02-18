@@ -1,6 +1,18 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiErrorResponses, Roles } from '../../../common/decorators';
+import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards';
@@ -8,8 +20,17 @@ import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
+import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { CreateProfileDto, CreateStaffDto, CreateStaffResponseDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
+import {
+  AvailabilityQueryDto,
+  AvailabilityWindowDto,
+  CreateProfileDto,
+  CreateStaffDto,
+  CreateStaffResponseDto,
+  ProfileFilterDto,
+  UpdateProfileDto,
+} from '../dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
 
@@ -101,6 +122,28 @@ export class HrController {
   @ApiOperation({ summary: 'Get all profiles with cursor pagination (no filters)' })
   findAllProfilesCursor(@Query() query: CursorPaginationDto) {
     return this.hrService.findAllProfilesCursor(query);
+  }
+
+  @Get('availability')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
+  @ApiOperation({ summary: 'Get reserved availability windows by staff' })
+  @ApiQuery({ name: 'start', required: true, type: String })
+  @ApiQuery({ name: 'end', required: true, type: String })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiResponse({ status: 200, type: AvailabilityWindowDto, isArray: true })
+  getAvailability(@Query() query: AvailabilityQueryDto, @CurrentUser() user: User) {
+    if (user.role === Role.FIELD_STAFF) {
+      if (query.userId && query.userId !== user.id) {
+        throw new ForbiddenException('Field staff can only fetch their own availability');
+      }
+
+      return this.hrService.getAvailabilityWindows({
+        ...query,
+        userId: user.id,
+      });
+    }
+
+    return this.hrService.getAvailabilityWindows(query);
   }
 
   @Get('profiles/:id')

@@ -2,7 +2,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Cache } from 'cache-manager';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../catalog/entities/service-package.entity';
@@ -63,6 +63,8 @@ export class AvailabilityService {
     const month = parseInt(monthStr || '0', 10);
     const day = parseInt(dayStr || '0', 10);
     const targetDate = new Date(Date.UTC(year, month - 1, day));
+    // Start of next day for range query (exclusive upper bound)
+    const nextDayDate = new Date(Date.UTC(year, month - 1, day + 1));
 
     // Validate date is within booking window
     const now = new Date();
@@ -126,15 +128,14 @@ export class AvailabilityService {
       tenant.defaultBookingDurationHours ?? 2,
     );
 
-    // Query confirmed bookings for this date
     const bookings = await this.bookingRepository.find({
       where: {
         tenantId,
         packageId,
-        eventDate: targetDate,
+        eventDate: Raw((alias) => `${alias} >= :targetDate AND ${alias} < :nextDayDate`, { targetDate, nextDayDate }),
         status: BookingStatus.CONFIRMED,
       },
-      select: ['startTime'],
+      select: ['startTime', 'eventDate'],
     });
 
     // Count bookings per slot

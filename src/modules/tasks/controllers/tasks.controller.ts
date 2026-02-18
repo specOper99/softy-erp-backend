@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
@@ -7,7 +19,7 @@ import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { AssignTaskDto, TaskFilterDto, UpdateTaskDto } from '../dto';
+import { AddTaskAssigneeDto, AssignTaskDto, TaskFilterDto, UpdateTaskAssigneeDto, UpdateTaskDto } from '../dto';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TasksService } from '../services/tasks.service';
 
@@ -136,6 +148,56 @@ export class TasksController {
   @ApiResponse({ status: 404, description: 'Task not found' })
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTaskDto) {
     return this.tasksService.assignTask(id, dto);
+  }
+
+  @Post(':id/assignees')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Add assignee to task' })
+  @ApiResponse({ status: 201, description: 'Task assignee created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid assignee payload' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Task or user not found' })
+  addAssignee(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddTaskAssigneeDto) {
+    return this.tasksService.addTaskAssignee(id, dto);
+  }
+
+  @Get(':id/assignees')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
+  @ApiOperation({ summary: 'List task assignees' })
+  @ApiResponse({ status: 200, description: 'Task assignees retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  listAssignees(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.tasksService.listTaskAssignees(id, user);
+  }
+
+  @Patch(':id/assignees/:userId')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Update task assignee role' })
+  @ApiResponse({ status: 200, description: 'Task assignee updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid assignee payload' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Task assignee not found' })
+  updateAssignee(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: UpdateTaskAssigneeDto,
+  ) {
+    return this.tasksService.updateTaskAssignee(id, userId, dto);
+  }
+
+  @Delete(':id/assignees/:userId')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Remove assignee from task' })
+  @ApiResponse({ status: 200, description: 'Task assignee removed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Task assignee not found' })
+  removeAssignee(@Param('id', ParseUUIDPipe) id: string, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.tasksService.removeTaskAssignee(id, userId);
   }
 
   @Patch(':id/start')

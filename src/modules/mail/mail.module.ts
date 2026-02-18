@@ -12,6 +12,7 @@ import { EmailTemplatesController } from './controllers/email-templates.controll
 import { EmailTemplate } from './entities/email-template.entity';
 import { BookingCancelledHandler } from './handlers/booking-cancelled.handler';
 import { BookingConfirmedMailHandler } from './handlers/booking-confirmed.handler';
+import { BookingRescheduledHandler } from './handlers/booking-rescheduled.handler';
 import { PaymentReceivedHandler } from './handlers/payment-received.handler';
 import { TaskAssignedHandler } from './handlers/task-assigned.handler';
 import { MailService } from './mail.service';
@@ -79,6 +80,7 @@ export const createMailerOptions = (configService: ConfigService): MailerOptions
     EmailProcessor,
     BookingConfirmedMailHandler,
     BookingCancelledHandler,
+    BookingRescheduledHandler,
     PaymentReceivedHandler,
     TaskAssignedHandler,
     // TenantAware repository factory for EmailTemplate

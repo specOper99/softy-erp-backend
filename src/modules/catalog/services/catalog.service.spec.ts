@@ -34,6 +34,9 @@ describe('CatalogService', () => {
     tenantId: mockTenantId,
     name: 'Wedding Package',
     price: 5000,
+    durationMinutes: 120,
+    requiredStaffCount: 2,
+    revenueAccountCode: 'REV-SERVICES',
     isActive: true,
     packageItems: [],
   });
@@ -125,6 +128,9 @@ describe('CatalogService', () => {
         name: 'Wedding Package',
         price: 5000,
         description: 'Test',
+        durationMinutes: 120,
+        requiredStaffCount: 2,
+        revenueAccountCode: 'REV-SERVICES',
       };
       packageRepo.create.mockReturnValue(mockPackage as unknown as ServicePackage);
       packageRepo.save.mockResolvedValue(mockPackage as unknown as ServicePackage);
@@ -140,7 +146,14 @@ describe('CatalogService', () => {
     });
 
     it('should reject zero price package', async () => {
-      const dto: CreateServicePackageDto = { name: 'Free Package', price: 0, description: 'Test' };
+      const dto: CreateServicePackageDto = {
+        name: 'Free Package',
+        price: 0,
+        description: 'Test',
+        durationMinutes: 60,
+        requiredStaffCount: 1,
+        revenueAccountCode: 'REV-SERVICES',
+      };
       await expect(service.createPackage(dto)).rejects.toThrow('catalog.price_must_be_positive');
     });
   });

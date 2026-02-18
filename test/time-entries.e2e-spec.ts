@@ -39,6 +39,9 @@ describe('Time Entries E2E Tests', () => {
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
+        sendBookingRescheduleNotification: jest.fn().mockResolvedValue(undefined),
+        sendPaymentReceipt: jest.fn().mockResolvedValue(undefined),
+        sendCancellationEmail: jest.fn().mockResolvedValue(undefined),
       })
       .compile();
 
@@ -95,6 +98,7 @@ describe('Time Entries E2E Tests', () => {
           clientId,
           eventDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           packageId,
+          startTime: '10:00',
         });
       const bookingId = bookingRes.body.data?.id;
 

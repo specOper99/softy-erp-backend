@@ -231,6 +231,10 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      ".integration.spec.ts$"
+    ],
     "setupFilesAfterEnv": [
       "<rootDir>/../test/jest-setup.ts"
     ],

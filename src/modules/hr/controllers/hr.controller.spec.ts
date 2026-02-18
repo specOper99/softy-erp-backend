@@ -1,7 +1,10 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantsService } from '../../tenants/tenants.service';
-import { CreateProfileDto, CreateStaffDto, UpdateProfileDto } from '../dto/hr.dto';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
+import { AvailabilityQueryDto, CreateProfileDto, CreateStaffDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
 import { HrController } from './hr.controller';
@@ -28,6 +31,7 @@ describe('HrController', () => {
             findProfileByUserId: jest.fn().mockResolvedValue(mockProfile),
             updateProfile: jest.fn().mockResolvedValue(mockProfile),
             deleteProfile: jest.fn().mockResolvedValue(undefined),
+            getAvailabilityWindows: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -66,7 +70,7 @@ describe('HrController', () => {
 
   describe('findAllProfilesWithFilters', () => {
     it('should call service.findAllProfilesWithFilters', async () => {
-      const query = {};
+      const query = {} as ProfileFilterDto;
       await controller.findAllProfilesWithFilters(query);
       expect(service.findAllProfilesWithFilters).toHaveBeenCalledWith(query);
     });
@@ -116,6 +120,32 @@ describe('HrController', () => {
     it('should call service.runPayroll', async () => {
       await controller.runPayroll();
       expect(payrollService.runPayroll).toHaveBeenCalled();
+    });
+  });
+
+  describe('getAvailability', () => {
+    it('should call service.getAvailabilityWindows', async () => {
+      const query = {
+        start: '2026-03-01T00:00:00.000Z',
+        end: '2026-03-31T23:59:59.999Z',
+      } as AvailabilityQueryDto;
+      const user = { id: 'ops-user-id', role: Role.OPS_MANAGER } as User;
+
+      await controller.getAvailability(query, user);
+
+      expect(service.getAvailabilityWindows).toHaveBeenCalledWith(query);
+    });
+
+    it('should throw forbidden for field staff requesting another userId', async () => {
+      const query = {
+        start: '2026-03-01T00:00:00.000Z',
+        end: '2026-03-31T23:59:59.999Z',
+        userId: 'someone-else',
+      } as AvailabilityQueryDto;
+      const user = { id: 'field-user-id', role: Role.FIELD_STAFF } as User;
+
+      expect(() => controller.getAvailability(query, user)).toThrow(ForbiddenException);
+      expect(service.getAvailabilityWindows).not.toHaveBeenCalled();
     });
   });
 });

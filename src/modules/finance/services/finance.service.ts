@@ -98,7 +98,7 @@ export class FinanceService {
     tenantId: string;
   }> {
     // Validate transaction amount with comprehensive checks
-    this.validateTransactionAmount(data.amount, data.currency);
+    this.validateTransactionAmount(data);
 
     const tenant = await this.tenantsService.findOne(tenantId);
     if (!tenant) {
@@ -130,15 +130,33 @@ export class FinanceService {
    * Validates transaction amount with comprehensive checks for financial operations.
    * Prevents fraud, rounding errors, and data corruption.
    */
-  private validateTransactionAmount(amount: number, currency?: Currency): void {
+  private validateTransactionAmount(data: {
+    type: TransactionType;
+    amount: number;
+    currency?: Currency;
+    category?: string;
+    bookingId?: string;
+  }): void {
+    const { amount, currency, type, category, bookingId } = data;
+
     // Must be a valid finite number
     if (!Number.isFinite(amount)) {
       throw new BadRequestException('finance.amount_must_be_valid_number');
     }
 
-    // Must be positive
-    if (amount <= 0) {
+    if (amount === 0) {
       throw new BadRequestException('finance.amount_must_be_positive');
+    }
+
+    if (amount < 0) {
+      const normalizedCategory = typeof category === 'string' ? category.toLowerCase() : '';
+      const hasBookingId = typeof bookingId === 'string' && bookingId.trim().length > 0;
+      const hasRefundOrReversalMarker =
+        normalizedCategory.includes('refund') || normalizedCategory.includes('reversal');
+
+      if (type !== TransactionType.INCOME || (!hasBookingId && !hasRefundOrReversalMarker)) {
+        throw new BadRequestException('finance.amount_must_be_positive');
+      }
     }
 
     if (currency && !Object.values(Currency).includes(currency)) {
@@ -155,7 +173,7 @@ export class FinanceService {
     }
 
     // Maximum amount validation
-    if (decimalAmount.greaterThan('999999999.99')) {
+    if (decimalAmount.abs().greaterThan('999999999.99')) {
       throw new BadRequestException('finance.amount_exceeds_maximum');
     }
 
