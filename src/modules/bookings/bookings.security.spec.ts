@@ -13,6 +13,7 @@ import { BookingStateMachineService } from './services/booking-state-machine.ser
 import { BookingsService } from './services/bookings.service';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { Task } from '../tasks/entities/task.entity';
+import { StaffConflictService } from './services/staff-conflict.service';
 
 describe('Bookings Security Test', () => {
   let service: BookingsService;
@@ -48,6 +49,7 @@ describe('Bookings Security Test', () => {
         { provide: FinanceService, useValue: {} },
         { provide: AuditService, useValue: {} },
         { provide: BookingStateMachineService, useValue: {} },
+        { provide: StaffConflictService, useValue: { checkPackageStaffAvailability: jest.fn() } },
         { provide: CacheUtilsService, useValue: { del: jest.fn(), invalidateByPattern: jest.fn() } },
         { provide: DataSource, useValue: {} },
         { provide: EventBus, useValue: {} },
@@ -57,7 +59,7 @@ describe('Bookings Security Test', () => {
     service = module.get<BookingsService>(BookingsService);
   });
 
-  it('should allow FIELD_STAFF to see all bookings (current insecurity)', async () => {
+  it('should filter FIELD_STAFF to only see bookings assigned via tasks', async () => {
     const fieldStaffUser = {
       id: 'user-123',
       role: Role.FIELD_STAFF,
@@ -65,15 +67,19 @@ describe('Bookings Security Test', () => {
 
     await service.findAll(new BookingFilterDto(), fieldStaffUser);
 
-    // Current behavior: YES filtering by assigned tasks
-    expect(mockQueryBuilder.innerJoin).toHaveBeenCalledWith(
-      Task,
-      'task',
-      'task.bookingId = booking.id AND task.tenantId = booking.tenantId',
-    );
-    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('task.assignedUserId = :userId', {
+    // Verify leftJoinAndSelect is used for tasks
+    expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(Task, 'tasks', expect.any(String));
+
+    // Verify EXISTS predicate uses both task_assignees join table and legacy assigned_user_id
+    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(expect.stringContaining('EXISTS'), {
       userId: fieldStaffUser.id,
     });
+
+    // Verify the predicate includes task_assignees reference
+    const andWhereCall = (mockQueryBuilder.andWhere as jest.Mock).mock.calls[0];
+    expect(andWhereCall[0]).toMatch(/task_assignees/i);
+    expect(andWhereCall[0]).toMatch(/assigned_user_id/i);
+    expect(andWhereCall[1]).toEqual({ userId: fieldStaffUser.id });
   });
 
   it('should NOT filter for ADMIN users', async () => {

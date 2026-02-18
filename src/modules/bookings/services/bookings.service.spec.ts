@@ -1,8 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import {
   createMockAuditService,
   createMockBooking,
@@ -18,6 +19,8 @@ import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { User } from '../../users/entities/user.entity';
+import { Role } from '../../users/enums/role.enum';
 import { CreateBookingDto } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCreatedEvent } from '../events/booking-created.event';
@@ -28,6 +31,7 @@ import { BookingRepository } from '../repositories/booking.repository';
 import { BookingStateMachineService } from './booking-state-machine.service';
 import { BookingsService } from './bookings.service';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { StaffConflictService } from './staff-conflict.service';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -38,6 +42,7 @@ describe('BookingsService', () => {
   let dataSource: ReturnType<typeof createMockDataSource>;
   let eventBus: ReturnType<typeof createMockEventBus>;
   let stateMachine: ReturnType<typeof createMockBookingStateMachine>;
+  let staffConflictService: { checkPackageStaffAvailability: jest.Mock };
 
   const mockBooking = createMockBooking({
     id: 'booking-123',
@@ -47,6 +52,15 @@ describe('BookingsService', () => {
     clientId: 'client-1',
     packageId: 'pkg-1',
   });
+
+  const expectFieldStaffRbacWithBackwardCompatibility = (queryBuilder: { andWhere: jest.Mock }): void => {
+    const rbacCall = queryBuilder.andWhere.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('task_assignees'),
+    );
+    expect(rbacCall).toBeDefined();
+    expect(rbacCall[0]).toContain('assigned_user_id');
+    expect(rbacCall[1]).toEqual({ userId: 'user-1' });
+  };
 
   beforeEach(async () => {
     mockTenantContext('tenant-123');
@@ -58,6 +72,15 @@ describe('BookingsService', () => {
     dataSource = createMockDataSource();
     eventBus = createMockEventBus();
     stateMachine = createMockBookingStateMachine();
+    staffConflictService = {
+      checkPackageStaffAvailability: jest.fn().mockResolvedValue({
+        ok: true,
+        requiredStaffCount: 1,
+        eligibleCount: 1,
+        busyCount: 0,
+        availableCount: 1,
+      }),
+    };
 
     // Override dataSource transaction to return mock booking
     dataSource.transaction.mockImplementation((cb) =>
@@ -111,6 +134,10 @@ describe('BookingsService', () => {
             get: jest.fn(),
           },
         },
+        {
+          provide: StaffConflictService,
+          useValue: staffConflictService,
+        },
       ],
     }).compile();
 
@@ -126,6 +153,13 @@ describe('BookingsService', () => {
         notes: 'Test booking',
       };
 
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-1',
+        price: 100,
+        name: 'Test Package',
+        durationMinutes: 90,
+      });
+
       bookingRepository.create.mockReturnValue(mockBooking);
       bookingRepository.save.mockResolvedValue(mockBooking);
 
@@ -138,6 +172,7 @@ describe('BookingsService', () => {
           status: BookingStatus.DRAFT,
           amountPaid: 0,
           refundAmount: 0,
+          durationMinutes: 90,
           paymentStatus: PaymentStatus.UNPAID,
           // tenantId should NOT be manually passed here, but repository handles it.
           // The service passes an object WITHOUT tenantId to repository.create.
@@ -154,6 +189,32 @@ describe('BookingsService', () => {
       expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingCreatedEvent));
     });
 
+    it('should snapshot durationMinutes from selected package', async () => {
+      const dto: CreateBookingDto = {
+        clientId: 'client-1',
+        packageId: 'pkg-1',
+        eventDate: new Date(Date.now() + 86400000).toISOString(),
+        startTime: '10:00',
+      };
+
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-1',
+        price: 100,
+        name: 'Test Package',
+        durationMinutes: 120,
+      });
+      bookingRepository.create.mockReturnValue(mockBooking);
+      bookingRepository.save.mockResolvedValue(mockBooking);
+
+      await service.create(dto);
+
+      expect(bookingRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          durationMinutes: 120,
+        }),
+      );
+    });
+
     it('should round tax amount to 2 decimal places', async () => {
       const dto: CreateBookingDto = {
         clientId: 'client-1',
@@ -162,7 +223,7 @@ describe('BookingsService', () => {
         taxRate: 10.125,
       };
 
-      catalogService.findPackageById.mockResolvedValue({ price: 100 });
+      catalogService.findPackageById.mockResolvedValue({ price: 100, durationMinutes: 60 });
       bookingRepository.create.mockReturnValue(mockBooking);
       bookingRepository.save.mockResolvedValue(mockBooking);
 
@@ -184,6 +245,33 @@ describe('BookingsService', () => {
       };
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject create when staff conflict exists', async () => {
+      const dto: CreateBookingDto = {
+        clientId: 'client-1',
+        packageId: 'pkg-1',
+        eventDate: new Date(Date.now() + 86400000).toISOString(),
+        startTime: '10:00',
+      };
+
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-1',
+        price: 100,
+        name: 'Test Package',
+        durationMinutes: 90,
+      });
+
+      staffConflictService.checkPackageStaffAvailability.mockResolvedValue({
+        ok: false,
+        requiredStaffCount: 2,
+        eligibleCount: 2,
+        busyCount: 1,
+        availableCount: 1,
+      });
+
+      await expect(service.create(dto)).rejects.toThrow(ConflictException);
+      expect(bookingRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -308,6 +396,44 @@ describe('BookingsService', () => {
       // Verify tenantId WAS used in where clause for tenant isolation
       expect(queryBuilder.where).toHaveBeenCalledWith('booking.tenantId = :tenantId', { tenantId: 'tenant-123' });
     });
+
+    it('should filter FIELD_STAFF bookings using task assignee mapping', async () => {
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([mockBooking]),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      await service.findAll(undefined, { id: 'user-1', role: Role.FIELD_STAFF } as User);
+
+      expectFieldStaffRbacWithBackwardCompatibility(queryBuilder);
+    });
+  });
+
+  describe('findAllCursor', () => {
+    it('should filter FIELD_STAFF bookings using task assignee mapping and legacy assigned user fallback', async () => {
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      const paginateSpy = jest
+        .spyOn(CursorPaginationHelper, 'paginate')
+        .mockResolvedValue({ data: [mockBooking as never], nextCursor: null } as never);
+
+      await service.findAllCursor({ limit: 10 } as never, { id: 'user-1', role: Role.FIELD_STAFF } as User);
+
+      expectFieldStaffRbacWithBackwardCompatibility(queryBuilder);
+      paginateSpy.mockRestore();
+    });
   });
 
   describe('findOne', () => {
@@ -328,6 +454,22 @@ describe('BookingsService', () => {
       expect(result).toEqual(mockBooking);
       expect(bookingRepository.createQueryBuilder).toHaveBeenCalledWith('booking');
       expect(queryBuilder.andWhere).toHaveBeenCalledWith('booking.id = :id', { id: 'booking-123' });
+    });
+
+    it('should filter FIELD_STAFF booking visibility using task assignee mapping and legacy assigned user fallback', async () => {
+      const queryBuilder = {
+        andWhere: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockBooking),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      await service.findOne('booking-123', { id: 'user-1', role: Role.FIELD_STAFF } as User);
+
+      expectFieldStaffRbacWithBackwardCompatibility(queryBuilder);
     });
   });
 });

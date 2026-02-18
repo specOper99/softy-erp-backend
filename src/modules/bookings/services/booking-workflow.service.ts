@@ -1,22 +1,29 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
+import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
+import { Transaction } from '../../finance/entities/transaction.entity';
 import { FinanceService } from '../../finance/services/finance.service';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
+import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import { Task } from '../../tasks/entities/task.entity';
+import { TimeEntry, TimeEntryStatus } from '../../tasks/entities/time-entry.entity';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
-import { CancelBookingDto, ConfirmBookingResponseDto } from '../dto';
+import { User } from '../../users/entities/user.entity';
+import { CancelBookingDto, ConfirmBookingResponseDto, RescheduleBookingDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCancelledEvent } from '../events/booking-cancelled.event';
 import { BookingCompletedEvent } from '../events/booking-completed.event';
 import { BookingConfirmedEvent } from '../events/booking-confirmed.event';
 import { BookingCreatedEvent } from '../events/booking-created.event';
+import { BookingRescheduledEvent } from '../events/booking-rescheduled.event';
 import { BookingStateMachineService } from './booking-state-machine.service';
+import { StaffConflictService } from './staff-conflict.service';
 
 @Injectable()
 export class BookingWorkflowService {
@@ -27,6 +34,7 @@ export class BookingWorkflowService {
     private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
+    private readonly staffConflictService: StaffConflictService,
   ) {}
 
   /**
@@ -64,6 +72,21 @@ export class BookingWorkflowService {
       }
 
       this.stateMachine.validateTransition(booking.status, BookingStatus.CONFIRMED);
+
+      if (!booking.startTime) {
+        throw new BadRequestException('booking.start_time_required_for_confirmation');
+      }
+
+      booking.durationMinutes = booking.servicePackage?.durationMinutes ?? booking.durationMinutes;
+
+      if (booking.startTime && booking.durationMinutes > 0) {
+        await this.ensureNoStaffConflict({
+          packageId: booking.packageId,
+          eventDate: booking.eventDate,
+          startTime: booking.startTime,
+          durationMinutes: booking.durationMinutes,
+        });
+      }
 
       booking.status = BookingStatus.CONFIRMED;
       await manager.save(booking);
@@ -158,6 +181,15 @@ export class BookingWorkflowService {
 
     // Use a transaction for consistency
     const savedBooking = await this.dataSource.transaction(async (manager) => {
+      const bookingLock = await manager.findOne(Booking, {
+        where: { id, tenantId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!bookingLock) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
       const booking = await manager.findOne(Booking, {
         where: { id, tenantId },
         relations: ['client'],
@@ -165,6 +197,97 @@ export class BookingWorkflowService {
 
       if (!booking) {
         throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      if (booking.status === BookingStatus.CANCELLED) {
+        return booking;
+      }
+
+      const bookingTasks = await manager.find(Task, {
+        where: { bookingId: booking.id, tenantId },
+      });
+
+      if (bookingTasks.some((task) => task.status === TaskStatus.COMPLETED)) {
+        throw new BadRequestException('booking.cannot_cancel_with_completed_tasks');
+      }
+
+      if (bookingTasks.length > 0) {
+        await manager.save(
+          Task,
+          bookingTasks.map((task) => ({ ...task, status: TaskStatus.CANCELLED })),
+        );
+      }
+
+      const taskIds = bookingTasks.map((task) => task.id);
+      const taskAssigneesByTaskId = new Map<string, TaskAssignee[]>();
+      if (taskIds.length > 0) {
+        const taskAssignees = await manager.find(TaskAssignee, {
+          where: taskIds.map((taskId) => ({ tenantId, taskId })),
+        });
+
+        for (const assignee of taskAssignees) {
+          const existing = taskAssigneesByTaskId.get(assignee.taskId) ?? [];
+          existing.push(assignee);
+          taskAssigneesByTaskId.set(assignee.taskId, existing);
+        }
+      }
+
+      for (const task of bookingTasks) {
+        const taskAssignees = taskAssigneesByTaskId.get(task.id) ?? [];
+        if (taskAssignees.length > 0) {
+          for (const assignee of taskAssignees) {
+            const assigneeCommission = Number(assignee.commissionSnapshot) || 0;
+            if (assigneeCommission > 0) {
+              await this.financeService.transferPendingCommission(
+                manager,
+                assignee.userId,
+                undefined,
+                assigneeCommission,
+              );
+            }
+          }
+          continue;
+        }
+
+        const legacyCommission = Number(task.commissionSnapshot) || 0;
+        if (task.assignedUserId && legacyCommission > 0) {
+          await this.financeService.transferPendingCommission(
+            manager,
+            task.assignedUserId,
+            undefined,
+            legacyCommission,
+          );
+        }
+      }
+
+      const bookingIncomeTransactions = await manager.find(Transaction, {
+        where: {
+          tenantId,
+          bookingId: booking.id,
+          type: TransactionType.INCOME,
+        },
+      });
+
+      const reversalAmount = bookingIncomeTransactions.reduce((sum, transaction) => {
+        const amount = Number(transaction.amount) || 0;
+        return amount > 0 ? sum + amount : sum;
+      }, 0);
+
+      const hasExistingReversal = bookingIncomeTransactions.some((transaction) => {
+        const amount = Number(transaction.amount) || 0;
+        const category = (transaction.category || '').toLowerCase();
+        return amount < 0 || category.includes('refund') || category.includes('reversal');
+      });
+
+      if (reversalAmount > 0 && !hasExistingReversal) {
+        await this.financeService.createTransactionWithManager(manager, {
+          type: TransactionType.INCOME,
+          amount: -reversalAmount,
+          category: 'Booking Reversal',
+          bookingId: booking.id,
+          description: `Booking cancellation reversal: ${booking.client?.name || 'Unknown Client'}`,
+          transactionDate: new Date(),
+        });
       }
 
       const oldStatus = booking.status;
@@ -274,6 +397,123 @@ export class BookingWorkflowService {
     return savedBooking;
   }
 
+  async rescheduleBooking(id: string, dto: RescheduleBookingDto): Promise<Booking> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    let eventToPublish: BookingRescheduledEvent | null = null;
+
+    const savedBooking = await this.dataSource.transaction(async (manager) => {
+      const booking = await manager.findOne(Booking, {
+        where: { id, tenantId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      if (booking.status !== BookingStatus.CONFIRMED) {
+        throw new BadRequestException('booking.only_confirmed_can_be_rescheduled');
+      }
+
+      const nextEventDate = new Date(dto.eventDate);
+      const oneHourFromNow = new Date(Date.now() + BUSINESS_CONSTANTS.BOOKING.MIN_LEAD_TIME_MS);
+      if (nextEventDate < oneHourFromNow) {
+        throw new BadRequestException('booking.event_date_must_be_future');
+      }
+
+      if (booking.packageId && booking.durationMinutes > 0) {
+        await this.ensureNoStaffConflict({
+          packageId: booking.packageId,
+          eventDate: nextEventDate,
+          startTime: dto.startTime,
+          durationMinutes: booking.durationMinutes,
+          excludeBookingId: booking.id,
+        });
+      }
+
+      const bookingTasks = await manager.find(Task, {
+        where: { bookingId: booking.id, tenantId },
+      });
+
+      if (bookingTasks.some((task) => task.status === TaskStatus.IN_PROGRESS)) {
+        throw new BadRequestException('booking.cannot_reschedule_with_in_progress_tasks');
+      }
+
+      if (bookingTasks.some((task) => task.status === TaskStatus.COMPLETED)) {
+        throw new BadRequestException('booking.cannot_reschedule_with_completed_tasks');
+      }
+
+      const taskIds = bookingTasks.map((task) => task.id);
+
+      if (taskIds.length > 0) {
+        const activeTimeEntries = await manager.find(TimeEntry, {
+          where: taskIds.map((taskId) => ({
+            tenantId,
+            taskId,
+            status: TimeEntryStatus.RUNNING,
+          })),
+        });
+
+        if (activeTimeEntries.length > 0) {
+          throw new BadRequestException('booking.cannot_reschedule_with_active_time_entries');
+        }
+
+        await manager.save(
+          Task,
+          bookingTasks.map((task) => ({
+            ...task,
+            dueDate: nextEventDate,
+          })),
+        );
+      }
+
+      const staffUserIds = new Set<string>();
+
+      if (taskIds.length > 0) {
+        const taskAssignees = await manager.find(TaskAssignee, {
+          where: taskIds.map((taskId) => ({ tenantId, taskId })),
+        });
+
+        for (const assignee of taskAssignees) {
+          staffUserIds.add(assignee.userId);
+        }
+      }
+
+      for (const task of bookingTasks) {
+        if (task.assignedUserId) {
+          staffUserIds.add(task.assignedUserId);
+        }
+      }
+
+      const notificationUsers =
+        staffUserIds.size > 0
+          ? await manager.find(User, {
+              where: [...staffUserIds].map((staffUserId) => ({
+                tenantId,
+                id: staffUserId,
+              })),
+            })
+          : [];
+
+      const staffEmails = [...new Set(notificationUsers.map((user) => user.email).filter((email) => !!email))];
+
+      booking.eventDate = nextEventDate;
+      booking.startTime = dto.startTime;
+
+      const saved = await manager.save(booking);
+
+      eventToPublish = new BookingRescheduledEvent(saved.id, tenantId, saved.eventDate, saved.startTime, staffEmails);
+
+      return saved;
+    });
+
+    if (eventToPublish) {
+      this.eventBus.publish(eventToPublish);
+    }
+
+    return savedBooking;
+  }
+
   async duplicateBooking(id: string): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
@@ -291,6 +531,8 @@ export class BookingWorkflowService {
       clientId: booking.clientId,
       eventDate: booking.eventDate,
       packageId: booking.packageId,
+      startTime: booking.startTime,
+      durationMinutes: booking.durationMinutes,
       notes: booking.notes ? `[Copy] ${booking.notes} ` : '[Copy]',
       totalPrice: booking.totalPrice,
       subTotal: booking.subTotal,
@@ -331,5 +573,30 @@ export class BookingWorkflowService {
     );
 
     return savedBooking;
+  }
+
+  private async ensureNoStaffConflict(input: {
+    packageId: string;
+    eventDate: Date;
+    startTime: string;
+    durationMinutes: number;
+    excludeBookingId?: string;
+  }): Promise<void> {
+    const availability = await this.staffConflictService.checkPackageStaffAvailability(input);
+
+    if (availability.ok) {
+      return;
+    }
+
+    throw new ConflictException({
+      code: 'BOOKING_STAFF_CONFLICT',
+      message: 'booking.staff_conflict تعارض',
+      details: {
+        requiredStaffCount: availability.requiredStaffCount,
+        eligibleCount: availability.eligibleCount,
+        busyCount: availability.busyCount,
+        availableCount: availability.availableCount,
+      },
+    });
   }
 }

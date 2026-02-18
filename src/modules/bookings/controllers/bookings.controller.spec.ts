@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { BookingFilterDto, CancelBookingDto, CreateBookingDto, UpdateBookingDto } from '../dto';
+import { BookingFilterDto, CancelBookingDto, CreateBookingDto, RescheduleBookingDto, UpdateBookingDto } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
 import { BookingWorkflowService } from '../services/booking-workflow.service';
@@ -39,6 +39,7 @@ describe('BookingsController', () => {
           provide: BookingWorkflowService,
           useValue: {
             confirmBooking: jest.fn().mockResolvedValue(mockBooking),
+            rescheduleBooking: jest.fn().mockResolvedValue(mockBooking),
             cancelBooking: jest.fn().mockResolvedValue(mockBooking),
             completeBooking: jest.fn().mockResolvedValue(mockBooking),
             duplicateBooking: jest.fn().mockResolvedValue(mockBooking),
@@ -117,6 +118,18 @@ describe('BookingsController', () => {
     it('should call workflowService.cancelBooking', async () => {
       await controller.cancel('uuid', {} as CancelBookingDto);
       expect(workflowService.cancelBooking).toHaveBeenCalledWith('uuid', {});
+    });
+  });
+
+  describe('reschedule', () => {
+    it('should call workflowService.rescheduleBooking', async () => {
+      const dto = {
+        eventDate: new Date(Date.now() + 172800000).toISOString(),
+        startTime: '12:00',
+      } as RescheduleBookingDto;
+
+      await controller.reschedule('uuid', dto);
+      expect(workflowService.rescheduleBooking).toHaveBeenCalledWith('uuid', dto);
     });
   });
 

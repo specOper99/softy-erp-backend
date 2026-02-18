@@ -22,6 +22,9 @@ export class Booking extends BaseTenantEntity {
   @Column({ name: 'start_time', type: 'varchar', length: 5, nullable: true })
   startTime: string | null;
 
+  @Column({ name: 'duration_minutes', type: 'int', default: 0 })
+  durationMinutes: number;
+
   @Column({
     type: 'enum',
     enum: BookingStatus,

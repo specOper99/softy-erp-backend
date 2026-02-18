@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
@@ -37,6 +37,7 @@ import { BookingStateMachineService } from './booking-state-machine.service';
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { StaffConflictService } from './staff-conflict.service';
 
 @Injectable()
 export class BookingsService {
@@ -51,6 +52,7 @@ export class BookingsService {
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
     private readonly cacheUtils: CacheUtilsService,
+    private readonly staffConflictService: StaffConflictService,
   ) {}
 
   async create(dto: CreateBookingDto): Promise<Booking> {
@@ -84,12 +86,22 @@ export class BookingsService {
 
     const pricing = BookingPriceCalculator.calculate(priceInput);
 
+    if (dto.startTime && pkg.durationMinutes > 0) {
+      await this.ensureNoStaffConflict({
+        packageId: dto.packageId,
+        eventDate,
+        startTime: dto.startTime,
+        durationMinutes: pkg.durationMinutes,
+      });
+    }
+
     const booking = this.bookingRepository.create({
       clientId: dto.clientId,
       eventDate: new Date(dto.eventDate),
       packageId: dto.packageId,
       notes: dto.notes,
       startTime: dto.startTime ?? null,
+      durationMinutes: pkg.durationMinutes,
       subTotal: pricing.subTotal,
       taxRate: pricing.taxRate,
       taxAmount: pricing.taxAmount,
@@ -184,8 +196,25 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.innerJoin(Task, 'task', 'task.bookingId = booking.id AND task.tenantId = booking.tenantId');
-      qb.andWhere('task.assignedUserId = :userId', { userId: user.id });
+      qb.andWhere(
+        `(EXISTS (
+          SELECT 1
+          FROM tasks t
+          INNER JOIN task_assignees ta
+            ON ta.task_id = t.id
+            AND ta.tenant_id = t.tenant_id
+          WHERE t.booking_id = booking.id
+            AND t.tenant_id = booking."tenant_id"
+            AND ta.user_id = :userId
+        ) OR EXISTS (
+          SELECT 1
+          FROM tasks t
+          WHERE t.booking_id = booking.id
+            AND t.tenant_id = booking."tenant_id"
+            AND t.assigned_user_id = :userId
+        ))`,
+        { userId: user.id },
+      );
     }
 
     if (query.startDate) {
@@ -241,8 +270,25 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.innerJoin(Task, 'task', 'task.bookingId = booking.id AND task.tenantId = booking.tenantId');
-      qb.andWhere('task.assignedUserId = :userId', { userId: user.id });
+      qb.andWhere(
+        `(EXISTS (
+          SELECT 1
+          FROM tasks t
+          INNER JOIN task_assignees ta
+            ON ta.task_id = t.id
+            AND ta.tenant_id = t.tenant_id
+          WHERE t.booking_id = booking.id
+            AND t.tenant_id = booking."tenant_id"
+            AND ta.user_id = :userId
+        ) OR EXISTS (
+          SELECT 1
+          FROM tasks t
+          WHERE t.booking_id = booking.id
+            AND t.tenant_id = booking."tenant_id"
+            AND t.assigned_user_id = :userId
+        ))`,
+        { userId: user.id },
+      );
     }
 
     return CursorPaginationHelper.paginate(qb, {
@@ -272,9 +318,25 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.andWhere('EXISTS (SELECT 1 FROM task t WHERE t."bookingId" = booking.id AND t."assignedUserId" = :userId)', {
-        userId: user.id,
-      });
+      qb.andWhere(
+        `(EXISTS (
+          SELECT 1
+          FROM tasks t
+          INNER JOIN task_assignees ta
+            ON ta.task_id = t.id
+            AND ta.tenant_id = t.tenant_id
+          WHERE t.booking_id = booking.id
+            AND t.tenant_id = booking."tenant_id"
+            AND ta.user_id = :userId
+        ) OR EXISTS (
+          SELECT 1
+          FROM tasks t
+          WHERE t.booking_id = booking.id
+            AND t.tenant_id = booking."tenant_id"
+            AND t.assigned_user_id = :userId
+        ))`,
+        { userId: user.id },
+      );
     }
 
     const booking = await qb.getOne();
@@ -302,6 +364,12 @@ export class BookingsService {
 
     if (dto.status && dto.status !== existingBooking.status) {
       this.stateMachine.validateTransition(existingBooking.status, dto.status);
+    }
+
+    const nextStatus = dto.status ?? existingBooking.status;
+    const nextStartTime = dto.startTime ?? existingBooking.startTime;
+    if (nextStatus !== BookingStatus.DRAFT && !nextStartTime) {
+      throw new BadRequestException('booking.start_time_required_for_non_draft');
     }
 
     if (dto.eventDate) {
@@ -355,6 +423,9 @@ export class BookingsService {
     if (dto.notes !== undefined) {
       allowedChanges.notes = dto.notes;
     }
+    if (dto.startTime !== undefined) {
+      allowedChanges.startTime = dto.startTime;
+    }
     if (dto.status !== undefined) {
       allowedChanges.status = dto.status;
     }
@@ -383,7 +454,7 @@ export class BookingsService {
       );
     }
 
-    if ((dto.eventDate || dto.status) && savedBooking.packageId) {
+    if ((dto.eventDate || dto.status || dto.startTime) && savedBooking.packageId) {
       try {
         const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
         const pkgId = savedBooking.packageId as string;
@@ -499,6 +570,30 @@ export class BookingsService {
       amount: remaining,
       paymentMethod: dto.paymentMethod,
       reference: dto.reference,
+    });
+  }
+
+  private async ensureNoStaffConflict(input: {
+    packageId: string;
+    eventDate: Date;
+    startTime: string;
+    durationMinutes: number;
+  }): Promise<void> {
+    const availability = await this.staffConflictService.checkPackageStaffAvailability(input);
+
+    if (availability.ok) {
+      return;
+    }
+
+    throw new ConflictException({
+      code: 'BOOKING_STAFF_CONFLICT',
+      message: 'booking.staff_conflict تعارض',
+      details: {
+        requiredStaffCount: availability.requiredStaffCount,
+        eligibleCount: availability.eligibleCount,
+        busyCount: availability.busyCount,
+        availableCount: availability.availableCount,
+      },
     });
   }
 }

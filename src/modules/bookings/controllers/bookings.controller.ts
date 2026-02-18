@@ -26,6 +26,7 @@ import {
   CreateBookingDto,
   MarkBookingPaidDto,
   RecordPaymentDto,
+  RescheduleBookingDto,
   UpdateBookingDto,
 } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
@@ -161,6 +162,16 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   confirm(@Param('id', ParseUUIDPipe) id: string) {
     return this.bookingWorkflowService.confirmBooking(id);
+  }
+
+  @Patch(':id/reschedule')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Reschedule booking date and start time' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiBody({ type: RescheduleBookingDto })
+  @ApiResponse({ status: 200, description: 'Booking rescheduled' })
+  reschedule(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RescheduleBookingDto) {
+    return this.bookingWorkflowService.rescheduleBooking(id, dto);
   }
 
   @Get(':id/tasks')

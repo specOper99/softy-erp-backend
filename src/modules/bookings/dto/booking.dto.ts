@@ -59,6 +59,13 @@ export class UpdateBookingDto {
   @IsOptional()
   eventDate?: string;
 
+  @ApiPropertyOptional({ description: 'Start time in HH:mm format', example: '14:30' })
+  @Matches(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/, {
+    message: 'startTime must be in HH:mm format',
+  })
+  @IsOptional()
+  startTime?: string;
+
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
@@ -73,6 +80,18 @@ export class UpdateBookingDto {
   @IsEnum(BookingStatus)
   @IsOptional()
   status?: BookingStatus;
+}
+
+export class RescheduleBookingDto {
+  @ApiProperty({ example: '2024-12-31T18:00:00Z' })
+  @IsDateString()
+  eventDate: string;
+
+  @ApiProperty({ description: 'Start time in HH:mm format', example: '14:30' })
+  @Matches(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/, {
+    message: 'startTime must be in HH:mm format',
+  })
+  startTime: string;
 }
 
 export class ClientResponseDto {
@@ -104,6 +123,12 @@ export class BookingResponseDto {
 
   @ApiProperty()
   eventDate: Date;
+
+  @ApiPropertyOptional({ description: 'Start time in HH:mm format', example: '14:30' })
+  startTime?: string | null;
+
+  @ApiProperty({ description: 'Snapshot of package duration in minutes', example: 120 })
+  durationMinutes: number;
 
   @ApiProperty({
     enum: BookingStatus,

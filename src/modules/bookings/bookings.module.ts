@@ -1,8 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogModule } from '../catalog/catalog.module';
+import { PackageItem } from '../catalog/entities/package-item.entity';
+import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceModule } from '../finance/finance.module';
+import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
 import { MailModule } from '../mail/mail.module';
+import { TaskAssignee } from '../tasks/entities/task-assignee.entity';
+import { Task } from '../tasks/entities/task.entity';
+import { User } from '../users/entities/user.entity';
 import { BookingsController } from './controllers/bookings.controller';
 import { ClientsController } from './controllers/clients.controller';
 import { Booking } from './entities/booking.entity';
@@ -19,10 +25,20 @@ import { BookingStateMachineService } from './services/booking-state-machine.ser
 import { BookingWorkflowService } from './services/booking-workflow.service';
 import { BookingsService } from './services/bookings.service';
 import { ClientsService } from './services/clients.service';
+import { StaffConflictService } from './services/staff-conflict.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, Client]),
+    TypeOrmModule.forFeature([
+      Booking,
+      Client,
+      ServicePackage,
+      PackageItem,
+      TaskTypeEligibility,
+      User,
+      TaskAssignee,
+      Task,
+    ]),
     FinanceModule,
     CatalogModule,
     TenantsModule,
@@ -40,6 +56,7 @@ import { ClientsService } from './services/clients.service';
     ExportService,
     BookingRepository,
     ClientRepository,
+    StaffConflictService,
   ],
   exports: [
     BookingsService,
