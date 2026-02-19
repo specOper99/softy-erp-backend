@@ -8,6 +8,7 @@ import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { TransformInterceptor } from '../../common/interceptors';
+import { IpRateLimitGuard } from '../../common/guards/ip-rate-limit.guard';
 import { Client } from './entities/client.entity';
 import { Booking } from './entities/booking.entity';
 import { BookingStatus } from './enums/booking-status.enum';
@@ -367,6 +368,7 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
     process.env.DB_DATABASE = dbConfig.database;
     process.env.DB_SYNCHRONIZE = 'false';
     process.env.DISABLE_RATE_LIMITING = 'true';
+    process.env.RATE_LIMIT_ENABLED = 'false';
     process.env.SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
     process.env.SEED_STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD || 'softYERP123!';
     process.env.JWT_SECRET = process.env.JWT_SECRET || 'integrationJwtSecret12345678901234567890';
@@ -391,6 +393,8 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
     })
       .overrideGuard(ThrottlerGuard)
       .useClass(MockThrottlerGuard)
+      .overrideGuard(IpRateLimitGuard)
+      .useValue({ canActivate: () => true })
       .overrideProvider(MailService)
       .useValue({
         sendBookingConfirmation: jest.fn().mockResolvedValue(undefined),
@@ -486,6 +490,60 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
       .expect(409);
 
     expect(rescheduleConflictResponse.body.code).toBe('BOOKING_STAFF_CONFLICT');
+  });
+
+  it('returns deterministic availability verdict with conflict reasons', async () => {
+    const fixture = await bootstrapTenantFixture();
+    const conflictEventDate = createFutureDate(34);
+
+    const bookedId = await createBooking(fixture, {
+      eventDate: conflictEventDate,
+      startTime: '10:00',
+    });
+
+    const confirmResponse = await confirmBooking(fixture, bookedId);
+    expect(confirmResponse.status).toBe(200);
+    await assignBookingTasks(fixture, bookedId);
+
+    const conflictAvailability = await request(app.getHttpServer())
+      .get('/api/v1/bookings/availability')
+      .query({
+        packageId: fixture.packageId,
+        eventDate: conflictEventDate,
+        startTime: '10:00',
+      })
+      .set('Host', fixture.tenantHost)
+      .set('Authorization', `Bearer ${fixture.adminToken}`)
+      .expect(200);
+
+    expect(conflictAvailability.body.data.available).toBe(false);
+    expect(conflictAvailability.body.data.conflictReasons).toHaveLength(1);
+    expect(conflictAvailability.body.data.conflictReasons[0]).toMatchObject({
+      code: 'BOOKING_STAFF_CONFLICT',
+      message: 'Requested window has staff assignment conflict',
+      details: {
+        requiredStaffCount: 1,
+        eligibleCount: 1,
+        busyCount: 1,
+        availableCount: 0,
+      },
+    });
+
+    const freeAvailability = await request(app.getHttpServer())
+      .get('/api/v1/bookings/availability')
+      .query({
+        packageId: fixture.packageId,
+        eventDate: conflictEventDate,
+        startTime: '12:00',
+      })
+      .set('Host', fixture.tenantHost)
+      .set('Authorization', `Bearer ${fixture.adminToken}`)
+      .expect(200);
+
+    expect(freeAvailability.body.data).toEqual({
+      available: true,
+      conflictReasons: [],
+    });
   });
 
   it('blocks reschedule when tasks are in progress', async () => {

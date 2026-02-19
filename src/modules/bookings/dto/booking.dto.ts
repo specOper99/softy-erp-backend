@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, Min } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
@@ -180,4 +181,81 @@ export class ConfirmBookingResponseDto {
 
   @ApiProperty()
   transactionId: string;
+}
+
+export enum BookingAvailabilityConflictCode {
+  StaffConflict = 'BOOKING_STAFF_CONFLICT',
+}
+
+export class BookingAvailabilityQueryDto {
+  @ApiProperty({ format: 'uuid', description: 'Service package ID to evaluate' })
+  @IsUUID()
+  packageId: string;
+
+  @ApiProperty({
+    description: 'Booking date (ISO 8601 date-time or date)',
+    example: '2026-02-20T00:00:00.000Z',
+  })
+  @IsDateString()
+  eventDate: string;
+
+  @ApiProperty({ description: 'Requested start time in HH:mm format', example: '14:30' })
+  @Matches(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/, {
+    message: 'startTime must be in HH:mm format',
+  })
+  startTime: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional duration override in minutes (falls back to package duration when omitted)',
+    minimum: 1,
+    example: 120,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  durationMinutes?: number;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Exclude an existing booking (useful during reschedule checks)',
+  })
+  @IsOptional()
+  @IsUUID()
+  excludeBookingId?: string;
+}
+
+export class BookingAvailabilityConflictReasonDto {
+  @ApiProperty({ enum: BookingAvailabilityConflictCode })
+  code: BookingAvailabilityConflictCode;
+
+  @ApiProperty({ description: 'Human-readable reason' })
+  message: string;
+
+  @ApiProperty({
+    description: 'Conflict details payload',
+    example: {
+      requiredStaffCount: 3,
+      eligibleCount: 4,
+      busyCount: 2,
+      availableCount: 2,
+    },
+  })
+  details: {
+    requiredStaffCount: number;
+    eligibleCount: number;
+    busyCount: number;
+    availableCount: number;
+  };
+}
+
+export class BookingAvailabilityResponseDto {
+  @ApiProperty({ description: 'True when requested window is available' })
+  available: boolean;
+
+  @ApiProperty({
+    type: [BookingAvailabilityConflictReasonDto],
+    description: 'List of blocking conflicts; empty when available=true',
+  })
+  conflictReasons: BookingAvailabilityConflictReasonDto[];
 }

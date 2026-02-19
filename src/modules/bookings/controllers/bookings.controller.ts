@@ -21,6 +21,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import {
+  BookingAvailabilityQueryDto,
+  BookingAvailabilityResponseDto,
   BookingFilterDto,
   CancelBookingDto,
   CreateBookingDto,
@@ -111,6 +113,18 @@ export class BookingsController {
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   exportBookings(@Res() res: Response) {
     return this.bookingExportService.exportBookingsToCSV(res);
+  }
+
+  @Get('availability')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({
+    summary: 'Check booking availability with deterministic conflict reasons',
+    description:
+      'Returns availability verdict for a requested date/time window and includes conflict reasons when unavailable.',
+  })
+  @ApiResponse({ status: 200, description: 'Availability check completed', type: BookingAvailabilityResponseDto })
+  checkAvailability(@Query() query: BookingAvailabilityQueryDto) {
+    return this.bookingsService.checkAvailability(query);
   }
 
   @Get(':id')

@@ -1,20 +1,24 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
 
 export class CreateClientDto {
+  @ApiProperty({ description: 'Client full name', example: 'Ahmed Ali' })
   @IsString()
   @IsNotEmpty()
   @SanitizeHtml()
   name: string;
 
+  @ApiProperty({ description: 'Client email address', example: 'ahmed@example.com' })
   @IsEmail()
   email: string;
 
+  @ApiProperty({ description: 'Client phone number', example: '+9647701234567' })
   @IsString()
   @IsNotEmpty()
   phone: string;
 
+  @ApiPropertyOptional({ description: 'Optional notes about the client' })
   @IsString()
   @IsOptional()
   @SanitizeHtml()

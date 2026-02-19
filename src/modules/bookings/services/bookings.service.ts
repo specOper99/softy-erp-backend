@@ -16,6 +16,9 @@ import { Task } from '../../tasks/entities/task.entity';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import {
+  BookingAvailabilityConflictCode,
+  BookingAvailabilityQueryDto,
+  BookingAvailabilityResponseDto,
   BookingFilterDto,
   BookingSortBy,
   CreateBookingDto,
@@ -571,6 +574,39 @@ export class BookingsService {
       paymentMethod: dto.paymentMethod,
       reference: dto.reference,
     });
+  }
+
+  async checkAvailability(query: BookingAvailabilityQueryDto): Promise<BookingAvailabilityResponseDto> {
+    const staffAvailability = await this.staffConflictService.checkPackageStaffAvailability({
+      packageId: query.packageId,
+      eventDate: new Date(query.eventDate),
+      startTime: query.startTime,
+      durationMinutes: query.durationMinutes,
+      excludeBookingId: query.excludeBookingId,
+    });
+
+    if (staffAvailability.ok) {
+      return {
+        available: true,
+        conflictReasons: [],
+      };
+    }
+
+    return {
+      available: false,
+      conflictReasons: [
+        {
+          code: BookingAvailabilityConflictCode.StaffConflict,
+          message: 'Requested window has staff assignment conflict',
+          details: {
+            requiredStaffCount: staffAvailability.requiredStaffCount,
+            eligibleCount: staffAvailability.eligibleCount,
+            busyCount: staffAvailability.busyCount,
+            availableCount: staffAvailability.availableCount,
+          },
+        },
+      ],
+    };
   }
 
   private async ensureNoStaffConflict(input: {

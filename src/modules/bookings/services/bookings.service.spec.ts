@@ -472,4 +472,57 @@ describe('BookingsService', () => {
       expectFieldStaffRbacWithBackwardCompatibility(queryBuilder);
     });
   });
+
+  describe('checkAvailability', () => {
+    it('should return available=true with empty conflicts when staff availability is ok', async () => {
+      staffConflictService.checkPackageStaffAvailability.mockResolvedValue({
+        ok: true,
+        requiredStaffCount: 2,
+        eligibleCount: 3,
+        busyCount: 1,
+        availableCount: 2,
+      });
+
+      const result = await service.checkAvailability({
+        packageId: 'pkg-1',
+        eventDate: '2099-01-01T00:00:00.000Z',
+        startTime: '09:00',
+      });
+
+      expect(result).toEqual({
+        available: true,
+        conflictReasons: [],
+      });
+    });
+
+    it('should return BOOKING_STAFF_CONFLICT reason when unavailable', async () => {
+      staffConflictService.checkPackageStaffAvailability.mockResolvedValue({
+        ok: false,
+        requiredStaffCount: 3,
+        eligibleCount: 4,
+        busyCount: 2,
+        availableCount: 2,
+      });
+
+      const result = await service.checkAvailability({
+        packageId: 'pkg-1',
+        eventDate: '2099-01-01T00:00:00.000Z',
+        startTime: '09:00',
+      });
+
+      expect(result.available).toBe(false);
+      expect(result.conflictReasons).toEqual([
+        {
+          code: 'BOOKING_STAFF_CONFLICT',
+          message: 'Requested window has staff assignment conflict',
+          details: {
+            requiredStaffCount: 3,
+            eligibleCount: 4,
+            busyCount: 2,
+            availableCount: 2,
+          },
+        },
+      ]);
+    });
+  });
 });

@@ -2,7 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { BookingFilterDto, CancelBookingDto, CreateBookingDto, RescheduleBookingDto, UpdateBookingDto } from '../dto';
+import {
+  BookingAvailabilityQueryDto,
+  BookingFilterDto,
+  CancelBookingDto,
+  CreateBookingDto,
+  RescheduleBookingDto,
+  UpdateBookingDto,
+} from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
 import { BookingWorkflowService } from '../services/booking-workflow.service';
@@ -27,6 +34,7 @@ describe('BookingsController', () => {
           provide: BookingsService,
           useValue: {
             create: jest.fn().mockResolvedValue(mockBooking),
+            checkAvailability: jest.fn().mockResolvedValue({ available: true, conflictReasons: [] }),
             findAll: jest.fn().mockResolvedValue([mockBooking]),
             findAllCursor: jest.fn().mockResolvedValue({ data: [mockBooking], nextCursor: null }),
             findOne: jest.fn().mockResolvedValue(mockBooking),
@@ -82,6 +90,19 @@ describe('BookingsController', () => {
     it('should call service.findAll', async () => {
       await controller.findAll({} as BookingFilterDto, mockUser);
       expect(service.findAll).toHaveBeenCalledWith({}, mockUser);
+    });
+  });
+
+  describe('checkAvailability', () => {
+    it('should call service.checkAvailability', async () => {
+      const query = {
+        packageId: '11111111-1111-4111-8111-111111111111',
+        eventDate: '2099-01-01T00:00:00.000Z',
+        startTime: '10:00',
+      } as BookingAvailabilityQueryDto;
+
+      await controller.checkAvailability(query);
+      expect(service.checkAvailability).toHaveBeenCalledWith(query);
     });
   });
 
