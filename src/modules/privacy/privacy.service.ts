@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { EventBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import archiver from 'archiver';
-import { createWriteStream, promises as fs } from 'node:fs';
+import { createReadStream, createWriteStream, promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { In, Repository } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../common/constants/business.constants';
@@ -167,7 +167,11 @@ export class PrivacyService {
 
     const [profile, tasks] = await Promise.all([
       this.profileRepository.findOne({ where: { userId, tenantId } }),
-      this.taskRepository.find({ where: { assignedUserId: userId, tenantId } }),
+      this.taskRepository.find({
+        where: { assignedUserId: userId, tenantId },
+        take: BUSINESS_CONSTANTS.PRIVACY.MAX_RECORDS_PER_TABLE,
+        order: { createdAt: 'DESC', id: 'DESC' },
+      }),
     ]);
 
     const taskIds = tasks.map((task) => task.id);
@@ -292,11 +296,17 @@ export class PrivacyService {
       );
     }
 
-    const buffer = await fs.readFile(localPath);
     const key = `privacy-exports/${filename}`;
-    await this.storageService.uploadFile(buffer, key, 'application/zip');
-
-    await fs.unlink(localPath);
+    try {
+      const fileStream = createReadStream(localPath);
+      await this.storageService.uploadFile(fileStream, key, 'application/zip');
+    } finally {
+      try {
+        await fs.unlink(localPath);
+      } catch (error) {
+        this.logger.warn(`Failed to cleanup temp file: ${localPath}`, error);
+      }
+    }
 
     return { filePath: localPath, key };
   }

@@ -50,6 +50,7 @@ export class StorageService implements OnModuleInit {
     'video/mp4',
     'video/webm',
     'application/pdf',
+    'application/zip',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ]);
@@ -75,14 +76,14 @@ export class StorageService implements OnModuleInit {
   /**
    * Upload a file to MinIO
    */
-  async uploadFile(buffer: Buffer, key: string, mimeType: string): Promise<UploadedFile> {
+  async uploadFile(body: Buffer | Readable, key: string, mimeType: string): Promise<UploadedFile> {
     // Security: Validate MIME type against whitelist
     this.validateMimeType(mimeType);
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
-      Body: buffer,
+      Body: body,
       ContentType: mimeType,
     });
 

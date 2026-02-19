@@ -39,8 +39,12 @@ export class AuditProcessor extends WorkerHost {
 
   async process(job: Job<AuditLogJobData, void, string>): Promise<void> {
     if (job.name === 'log') {
-      // Ensure tenant context is available for the entire audit log processing
-      const tenantId = job.data.tenantId ?? 'system';
+      const tenantId = typeof job.data.tenantId === 'string' ? job.data.tenantId.trim() : '';
+      if (tenantId === '') {
+        job.discard();
+        throw new Error('Invalid audit job payload: tenantId is required');
+      }
+
       return TenantContextService.run(tenantId, () => this.handleLog(job.data));
     }
   }

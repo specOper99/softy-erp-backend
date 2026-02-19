@@ -22,15 +22,20 @@ export class EmailProcessor extends WorkerHost {
 
     // Extract tenantId from job payload (new format: job.data.data.tenantId).
     // Keep a backwards-compatible fallback for legacy payloads that placed tenantId at job.data.tenantId.
-    let tenantId = 'system';
+    let tenantId = '';
     const tenantIdFromData = (job.data.data as unknown as { tenantId?: unknown }).tenantId;
     if (typeof tenantIdFromData === 'string' && tenantIdFromData.trim() !== '') {
-      tenantId = tenantIdFromData;
+      tenantId = tenantIdFromData.trim();
     } else {
       const tenantIdFromEnvelope = (job.data as unknown as { tenantId?: unknown }).tenantId;
       if (typeof tenantIdFromEnvelope === 'string' && tenantIdFromEnvelope.trim() !== '') {
-        tenantId = tenantIdFromEnvelope;
+        tenantId = tenantIdFromEnvelope.trim();
       }
+    }
+
+    if (tenantId === '') {
+      job.discard();
+      throw new Error('Invalid email job payload: tenantId is required');
     }
 
     await TenantContextService.run(tenantId, async () => {

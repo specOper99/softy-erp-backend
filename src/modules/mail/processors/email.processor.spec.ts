@@ -42,6 +42,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'booking-confirmation',
           data: {
+            tenantId: 'tenant-1',
             clientName: 'John Doe',
             clientEmail: 'john@example.com',
             eventDate: '2025-06-15T10:00:00Z',
@@ -63,6 +64,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'task-assignment',
           data: {
+            tenantId: 'tenant-1',
             employeeName: 'Jane',
             employeeEmail: 'jane@example.com',
             taskType: 'Photography',
@@ -84,6 +86,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'payroll',
           data: {
+            tenantId: 'tenant-1',
             employeeName: 'John',
             employeeEmail: 'john@example.com',
             baseSalary: 3000,
@@ -105,6 +108,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'password-reset',
           data: {
+            tenantId: 'tenant-1',
             to: 'user@example.com',
             name: 'User',
             resetLink: 'https://example.com/reset',
@@ -123,6 +127,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'email-verification',
           data: {
+            tenantId: 'tenant-1',
             to: 'user@example.com',
             name: 'User',
             verificationLink: 'https://example.com/verify',
@@ -141,6 +146,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'new-device-login',
           data: {
+            tenantId: 'tenant-1',
             to: 'user@example.com',
             name: 'User',
             device: 'Chrome on Windows',
@@ -162,6 +168,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'suspicious-activity',
           data: {
+            tenantId: 'tenant-1',
             to: 'user@example.com',
             name: 'User',
             activity: 'Multiple failed login attempts',
@@ -186,6 +193,7 @@ describe('EmailProcessor', () => {
         data: {
           type: 'booking-confirmation',
           data: {
+            tenantId: 'tenant-1',
             clientName: 'John',
             clientEmail: 'john@example.com',
             eventDate: '2025-01-01T00:00:00Z',
@@ -197,6 +205,44 @@ describe('EmailProcessor', () => {
       } as unknown as Job<EmailJobData>;
 
       await expect(processor.process(job)).rejects.toThrow('Email sending failed');
+    });
+
+    it('should process legacy payload with tenantId in envelope', async () => {
+      const job = {
+        id: '9',
+        data: {
+          type: 'password-reset',
+          tenantId: 'tenant-legacy',
+          data: {
+            to: 'user@example.com',
+            name: 'User',
+            resetLink: 'https://example.com/reset',
+          },
+        },
+      } as unknown as Job<EmailJobData>;
+
+      await processor.process(job);
+
+      expect(mailService.sendPasswordReset).toHaveBeenCalled();
+    });
+
+    it('should discard and fail when tenantId is missing', async () => {
+      const discard = jest.fn();
+      const job = {
+        id: '10',
+        discard,
+        data: {
+          type: 'password-reset',
+          data: {
+            to: 'user@example.com',
+            name: 'User',
+            resetLink: 'https://example.com/reset',
+          },
+        },
+      } as unknown as Job<EmailJobData>;
+
+      await expect(processor.process(job)).rejects.toThrow('Invalid email job payload: tenantId is required');
+      expect(discard).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -10,7 +10,9 @@ import {
 import { Queue } from 'bullmq';
 import { createHmac, randomInt } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
+import * as https from 'node:https';
 import { isIP } from 'node:net';
+import * as ipaddr from 'ipaddr.js';
 import { SelectQueryBuilder } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
@@ -35,6 +37,17 @@ export class WebhookService {
   private readonly WEBHOOK_TIMEOUT = WEBHOOK_CONSTANTS.TIMEOUT;
   private readonly MIN_SECRET_LENGTH = WEBHOOK_CONSTANTS.MIN_SECRET_LENGTH;
   private concurrencyLimitPromise?: Promise<ConcurrencyLimit>;
+  private readonly PRIVATE_IPV4_CIDRS = [
+    '0.0.0.0/8',
+    '10.0.0.0/8',
+    '100.64.0.0/10',
+    '127.0.0.0/8',
+    '169.254.0.0/16',
+    '172.16.0.0/12',
+    '192.168.0.0/16',
+    '198.18.0.0/15',
+  ] as const;
+  private readonly PRIVATE_IPV6_CIDRS = ['::1/128', 'fe80::/10', 'fc00::/7'] as const;
 
   private getConcurrencyLimit(): Promise<ConcurrencyLimit> {
     if (!this.concurrencyLimitPromise) {
@@ -106,23 +119,29 @@ export class WebhookService {
    */
   private async validateUrlNotPrivate(url: URL): Promise<string[]> {
     const hostname = url.hostname;
+    const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
 
     // Block localhost variants
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+    if (
+      normalizedHostname === 'localhost' ||
+      normalizedHostname === '127.0.0.1' ||
+      normalizedHostname === '::1' ||
+      normalizedHostname === '0.0.0.0'
+    ) {
       throw new BadRequestException('webhooks.localhost_denied');
     }
 
     // If hostname is already an IP, validate it directly
-    if (isIP(hostname)) {
-      if (this.isPrivateIp(hostname)) {
+    if (isIP(normalizedHostname)) {
+      if (this.isPrivateIp(normalizedHostname)) {
         throw new BadRequestException('webhooks.private_ip_denied');
       }
-      return [hostname];
+      return [normalizedHostname];
     }
 
     // Resolve hostname and check all addresses
     try {
-      const addresses = await lookup(hostname, { all: true });
+      const addresses = await lookup(normalizedHostname, { all: true });
       const resolvedIps: string[] = [];
       for (const addr of addresses) {
         if (this.isPrivateIp(addr.address)) {
@@ -135,7 +154,9 @@ export class WebhookService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      this.logger.warn(`DNS lookup failed for ${hostname}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `DNS lookup failed for ${normalizedHostname}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       // Fail closed: unresolved hosts are not safe to deliver to.
       throw new BadRequestException('webhooks.dns_lookup_failed');
     }
@@ -146,60 +167,112 @@ export class WebhookService {
     return this.validateUrlNotPrivate(url);
   }
 
-  private async assertDnsNotRebound(url: URL, allowlistedIps?: string[]) {
+  private async assertDnsNotRebound(url: URL, allowlistedIps?: string[]): Promise<string> {
     if (!allowlistedIps || allowlistedIps.length === 0) {
       // No allowlist stored (legacy webhooks): still validate public IPs on each delivery.
-      await this.resolveAndValidatePublicIps(url);
-      return;
+      const ips = await this.resolveAndValidatePublicIps(url);
+      const pinnedIp = ips.at(0);
+      if (!pinnedIp) {
+        throw new BadRequestException('webhooks.dns_lookup_failed');
+      }
+      return pinnedIp;
     }
 
     const currentIps = await this.resolveAndValidatePublicIps(url);
+    const pinnedIp = currentIps.at(0);
+    if (!pinnedIp) {
+      throw new BadRequestException('webhooks.dns_lookup_failed');
+    }
     const allowlist = new Set(allowlistedIps);
     for (const ip of currentIps) {
       if (!allowlist.has(ip)) {
         throw new BadRequestException('webhooks.dns_rebinding_blocked');
       }
     }
+
+    return pinnedIp;
   }
 
   /**
    * Check if an IP address is in a private/reserved range
    */
   private isPrivateIp(ip: string): boolean {
-    // IPv4 private ranges
-    const ipv4PrivateRanges = [
-      /^127\./, // Loopback
-      /^10\./, // Class A private
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // Class B private
-      /^192\.168\./, // Class C private
-      /^169\.254\./, // Link-local
-      /^0\./, // Current network
-      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT (100.64.0.0/10)
-      /^198\.(1[89])\./, // Benchmarking (198.18.0.0/15)
-    ];
+    try {
+      const parsedAddress = ipaddr.process(ip);
 
-    // IPv6 private ranges
-    const ipv6PrivateRanges = [
-      /^::1$/, // Loopback
-      /^::ffff:127\./i, // IPv4-mapped loopback
-      /^::ffff:10\./i, // IPv4-mapped private
-      /^::ffff:172\.(1[6-9]|2[0-9]|3[0-1])\./i, // IPv4-mapped private
-      /^::ffff:192\.168\./i, // IPv4-mapped private
-      /^::ffff:169\.254\./i, // IPv4-mapped link-local
-      /^fe80:/i, // Link-local
-      /^fc00:/i, // Unique local
-      /^fd00:/i, // Unique local
-    ];
+      if (parsedAddress.kind() === 'ipv4') {
+        const ipv4Address = parsedAddress as ipaddr.IPv4;
+        return this.PRIVATE_IPV4_CIDRS.some((cidr) => ipv4Address.match(ipaddr.IPv4.parseCIDR(cidr)));
+      }
 
-    for (const range of ipv4PrivateRanges) {
-      if (range.test(ip)) return true;
+      const ipv6Address = parsedAddress as ipaddr.IPv6;
+      return this.PRIVATE_IPV6_CIDRS.some((cidr) => ipv6Address.match(ipaddr.IPv6.parseCIDR(cidr)));
+    } catch {
+      return true;
     }
+  }
 
-    for (const range of ipv6PrivateRanges) {
-      if (range.test(ip)) return true;
-    }
+  private async postPinnedJson(
+    url: URL,
+    pinnedIp: string,
+    body: string,
+    headers: Record<string, string>,
+    signal: AbortSignal,
+  ): Promise<{ statusCode: number; statusMessage: string }> {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        {
+          protocol: 'https:',
+          hostname: pinnedIp,
+          port: url.port ? Number(url.port) : 443,
+          method: 'POST',
+          path: `${url.pathname}${url.search}`,
+          headers: {
+            ...headers,
+            Host: url.host,
+            'Content-Length': Buffer.byteLength(body).toString(),
+          },
+          servername: url.hostname,
+        },
+        (res) => {
+          res.resume();
+          res.on('end', () => {
+            const statusCode = res.statusCode;
+            if (typeof statusCode !== 'number') {
+              reject(new Error('Missing response status code'));
+              return;
+            }
+            resolve({ statusCode, statusMessage: res.statusMessage ?? '' });
+          });
+        },
+      );
 
-    return false;
+      const abortRequest = () => {
+        const abortError = new Error('The operation was aborted');
+        abortError.name = 'AbortError';
+        req.destroy(abortError);
+      };
+
+      if (signal.aborted) {
+        abortRequest();
+      } else {
+        signal.addEventListener('abort', abortRequest, { once: true });
+      }
+
+      req.setTimeout(this.WEBHOOK_TIMEOUT, abortRequest);
+
+      req.on('error', (error) => {
+        signal.removeEventListener('abort', abortRequest);
+        reject(error);
+      });
+
+      req.on('close', () => {
+        signal.removeEventListener('abort', abortRequest);
+      });
+
+      req.write(body);
+      req.end();
+    });
   }
 
   /**
@@ -343,9 +416,7 @@ export class WebhookService {
     }
 
     // SECURITY: Validate DNS and enforce allowlisted IPs to resist DNS rebinding.
-    // NOTE: To fully prevent time-of-check/time-of-use issues, pinning connections
-    // to an allowlisted IP via a custom HTTP agent is required.
-    await this.assertDnsNotRebound(url, webhook.resolvedIps);
+    const pinnedIp = await this.assertDnsNotRebound(url, webhook.resolvedIps);
 
     const timestamp = Date.now().toString();
     const body = JSON.stringify(event);
@@ -362,27 +433,26 @@ export class WebhookService {
     const timeoutId = setTimeout(() => controller.abort(), this.WEBHOOK_TIMEOUT);
 
     try {
-      const response = await fetch(webhook.url, {
-        method: 'POST',
-        headers: {
+      const response = await this.postPinnedJson(
+        url,
+        pinnedIp,
+        body,
+        {
           'Content-Type': 'application/json',
           'X-Webhook-Signature': signature,
           'X-Webhook-Timestamp': timestamp,
           'X-Webhook-Event': event.type,
         },
-        body,
-        signal: controller.signal,
-        // SECURITY: Block redirects to prevent SSRF via redirect to private IPs
-        redirect: 'manual',
-      });
+        controller.signal,
+      );
 
       // SECURITY: Check for redirect responses - these could lead to private IPs
-      if (response.status >= 300 && response.status < 400) {
+      if (response.statusCode >= 300 && response.statusCode < 400) {
         throw new BadRequestException('webhooks.redirect_blocked');
       }
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`);
       }
 
       this.logger.log(`Webhook delivered to ${webhook.url} for event ${event.type}`);

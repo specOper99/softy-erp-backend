@@ -67,13 +67,10 @@ describe('WebhookService', () => {
     // Mock TenantContext
     mockTenantContext(mockTenantId);
 
-    // Mock global fetch correctly for Node
-    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      json: () => Promise.resolve({}),
-    } as unknown as Response);
+    jest.spyOn(service as any, 'postPinnedJson').mockResolvedValue({
+      statusCode: 200,
+      statusMessage: 'OK',
+    });
 
     // Mock getConcurrencyLimit to return a no-op limiter
     jest.spyOn(service as any, 'getConcurrencyLimit').mockResolvedValue(<T>(fn: () => T | Promise<T>) => fn());
@@ -149,13 +146,16 @@ describe('WebhookService', () => {
 
       expect(webhookRepository.findOne).toHaveBeenCalledWith({ where: { id: 'w-partial' } });
 
-      const fetchMock = global.fetch as unknown as jest.Mock;
-      expect(fetchMock).toHaveBeenCalledWith(
-        full.url,
+      expect((service as any).postPinnedJson).toHaveBeenCalledWith(
+        expect.objectContaining({ href: full.url }),
+        '93.184.216.34',
+        JSON.stringify(event),
         expect.objectContaining({
-          method: 'POST',
-          redirect: 'manual',
+          'X-Webhook-Signature': expect.any(String),
+          'X-Webhook-Timestamp': expect.any(String),
+          'X-Webhook-Event': event.type,
         }),
+        expect.any(Object),
       );
     });
 
@@ -208,17 +208,16 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([webhook]);
       await service.emit(event);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        config.url,
+      expect((service as any).postPinnedJson).toHaveBeenCalledWith(
+        expect.objectContaining({ href: config.url }),
+        '93.184.216.34',
+        JSON.stringify(event),
         expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'X-Webhook-Signature': expect.any(String),
-            'X-Webhook-Timestamp': expect.any(String),
-            'X-Webhook-Event': 'booking.created',
-          }),
-          body: JSON.stringify(event),
+          'X-Webhook-Signature': expect.any(String),
+          'X-Webhook-Timestamp': expect.any(String),
+          'X-Webhook-Event': 'booking.created',
         }),
+        expect.any(Object),
       );
     });
 
@@ -246,7 +245,7 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([webhook]);
       await service.emit(event);
 
-      expect(global.fetch).toHaveBeenCalled();
+      expect((service as any).postPinnedJson).toHaveBeenCalled();
     });
 
     it('should not send webhook if event type does not match', async () => {
@@ -254,16 +253,15 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([]);
       await service.emit(unmatchedEvent);
 
-      expect(global.fetch).not.toHaveBeenCalled();
+      expect((service as any).postPinnedJson).not.toHaveBeenCalled();
     });
 
-    it('should log error if fetch fails', async () => {
+    it('should log error if delivery fails', async () => {
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      } as Response);
+      (service as any).postPinnedJson.mockResolvedValue({
+        statusCode: 500,
+        statusMessage: 'Internal Server Error',
+      });
 
       const webhook = createWebhookEntity(config);
       qb.getMany.mockResolvedValue([webhook]);
@@ -398,6 +396,56 @@ describe('WebhookService', () => {
 
       await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
     });
+
+    it('should reject IPv6 link-local range (fe80::/10)', async () => {
+      const config: WebhookConfig = {
+        url: 'https://[fe80::1]/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
+    });
+
+    it('should reject IPv6 unique-local range (fc00::/7)', async () => {
+      const config: WebhookConfig = {
+        url: 'https://[fd12:3456::1]/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
+    });
+
+    it('should reject IPv4-mapped IPv6 private addresses', async () => {
+      const config: WebhookConfig = {
+        url: 'https://[::ffff:192.168.1.10]/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
+    });
+
+    it('should reject CGNAT range (100.64.0.0/10)', async () => {
+      const config: WebhookConfig = {
+        url: 'https://100.64.1.1/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
+    });
+
+    it('should reject benchmarking range (198.18.0.0/15)', async () => {
+      const config: WebhookConfig = {
+        url: 'https://198.18.1.1/webhook',
+        secret: TEST_SECRETS.WEBHOOK_SECRET,
+        events: ['task.created'],
+      };
+
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.private_ip_denied');
+    });
   });
 
   describe('timeout handling', () => {
@@ -412,7 +460,7 @@ describe('WebhookService', () => {
       const abortError = new Error('Aborted');
       abortError.name = 'AbortError';
 
-      global.fetch = jest.fn().mockRejectedValue(abortError);
+      (service as any).postPinnedJson.mockRejectedValue(abortError);
 
       const webhook = {
         id: 'webhook-1',
@@ -433,7 +481,7 @@ describe('WebhookService', () => {
     });
 
     it('should rethrow non-abort errors', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+      (service as any).postPinnedJson.mockRejectedValue(new Error('Network error'));
 
       const webhook = {
         id: 'webhook-1',
@@ -454,12 +502,10 @@ describe('WebhookService', () => {
     });
 
     it('should block redirects and log redirect_blocked', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: false,
-        status: 301,
-        statusText: 'Moved Permanently',
-        headers: { get: () => 'http://internal.local' },
-      } as unknown as Response);
+      (service as any).postPinnedJson.mockResolvedValue({
+        statusCode: 301,
+        statusMessage: 'Moved Permanently',
+      });
 
       const webhook = {
         id: 'webhook-1',
@@ -500,13 +546,14 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([webhook]);
       await service.emit(event);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        webhook.url,
+      expect((service as any).postPinnedJson).toHaveBeenCalledWith(
+        expect.objectContaining({ href: webhook.url }),
+        '93.184.216.34',
+        JSON.stringify(event),
         expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-Webhook-Timestamp': expect.stringMatching(/^\d+$/),
-          }),
+          'X-Webhook-Timestamp': expect.stringMatching(/^\d+$/),
         }),
+        expect.any(Object),
       );
     });
   });
@@ -606,10 +653,10 @@ describe('WebhookService', () => {
       Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
 
       let callCount = 0;
-      global.fetch = jest.fn().mockImplementation(() => {
+      (service as any).postPinnedJson.mockImplementation(() => {
         callCount++;
         if (callCount < 3) return Promise.reject(new Error('fail'));
-        return Promise.resolve({ ok: true, status: 200 } as Response);
+        return Promise.resolve({ statusCode: 200, statusMessage: 'OK' });
       });
 
       const webhook = {
@@ -637,7 +684,7 @@ describe('WebhookService', () => {
     it('should give up after max retries', async () => {
       Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
 
-      global.fetch = jest.fn().mockRejectedValue(new Error('fail forever'));
+      (service as any).postPinnedJson.mockRejectedValue(new Error('fail forever'));
 
       const webhook = {
         id: 'fail-1',

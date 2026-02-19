@@ -44,6 +44,7 @@ describe('AuditProcessor', () => {
 
   describe('process', () => {
     it('should handle log job', async () => {
+      const discard = jest.fn();
       const job = {
         name: 'log',
         data: {
@@ -51,7 +52,8 @@ describe('AuditProcessor', () => {
           tenantId: 't1',
           entityId: 'e1',
         },
-      } as Job;
+        discard,
+      } as unknown as Job;
 
       // Verify process calls handleLog logic (indirectly via repository calls)
       const findOneSpy = jest.spyOn(mockRepository, 'findOne').mockResolvedValue(null);
@@ -72,6 +74,21 @@ describe('AuditProcessor', () => {
       await processor.process(job);
       // handleLog not called - relying on impl detail or side effects,
       // but here verifying no error thrown.
+    });
+
+    it('should discard and fail when tenantId is missing', async () => {
+      const discard = jest.fn();
+      const job = {
+        name: 'log',
+        data: {
+          action: 'TEST',
+          entityId: 'e1',
+        },
+        discard,
+      } as unknown as Job;
+
+      await expect(processor.process(job)).rejects.toThrow('Invalid audit job payload: tenantId is required');
+      expect(discard).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -97,7 +114,7 @@ describe('AuditProcessor', () => {
       // We removed sanitize from processor, so it expects raw values
       mockRepository.create.mockReturnValue(mockEntry);
 
-      await processor.process({ name: 'log', data: logData } as Job);
+      await processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job);
 
       expect(mockRepository.findOne).toHaveBeenCalledWith({
         where: { tenantId: 'tenant-1' },
@@ -124,7 +141,7 @@ describe('AuditProcessor', () => {
       };
       mockRepository.create.mockReturnValue(mockEntry);
 
-      await processor.process({ name: 'log', data: logData } as Job);
+      await processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job);
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -136,7 +153,9 @@ describe('AuditProcessor', () => {
 
     it('should rethrow errors', async () => {
       mockRepository.findOne.mockRejectedValue(new Error('DB Error'));
-      await expect(processor.process({ name: 'log', data: logData } as Job)).rejects.toThrow('DB Error');
+      await expect(
+        processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job),
+      ).rejects.toThrow('DB Error');
     });
   });
 });

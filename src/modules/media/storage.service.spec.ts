@@ -84,6 +84,7 @@ describe('StorageService', () => {
         'video/mp4',
         'video/webm',
         'application/pdf',
+        'application/zip',
       ];
       const buffer = Buffer.from('test');
       const key = 'test-key';
