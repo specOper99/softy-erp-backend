@@ -11,12 +11,20 @@ import { TimeEntriesService } from './services/time-entries.service';
 
 import { ExportService } from '../../common/services/export.service';
 
+import { TaskAssigneeRepository } from './repositories/task-assignee.repository';
 import { TaskRepository } from './repositories/task.repository';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Task, TaskAssignee, TaskTemplate, TimeEntry]), FinanceModule, MailModule],
   controllers: [TasksController, TimeEntriesController],
-  providers: [TasksService, ExportService, TimeEntriesService, TasksExportService, TaskRepository],
-  exports: [TasksService, TimeEntriesService, TasksExportService, TaskRepository],
+  providers: [
+    TasksService,
+    ExportService,
+    TimeEntriesService,
+    TasksExportService,
+    TaskRepository,
+    TaskAssigneeRepository,
+  ],
+  exports: [TasksService, TimeEntriesService, TasksExportService, TaskRepository, TaskAssigneeRepository],
 })
 export class TasksModule {}

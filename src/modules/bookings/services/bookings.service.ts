@@ -39,7 +39,7 @@ import { BookingStateMachineService } from './booking-state-machine.service';
 
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
-import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { StaffConflictService } from './staff-conflict.service';
 
 @Injectable()
@@ -54,7 +54,7 @@ export class BookingsService {
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
-    private readonly cacheUtils: CacheUtilsService,
+    private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
     private readonly staffConflictService: StaffConflictService,
   ) {}
 
@@ -138,11 +138,12 @@ export class BookingsService {
 
     if (savedBooking.eventDate && savedBooking.packageId) {
       try {
-        const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
+        const dateParts = savedBooking.eventDate.toISOString().split('T');
+        const dateStr = dateParts[0] ?? '';
         const pkgId = savedBooking.packageId as string;
+        const tenantIdStr: string = tenantId;
         if (pkgId) {
-          const pkgIdStr: string = String(pkgId);
-          await this.cacheUtils.del(`availability:${tenantId}:${pkgIdStr}:${dateStr}`);
+          await this.availabilityCacheOwner.delAvailability(tenantIdStr, pkgId, dateStr);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -459,11 +460,11 @@ export class BookingsService {
 
     if ((dto.eventDate || dto.status || dto.startTime) && savedBooking.packageId) {
       try {
-        const dateStr = savedBooking.eventDate.toISOString().split('T')[0];
+        const dateParts = savedBooking.eventDate.toISOString().split('T');
+        const dateStr = dateParts[0] ?? '';
         const pkgId = savedBooking.packageId as string;
         if (pkgId) {
-          const pkgIdStr: string = String(pkgId);
-          await this.cacheUtils.del(`availability:${savedBooking.tenantId}:${pkgIdStr}:${dateStr}`);
+          await this.availabilityCacheOwner.delAvailability(savedBooking.tenantId, pkgId, dateStr);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -483,11 +484,11 @@ export class BookingsService {
 
     if (booking.eventDate && booking.packageId) {
       try {
-        const dateStr = booking.eventDate.toISOString().split('T')[0];
+        const dateParts = booking.eventDate.toISOString().split('T');
+        const dateStr = dateParts[0] ?? '';
         const pkgId = booking.packageId as string;
         if (pkgId) {
-          const pkgIdStr: string = String(pkgId);
-          await this.cacheUtils.del(`availability:${booking.tenantId}:${pkgIdStr}:${dateStr}`);
+          await this.availabilityCacheOwner.delAvailability(booking.tenantId, pkgId, dateStr);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

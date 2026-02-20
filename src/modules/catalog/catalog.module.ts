@@ -15,6 +15,6 @@ import { CatalogService } from './services/catalog.service';
   imports: [TypeOrmModule.forFeature([ServicePackage, TaskType, PackageItem]), CqrsModule],
   controllers: [PackagesController, TaskTypesController],
   providers: [CatalogService, ServicePackageRepository, TaskTypeRepository, PackageItemRepository],
-  exports: [CatalogService, ServicePackageRepository],
+  exports: [CatalogService, ServicePackageRepository, PackageItemRepository],
 })
 export class CatalogModule {}

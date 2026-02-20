@@ -11,6 +11,7 @@ import { BookingFilterDto } from './dto';
 import { BookingRepository } from './repositories/booking.repository';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingsService } from './services/bookings.service';
+import { AvailabilityCacheOwnerService } from '../../common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { Task } from '../tasks/entities/task.entity';
 import { StaffConflictService } from './services/staff-conflict.service';
@@ -51,6 +52,7 @@ describe('Bookings Security Test', () => {
         { provide: BookingStateMachineService, useValue: {} },
         { provide: StaffConflictService, useValue: { checkPackageStaffAvailability: jest.fn() } },
         { provide: CacheUtilsService, useValue: { del: jest.fn(), invalidateByPattern: jest.fn() } },
+        { provide: AvailabilityCacheOwnerService, useValue: { delAvailability: jest.fn() } },
         { provide: DataSource, useValue: {} },
         { provide: EventBus, useValue: {} },
       ],

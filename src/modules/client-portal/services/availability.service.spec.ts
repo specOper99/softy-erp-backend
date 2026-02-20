@@ -1,18 +1,36 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { AvailabilityService } from './availability.service';
-import { Booking } from '../../bookings/entities/booking.entity';
+import type { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
-import { ServicePackage } from '../../catalog/entities/service-package.entity';
+import type { ServicePackage } from '../../catalog/entities/service-package.entity';
+import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+
+/**
+ * Helper to generate relative dates for stable tests.
+ * Uses a fixed offset (5 days) from now to ensure we're within the booking window
+ * while avoiding edge cases around midnight.
+ */
+function getTestDate(daysOffset: number): { dateString: string; dateObj: Date } {
+  const now = new Date();
+  // Use UTC to avoid timezone issues
+  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysOffset, 0, 0, 0));
+  const dateString = target.toISOString().split('T')[0] as string;
+  return { dateString, dateObj: target };
+}
 
 describe('AvailabilityService', () => {
   let service: AvailabilityService;
-  let bookingRepository: Repository<Booking>;
-  let packageRepository: Repository<ServicePackage>;
+  let bookingRepository: { find: jest.Mock };
+  let packageRepository: { findOne: jest.Mock };
   let tenantRepository: Repository<Tenant>;
+
+  const bookingRepositoryMock = { find: jest.fn() };
+  const packageRepositoryMock = { findOne: jest.fn() };
 
   const mockTenant: Partial<Tenant> = {
     id: 'tenant-1',
@@ -43,18 +61,22 @@ describe('AvailabilityService', () => {
       providers: [
         AvailabilityService,
         {
-          provide: CACHE_MANAGER,
-          useValue: { get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined) },
+          provide: AvailabilityCacheOwnerService,
+          useValue: {
+            getAvailability: jest.fn().mockResolvedValue(undefined),
+            setAvailability: jest.fn().mockResolvedValue(undefined),
+            delAvailability: jest.fn().mockResolvedValue(undefined),
+          },
         },
-        { provide: getRepositoryToken(Booking), useValue: { find: jest.fn() } },
-        { provide: getRepositoryToken(ServicePackage), useValue: { findOne: jest.fn() } },
+        { provide: BookingRepository, useValue: bookingRepositoryMock },
+        { provide: ServicePackageRepository, useValue: packageRepositoryMock },
         { provide: getRepositoryToken(Tenant), useValue: { findOne: jest.fn() } },
       ],
     }).compile();
 
     service = module.get<AvailabilityService>(AvailabilityService);
-    bookingRepository = module.get<Repository<Booking>>(getRepositoryToken(Booking));
-    packageRepository = module.get<Repository<ServicePackage>>(getRepositoryToken(ServicePackage));
+    bookingRepository = module.get<{ find: jest.Mock }>(BookingRepository);
+    packageRepository = module.get<{ findOne: jest.Mock }>(ServicePackageRepository);
     tenantRepository = module.get<Repository<Tenant>>(getRepositoryToken(Tenant));
 
     jest.clearAllMocks();
@@ -65,21 +87,24 @@ describe('AvailabilityService', () => {
   });
 
   describe('checkAvailability date range filtering', () => {
-    it('should count booking on 2026-03-02T10:00:00Z for date 2026-03-02', async () => {
+    const baseDate = getTestDate(5);
+    const nextDate = getTestDate(6);
+
+    it('should count booking on base date at 10:00 for base date', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(packageRepository, 'findOne').mockResolvedValue(mockPackage as ServicePackage);
-      jest.spyOn(bookingRepository, 'find').mockResolvedValue([
+      packageRepository.findOne.mockResolvedValue(mockPackage as ServicePackage);
+      bookingRepository.find.mockResolvedValue([
         {
           id: 'booking-1',
           tenantId: 'tenant-1',
           packageId: 'package-1',
-          eventDate: new Date('2026-03-02T10:00:00Z'),
+          eventDate: new Date(`${baseDate.dateString}T10:00:00Z`),
           startTime: '10:00',
           status: BookingStatus.CONFIRMED,
         },
       ] as Booking[]);
 
-      const result = await service.checkAvailability('tenant-1', 'package-1', '2026-03-02');
+      const result = await service.checkAvailability('tenant-1', 'package-1', baseDate.dateString);
 
       expect(bookingRepository.find).toHaveBeenCalled();
       expect(result.timeSlots).toHaveLength(7);
@@ -87,42 +112,42 @@ describe('AvailabilityService', () => {
       expect(tenOClockSlot?.booked).toBe(1);
     });
 
-    it('should NOT count booking on 2026-03-03T00:30:00Z for date 2026-03-02', async () => {
+    it('should NOT count booking on next day at 00:30 for base date', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(packageRepository, 'findOne').mockResolvedValue(mockPackage as ServicePackage);
-      jest.spyOn(bookingRepository, 'find').mockResolvedValue([
+      packageRepository.findOne.mockResolvedValue(mockPackage as ServicePackage);
+      bookingRepository.find.mockResolvedValue([
         {
           id: 'booking-2',
           tenantId: 'tenant-1',
           packageId: 'package-1',
-          eventDate: new Date('2026-03-03T00:30:00Z'),
+          eventDate: new Date(`${nextDate.dateString}T00:30:00Z`),
           startTime: '00:30',
           status: BookingStatus.CONFIRMED,
         },
       ] as Booking[]);
 
-      const result = await service.checkAvailability('tenant-1', 'package-1', '2026-03-02');
+      const result = await service.checkAvailability('tenant-1', 'package-1', baseDate.dateString);
 
       expect(bookingRepository.find).toHaveBeenCalled();
       expect(result.timeSlots).toHaveLength(7);
       expect(result.timeSlots.every((s) => s.booked === 0)).toBe(true);
     });
 
-    it('should count booking exactly at midnight (2026-03-02T00:00:00Z) for date 2026-03-02', async () => {
+    it('should count booking exactly at midnight for base date', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(mockTenant as Tenant);
-      jest.spyOn(packageRepository, 'findOne').mockResolvedValue(mockPackage as ServicePackage);
-      jest.spyOn(bookingRepository, 'find').mockResolvedValue([
+      packageRepository.findOne.mockResolvedValue(mockPackage as ServicePackage);
+      bookingRepository.find.mockResolvedValue([
         {
           id: 'booking-3',
           tenantId: 'tenant-1',
           packageId: 'package-1',
-          eventDate: new Date('2026-03-02T00:00:00Z'),
+          eventDate: new Date(`${baseDate.dateString}T00:00:00Z`),
           startTime: '09:00',
           status: BookingStatus.CONFIRMED,
         },
       ] as Booking[]);
 
-      const result = await service.checkAvailability('tenant-1', 'package-1', '2026-03-02');
+      const result = await service.checkAvailability('tenant-1', 'package-1', baseDate.dateString);
 
       expect(result.timeSlots).toHaveLength(7);
       const nineOClockSlot = result.timeSlots.find((s) => s.start === '09:00');

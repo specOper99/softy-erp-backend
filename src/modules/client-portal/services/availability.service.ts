@@ -1,11 +1,11 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Cache } from 'cache-manager';
 import { Raw, Repository } from 'typeorm';
-import { Booking } from '../../bookings/entities/booking.entity';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
-import { ServicePackage } from '../../catalog/entities/service-package.entity';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
+import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
 type WorkingHoursArray = Array<{ day: string; startTime: string; endTime: string; isOpen: boolean }>;
@@ -30,180 +30,178 @@ export interface AvailabilityResponse {
 @Injectable()
 export class AvailabilityService {
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    @InjectRepository(ServicePackage)
-    private readonly packageRepository: Repository<ServicePackage>,
+    private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
+    private readonly bookingRepository: BookingRepository,
+    private readonly packageRepository: ServicePackageRepository,
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
   async checkAvailability(tenantId: string, packageId: string, date: string): Promise<AvailabilityResponse> {
-    // Check cache first
-    const cacheKey = `availability:${tenantId}:${packageId}:${date}`;
-    const cached = await this.cacheManager.get<AvailabilityResponse>(cacheKey);
-    if (cached) {
-      return cached;
-    }
+    return TenantContextService.run(tenantId, async () => {
+      // Check cache first
+      const cached = await this.availabilityCacheOwner.getAvailability<AvailabilityResponse>(tenantId, packageId, date);
+      if (cached) {
+        return cached;
+      }
 
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
-    if (!tenant) {
-      throw new Error('Tenant not found');
-    }
+      const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
 
-    const servicePackage = await this.packageRepository.findOne({ where: { id: packageId, tenantId } });
-    if (!servicePackage) {
-      throw new Error('Package not found');
-    }
+      const servicePackage = await this.packageRepository.findOne({ where: { id: packageId } });
+      if (!servicePackage) {
+        throw new Error('Package not found');
+      }
 
-    // Parse date (YYYY-MM-DD)
-    const [yearStr, monthStr, dayStr] = date.split('-');
-    const year = parseInt(yearStr || '0', 10);
-    const month = parseInt(monthStr || '0', 10);
-    const day = parseInt(dayStr || '0', 10);
-    const targetDate = new Date(Date.UTC(year, month - 1, day));
-    // Start of next day for range query (exclusive upper bound)
-    const nextDayDate = new Date(Date.UTC(year, month - 1, day + 1));
+      // Parse date (YYYY-MM-DD)
+      const [yearStr, monthStr, dayStr] = date.split('-');
+      const year = parseInt(yearStr || '0', 10);
+      const month = parseInt(monthStr || '0', 10);
+      const day = parseInt(dayStr || '0', 10);
+      const targetDate = new Date(Date.UTC(year, month - 1, day));
+      // Start of next day for range query (exclusive upper bound)
+      const nextDayDate = new Date(Date.UTC(year, month - 1, day + 1));
 
-    // Validate date is within booking window
-    const now = new Date();
-    const minNoticeDays = (tenant.minimumNoticePeriodHours ?? 24) / 24;
-    const minDate = new Date(now.getTime() + minNoticeDays * 24 * 60 * 60 * 1000);
-    const maxDate = new Date(now.getTime() + (tenant.maxAdvanceBookingDays ?? 90) * 24 * 60 * 60 * 1000);
+      // Validate date is within booking window
+      const now = new Date();
+      const minNoticeDays = (tenant.minimumNoticePeriodHours ?? 24) / 24;
+      const minDate = new Date(now.getTime() + minNoticeDays * 24 * 60 * 60 * 1000);
+      const maxDate = new Date(now.getTime() + (tenant.maxAdvanceBookingDays ?? 90) * 24 * 60 * 60 * 1000);
 
-    if (targetDate < minDate || targetDate > maxDate) {
-      const response: AvailabilityResponse = {
-        available: false,
-        date,
-        timeSlots: [],
-      };
-      await this.cacheManager.set(cacheKey, response, 300000); // 5 minutes
-      return response;
-    }
-
-    // Get working hours for day of week (support both array and map shapes)
-    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayOfWeek = daysOfWeek[targetDate.getUTCDay()];
-
-    // Normalize working hours to a consistent shape { enabled, start, end }
-    let normalized: { enabled: boolean; start: string; end: string } | null = null;
-
-    const wh = tenant.workingHours as WorkingHoursArray | WorkingHoursMap | null;
-    if (Array.isArray(wh)) {
-      const entry = wh.find((e) => (e.day || '').toLowerCase() === dayOfWeek);
-      if (entry) {
-        normalized = {
-          enabled: Boolean(entry.isOpen),
-          start: entry.startTime,
-          end: entry.endTime,
+      if (targetDate < minDate || targetDate > maxDate) {
+        const response: AvailabilityResponse = {
+          available: false,
+          date,
+          timeSlots: [],
         };
+        await this.availabilityCacheOwner.setAvailability(tenantId, packageId, date, response);
+        return response;
       }
-    } else if (wh && typeof wh === 'object') {
-      const dayObj = wh[dayOfWeek as Weekday];
-      if (dayObj) {
-        normalized = {
-          enabled: Boolean(dayObj.enabled),
-          start: dayObj.start,
-          end: dayObj.end,
+
+      // Get working hours for day of week (support both array and map shapes)
+      const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayOfWeek = daysOfWeek[targetDate.getUTCDay()];
+
+      // Normalize working hours to a consistent shape { enabled, start, end }
+      let normalized: { enabled: boolean; start: string; end: string } | null = null;
+
+      const wh = tenant.workingHours as WorkingHoursArray | WorkingHoursMap | null;
+      if (Array.isArray(wh)) {
+        const entry = wh.find((e) => (e.day || '').toLowerCase() === dayOfWeek);
+        if (entry) {
+          normalized = {
+            enabled: Boolean(entry.isOpen),
+            start: entry.startTime,
+            end: entry.endTime,
+          };
+        }
+      } else if (wh && typeof wh === 'object') {
+        const dayObj = wh[dayOfWeek as Weekday];
+        if (dayObj) {
+          normalized = {
+            enabled: Boolean(dayObj.enabled),
+            start: dayObj.start,
+            end: dayObj.end,
+          };
+        }
+      }
+
+      if (!normalized || !normalized.enabled) {
+        const response: AvailabilityResponse = {
+          available: false,
+          date,
+          timeSlots: [],
         };
+        await this.availabilityCacheOwner.setAvailability(tenantId, packageId, date, response);
+        return response;
       }
-    }
 
-    if (!normalized || !normalized.enabled) {
+      // Generate time slots
+      const timeSlots = this.generateTimeSlots(
+        normalized.start,
+        normalized.end,
+        tenant.timeSlotDurationMinutes ?? 60,
+        tenant.defaultBookingDurationHours ?? 2,
+      );
+
+      const bookings = await this.bookingRepository.find({
+        where: {
+          packageId,
+          eventDate: Raw((alias) => `${alias} >= :targetDate AND ${alias} < :nextDayDate`, { targetDate, nextDayDate }),
+          status: BookingStatus.CONFIRMED,
+        },
+        select: ['startTime', 'eventDate'],
+      });
+
+      // Count bookings per slot
+      const bookingCounts = new Map<string, number>();
+      bookings.forEach((booking) => {
+        if (booking.startTime) {
+          bookingCounts.set(booking.startTime, (bookingCounts.get(booking.startTime) || 0) + 1);
+        }
+      });
+
+      // Mark availability
+      const maxConcurrent = tenant.maxConcurrentBookingsPerSlot ?? 1;
+      let hasAvailableSlot = false;
+
+      timeSlots.forEach((slot) => {
+        const booked = bookingCounts.get(slot.start) || 0;
+        slot.booked = booked;
+        slot.capacity = maxConcurrent - booked;
+        slot.available = slot.capacity > 0;
+        if (slot.available) {
+          hasAvailableSlot = true;
+        }
+      });
+
       const response: AvailabilityResponse = {
-        available: false,
+        available: hasAvailableSlot,
         date,
-        timeSlots: [],
+        timeSlots,
       };
-      await this.cacheManager.set(cacheKey, response, 300000);
+
+      await this.availabilityCacheOwner.setAvailability(tenantId, packageId, date, response);
+
       return response;
-    }
-
-    // Generate time slots
-    const timeSlots = this.generateTimeSlots(
-      normalized.start,
-      normalized.end,
-      tenant.timeSlotDurationMinutes ?? 60,
-      tenant.defaultBookingDurationHours ?? 2,
-    );
-
-    const bookings = await this.bookingRepository.find({
-      where: {
-        tenantId,
-        packageId,
-        eventDate: Raw((alias) => `${alias} >= :targetDate AND ${alias} < :nextDayDate`, { targetDate, nextDayDate }),
-        status: BookingStatus.CONFIRMED,
-      },
-      select: ['startTime', 'eventDate'],
     });
-
-    // Count bookings per slot
-    const bookingCounts = new Map<string, number>();
-    bookings.forEach((booking) => {
-      if (booking.startTime) {
-        bookingCounts.set(booking.startTime, (bookingCounts.get(booking.startTime) || 0) + 1);
-      }
-    });
-
-    // Mark availability
-    const maxConcurrent = tenant.maxConcurrentBookingsPerSlot ?? 1;
-    let hasAvailableSlot = false;
-
-    timeSlots.forEach((slot) => {
-      const booked = bookingCounts.get(slot.start) || 0;
-      slot.booked = booked;
-      slot.capacity = maxConcurrent - booked;
-      slot.available = slot.capacity > 0;
-      if (slot.available) {
-        hasAvailableSlot = true;
-      }
-    });
-
-    const response: AvailabilityResponse = {
-      available: hasAvailableSlot,
-      date,
-      timeSlots,
-    };
-
-    // Cache for 5 minutes
-    await this.cacheManager.set(cacheKey, response, 300000);
-
-    return response;
   }
 
   async findNextAvailableDate(tenantId: string, packageId: string, fromDate: string): Promise<string | null> {
-    const [yearStr, monthStr, dayStr] = fromDate.split('-');
-    const year = parseInt(yearStr || '0', 10);
-    const month = parseInt(monthStr || '0', 10);
-    const day = parseInt(dayStr || '0', 10);
-    const startDate = new Date(Date.UTC(year, month - 1, day));
+    return TenantContextService.run(tenantId, async () => {
+      const [yearStr, monthStr, dayStr] = fromDate.split('-');
+      const year = parseInt(yearStr || '0', 10);
+      const month = parseInt(monthStr || '0', 10);
+      const day = parseInt(dayStr || '0', 10);
+      const startDate = new Date(Date.UTC(year, month - 1, day));
 
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
-    if (!tenant) {
-      return null;
-    }
-
-    const maxDays = tenant.maxAdvanceBookingDays ?? 90;
-
-    for (let i = 0; i < maxDays; i++) {
-      const checkDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-      const dateStrFull = checkDate.toISOString().split('T')[0];
-      if (!dateStrFull) continue;
-
-      const availability = await this.checkAvailability(tenantId, packageId, dateStrFull);
-
-      if (availability.available) {
-        return dateStrFull;
+      const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+      if (!tenant) {
+        return null;
       }
-    }
 
-    return null;
+      const maxDays = tenant.maxAdvanceBookingDays ?? 90;
+
+      for (let i = 0; i < maxDays; i++) {
+        const checkDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+        const dateStrFull = checkDate.toISOString().split('T')[0];
+        if (!dateStrFull) continue;
+
+        const availability = await this.checkAvailability(tenantId, packageId, dateStrFull);
+
+        if (availability.available) {
+          return dateStrFull;
+        }
+      }
+
+      return null;
+    });
   }
 
   async invalidateAvailabilityCache(tenantId: string, packageId: string, date: string): Promise<void> {
-    const cacheKey = `availability:${tenantId}:${packageId}:${date}`;
-    await this.cacheManager.del(cacheKey);
+    await this.availabilityCacheOwner.delAvailability(tenantId, packageId, date);
   }
 
   private generateTimeSlots(

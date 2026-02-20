@@ -27,6 +27,7 @@ import { TransactionCategory } from './entities/transaction-category.entity';
 import { DepartmentBudgetRepository } from './repositories/department-budget.repository';
 import { InvoiceRepository } from './repositories/invoice.repository';
 import { PayoutRepository } from './repositories/payout.repository';
+import { PurchaseInvoiceRepository } from './repositories/purchase-invoice.repository';
 import { RecurringTransactionRepository } from './repositories/recurring-transaction.repository';
 import { TransactionRepository } from './repositories/transaction.repository';
 import { WalletRepository } from './repositories/wallet.repository';
@@ -95,6 +96,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     FinancialReportService,
     PayoutRelayService,
     PayoutRepository,
+    PurchaseInvoiceRepository,
     MockPaymentGatewayService,
     PayoutConsistencyCron,
     BookingUpdatedHandler,
@@ -117,6 +119,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     FinancialReportService,
     PayoutRelayService,
     PayoutRepository,
+    PurchaseInvoiceRepository,
   ],
 })
 export class FinanceModule {}

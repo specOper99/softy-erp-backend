@@ -36,8 +36,20 @@ Rule:
 Enforcement:
 
 - `scripts/ci/check-tenant-contract.ts` scans `src/**` and flags:
-  - Reading `tenantId` from DTO/body/query in tenant-scoped controllers/services (`TENANT_ID_FROM_REQUEST`).
-  - Raw repository injection or `getRepository(...)` bypass (`RAW_REPOSITORY_IN_TENANT_MODULE`).
+  - Reading `tenantId` from DTO/body/query in tenant-scoped controllers/services (`TENANT_ID_FROM_REQUEST`) - **violation (fail)**.
+  - Raw repository injection or `getRepository(...)` bypass (`RAW_REPOSITORY_IN_TENANT_MODULE`) - **violation (fail)**.
+  - `@SkipTenant()` usage without explicit context - **violation (fail)**.
+  - `@SkipTenant()` usage - **warning (no fail)**.
+
+Allowlist process:
+
+- `RAW_REPOSITORY_IN_TENANT_MODULE` violations are CI failures unless explicitly allowlisted.
+- To add an allowlist entry, add an entry to `FILE_PATH_ALLOWLIST` in `scripts/ci/check-tenant-contract.ts` with:
+  - `path`: exact file path to allowlist
+  - `reason`: documented rationale explaining why this exception is necessary
+- All allowlist entries require documented rationale and must be reviewed in PRs.
+- The allowlist is reported in `tenant-contract-report.txt` for transparency.
+- **TEMP baseline allowlist**: Current offenders are listed in `FILE_PATH_ALLOWLIST` with reason `TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)`. These entries will be removed as each module is remediated in subsequent tasks.
 
 Known allowlists (explicit and conservative):
 
@@ -47,6 +59,7 @@ Known allowlists (explicit and conservative):
   - `src/modules/health/`
   - `src/modules/metrics/`
 - Allowlisted global entities/paths (examples): `Tenant`, `OutboxEvent`, and a small set of exact files referenced in `scripts/ci/check-tenant-contract.ts`.
+- File-path specific allowlist (`FILE_PATH_ALLOWLIST`): Additional exceptions for specific files with documented rationale, including TEMP baseline entries for legacy offenders.
 
 ## Query Safety Contract (QueryBuilder)
 
@@ -94,14 +107,41 @@ Allowed categories (as implemented by reporting/classification):
 - `tenant-specific-unauthenticated` (Client Portal)
 - `auth-bootstrap` (Register/Login/Refresh)
 
+Classified `@SkipTenant()` allowlist (explicit, conservative):
+
+- `src/modules/auth/auth.controller.ts` (method-level only):
+  - `register`, `login`, `refreshTokens`, `verifyMfaTotp`, `verifyMfaRecovery`, `forgotPassword`, `resetPassword`, `verifyEmail`, `resendVerification`
+  - Safe because these are auth bootstrap/recovery flows before request tenant context exists.
+- `src/modules/billing/controllers/billing.controller.ts` (`BillingWebhookController` class-level)
+  - Safe because webhook signature validation happens before tenant context and tenant is derived from trusted billing linkage.
+- `src/modules/client-portal/client-portal.controller.ts` (class-level)
+  - Safe because tenant is derived from slug/token and tenant-scoped calls are wrapped with `TenantContextService.run`.
+- `src/modules/health/health.controller.ts`, `src/modules/metrics/metrics.controller.ts` (class-level)
+  - Safe because they are global infrastructure/telemetry endpoints, not tenant domain operations.
+- `src/modules/platform/controllers/*.ts` currently using `@SkipTenant()` (class-level):
+  - `mfa-login.controller.ts`, `mfa.controller.ts`, `platform-analytics.controller.ts`, `platform-audit.controller.ts`, `platform-auth.controller.ts`, `platform-security.controller.ts`, `platform-support.controller.ts`, `platform-tenants.controller.ts`, `platform-time-entries.controller.ts`
+  - Safe because these are control-plane entrypoints; tenant-targeted operations must establish context explicitly (for example via `@TargetTenant()` + `TenantContextService.run`).
+
 Contract:
 
 - If an `@SkipTenant()` endpoint touches tenant-scoped dependencies, it must establish tenant context explicitly via `TenantContextService.run(tenantId, ...)`.
 - `scripts/ci/check-tenant-contract.ts` enforces this for a set of known `@SkipTenant()` controllers/methods (method-level contracts).
+- Any new or unclassified `@SkipTenant()` usage remains a warning (`SKIP_TENANT_USAGE`) until explicitly added to the allowlist with rationale.
+
+Unsafe patterns (must not be allowlisted):
+
+- Calling tenant-scoped services/repositories from a `@SkipTenant()` endpoint without `TenantContextService.run`.
+- Accepting `tenantId` from request DTO/body/query for tenant-scoped work.
+- Using `@SkipTenant()` for convenience on tenant API routes that should run under the normal tenant guard.
 
 Reporting:
 
 - `scripts/ci/report-skip-tenant.ts` generates `skip-tenant-report.json` and `skip-tenant-report.md` with endpoint classifications.
+
+Owner / follow-up:
+
+- Owner: Platform + Security maintainers of `scripts/ci/check-tenant-contract.ts`.
+- Follow-up: Keep allowlist method-scoped where possible; when adding/changing `@SkipTenant()`, update allowlist + rationale in the same PR.
 
 ## CI Gates
 

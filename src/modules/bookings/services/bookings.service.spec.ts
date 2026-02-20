@@ -30,7 +30,7 @@ import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingStateMachineService } from './booking-state-machine.service';
 import { BookingsService } from './bookings.service';
-import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { StaffConflictService } from './staff-conflict.service';
 
 describe('BookingsService', () => {
@@ -126,12 +126,11 @@ describe('BookingsService', () => {
           useValue: stateMachine,
         },
         {
-          provide: CacheUtilsService,
+          provide: AvailabilityCacheOwnerService,
           useValue: {
-            del: jest.fn(),
-            invalidateByPattern: jest.fn(),
-            set: jest.fn(),
-            get: jest.fn(),
+            delAvailability: jest.fn(),
+            getAvailability: jest.fn(),
+            setAvailability: jest.fn(),
           },
         },
         {

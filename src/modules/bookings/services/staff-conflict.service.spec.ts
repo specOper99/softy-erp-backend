@@ -1,12 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { ServicePackage } from '../../catalog/entities/service-package.entity';
+import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
+import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
 import { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
+import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import { Task } from '../../tasks/entities/task.entity';
+import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
+import { TaskRepository } from '../../tasks/repositories/task.repository';
 import { User } from '../../users/entities/user.entity';
+import { UserRepository } from '../../users/repositories/user.repository';
 import { StaffConflictService } from './staff-conflict.service';
 
 type BusyAssignmentRecord = {
@@ -41,39 +46,39 @@ describe('StaffConflictService', () => {
       providers: [
         StaffConflictService,
         {
-          provide: getRepositoryToken(ServicePackage),
+          provide: ServicePackageRepository,
           useValue: createMockRepository<ServicePackage>(),
         },
         {
-          provide: getRepositoryToken(PackageItem),
+          provide: PackageItemRepository,
           useValue: createMockRepository<PackageItem>(),
         },
         {
-          provide: getRepositoryToken(TaskTypeEligibility),
+          provide: TaskTypeEligibilityRepository,
           useValue: createMockRepository<TaskTypeEligibility>(),
         },
         {
-          provide: getRepositoryToken(User),
+          provide: UserRepository,
           useValue: createMockRepository<User>(),
         },
         {
-          provide: getRepositoryToken(TaskAssignee),
+          provide: TaskAssigneeRepository,
           useValue: createMockRepository<TaskAssignee>(),
         },
         {
-          provide: getRepositoryToken(Task),
+          provide: TaskRepository,
           useValue: createMockRepository<Task>(),
         },
       ],
     }).compile();
 
     service = module.get<StaffConflictService>(StaffConflictService);
-    servicePackageRepo = module.get(getRepositoryToken(ServicePackage));
-    packageItemRepo = module.get(getRepositoryToken(PackageItem));
-    taskTypeEligibilityRepo = module.get(getRepositoryToken(TaskTypeEligibility));
-    userRepo = module.get(getRepositoryToken(User));
-    taskAssigneeRepo = module.get(getRepositoryToken(TaskAssignee));
-    taskRepo = module.get(getRepositoryToken(Task));
+    servicePackageRepo = module.get(ServicePackageRepository);
+    packageItemRepo = module.get(PackageItemRepository);
+    taskTypeEligibilityRepo = module.get(TaskTypeEligibilityRepository);
+    userRepo = module.get(UserRepository);
+    taskAssigneeRepo = module.get(TaskAssigneeRepository);
+    taskRepo = module.get(TaskRepository);
 
     mockTenantContext('tenant-123');
   });

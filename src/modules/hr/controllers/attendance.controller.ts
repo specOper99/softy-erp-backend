@@ -17,6 +17,7 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { ApiErrorResponses, CurrentUser } from '../../../common/decorators';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
+import { resolveRequestedUserIdScope } from '../../../common/helpers/field-staff-user-scope.helper';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
@@ -36,9 +37,14 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Create attendance record' })
   @ApiResponse({ status: 201, description: 'Attendance created' })
   create(@Body() createAttendanceDto: CreateAttendanceDto, @CurrentUser() user: User) {
-    if (user.role === Role.FIELD_STAFF && createAttendanceDto.userId !== user.id) {
-      throw new ForbiddenException('Field staff can only create attendance records for themselves');
+    if (user.role === Role.FIELD_STAFF) {
+      try {
+        resolveRequestedUserIdScope(user, createAttendanceDto.userId);
+      } catch {
+        throw new ForbiddenException('Field staff can only create attendance records for themselves');
+      }
     }
+
     return this.attendanceService.create(createAttendanceDto);
   }
 
@@ -51,7 +57,8 @@ export class AttendanceController {
   @ApiResponse({ status: 200, description: 'Attendance list returned' })
   findAll(@Query() query: ListAttendanceDto = new ListAttendanceDto(), @CurrentUser() user: User) {
     if (user.role === Role.FIELD_STAFF) {
-      return this.attendanceService.findAll(query, user.id);
+      const scopedUserId = resolveRequestedUserIdScope(user);
+      return this.attendanceService.findAll(query, scopedUserId);
     }
     if (query.userId && !isUUID(query.userId)) {
       throw new BadRequestException('Invalid userId');
@@ -66,9 +73,14 @@ export class AttendanceController {
   @ApiResponse({ status: 404, description: 'Attendance not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     const attendance = await this.attendanceService.findOne(id);
-    if (user.role === Role.FIELD_STAFF && attendance.userId !== user.id) {
-      throw new ForbiddenException('Field staff can only view their own attendance records');
+    if (user.role === Role.FIELD_STAFF) {
+      try {
+        resolveRequestedUserIdScope(user, attendance.userId);
+      } catch {
+        throw new ForbiddenException('Field staff can only view their own attendance records');
+      }
     }
+
     return attendance;
   }
 

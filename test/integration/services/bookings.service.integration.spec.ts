@@ -19,6 +19,7 @@ import { BookingStatus } from '../../../src/modules/bookings/enums/booking-statu
 import { BookingStateMachineService } from '../../../src/modules/bookings/services/booking-state-machine.service';
 import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
+import { AvailabilityCacheOwnerService } from '../../../src/common/cache/availability-cache-owner.service';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { CatalogService } from '../../../src/modules/catalog/services/catalog.service';
 import { DashboardGateway } from '../../../src/modules/dashboard/dashboard.gateway';
@@ -34,6 +35,12 @@ describe('BookingsService Integration Tests', () => {
   let packageRepository: Repository<ServicePackage>;
 
   const tenant1 = uuidv4();
+
+  const getFutureDate = (daysAhead: number): string => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysAhead);
+    return date.toISOString();
+  };
 
   beforeAll(async () => {
     const dbConfig = globalThis.__DB_CONFIG__!;
@@ -138,6 +145,15 @@ describe('BookingsService Integration Tests', () => {
             }),
           },
         },
+        {
+          provide: AvailabilityCacheOwnerService,
+          useValue: {
+            delAvailability: jest.fn().mockResolvedValue(undefined),
+            setAvailability: jest.fn().mockResolvedValue(undefined),
+            getAvailability: jest.fn().mockResolvedValue(null),
+            getKey: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -181,7 +197,7 @@ describe('BookingsService Integration Tests', () => {
       const result = await service.create({
         clientId: client.id,
         packageId: pkg.id,
-        eventDate: new Date('2026-08-15').toISOString(),
+        eventDate: getFutureDate(30),
         notes: 'Service integration test',
       });
 
@@ -224,7 +240,7 @@ describe('BookingsService Integration Tests', () => {
         service.create({
           clientId: client.id,
           packageId: pkg.id,
-          eventDate: new Date('2026-08-15').toISOString(),
+          eventDate: getFutureDate(30),
         }),
       ).rejects.toThrow();
     });
@@ -249,7 +265,7 @@ describe('BookingsService Integration Tests', () => {
       const booking = await bookingRepository.save({
         clientId: client.id,
         packageId: pkg.id,
-        eventDate: new Date('2026-09-01'),
+        eventDate: getFutureDate(45),
         totalPrice: 10000,
         subTotal: 10000,
         taxRate: 0,

@@ -1,13 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { PackageItem } from '../../catalog/entities/package-item.entity';
-import { ServicePackage } from '../../catalog/entities/service-package.entity';
-import { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
-import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
+import { In, IsNull } from 'typeorm';
+import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
+import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
+import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { Task } from '../../tasks/entities/task.entity';
-import { User } from '../../users/entities/user.entity';
+import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
+import { TaskRepository } from '../../tasks/repositories/task.repository';
+import { UserRepository } from '../../users/repositories/user.repository';
 import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { computeBookingWindow, windowsOverlap } from '../utils/booking-window.util';
@@ -38,27 +37,18 @@ interface BusyAssignmentRecord {
 @Injectable()
 export class StaffConflictService {
   constructor(
-    @InjectRepository(ServicePackage)
-    private readonly servicePackageRepository: Repository<ServicePackage>,
-    @InjectRepository(PackageItem)
-    private readonly packageItemRepository: Repository<PackageItem>,
-    @InjectRepository(TaskTypeEligibility)
-    private readonly taskTypeEligibilityRepository: Repository<TaskTypeEligibility>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(TaskAssignee)
-    private readonly taskAssigneeRepository: Repository<TaskAssignee>,
-    @InjectRepository(Task)
-    private readonly taskRepository: Repository<Task>,
+    private readonly servicePackageRepository: ServicePackageRepository,
+    private readonly packageItemRepository: PackageItemRepository,
+    private readonly taskTypeEligibilityRepository: TaskTypeEligibilityRepository,
+    private readonly userRepository: UserRepository,
+    private readonly taskAssigneeRepository: TaskAssigneeRepository,
+    private readonly taskRepository: TaskRepository,
   ) {}
 
   async checkPackageStaffAvailability(input: CheckPackageStaffAvailabilityInput): Promise<StaffAvailabilityResult> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const servicePackage = await this.servicePackageRepository.findOne({
       where: {
         id: input.packageId,
-        tenantId,
       },
     });
 
@@ -70,8 +60,8 @@ export class StaffConflictService {
     const durationMinutes = input.durationMinutes ?? servicePackage.durationMinutes;
     const requestedWindow = computeBookingWindow(input.eventDate, input.startTime, durationMinutes);
 
-    const packageTaskTypeIds = await this.getPackageTaskTypeIds(tenantId, input.packageId);
-    const eligibleUserIds = await this.getEligibleActiveUserIds(tenantId, packageTaskTypeIds);
+    const packageTaskTypeIds = await this.getPackageTaskTypeIds(input.packageId);
+    const eligibleUserIds = await this.getEligibleActiveUserIds(packageTaskTypeIds);
     const eligibleCount = eligibleUserIds.length;
 
     if (eligibleCount < requiredStaffCount) {
@@ -84,12 +74,7 @@ export class StaffConflictService {
       };
     }
 
-    const busyUserIds = await this.getBusyEligibleUserIds(
-      tenantId,
-      eligibleUserIds,
-      requestedWindow,
-      input.excludeBookingId,
-    );
+    const busyUserIds = await this.getBusyEligibleUserIds(eligibleUserIds, requestedWindow, input.excludeBookingId);
     const busyCount = busyUserIds.size;
     const availableCount = Math.max(0, eligibleCount - busyCount);
 
@@ -102,10 +87,9 @@ export class StaffConflictService {
     };
   }
 
-  private async getPackageTaskTypeIds(tenantId: string, packageId: string): Promise<string[]> {
+  private async getPackageTaskTypeIds(packageId: string): Promise<string[]> {
     const packageItems = await this.packageItemRepository.find({
       where: {
-        tenantId,
         packageId,
       },
       select: {
@@ -116,14 +100,13 @@ export class StaffConflictService {
     return Array.from(new Set(packageItems.map((item) => item.taskTypeId)));
   }
 
-  private async getEligibleActiveUserIds(tenantId: string, packageTaskTypeIds: string[]): Promise<string[]> {
+  private async getEligibleActiveUserIds(packageTaskTypeIds: string[]): Promise<string[]> {
     if (packageTaskTypeIds.length === 0) {
       return [];
     }
 
     const eligibilities = await this.taskTypeEligibilityRepository.find({
       where: {
-        tenantId,
         taskTypeId: In(packageTaskTypeIds),
       },
       select: {
@@ -139,7 +122,6 @@ export class StaffConflictService {
 
     const activeUsers = await this.userRepository.find({
       where: {
-        tenantId,
         id: In(eligibleUserIds),
         isActive: true,
         deletedAt: IsNull(),
@@ -153,7 +135,6 @@ export class StaffConflictService {
   }
 
   private async getBusyEligibleUserIds(
-    tenantId: string,
     eligibleUserIds: string[],
     requestedWindow: { start: Date; end: Date },
     excludeBookingId?: string,
@@ -163,8 +144,8 @@ export class StaffConflictService {
     }
 
     const [taskAssigneeAssignments, legacyAssignments] = await Promise.all([
-      this.getTaskAssigneeAssignments(tenantId, eligibleUserIds, excludeBookingId),
-      this.getLegacyAssignments(tenantId, eligibleUserIds, excludeBookingId),
+      this.getTaskAssigneeAssignments(eligibleUserIds, excludeBookingId),
+      this.getLegacyAssignments(eligibleUserIds, excludeBookingId),
     ]);
 
     const busyUserIds = new Set<string>();
@@ -185,15 +166,13 @@ export class StaffConflictService {
   }
 
   private getTaskAssigneeAssignments(
-    tenantId: string,
     eligibleUserIds: string[],
     excludeBookingId?: string,
   ): Promise<BusyAssignmentRecord[]> {
     const query = this.taskAssigneeRepository
       .createQueryBuilder('taskAssignee')
-      .innerJoin(Task, 'task', 'task.id = taskAssignee.taskId AND task.tenantId = :tenantId', { tenantId })
-      .innerJoin(Booking, 'booking', 'booking.id = task.bookingId AND booking.tenantId = :tenantId', { tenantId })
-      .where('taskAssignee.tenantId = :tenantId', { tenantId })
+      .innerJoin(Task, 'task', 'task.id = taskAssignee.taskId AND task.tenantId = taskAssignee.tenantId')
+      .innerJoin(Booking, 'booking', 'booking.id = task.bookingId AND booking.tenantId = task.tenantId')
       .andWhere('taskAssignee.userId IN (:...eligibleUserIds)', { eligibleUserIds })
       .andWhere('task.deletedAt IS NULL')
       .andWhere('booking.deletedAt IS NULL')
@@ -212,15 +191,10 @@ export class StaffConflictService {
     return query.getRawMany<BusyAssignmentRecord>();
   }
 
-  private getLegacyAssignments(
-    tenantId: string,
-    eligibleUserIds: string[],
-    excludeBookingId?: string,
-  ): Promise<BusyAssignmentRecord[]> {
+  private getLegacyAssignments(eligibleUserIds: string[], excludeBookingId?: string): Promise<BusyAssignmentRecord[]> {
     const query = this.taskRepository
       .createQueryBuilder('task')
-      .innerJoin(Booking, 'booking', 'booking.id = task.bookingId AND booking.tenantId = :tenantId', { tenantId })
-      .where('task.tenantId = :tenantId', { tenantId })
+      .innerJoin(Booking, 'booking', 'booking.id = task.bookingId AND booking.tenantId = task.tenantId')
       .andWhere('task.assignedUserId IS NOT NULL')
       .andWhere('task.assignedUserId IN (:...eligibleUserIds)', { eligibleUserIds })
       .andWhere('task.deletedAt IS NULL')

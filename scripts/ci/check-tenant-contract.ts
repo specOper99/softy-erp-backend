@@ -44,6 +44,59 @@ const RAW_REPOSITORY_ALLOWLIST = [
   },
 ] as const;
 
+// File-path specific allowlist for RAW_REPOSITORY_IN_TENANT_MODULE violations
+// These are exceptional cases that require explicit rationale and CI approval
+const FILE_PATH_ALLOWLIST: { path: string; reason: string }[] = [
+  {
+    path: 'src/modules/audit/audit.processor.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/billing/services/subscription.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/finance/services/payout-relay.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/finance/services/purchase-invoices.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/finance/services/transaction-categories.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/finance/services/vendors.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/hr/services/task-type-eligibility.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/mail/services/mail-template.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/privacy/consent.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/tasks/services/tasks-export.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/tasks/services/time-entries.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+  {
+    path: 'src/modules/users/services/users.service.ts',
+    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
+  },
+];
+
 const SKIP_TENANT_EXPLICIT_CONTEXT_ALLOWLIST = new Set([
   'src/modules/health/health.controller.ts',
   'src/modules/metrics/metrics.controller.ts',
@@ -57,6 +110,85 @@ interface SkipTenantMethodContract {
   methodName: string;
   tenantScopedCallPatterns: RegExp[];
 }
+
+interface SkipTenantUsageAllowlistEntry {
+  reason: string;
+  allowClassDecorator?: boolean;
+  methods?: string[];
+}
+
+const SKIP_TENANT_USAGE_ALLOWLIST: Record<string, SkipTenantUsageAllowlistEntry> = {
+  'src/modules/auth/auth.controller.ts': {
+    reason: 'Auth bootstrap and recovery endpoints must run before tenant context is established.',
+    methods: [
+      'register',
+      'login',
+      'refreshTokens',
+      'verifyMfaTotp',
+      'verifyMfaRecovery',
+      'forgotPassword',
+      'resetPassword',
+      'verifyEmail',
+      'resendVerification',
+    ],
+  },
+  'src/modules/billing/controllers/billing.controller.ts': {
+    reason:
+      'Stripe webhook controller validates signatures and derives tenant through billing linkage, not request tenant input.',
+    allowClassDecorator: true,
+  },
+  'src/modules/client-portal/client-portal.controller.ts': {
+    reason:
+      'Client portal is public-entry auth and tenant derivation via slug/token, with explicit TenantContextService.run for tenant-scoped calls.',
+    allowClassDecorator: true,
+  },
+  'src/modules/health/health.controller.ts': {
+    reason: 'Health probes are infrastructure/global and do not operate on tenant-owned domain persistence.',
+    allowClassDecorator: true,
+  },
+  'src/modules/metrics/metrics.controller.ts': {
+    reason: 'Metrics endpoints are global platform telemetry and intentionally tenant-agnostic.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/mfa-login.controller.ts': {
+    reason: 'Platform control-plane login MFA endpoint is global and not tenant-scoped.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/mfa.controller.ts': {
+    reason: 'Platform control-plane MFA management is global and not tenant-scoped.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/platform-analytics.controller.ts': {
+    reason: 'Platform control-plane analytics is global and uses explicit target-tenant context when needed.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/platform-audit.controller.ts': {
+    reason: 'Platform control-plane audit log access is global compliance scope, not tenant request scope.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/platform-auth.controller.ts': {
+    reason: 'Platform control-plane auth endpoints are global bootstrap/session flows.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/platform-security.controller.ts': {
+    reason:
+      'Platform security operations are global entry points and explicitly establish tenant context for targeted actions.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/platform-support.controller.ts': {
+    reason: 'Platform support/impersonation endpoints are control-plane operations outside tenant guard scope.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/platform-tenants.controller.ts': {
+    reason:
+      'Platform tenant lifecycle management is global metadata/control-plane and not tenant-scoped by request context.',
+    allowClassDecorator: true,
+  },
+  'src/modules/platform/controllers/platform-time-entries.controller.ts': {
+    reason: 'Platform support time-entry endpoints use explicit target tenant context for tenant-specific operations.',
+    allowClassDecorator: true,
+  },
+};
 
 const SKIP_TENANT_METHOD_CONTRACTS: Record<string, SkipTenantMethodContract[]> = {
   'src/modules/client-portal/client-portal.controller.ts': [
@@ -180,6 +312,12 @@ function isRawRepositoryAllowlisted(file: string, entityName?: string): boolean 
       return true;
     }
     if (entry.kind === 'pathExact' && file === entry.value) {
+      return true;
+    }
+  }
+
+  for (const entry of FILE_PATH_ALLOWLIST) {
+    if (file === entry.path) {
       return true;
     }
   }
@@ -326,6 +464,54 @@ function findSkipTenantExplicitContextFindings(relPath: string, fileContent: str
   return findings;
 }
 
+function resolveSkipTenantDecoratorTarget(
+  lines: string[],
+  decoratorLineIndex: number,
+): { type: 'class'; name: string } | { type: 'method'; name: string } | { type: 'unknown' } {
+  for (let i = decoratorLineIndex + 1; i < lines.length; i += 1) {
+    const trimmed = lines[i]?.trim() ?? '';
+    if (!trimmed || isCommentLine(trimmed)) {
+      continue;
+    }
+
+    if (trimmed.startsWith('@')) {
+      continue;
+    }
+
+    const classMatch = trimmed.match(/^(?:export\s+)?class\s+([A-Za-z0-9_]+)/);
+    if (classMatch?.[1]) {
+      return { type: 'class', name: classMatch[1] };
+    }
+
+    const methodMatch = trimmed.match(/^(?:public\s+|private\s+|protected\s+)?(?:async\s+)?([A-Za-z0-9_]+)\s*\(/);
+    if (methodMatch?.[1]) {
+      return { type: 'method', name: methodMatch[1] };
+    }
+  }
+
+  return { type: 'unknown' };
+}
+
+function isSkipTenantUsageAllowlisted(
+  relPath: string,
+  target: { type: 'class'; name: string } | { type: 'method'; name: string } | { type: 'unknown' },
+): boolean {
+  const allowlist = SKIP_TENANT_USAGE_ALLOWLIST[relPath];
+  if (!allowlist) {
+    return false;
+  }
+
+  if (target.type === 'class') {
+    return Boolean(allowlist.allowClassDecorator);
+  }
+
+  if (target.type === 'method') {
+    return (allowlist.methods ?? []).includes(target.name);
+  }
+
+  return false;
+}
+
 function findSkipTenantFindings(relPath: string, lines: string[]): Finding[] {
   const findings: Finding[] = [];
   if (!isControllerFile(relPath)) {
@@ -337,6 +523,11 @@ function findSkipTenantFindings(relPath: string, lines: string[]): Finding[] {
       return;
     }
     if (/@SkipTenant\s*\(/.test(line)) {
+      const target = resolveSkipTenantDecoratorTarget(lines, index);
+      if (isSkipTenantUsageAllowlisted(relPath, target)) {
+        return;
+      }
+
       findings.push({
         file: relPath,
         line: index + 1,
@@ -436,7 +627,7 @@ function findRawRepositoryFindings(
             file: relPath,
             line: index + 1,
             rule: 'RAW_REPOSITORY_IN_TENANT_MODULE',
-            severity: 'warning',
+            severity: 'violation',
             message: `Service/module injects raw Repository<${entityName}>; prefer TenantAwareRepository derivative.`,
             content: trimmed,
           });
@@ -534,6 +725,17 @@ function buildReport(
   lines.push('Allowlist (explicit and conservative):');
   for (const item of RAW_REPOSITORY_ALLOWLIST) {
     lines.push(`- ${item.kind}:${item.value} -> ${item.reason}`);
+  }
+  for (const item of FILE_PATH_ALLOWLIST) {
+    lines.push(`- path:${item.path} -> ${item.reason}`);
+  }
+  for (const [filePath, item] of Object.entries(SKIP_TENANT_USAGE_ALLOWLIST)) {
+    if (item.allowClassDecorator) {
+      lines.push(`- skipTenantClass:${filePath} -> ${item.reason}`);
+    }
+    for (const methodName of item.methods ?? []) {
+      lines.push(`- skipTenantMethod:${filePath}#${methodName} -> ${item.reason}`);
+    }
   }
 
   return `${lines.join('\n')}\n`;

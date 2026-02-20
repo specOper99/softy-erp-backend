@@ -5,10 +5,13 @@ import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceModule } from '../finance/finance.module';
 import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
+import { TaskTypeEligibilityRepository } from '../hr/repositories/task-type-eligibility.repository';
 import { MailModule } from '../mail/mail.module';
 import { TaskAssignee } from '../tasks/entities/task-assignee.entity';
 import { Task } from '../tasks/entities/task.entity';
+import { TaskAssigneeRepository } from '../tasks/repositories/task-assignee.repository';
 import { User } from '../users/entities/user.entity';
+import { UserRepository } from '../users/repositories/user.repository';
 import { BookingsController } from './controllers/bookings.controller';
 import { ClientsController } from './controllers/clients.controller';
 import { Booking } from './entities/booking.entity';
@@ -56,6 +59,9 @@ import { StaffConflictService } from './services/staff-conflict.service';
     ExportService,
     BookingRepository,
     ClientRepository,
+    UserRepository,
+    TaskAssigneeRepository,
+    TaskTypeEligibilityRepository,
     StaffConflictService,
   ],
   exports: [

@@ -4,6 +4,8 @@ This repo uses in-process NestJS CQRS domain events (`@nestjs/cqrs`) for cross-m
 
 This document lists only the events that exist in code and the producers/consumers that are present in this repo.
 
+This doc is the source of truth for event topology, and CI verifies it via `scripts/ci/check-event-contract.ts` (run `npm run check:event-contract`).
+
 ## Delivery Semantics (What Is Actually Guaranteed)
 
 - Transport: `EventBus.publish(...)` from `@nestjs/cqrs` (in-process).
@@ -71,6 +73,13 @@ Each entry lists the exact class name, publisher(s), and consumer(s) present in 
   - `src/modules/finance/events/handlers/booking-updated.handler.ts` (invalidates financial report caches)
   - `src/modules/webhooks/handlers/booking-updated.handler.ts`
 
+`BookingPriceChangedEvent`
+
+- Published by:
+  - `src/modules/bookings/services/bookings.service.ts` (`update()` publishes after `DataSource.transaction(...)` completes)
+- Consumed by:
+  - `src/modules/finance/handlers/booking-price-changed.handler.ts` (creates adjustment transaction; publishes `FinancialReconciliationFailedEvent` on failure)
+
 `PaymentRecordedEvent`
 
 - Published by:
@@ -124,9 +133,6 @@ Each entry lists the exact class name, publisher(s), and consumer(s) present in 
 
 These classes exist, but a code search in this repo does not find a corresponding `eventBus.publish(new ...)` site.
 
-- `BookingPriceChangedEvent` (`src/modules/bookings/events/booking-price-changed.event.ts`)
-  - Consumer exists: `src/modules/finance/handlers/booking-price-changed.handler.ts`
-  - No in-repo publisher found.
 - `PayoutFailedEvent`, `BatchPayoutFailedEvent` (`src/modules/finance/events/payout-failed.event.ts`)
   - Consumers exist: `src/modules/finance/events/handlers/financial-failure.handler.ts`
   - No in-repo publisher found.

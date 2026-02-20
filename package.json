@@ -56,10 +56,11 @@
     "check:layering-contract": "ts-node scripts/ci/check-layering-contract.ts",
     "check:authorization-contract": "ts-node scripts/ci/check-authorization-contract.ts",
     "check:platform-tenant-body": "ts-node scripts/ci/check-platform-tenant-body.ts",
+    "check:event-contract": "ts-node scripts/ci/check-event-contract.ts",
     "audit:tenant-integrity": "ts-node scripts/audit/tenant-integrity.ts",
     "check:tenant-contract": "ts-node scripts/ci/check-tenant-contract.ts",
     "check:tenant-async-boundary": "ts-node scripts/ci/check-tenant-async-boundary.ts",
-    "validate": "npm run lint && npm run type-check && npm run check:sql-safety && npm run check:security-patterns && npm run check:layering-contract && npm run check:authorization-contract && npm run check:platform-tenant-body && npm run check:tenant-contract && npm run check:tenant-async-boundary && npm run test",
+    "validate": "npm run lint && npm run type-check && npm run check:sql-safety && npm run check:security-patterns && npm run check:layering-contract && npm run check:authorization-contract && npm run check:platform-tenant-body && npm run check:event-contract && npm run check:tenant-contract && npm run check:tenant-async-boundary && npm run test",
     "pre-push": "npm run validate",
     "test:mutation": "stryker run"
   },

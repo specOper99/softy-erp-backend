@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import {
   createMockDepartmentBudget,
   createMockRepository,
@@ -13,6 +12,7 @@ import { DepartmentBudget } from '../entities/department-budget.entity';
 import { PurchaseInvoice } from '../entities/purchase-invoice.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { DepartmentBudgetRepository } from '../repositories/department-budget.repository';
+import { PurchaseInvoiceRepository } from '../repositories/purchase-invoice.repository';
 import { TransactionRepository } from '../repositories/transaction.repository';
 import { FinancialReportService } from './financial-report.service';
 
@@ -49,7 +49,7 @@ describe('FinancialReportService', () => {
           useValue: mockCacheUtils,
         },
         {
-          provide: getRepositoryToken(PurchaseInvoice),
+          provide: PurchaseInvoiceRepository,
           useValue: mockPurchaseInvoiceRepo,
         },
       ],
@@ -58,7 +58,7 @@ describe('FinancialReportService', () => {
     service = module.get<FinancialReportService>(FinancialReportService);
     transactionRepo = module.get(TransactionRepository);
     budgetRepo = module.get(DepartmentBudgetRepository);
-    purchaseInvoiceRepo = module.get(getRepositoryToken(PurchaseInvoice));
+    purchaseInvoiceRepo = module.get(PurchaseInvoiceRepository);
 
     mockTenantContext(mockTenantId);
     // Mock getTenantIdOrThrow specifically if needed, but mockTenantContext does it for getTenantId

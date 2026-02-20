@@ -1,4 +1,3 @@
-import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
   ConflictException,
@@ -9,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { Response } from 'express';
-import { Brackets, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -39,6 +38,7 @@ import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
 import { TasksExportService } from './tasks-export.service';
 
+import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
 import { TaskRepository } from '../repositories/task.repository';
 
 @Injectable()
@@ -57,7 +57,7 @@ export class TasksService {
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
     private readonly tasksExportService: TasksExportService,
-    @InjectRepository(TaskAssignee) private readonly taskAssigneeRepository: Repository<TaskAssignee>,
+    private readonly taskAssigneeRepository: TaskAssigneeRepository,
   ) {
     this.tenantTx = new TenantScopedManager(dataSource);
   }

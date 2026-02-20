@@ -1,7 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { createMockRepository, createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -16,6 +15,7 @@ import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
+import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
 import { TaskRepository } from '../repositories/task.repository';
 import { TasksExportService } from './tasks-export.service';
 import { TasksService } from './tasks.service';
@@ -120,7 +120,7 @@ describe('TasksService - Comprehensive Tests', () => {
         { provide: EventBus, useValue: mockEventBus },
         { provide: AuditService, useValue: mockAuditService },
         { provide: DataSource, useValue: mockDataSource },
-        { provide: getRepositoryToken(TaskAssignee), useValue: mockTaskAssigneeRepository },
+        { provide: TaskAssigneeRepository, useValue: mockTaskAssigneeRepository },
         { provide: EventBus, useValue: mockEventBus },
         { provide: TasksExportService, useValue: mockTasksExportService },
       ],

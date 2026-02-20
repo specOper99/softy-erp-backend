@@ -1,7 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventBus } from '@nestjs/cqrs';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { BookingRepository } from '../bookings/repositories/booking.repository';
 import { TransactionRepository } from '../finance/repositories/transaction.repository';
@@ -9,7 +8,8 @@ import { ProfileRepository } from '../hr/repositories/profile.repository';
 import { StorageService } from '../media/storage.service';
 import { TaskRepository } from '../tasks/repositories/task.repository';
 import { UserRepository } from '../users/repositories/user.repository';
-import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
+import { PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
+import { PrivacyRequestRepository } from './repositories/privacy-request.repository';
 import { PrivacyService } from './privacy.service';
 
 jest.mock('../../common/services/tenant-context.service');
@@ -50,17 +50,6 @@ describe('PrivacyService', () => {
     complete: jest.fn(),
     fail: jest.fn(),
     cancel: jest.fn(),
-  };
-
-  const _mockUser = {
-    id: mockUserId,
-    email: 'test@example.com',
-    role: 'user',
-    isActive: true,
-    emailVerified: true,
-    isMfaEnabled: false,
-    createdAt: new Date(),
-    tenantId: mockTenantId,
   };
 
   beforeEach(async () => {
@@ -106,7 +95,7 @@ describe('PrivacyService', () => {
       providers: [
         PrivacyService,
         {
-          provide: getRepositoryToken(PrivacyRequest),
+          provide: PrivacyRequestRepository,
           useValue: privacyRequestRepository,
         },
         { provide: UserRepository, useValue: userRepository },

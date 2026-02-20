@@ -10,6 +10,7 @@ import { Consent } from './entities/consent.entity';
 import { PrivacyRequest } from './entities/privacy-request.entity';
 import { ConsentService } from './consent.service';
 import { PrivacyController } from './privacy.controller';
+import { PrivacyRequestRepository } from './repositories/privacy-request.repository';
 import { PrivacyService } from './privacy.service';
 
 @Module({
@@ -23,7 +24,7 @@ import { PrivacyService } from './privacy.service';
     MediaModule,
   ],
   controllers: [PrivacyController],
-  providers: [PrivacyService, ConsentService],
+  providers: [PrivacyService, ConsentService, PrivacyRequestRepository],
   exports: [PrivacyService, ConsentService],
 })
 export class PrivacyModule {}

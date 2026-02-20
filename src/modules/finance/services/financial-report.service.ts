@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
@@ -12,7 +10,6 @@ import {
   ProfitabilityQueryDto,
 } from '../dto';
 import { DepartmentBudget } from '../entities/department-budget.entity';
-import { PurchaseInvoice } from '../entities/purchase-invoice.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { PnLEntry } from '../types/report.types';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
@@ -26,6 +23,7 @@ import {
 } from '../dto/statement.dto';
 
 import { DepartmentBudgetRepository } from '../repositories/department-budget.repository';
+import { PurchaseInvoiceRepository } from '../repositories/purchase-invoice.repository';
 import { TransactionRepository } from '../repositories/transaction.repository';
 
 @Injectable()
@@ -33,9 +31,8 @@ export class FinancialReportService {
   constructor(
     private readonly transactionRepository: TransactionRepository,
     private readonly budgetRepository: DepartmentBudgetRepository,
+    private readonly purchaseInvoiceRepository: PurchaseInvoiceRepository,
     private readonly cacheUtils: CacheUtilsService,
-    @InjectRepository(PurchaseInvoice)
-    private readonly purchaseInvoiceRepository: Repository<PurchaseInvoice>,
   ) {}
 
   // Cache TTL: 5 minutes for financial reports (staleness allowed for performance)
@@ -346,8 +343,6 @@ export class FinancialReportService {
   }
 
   async getVendorStatement(query: VendorStatementQueryDto): Promise<StatementResponseDto> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const rows = await this.purchaseInvoiceRepository
       .createQueryBuilder('pi')
       .innerJoin('transactions', 't', 't.id = pi.transaction_id AND t.tenant_id = pi.tenant_id')
@@ -359,7 +354,6 @@ export class FinancialReportService {
       .addSelect('t.transaction_date', 'transactionDate')
       .addSelect('pi.invoice_number', 'referenceId')
       .addSelect('t.currency', 'currency')
-      .where('pi.tenant_id = :tenantId', { tenantId })
       .andWhere('pi.vendor_id = :vendorId', { vendorId: query.vendorId })
       .andWhere('pi.invoice_date >= :startDate', { startDate: query.startDate })
       .andWhere('pi.invoice_date <= :endDate', { endDate: query.endDate })

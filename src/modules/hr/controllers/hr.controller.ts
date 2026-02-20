@@ -1,21 +1,10 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  ForbiddenException,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards';
+import { resolveRequestedUserIdScope } from '../../../common/helpers/field-staff-user-scope.helper';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
@@ -132,18 +121,12 @@ export class HrController {
   @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiResponse({ status: 200, type: AvailabilityWindowDto, isArray: true })
   getAvailability(@Query() query: AvailabilityQueryDto, @CurrentUser() user: User) {
-    if (user.role === Role.FIELD_STAFF) {
-      if (query.userId && query.userId !== user.id) {
-        throw new ForbiddenException('Field staff can only fetch their own availability');
-      }
+    const scopedUserId = resolveRequestedUserIdScope(user, query.userId);
 
-      return this.hrService.getAvailabilityWindows({
-        ...query,
-        userId: user.id,
-      });
-    }
-
-    return this.hrService.getAvailabilityWindows(query);
+    return this.hrService.getAvailabilityWindows({
+      ...query,
+      userId: scopedUserId,
+    });
   }
 
   @Get('profiles/:id')

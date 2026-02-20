@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
+import { EventEmitter } from 'node:events';
 import { WebhookRepository } from '../../../src/modules/webhooks/repositories/webhook.repository';
 
 import { WEBHOOK_QUEUE } from '../../../src/modules/webhooks/webhooks.types';
@@ -10,7 +11,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { EncryptionService } from '../../../src/common/services/encryption.service';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 
-void globalThis.fetch;
+jest.mock('node:https');
+import * as https from 'node:https';
 
 jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(() => Promise.resolve([{ address: '1.1.1.1', family: 4 }])),
@@ -27,18 +29,87 @@ const mockConfigService = {
   }),
 };
 
-const mockFetch = jest.fn();
-Object.defineProperty(globalThis, 'fetch', {
-  value: mockFetch,
-  writable: true,
-  configurable: true,
-});
+type HttpsMockOutcome =
+  | { type: 'success'; statusCode: number; statusMessage: string }
+  | { type: 'error'; error: Error };
+
+class MockIncomingMessage extends EventEmitter {
+  constructor(
+    readonly statusCode: number,
+    readonly statusMessage: string,
+  ) {
+    super();
+  }
+
+  resume(): void {}
+}
+
+class MockClientRequest extends EventEmitter {
+  setTimeout(_timeout: number, _callback?: () => void): this {
+    return this;
+  }
+
+  destroy(error?: Error): this {
+    if (error) {
+      setImmediate(() => this.emit('error', error));
+    }
+    setImmediate(() => this.emit('close'));
+    return this;
+  }
+
+  write(_chunk: string): boolean {
+    return true;
+  }
+
+  end(_chunk?: string): this {
+    return this;
+  }
+}
+
+const createHttpsRequestMock = (outcomes: HttpsMockOutcome[], onCall?: () => void): typeof https.request => {
+  return ((...args: unknown[]) => {
+    onCall?.();
+    const callback = args.find((arg): arg is (response: MockIncomingMessage) => void => typeof arg === 'function');
+
+    const req = new MockClientRequest();
+
+    req.end = function end(this: MockClientRequest): MockClientRequest {
+      const outcome = outcomes.shift() ?? {
+        type: 'success',
+        statusCode: 200,
+        statusMessage: 'OK',
+      };
+
+      if (outcome.type === 'error') {
+        setImmediate(() => {
+          this.emit('error', outcome.error);
+          this.emit('close');
+        });
+        return this;
+      }
+
+      const response = new MockIncomingMessage(outcome.statusCode, outcome.statusMessage);
+      callback?.(response);
+
+      setImmediate(() => {
+        response.emit('end');
+        this.emit('close');
+      });
+
+      return this;
+    };
+
+    return req as unknown as ReturnType<typeof https.request>;
+  }) as unknown as typeof https.request;
+};
 
 describe('Webhook Delivery Integration', () => {
   let module: TestingModule;
   let webhookService: WebhookService;
   let dataSource: DataSource;
   let _encryptionService: EncryptionService;
+  let httpsRequestSpy: jest.SpiedFunction<typeof https.request>;
+  let httpsRequestOutcomes: HttpsMockOutcome[];
   const tenantId = uuidv4();
 
   beforeAll(async () => {
@@ -95,7 +166,10 @@ describe('Webhook Delivery Integration', () => {
 
   beforeEach(async () => {
     await dataSource.getRepository(Webhook).createQueryBuilder().delete().execute();
-    mockFetch.mockReset();
+    httpsRequestOutcomes = [];
+
+    httpsRequestSpy = jest.spyOn(https, 'request').mockImplementation(createHttpsRequestMock(httpsRequestOutcomes));
+    httpsRequestSpy.mockClear();
 
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(tenantId);
     jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(tenantId);
@@ -115,11 +189,7 @@ describe('Webhook Delivery Integration', () => {
     });
 
     // 2. Setup mock success
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve('OK'),
-    });
+    httpsRequestOutcomes.push({ type: 'success', statusCode: 200, statusMessage: 'OK' });
 
     // 3. Emit Event
     const event: WebhookEvent = {
@@ -132,17 +202,21 @@ describe('Webhook Delivery Integration', () => {
     await webhookService.emit(event);
 
     // 4. Verify Delivery
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledWith(
-      url,
+    expect(httpsRequestSpy).toHaveBeenCalledTimes(1);
+    expect(httpsRequestSpy).toHaveBeenCalledWith(
       expect.objectContaining({
+        protocol: 'https:',
         method: 'POST',
+        hostname: '1.1.1.1',
+        path: '/test-endpoint',
         headers: expect.objectContaining({
+          Host: 'webhook.site',
           'Content-Type': 'application/json',
           'X-Webhook-Event': 'booking.created',
           'X-Webhook-Signature': expect.any(String),
         }),
       }),
+      expect.any(Function),
     );
   });
 
@@ -157,7 +231,11 @@ describe('Webhook Delivery Integration', () => {
     });
 
     // Mock failure for all attempts
-    mockFetch.mockRejectedValue(new Error('Network Error'));
+    httpsRequestOutcomes.push(
+      { type: 'error', error: new Error('Network Error') },
+      { type: 'error', error: new Error('Network Error') },
+      { type: 'error', error: new Error('Network Error') },
+    );
 
     // Override constants for testing
     const webhookConfigurable = webhookService as unknown as {
@@ -176,7 +254,7 @@ describe('Webhook Delivery Integration', () => {
 
     await webhookService.emit(event);
 
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(httpsRequestSpy).toHaveBeenCalledTimes(3);
   });
 
   it('should use exponential backoff between retries', async () => {
@@ -189,20 +267,15 @@ describe('Webhook Delivery Integration', () => {
       events: ['booking.created'],
     });
 
-    const deliveryAttempts: string[] = [];
-    mockFetch.mockImplementation((requestUrl, _options) => {
-      deliveryAttempts.push(requestUrl);
+    const deliveryAttempts: number[] = [];
+    httpsRequestOutcomes.push(
+      { type: 'error', error: new Error('Network error') },
+      { type: 'error', error: new Error('Network error') },
+      { type: 'error', error: new Error('Network error') },
+      { type: 'success', statusCode: 200, statusMessage: 'OK' },
+    );
 
-      if (deliveryAttempts.length <= 3) {
-        return Promise.reject(new Error('Network error'));
-      }
-
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('OK'),
-      });
-    });
+    httpsRequestSpy.mockImplementation(createHttpsRequestMock(httpsRequestOutcomes, () => deliveryAttempts.push(1)));
 
     const event: WebhookEvent = {
       type: 'booking.created',
@@ -215,5 +288,9 @@ describe('Webhook Delivery Integration', () => {
 
     // Verify that multiple attempts were made (exponential backoff behavior)
     expect(deliveryAttempts.length).toBeGreaterThanOrEqual(3);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 });

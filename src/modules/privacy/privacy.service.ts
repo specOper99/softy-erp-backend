@@ -1,10 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
 import archiver from 'archiver';
 import { createReadStream, createWriteStream, promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { In, Repository } from 'typeorm';
+import { In } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../common/constants/business.constants';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Booking } from '../bookings/entities/booking.entity';
@@ -20,6 +19,7 @@ import { TaskRepository } from '../tasks/repositories/task.repository';
 import { UserRepository } from '../users/repositories/user.repository';
 import { CreatePrivacyRequestDto } from './dto/privacy.dto';
 import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
+import { PrivacyRequestRepository } from './repositories/privacy-request.repository';
 
 interface UserDataExport {
   exportedAt: string;
@@ -44,8 +44,7 @@ export class PrivacyService {
   private readonly tempDir = BUSINESS_CONSTANTS.PRIVACY.TEMP_EXPORT_DIR;
 
   constructor(
-    @InjectRepository(PrivacyRequest)
-    private readonly privacyRequestRepository: Repository<PrivacyRequest>,
+    private readonly privacyRequestRepository: PrivacyRequestRepository,
     private readonly userRepository: UserRepository,
     private readonly bookingRepository: BookingRepository,
     private readonly taskRepository: TaskRepository,
