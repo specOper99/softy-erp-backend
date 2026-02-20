@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -18,6 +18,7 @@ import {
   CreateStaffDto,
   CreateStaffResponseDto,
   ProfileFilterDto,
+  RunPayrollDto,
   UpdateProfileDto,
 } from '../dto';
 import { HrService } from '../services/hr.service';
@@ -162,9 +163,15 @@ export class HrController {
   @Post('payroll/run')
   @Roles(Role.ADMIN)
   @MfaRequired()
-  @ApiOperation({ summary: 'Run payroll manually (Admin only)' })
-  runPayroll() {
-    return this.payrollService.runPayroll();
+  @ApiOperation({
+    summary: 'Run payroll manually (Admin only)',
+    description:
+      'Runs payroll for the specified month/year. When no body is provided, defaults to the current month and year.',
+  })
+  @ApiBody({ type: RunPayrollDto, required: false })
+  @ApiResponse({ status: 201, description: 'Payroll run completed' })
+  runPayroll(@Body() dto: RunPayrollDto = new RunPayrollDto()) {
+    return this.payrollService.runPayroll(dto);
   }
 
   @Get('payroll/history')

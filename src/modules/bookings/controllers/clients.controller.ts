@@ -12,13 +12,13 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
+import { ClientFilterDto } from '../dto/client-filter.dto';
 import { CreateClientDto, UpdateClientDto, UpdateClientTagsDto } from '../dto/client.dto';
 import { ClientsService } from '../services/clients.service';
 
@@ -37,9 +37,13 @@ export class ClientsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all clients with optional tag filtering' })
+  @ApiOperation({ summary: 'Get all clients with optional tag and search filtering' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by client name, email, or phone' })
+  @ApiQuery({ name: 'tags', required: false, type: String, description: 'Comma-separated tag filter' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
-    @Query() query: PaginationDto,
+    @Query() query: ClientFilterDto,
     @Query('tags', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
     tags?: string[],
   ) {

@@ -18,7 +18,7 @@ import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
-import { PayrollRunResponseDto } from '../dto';
+import { PayrollRunResponseDto, RunPayrollDto } from '../dto';
 import { PayrollRun } from '../entities';
 import { PayrollRunRepository } from '../repositories/payroll-run.repository';
 import { ProfileRepository } from '../repositories/profile.repository';
@@ -109,8 +109,14 @@ export class PayrollService {
     }
   }
 
-  async runPayroll(): Promise<PayrollRunResponseDto> {
+  async runPayroll(dto: RunPayrollDto = new RunPayrollDto()): Promise<PayrollRunResponseDto> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    // Resolve target period from DTO or default to current month/year
+    const now = new Date();
+    const targetMonth = dto.month ?? now.getMonth() + 1;
+    const targetYear = dto.year ?? now.getFullYear();
+    const payrollPeriod = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
 
     // Get total count for batch processing
     const totalCount = await this.profileRepository.count({
@@ -140,7 +146,7 @@ export class PayrollService {
       const skip = batchIndex * this.PAYROLL_BATCH_SIZE;
 
       try {
-        const batchResult = await this.processPayrollBatch(tenantId, skip, this.PAYROLL_BATCH_SIZE);
+        const batchResult = await this.processPayrollBatch(tenantId, skip, this.PAYROLL_BATCH_SIZE, payrollPeriod);
 
         allTransactionIds.push(...batchResult.transactionIds);
         totalPayout += batchResult.totalPayout;
@@ -257,6 +263,7 @@ export class PayrollService {
     tenantId: string,
     skip: number,
     take: number,
+    payrollPeriod?: string,
   ): Promise<{
     transactionIds: string[];
     totalPayout: number;
@@ -285,9 +292,9 @@ export class PayrollService {
         limit(async () => {
           const baseSalary = Number(profile.baseSalary) || 0;
 
-          const payrollMonth = new Date().toISOString().slice(0, 7);
-          const referenceId = `${tenantId}-${profile.id}-${payrollMonth}`;
-          const idempotencyKey = `payroll:${tenantId}:${profile.id}:${payrollMonth}`;
+          const period = payrollPeriod ?? new Date().toISOString().slice(0, 7);
+          const referenceId = `${tenantId}-${profile.id}-${period}`;
+          const idempotencyKey = `payroll:${tenantId}:${profile.id}:${period}`;
 
           try {
             const result = await this.tenantTx.run(async (manager) => {

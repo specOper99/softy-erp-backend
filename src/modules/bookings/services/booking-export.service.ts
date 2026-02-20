@@ -1,6 +1,8 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
+import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { ExportService } from '../../../common/services/export.service';
+import { BookingExportFilterDto } from '../dto/booking-export-filter.dto';
 import { BookingRepository } from '../repositories/booking.repository';
 import type { BookingExportRow, ClientCsvRow } from '../types/export.types';
 import { ClientsService } from './clients.service';
@@ -15,14 +17,52 @@ export class BookingExportService {
     private readonly exportService: ExportService,
   ) {}
 
-  async exportBookingsToCSV(res: Response): Promise<void> {
+  async exportBookingsToCSV(res: Response, filters?: BookingExportFilterDto): Promise<void> {
     try {
-      const queryStream = await this.bookingRepository
+      const qb = this.bookingRepository
         .createQueryBuilder('booking')
         .leftJoinAndSelect('booking.client', 'client')
-        .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
-        .orderBy('booking.createdAt', 'DESC')
-        .stream();
+        .leftJoinAndSelect('booking.servicePackage', 'servicePackage');
+
+      // Apply optional filters
+      if (filters) {
+        if (filters.search) {
+          const trimmed = filters.search.trim();
+          if (trimmed.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
+            const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH).replace(/[%_]/g, '');
+            if (sanitized.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
+              qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
+                search: `%${sanitized}%`,
+              });
+            }
+          }
+        }
+
+        if (filters.status && filters.status.length > 0) {
+          const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
+          qb.andWhere('booking.status IN (:...statuses)', { statuses });
+        }
+
+        if (filters.startDate) {
+          qb.andWhere('booking.eventDate >= :startDate', { startDate: filters.startDate });
+        }
+
+        if (filters.endDate) {
+          qb.andWhere('booking.eventDate <= :endDate', { endDate: filters.endDate });
+        }
+
+        if (filters.packageId) {
+          qb.andWhere('booking.packageId = :packageId', { packageId: filters.packageId });
+        }
+
+        if (filters.clientId) {
+          qb.andWhere('booking.clientId = :clientId', { clientId: filters.clientId });
+        }
+      }
+
+      qb.orderBy('booking.createdAt', 'DESC');
+
+      const queryStream = await qb.stream();
 
       const fields = ['id', 'clientName', 'clientEmail', 'package', 'eventDate', 'totalPrice', 'status', 'createdAt'];
 

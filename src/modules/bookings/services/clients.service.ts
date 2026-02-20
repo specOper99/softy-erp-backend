@@ -52,7 +52,7 @@ export class ClientsService {
   }
 
   async findAll(
-    query: { getSkip(): number; getTake(): number } = { getSkip: () => 0, getTake: () => 20 },
+    query: { getSkip(): number; getTake(): number; search?: string } = { getSkip: () => 0, getTake: () => 20 },
     tags?: string[],
   ): Promise<Client[]> {
     const queryBuilder = this.clientRepository
@@ -61,6 +61,20 @@ export class ClientsService {
       .orderBy('client.createdAt', 'DESC')
       .skip(query.getSkip())
       .take(query.getTake());
+
+    // Text search across name, email, and phone
+    if (query.search) {
+      const trimmed = query.search.trim();
+      if (trimmed.length >= 1) {
+        const sanitized = trimmed.slice(0, 100).replace(/[%_]/g, '');
+        if (sanitized.length >= 1) {
+          queryBuilder.andWhere(
+            '(client.name ILIKE :search OR client.email ILIKE :search OR client.phone ILIKE :search)',
+            { search: `%${sanitized}%` },
+          );
+        }
+      }
+    }
 
     // Filter by tags if provided (JSONB array containment)
     if (tags && tags.length > 0) {

@@ -1,8 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { DataSource } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
-import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -19,6 +18,7 @@ import {
   BookingAvailabilityConflictCode,
   BookingAvailabilityQueryDto,
   BookingAvailabilityResponseDto,
+  BookingCursorFilterDto,
   BookingFilterDto,
   BookingSortBy,
   CreateBookingDto,
@@ -37,10 +37,22 @@ import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
 import { BookingStateMachineService } from './booking-state-machine.service';
 
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
-import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { StaffConflictService } from './staff-conflict.service';
+
+/** Shared filter fields used by both offset and cursor pagination. */
+interface BookingFilterFields {
+  search?: string;
+  status?: BookingStatus[];
+  startDate?: string;
+  endDate?: string;
+  packageId?: string;
+  clientId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+}
 
 @Injectable()
 export class BookingsService {
@@ -179,24 +191,7 @@ export class BookingsService {
 
     qb.skip(query.getSkip()).take(query.getTake());
 
-    if (query.search) {
-      // Validate and sanitize search parameter
-      const trimmed = query.search.trim();
-      if (trimmed.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
-        const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH).replace(/[%_]/g, '');
-        if (sanitized.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
-          qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
-            search: `%${sanitized}%`,
-          });
-        }
-      }
-    }
-
-    if (query.status && query.status.length > 0) {
-      // If status comes as a single string (from query params issue), wrap it
-      const statuses = Array.isArray(query.status) ? query.status : [query.status];
-      qb.andWhere('booking.status IN (:...statuses)', { statuses });
-    }
+    this.applyBookingFilters(qb, query);
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
@@ -221,47 +216,11 @@ export class BookingsService {
       );
     }
 
-    if (query.startDate) {
-      qb.andWhere('booking.eventDate >= :startDate', {
-        startDate: query.startDate,
-      });
-    }
-
-    if (query.endDate) {
-      qb.andWhere('booking.eventDate <= :endDate', {
-        endDate: query.endDate,
-      });
-    }
-
-    if (query.packageId) {
-      qb.andWhere('booking.packageId = :packageId', {
-        packageId: query.packageId,
-      });
-    }
-
-    if (query.clientId) {
-      qb.andWhere('booking.clientId = :clientId', {
-        clientId: query.clientId,
-      });
-    }
-
-    if (query.minPrice !== undefined) {
-      qb.andWhere('booking.totalPrice >= :minPrice', {
-        minPrice: query.minPrice,
-      });
-    }
-
-    if (query.maxPrice !== undefined) {
-      qb.andWhere('booking.totalPrice <= :maxPrice', {
-        maxPrice: query.maxPrice,
-      });
-    }
-
     return qb.getMany();
   }
 
   async findAllCursor(
-    query: CursorPaginationDto,
+    query: BookingCursorFilterDto,
     user?: User,
   ): Promise<{ data: Booking[]; nextCursor: string | null }> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -271,6 +230,8 @@ export class BookingsService {
     qb.leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
       .where('booking.tenantId = :tenantId', { tenantId });
+
+    this.applyBookingFilters(qb, query);
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
@@ -608,6 +569,53 @@ export class BookingsService {
         },
       ],
     };
+  }
+
+  /**
+   * Apply shared booking filter conditions to a query builder.
+   * Used by findAll (offset), findAllCursor, and export methods.
+   */
+  private applyBookingFilters(qb: SelectQueryBuilder<Booking>, filters: BookingFilterFields): void {
+    if (filters.search) {
+      const trimmed = filters.search.trim();
+      if (trimmed.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
+        const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH).replace(/[%_]/g, '');
+        if (sanitized.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
+          qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
+            search: `%${sanitized}%`,
+          });
+        }
+      }
+    }
+
+    if (filters.status && filters.status.length > 0) {
+      const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
+      qb.andWhere('booking.status IN (:...statuses)', { statuses });
+    }
+
+    if (filters.startDate) {
+      qb.andWhere('booking.eventDate >= :startDate', { startDate: filters.startDate });
+    }
+
+    if (filters.endDate) {
+      qb.andWhere('booking.eventDate <= :endDate', { endDate: filters.endDate });
+    }
+
+    if (filters.packageId) {
+      qb.andWhere('booking.packageId = :packageId', { packageId: filters.packageId });
+    }
+
+    if (filters.clientId) {
+      qb.andWhere('booking.clientId = :clientId', { clientId: filters.clientId });
+    }
+
+    if (filters.minPrice !== undefined) {
+      qb.andWhere('booking.totalPrice >= :minPrice', { minPrice: filters.minPrice });
+    }
+
+    if (filters.maxPrice !== undefined) {
+      qb.andWhere('booking.totalPrice <= :maxPrice', { maxPrice: filters.maxPrice });
+    }
   }
 
   private async ensureNoStaffConflict(input: {

@@ -15,14 +15,16 @@ import {
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
-import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TasksService } from '../../tasks/services/tasks.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import {
   BookingAvailabilityQueryDto,
   BookingAvailabilityResponseDto,
+  BookingCursorFilterDto,
+  BookingExportFilterDto,
   BookingFilterDto,
   CancelBookingDto,
   CreateBookingDto,
@@ -34,7 +36,6 @@ import {
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
 import { BookingsService } from '../services/bookings.service';
-import { TasksService } from '../../tasks/services/tasks.service';
 
 import { BookingWorkflowService } from '../services/booking-workflow.service';
 
@@ -95,24 +96,39 @@ export class BookingsController {
 
   @Get('cursor')
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
-  @ApiOperation({ summary: 'Get bookings with cursor pagination' })
+  @ApiOperation({
+    summary: 'Get bookings with cursor pagination',
+    description: 'Cursor pagination with same filter capabilities as the offset endpoint.',
+  })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: BookingStatus, isArray: true })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'packageId', required: false, type: String })
+  @ApiQuery({ name: 'clientId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return bookings' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  findAllCursor(@Query() query: CursorPaginationDto, @CurrentUser() user: User) {
+  findAllCursor(@Query() query: BookingCursorFilterDto, @CurrentUser() user: User) {
     return this.bookingsService.findAllCursor(query, user);
   }
 
   @Get('export')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Export bookings to CSV' })
+  @ApiOperation({ summary: 'Export bookings to CSV (with optional filters)' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: BookingStatus, isArray: true })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'packageId', required: false, type: String })
+  @ApiQuery({ name: 'clientId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'CSV file download' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  exportBookings(@Res() res: Response) {
-    return this.bookingExportService.exportBookingsToCSV(res);
+  exportBookings(@Query() filters: BookingExportFilterDto, @Res() res: Response) {
+    return this.bookingExportService.exportBookingsToCSV(res, filters);
   }
 
   @Get('availability')
