@@ -17,7 +17,7 @@ export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
   @Post('generate/:bookingId')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Generate invoice for a booking' })
   @ApiResponse({ status: 201, description: 'Invoice generated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid booking state or arguments' })
@@ -30,13 +30,13 @@ export class InvoiceController {
 
   @Get(':id/pdf')
   @UseGuards(ResourceOwnershipGuard)
-  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.CLIENT)
+  @Roles(Role.ADMIN, Role.CLIENT)
   @ResourceOwnership({
     resourceType: 'Invoice',
     paramName: 'id',
     ownerField: 'clientId',
     userField: 'clientId',
-    allowRoles: [Role.ADMIN, Role.OPS_MANAGER],
+    allowRoles: [Role.ADMIN],
     errorMessage: 'You can only download your own invoices',
   })
   @ApiOperation({ summary: 'Download invoice PDF' })

@@ -15,7 +15,7 @@ export class TransactionCategoriesController {
   constructor(private readonly categoriesService: TransactionCategoriesService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get all transaction categories' })
   @ApiResponse({ status: 200, description: 'List of transaction categories' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -25,7 +25,7 @@ export class TransactionCategoriesController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get transaction category by ID' })
   @ApiResponse({ status: 200, description: 'Category details' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

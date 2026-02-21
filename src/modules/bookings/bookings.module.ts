@@ -19,8 +19,9 @@ import { Client } from './entities/client.entity';
 
 import { ExportService } from '../../common/services/export.service';
 import { AuditModule } from '../audit/audit.module';
-import { TenantsModule } from '../tenants/tenants.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { TenantsModule } from '../tenants/tenants.module';
+import { BookingCompletionHandler } from './handlers/booking-completion.handler';
 import { BookingRepository } from './repositories/booking.repository';
 import { ClientRepository } from './repositories/client.repository';
 import { BookingExportService } from './services/booking-export.service';
@@ -63,6 +64,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     TaskAssigneeRepository,
     TaskTypeEligibilityRepository,
     StaffConflictService,
+    BookingCompletionHandler,
   ],
   exports: [
     BookingsService,

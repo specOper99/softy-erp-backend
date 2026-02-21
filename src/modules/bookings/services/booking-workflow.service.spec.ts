@@ -13,6 +13,7 @@ import { AuditPublisher } from '../../audit/audit.publisher';
 import { Transaction } from '../../finance/entities/transaction.entity';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
+import { InvoiceService } from '../../finance/services/invoice.service';
 import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import { Task } from '../../tasks/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/entities/time-entry.entity';
@@ -75,6 +76,7 @@ describe('BookingWorkflowService', () => {
           },
         ]),
       } as unknown as Booking['servicePackage'],
+      derivePaymentStatus: jest.fn().mockReturnValue('DEPOSIT_PAID'),
     };
 
     const mockQR = createMockQueryRunner();
@@ -154,6 +156,12 @@ describe('BookingWorkflowService', () => {
         },
         { provide: BookingStateMachineService, useValue: mockStateMachine },
         { provide: StaffConflictService, useValue: staffConflictService },
+        {
+          provide: InvoiceService,
+          useValue: {
+            createInvoice: jest.fn().mockResolvedValue({ id: 'inv-1' }),
+          },
+        },
       ],
     }).compile();
 
@@ -196,7 +204,8 @@ describe('BookingWorkflowService', () => {
         queryRunner.manager,
         expect.objectContaining({
           type: TransactionType.INCOME,
-          amount: 100,
+          amount: 20,
+          category: 'Booking Deposit',
         }),
       );
 

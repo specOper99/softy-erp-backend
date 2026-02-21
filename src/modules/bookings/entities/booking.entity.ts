@@ -4,6 +4,7 @@ import { BookingStatus } from '../enums/booking-status.enum';
 
 import { MoneyColumn, PercentColumn } from '../../../common/decorators/column.decorators';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { MathUtils } from '../../../common/utils/math.utils';
 import type { ServicePackage } from '../../catalog/entities/service-package.entity';
 import type { Client } from './client.entity';
 
@@ -77,6 +78,19 @@ export class Booking extends BaseTenantEntity {
   @Column({ name: 'cancellation_reason', type: 'text', nullable: true })
   cancellationReason: string | null;
 
+  @Column({ name: 'location_link', type: 'varchar', length: 500, nullable: true })
+  locationLink: string | null;
+
+  @Column({
+    name: 'completion_percentage',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+    transformer: { to: (v: number) => v, from: (v: string) => parseFloat(v) || 0 },
+  })
+  completionPercentage: number;
+
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
 
@@ -130,5 +144,26 @@ export class Booking extends BaseTenantEntity {
    */
   isDepositPaid(): boolean {
     return Number(this.amountPaid) >= Number(this.depositAmount);
+  }
+
+  /**
+   * Derives the payment status based on current amountPaid vs depositAmount/totalPrice.
+   * Called after every payment mutation to keep paymentStatus in sync.
+   */
+  derivePaymentStatus(): PaymentStatus {
+    const paid = MathUtils.round(Number(this.amountPaid) || 0);
+    const total = MathUtils.round(Number(this.totalPrice) || 0);
+    const deposit = MathUtils.round(Number(this.depositAmount) || 0);
+
+    if (paid >= total && total > 0) {
+      return PaymentStatus.FULLY_PAID;
+    }
+    if (deposit > 0 && paid >= deposit) {
+      return PaymentStatus.DEPOSIT_PAID;
+    }
+    if (paid > 0) {
+      return PaymentStatus.PARTIALLY_PAID;
+    }
+    return PaymentStatus.UNPAID;
   }
 }

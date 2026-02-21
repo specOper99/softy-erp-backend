@@ -52,6 +52,9 @@ export class Task extends BaseTenantEntity {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ name: 'location_link', type: 'varchar', length: 500, nullable: true })
+  locationLink: string | null;
+
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
 

@@ -595,6 +595,9 @@ export function createMockBooking(overrides: Partial<MockBooking> = {}): MockBoo
     getRemainingBalance: jest.fn().mockReturnValue(1000),
     isFullyPaid: jest.fn().mockReturnValue(false),
     isDepositPaid: jest.fn().mockReturnValue(false),
+    derivePaymentStatus: jest.fn().mockReturnValue('UNPAID'),
+    completionPercentage: 0,
+    locationLink: null,
     ...overrides,
   } as MockBooking;
 }

@@ -194,6 +194,7 @@ export class FinanceService {
       payoutId?: string;
       description?: string;
       transactionDate: Date;
+      revenueAccountCode?: string;
     },
   ): Promise<Transaction> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -202,7 +203,10 @@ export class FinanceService {
     // This prevents invalid transactions (negative amounts, invalid currencies, etc.)
     const preparedData = await this.validateAndPrepareTransactionData(tenantId, data);
 
-    const transaction = manager.create(Transaction, preparedData);
+    const transaction = manager.create(Transaction, {
+      ...preparedData,
+      revenueAccountCode: data.revenueAccountCode ?? null,
+    });
     const savedTransaction = await manager.save(transaction);
 
     this.publishTransactionCreatedEvent(tenantId, savedTransaction);

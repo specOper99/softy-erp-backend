@@ -19,14 +19,14 @@ export class RecurringTransactionController {
   constructor(private readonly recurringTransactionService: RecurringTransactionService) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create a recurring transaction' })
   create(@Body() dto: CreateRecurringTransactionDto) {
     return this.recurringTransactionService.create(dto);
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Get all recurring transactions (Offset Pagination)',
     deprecated: true,
@@ -37,21 +37,21 @@ export class RecurringTransactionController {
   }
 
   @Get('cursor')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get all recurring transactions with cursor pagination' })
   findAllCursor(@Query() query: CursorPaginationDto) {
     return this.recurringTransactionService.findAllCursor(query);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get recurring transaction by ID' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.recurringTransactionService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update recurring transaction' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRecurringTransactionDto) {
     return this.recurringTransactionService.update(id, dto);

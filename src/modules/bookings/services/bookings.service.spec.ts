@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import {
   createMockAuditService,
   createMockBooking,
@@ -15,6 +14,8 @@ import {
   createMockRepository,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
@@ -30,7 +31,6 @@ import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingRepository } from '../repositories/booking.repository';
 import { BookingStateMachineService } from './booking-state-machine.service';
 import { BookingsService } from './bookings.service';
-import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { StaffConflictService } from './staff-conflict.service';
 
 describe('BookingsService', () => {
@@ -346,7 +346,9 @@ describe('BookingsService', () => {
         ...mockBooking,
         amountPaid: 0,
         totalPrice: 1000,
+        depositAmount: 200,
         client: { email: 'client@example.com', name: 'Client' },
+        derivePaymentStatus: jest.fn().mockReturnValue('PARTIALLY_PAID'),
       };
 
       bookingRepository.createQueryBuilder.mockReturnValue({
@@ -371,6 +373,115 @@ describe('BookingsService', () => {
       expect(event.bookingId).toBe('booking-123');
       expect(event.amount).toBe(250);
       expect(event.tenantId).toBe('tenant-1');
+    });
+
+    it('should update paymentStatus via derivePaymentStatus after recording payment', async () => {
+      const foundBooking = {
+        ...mockBooking,
+        amountPaid: 0,
+        totalPrice: 1000,
+        depositAmount: 200,
+        client: { email: 'a@b.com', name: 'C' },
+        derivePaymentStatus: jest.fn().mockReturnValue('DEPOSIT_PAID'),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(foundBooking),
+      });
+
+      const mockUpdate = jest.fn().mockResolvedValue({ affected: 1 });
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(foundBooking),
+          update: mockUpdate,
+        }),
+      );
+
+      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'CARD' });
+
+      expect(foundBooking.derivePaymentStatus).toHaveBeenCalled();
+      // Verify update was called with paymentStatus
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.anything(), // Booking class
+        expect.objectContaining({ id: 'booking-123' }),
+        expect.objectContaining({
+          amountPaid: 250,
+          paymentStatus: 'DEPOSIT_PAID',
+        }),
+      );
+    });
+  });
+
+  describe('update (draft editing - Gap 3)', () => {
+    beforeEach(() => {
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockBooking),
+      });
+    });
+
+    it('should reject non-draft booking updates with price fields', async () => {
+      const confirmedBooking = createMockBooking({
+        id: 'b-confirmed',
+        tenantId: 'tenant-1',
+        status: BookingStatus.CONFIRMED as unknown as BookingStatus,
+      });
+
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(confirmedBooking),
+      });
+
+      await expect(service.update('b-confirmed', { taxRate: 15 })).rejects.toThrow(BadRequestException);
+    });
+
+    it('should recalculate pricing when draft and price fields change', async () => {
+      const draftBooking = createMockBooking({
+        id: 'b-draft',
+        tenantId: 'tenant-1',
+        status: BookingStatus.DRAFT as unknown as BookingStatus,
+        subTotal: 100,
+        taxRate: 10,
+        taxAmount: 10,
+        totalPrice: 110,
+        depositPercentage: 25,
+        depositAmount: 27.5,
+        packageId: 'pkg-1',
+      });
+
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(draftBooking),
+      });
+
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-2',
+        price: 200,
+        name: 'Premium Package',
+        durationMinutes: 120,
+      });
+
+      const mockSave = jest.fn().mockImplementation((b) => b);
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(draftBooking),
+          save: mockSave,
+        }),
+      );
+
+      await service.update('b-draft', { packageId: 'pkg-2', taxRate: 5 });
+
+      // Verify catalogService was called with the new package
+      expect(catalogService.findPackageById).toHaveBeenCalledWith('pkg-2');
     });
   });
 

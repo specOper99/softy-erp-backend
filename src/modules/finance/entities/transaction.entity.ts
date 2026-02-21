@@ -62,6 +62,9 @@ export class Transaction extends BaseTenantEntity {
   @Column({ name: 'task_id', type: 'uuid', nullable: true })
   taskId: string | null;
 
+  @Column({ name: 'revenue_account_code', type: 'varchar', length: 64, nullable: true })
+  revenueAccountCode: string | null;
+
   @Column({ name: 'payout_id', type: 'uuid', nullable: true })
   payoutId: string | null;
 

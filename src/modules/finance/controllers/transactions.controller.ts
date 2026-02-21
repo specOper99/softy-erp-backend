@@ -34,7 +34,7 @@ export class TransactionsController {
   ) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @MfaRequired()
   @UseInterceptors(IdempotencyInterceptor)
   @Idempotent({ ttl: 24 * 60 * 60 * 1000 }) // 24 hours
@@ -54,7 +54,7 @@ export class TransactionsController {
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Get all transactions (Offset Pagination)',
     deprecated: true,
@@ -68,7 +68,7 @@ export class TransactionsController {
   }
 
   @Get('cursor')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get transactions with cursor pagination' })
   @ApiResponse({ status: 200, description: 'Return paginated transactions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -85,7 +85,7 @@ export class TransactionsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get transaction by ID' })
   @ApiResponse({ status: 200, description: 'Transaction details' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -113,7 +113,7 @@ export class TransactionsController {
   }
 
   @Get('export')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Export transactions to CSV' })
   @ApiResponse({ status: 200, description: 'CSV file download' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

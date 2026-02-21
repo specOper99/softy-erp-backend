@@ -12,6 +12,7 @@ import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { Task } from '../../tasks/entities/task.entity';
+import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import {
@@ -127,6 +128,7 @@ export class BookingsService {
       amountPaid: 0,
       refundAmount: 0,
       paymentStatus: PaymentStatus.UNPAID,
+      locationLink: dto.locationLink ?? null,
     });
 
     const savedBooking = await this.bookingRepository.save(booking);
@@ -366,10 +368,42 @@ export class BookingsService {
         booking.eventDate = new Date(dto.eventDate);
       }
 
-      Object.assign(booking, {
-        ...dto,
-        eventDate: dto.eventDate ? new Date(dto.eventDate) : booking.eventDate,
-      });
+      // Gap 3: Recalculate pricing when draft-only fields change
+      const hasPriceFieldChange =
+        dto.packageId !== undefined || dto.taxRate !== undefined || dto.depositPercentage !== undefined;
+
+      if (booking.status === BookingStatus.DRAFT && hasPriceFieldChange) {
+        const pkgId = dto.packageId ?? booking.packageId;
+        const pkg = await this.catalogService.findPackageById(pkgId);
+
+        const pricing = BookingPriceCalculator.calculate({
+          packagePrice: Number(pkg.price),
+          taxRate: dto.taxRate ?? Number(booking.taxRate),
+          depositPercentage: dto.depositPercentage ?? Number(booking.depositPercentage),
+        });
+
+        booking.packageId = pkgId;
+        booking.durationMinutes = pkg.durationMinutes;
+        booking.subTotal = pricing.subTotal;
+        booking.taxRate = pricing.taxRate;
+        booking.taxAmount = pricing.taxAmount;
+        booking.totalPrice = pricing.totalPrice;
+        booking.depositPercentage = pricing.depositPercentage;
+        booking.depositAmount = pricing.depositAmount;
+        // Update payment status after recalculation since totals changed
+        booking.paymentStatus = booking.derivePaymentStatus();
+      }
+
+      // Apply remaining simple field updates (excluding price fields already handled)
+      const simpleUpdates: Partial<Booking> = {};
+      if (dto.clientId !== undefined) simpleUpdates.clientId = dto.clientId;
+      if (dto.eventDate !== undefined) simpleUpdates.eventDate = new Date(dto.eventDate);
+      if (dto.startTime !== undefined) simpleUpdates.startTime = dto.startTime;
+      if (dto.notes !== undefined) simpleUpdates.notes = dto.notes;
+      if (dto.status !== undefined) simpleUpdates.status = dto.status;
+      if (dto.locationLink !== undefined) simpleUpdates.locationLink = dto.locationLink;
+
+      Object.assign(booking, simpleUpdates);
 
       const saved = await manager.save(booking);
 
@@ -438,9 +472,25 @@ export class BookingsService {
 
   async remove(id: string): Promise<void> {
     const booking = await this.findOne(id);
-    if (booking.status !== BookingStatus.DRAFT) {
-      throw new BadRequestException('booking.can_only_delete_draft');
+
+    // SRS rule: block deletion only when tasks have started (IN_PROGRESS or COMPLETED)
+    if (booking.status === BookingStatus.COMPLETED || booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('booking.cannot_delete_terminal');
     }
+
+    if (booking.status === BookingStatus.CONFIRMED) {
+      const tenantId = TenantContextService.getTenantIdOrThrow();
+      const startedTasks = await this.dataSource.manager.count(Task, {
+        where: [
+          { bookingId: id, tenantId, status: TaskStatus.IN_PROGRESS },
+          { bookingId: id, tenantId, status: TaskStatus.COMPLETED },
+        ],
+      });
+      if (startedTasks > 0) {
+        throw new BadRequestException('booking.cannot_delete_tasks_started');
+      }
+    }
+
     await this.bookingRepository.softRemove(booking);
 
     if (booking.eventDate && booking.packageId) {
@@ -488,15 +538,20 @@ export class BookingsService {
         transactionDate: new Date(),
       });
 
-      // 4. Update the booking's amountPaid field atomically using the locked data
+      // 4. Update the booking's amountPaid and paymentStatus atomically
       const currentPaid = Number(lockedBooking.amountPaid || 0);
       const newPaid = MathUtils.add(currentPaid, dto.amount);
+
+      // Derive payment status (Gap 2: keep paymentStatus in sync)
+      lockedBooking.amountPaid = newPaid;
+      const newPaymentStatus = lockedBooking.derivePaymentStatus();
 
       await manager.update(
         Booking,
         { id: lockedBooking.id, tenantId: lockedBooking.tenantId },
         {
           amountPaid: newPaid,
+          paymentStatus: newPaymentStatus,
           updatedAt: new Date(),
         },
       );

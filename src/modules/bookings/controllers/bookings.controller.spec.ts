@@ -171,8 +171,8 @@ describe('BookingsController', () => {
   describe('exportBookings', () => {
     it('should call exportService.exportBookingsToCSV', async () => {
       const res = {} as unknown as Response;
-      await controller.exportBookings(res);
-      expect(exportService.exportBookingsToCSV).toHaveBeenCalledWith(res);
+      await controller.exportBookings({}, res);
+      expect(exportService.exportBookingsToCSV).toHaveBeenCalledWith(res, {});
     });
   });
 });

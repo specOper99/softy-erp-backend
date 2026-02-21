@@ -11,11 +11,12 @@ import { VendorsService } from '../services/vendors.service';
 @ApiBearerAuth()
 @Controller('finance/vendors')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.OPS_MANAGER)
+@Roles(Role.ADMIN)
 export class VendorsController {
   constructor(private readonly vendorsService: VendorsService) {}
 
   @Post()
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create vendor' })
   @ApiResponse({ status: 201, description: 'Vendor created successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

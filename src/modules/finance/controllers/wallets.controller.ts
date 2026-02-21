@@ -21,7 +21,7 @@ export class WalletsController {
 
   @Get()
   @NoCache()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Get all employee wallets (Offset Pagination)',
     deprecated: true,
@@ -33,7 +33,7 @@ export class WalletsController {
 
   @Get('cursor')
   @NoCache()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get all employee wallets with cursor pagination' })
   findAllCursor(@Query() query: CursorPaginationDto) {
     return this.walletService.getAllWalletsCursor(query);
@@ -41,7 +41,7 @@ export class WalletsController {
 
   @Get('user/:userId')
   @NoCache()
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get wallet by user ID' })
   findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.walletService.getWalletByUserId(userId);

@@ -5,10 +5,11 @@ import { DataSource } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { TransactionType } from '../../finance/enums/transaction-type.enum';
-import { Transaction } from '../../finance/entities/transaction.entity';
-import { FinanceService } from '../../finance/services/finance.service';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
+import { Transaction } from '../../finance/entities/transaction.entity';
+import { TransactionType } from '../../finance/enums/transaction-type.enum';
+import { FinanceService } from '../../finance/services/finance.service';
+import { InvoiceService } from '../../finance/services/invoice.service';
 import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import { Task } from '../../tasks/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/entities/time-entry.entity';
@@ -35,6 +36,7 @@ export class BookingWorkflowService {
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
     private readonly staffConflictService: StaffConflictService,
+    private readonly invoiceService: InvoiceService,
   ) {}
 
   /**
@@ -118,21 +120,34 @@ export class BookingWorkflowService {
               (item as { taskType?: { defaultCommissionAmount?: number } }).taskType?.defaultCommissionAmount ?? 0,
             dueDate: booking.eventDate,
             tenantId: booking.tenantId,
+            locationLink: booking.locationLink ?? null,
           });
         }
       }
 
       const createdTasks = await manager.save(Task, tasksToCreate);
 
-      // Step 3: Create INCOME transaction
-      const transaction = await this.financeService.createTransactionWithManager(manager, {
-        type: TransactionType.INCOME,
-        amount: Number(booking.totalPrice),
-        category: 'Booking Payment',
-        bookingId: booking.id,
-        description: `Booking confirmed: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name} `,
-        transactionDate: new Date(),
-      });
+      // Step 3: Create deposit INCOME transaction (SRS: confirm = deposit paid)
+      const depositAmount = Number(booking.depositAmount) || 0;
+      let transactionId: string | null = null;
+
+      if (depositAmount > 0) {
+        const transaction = await this.financeService.createTransactionWithManager(manager, {
+          type: TransactionType.INCOME,
+          amount: depositAmount,
+          category: 'Booking Deposit',
+          bookingId: booking.id,
+          description: `Deposit payment on confirm: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name}`,
+          transactionDate: new Date(),
+          revenueAccountCode: booking.servicePackage?.revenueAccountCode,
+        });
+        transactionId = transaction.id;
+
+        // Step 3b: Update booking payment fields to reflect deposit paid
+        booking.amountPaid = depositAmount;
+        booking.paymentStatus = booking.derivePaymentStatus();
+        await manager.save(booking);
+      }
 
       // Step 4: Audit Log
       await this.auditService.log({
@@ -157,9 +172,16 @@ export class BookingWorkflowService {
       return {
         booking,
         tasksCreated: createdTasks.length,
-        transactionId: transaction.id,
+        transactionId,
       };
     });
+
+    // Step 5: Auto-generate invoice (non-blocking; failure does not roll back confirm)
+    try {
+      await this.invoiceService.createInvoice(result.booking.id);
+    } catch {
+      // Invoice generation is best-effort; can be retried manually
+    }
 
     if (eventToPublish) {
       this.eventBus.publish(eventToPublish);
@@ -299,6 +321,8 @@ export class BookingWorkflowService {
       if (dto?.reason) {
         booking.cancellationReason = dto.reason;
       }
+      // Gap 4: Sync paymentStatus after reversal
+      booking.paymentStatus = booking.derivePaymentStatus();
 
       const saved = await manager.save(booking);
 
@@ -540,6 +564,7 @@ export class BookingWorkflowService {
       taxAmount: booking.taxAmount,
       depositPercentage: booking.depositPercentage,
       depositAmount: booking.depositAmount,
+      locationLink: booking.locationLink,
       amountPaid: 0,
       refundAmount: 0,
       status: BookingStatus.DRAFT,

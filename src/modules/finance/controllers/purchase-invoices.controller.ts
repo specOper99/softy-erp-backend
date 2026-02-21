@@ -12,7 +12,7 @@ import { PurchaseInvoicesService } from '../services/purchase-invoices.service';
 @ApiBearerAuth()
 @Controller('finance/purchase-invoices')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.OPS_MANAGER)
+@Roles(Role.ADMIN)
 export class PurchaseInvoicesController {
   constructor(private readonly purchaseInvoicesService: PurchaseInvoicesService) {}
 

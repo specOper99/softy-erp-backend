@@ -17,7 +17,7 @@ import { FinancialReportService } from '../services/financial-report.service';
 @ApiTags('Financial Reports')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.OPS_MANAGER)
+@Roles(Role.ADMIN)
 @MfaRequired()
 @Controller('finance/reports')
 export class FinancialReportController {

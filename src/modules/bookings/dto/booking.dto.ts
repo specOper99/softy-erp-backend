@@ -47,6 +47,14 @@ export class CreateBookingDto {
   @Min(0)
   @Max(100)
   depositPercentage?: number;
+
+  @ApiPropertyOptional({
+    description: 'Location link (Google Maps URL or similar)',
+    example: 'https://maps.google.com/?q=...',
+  })
+  @IsString()
+  @IsOptional()
+  locationLink?: string;
 }
 
 export class UpdateBookingDto {
@@ -81,6 +89,30 @@ export class UpdateBookingDto {
   @IsEnum(BookingStatus)
   @IsOptional()
   status?: BookingStatus;
+
+  @ApiPropertyOptional({ description: 'Service package ID (DRAFT only)' })
+  @IsUUID()
+  @IsOptional()
+  packageId?: string;
+
+  @ApiPropertyOptional({ description: 'Tax rate override (0-50%) (DRAFT only)' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(50)
+  taxRate?: number;
+
+  @ApiPropertyOptional({ description: 'Deposit percentage (0-100) (DRAFT only)', example: 25 })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(100)
+  depositPercentage?: number;
+
+  @ApiPropertyOptional({ description: 'Location link (Google Maps URL or similar)' })
+  @IsString()
+  @IsOptional()
+  locationLink?: string;
 }
 
 export class RescheduleBookingDto {
@@ -168,6 +200,12 @@ export class BookingResponseDto {
   @ApiPropertyOptional()
   notes: string;
 
+  @ApiPropertyOptional({ description: 'Location map link' })
+  locationLink: string | null;
+
+  @ApiProperty({ description: 'Booking completion percentage (0-100)', example: 75 })
+  completionPercentage: number;
+
   @ApiProperty()
   createdAt: Date;
 }
@@ -179,8 +217,8 @@ export class ConfirmBookingResponseDto {
   @ApiProperty()
   tasksCreated: number;
 
-  @ApiProperty()
-  transactionId: string;
+  @ApiPropertyOptional({ description: 'Transaction ID (null when no deposit)' })
+  transactionId: string | null;
 }
 
 export enum BookingAvailabilityConflictCode {
