@@ -12,7 +12,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
@@ -32,6 +32,7 @@ export class ClientsController {
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Create a new client' })
+  @ApiBody({ type: CreateClientDto })
   create(@Body() dto: CreateClientDto) {
     return this.clientsService.create(dto);
   }
@@ -66,6 +67,7 @@ export class ClientsController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update client details' })
+  @ApiBody({ type: UpdateClientDto })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateClientDto) {
     return this.clientsService.update(id, dto);
   }
@@ -80,6 +82,7 @@ export class ClientsController {
   @Patch(':id/tags')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update client tags' })
+  @ApiBody({ type: UpdateClientTagsDto })
   updateTags(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateClientTagsDto) {
     return this.clientsService.updateTags(id, dto.tags);
   }

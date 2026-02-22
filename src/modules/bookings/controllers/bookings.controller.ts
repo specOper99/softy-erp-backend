@@ -138,6 +138,11 @@ export class BookingsController {
     description:
       'Returns availability verdict for a requested date/time window and includes conflict reasons when unavailable.',
   })
+  @ApiQuery({ name: 'packageId', required: true, type: String, description: 'Service package ID' })
+  @ApiQuery({ name: 'eventDate', required: true, type: String, description: 'ISO 8601 date' })
+  @ApiQuery({ name: 'startTime', required: true, type: String, description: 'HH:mm format' })
+  @ApiQuery({ name: 'durationMinutes', required: false, type: Number })
+  @ApiQuery({ name: 'excludeBookingId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Availability check completed', type: BookingAvailabilityResponseDto })
   checkAvailability(@Query() query: BookingAvailabilityQueryDto) {
     return this.bookingsService.checkAvailability(query);

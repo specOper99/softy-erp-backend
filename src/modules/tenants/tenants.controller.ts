@@ -21,6 +21,7 @@ import { Role } from '../users/enums/role.enum';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { StudioSettingsResponseDto, UpdateStudioSettingsDto } from './dto/studio-settings.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { Tenant } from './entities/tenant.entity';
 import { TenantsService } from './tenants.service';
 
 @ApiTags('Tenants')
@@ -55,7 +56,7 @@ export class TenantsController {
     summary: 'Get current tenant',
     description: 'Returns only the current tenant (studio) resolved from authenticated tenant context.',
   })
-  @ApiResponse({ status: 200, description: 'Current tenant returned' })
+  @ApiResponse({ status: 200, description: 'Current tenant returned', type: Tenant, isArray: true })
   async findAll() {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     return [await this.tenantsService.findOne(tenantId)];
@@ -67,7 +68,7 @@ export class TenantsController {
     description: 'Cross-tenant access is forbidden. You can only access your own tenant ID.',
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
-  @ApiResponse({ status: 200, description: 'Tenant returned' })
+  @ApiResponse({ status: 200, description: 'Tenant returned', type: Tenant })
   @ApiResponse({ status: 403, description: 'Cross-tenant access is forbidden' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -84,7 +85,7 @@ export class TenantsController {
     description: 'Studio tenant admin can update only the current tenant settings. Cross-tenant updates are forbidden.',
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
-  @ApiResponse({ status: 200, description: 'Tenant updated' })
+  @ApiResponse({ status: 200, description: 'Tenant updated', type: Tenant })
   @ApiResponse({ status: 403, description: 'Cross-tenant access is forbidden' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTenantDto: UpdateTenantDto) {
     const tenantId = TenantContextService.getTenantIdOrThrow();

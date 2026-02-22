@@ -12,8 +12,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { isUUID } from 'class-validator';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponses, CurrentUser } from '../../../common/decorators';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
@@ -36,6 +36,7 @@ export class AttendanceController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Create attendance record' })
   @ApiResponse({ status: 201, description: 'Attendance created' })
+  @ApiBody({ type: CreateAttendanceDto })
   create(@Body() createAttendanceDto: CreateAttendanceDto, @CurrentUser() user: User) {
     if (user.role === Role.FIELD_STAFF) {
       try {
@@ -54,6 +55,8 @@ export class AttendanceController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Attendance list returned' })
   findAll(@Query() query: ListAttendanceDto = new ListAttendanceDto(), @CurrentUser() user: User) {
     if (user.role === Role.FIELD_STAFF) {
@@ -88,6 +91,7 @@ export class AttendanceController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update attendance record' })
   @ApiResponse({ status: 200, description: 'Attendance updated' })
+  @ApiBody({ type: UpdateAttendanceDto })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateAttendanceDto: UpdateAttendanceDto) {
     return this.attendanceService.update(id, updateAttendanceDto);
   }

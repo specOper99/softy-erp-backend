@@ -13,6 +13,9 @@ export class PackageItem extends BaseTenantEntity {
   @Column({ type: 'integer', default: 1 })
   quantity: number;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  role?: string;
+
   @ManyToOne('TaskType', {
     onDelete: 'CASCADE',
   })

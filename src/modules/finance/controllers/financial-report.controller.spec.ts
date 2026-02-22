@@ -114,9 +114,9 @@ describe('FinancialReportController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should have class-level ADMIN and OPS_MANAGER roles', () => {
+  it('should have class-level ADMIN role only', () => {
     const roles = Reflect.getMetadata(ROLES_KEY, FinancialReportController);
-    expect(roles).toEqual([Role.ADMIN, Role.OPS_MANAGER]);
+    expect(roles).toEqual([Role.ADMIN]);
   });
 
   describe('getProfitAndLoss', () => {

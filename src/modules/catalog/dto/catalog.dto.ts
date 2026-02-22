@@ -140,6 +140,11 @@ export class CreatePackageItemDto {
   @IsInt()
   @Min(1)
   quantity: number;
+
+  @ApiPropertyOptional({ description: 'Role assigned for this task type' })
+  @IsOptional()
+  @IsString()
+  role?: string;
 }
 
 export class AddPackageItemsDto {

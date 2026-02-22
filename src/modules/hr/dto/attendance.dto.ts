@@ -59,4 +59,14 @@ export class ListAttendanceDto extends PaginationDto {
   @IsOptional()
   @IsUUID()
   userId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter attendance from date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: 'Filter attendance to date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }

@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Between, LessThanOrEqual, MoreThanOrEqual, FindOptionsWhere } from 'typeorm';
 import { TENANT_REPO_ATTENDANCE } from '../../../common/constants/tenant-repo.tokens';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
-import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
+import { CreateAttendanceDto, ListAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
 import { Attendance } from '../entities/attendance.entity';
 
 @Injectable()
@@ -54,9 +54,17 @@ export class AttendanceService {
     }
   }
 
-  async findAll(query: PaginationDto = new PaginationDto(), userId?: string): Promise<Attendance[]> {
-    const where: { userId?: string } = {};
+  async findAll(query: ListAttendanceDto = new ListAttendanceDto(), userId?: string): Promise<Attendance[]> {
+    const where: FindOptionsWhere<Attendance> = {};
     if (userId) where.userId = userId;
+
+    if (query.startDate && query.endDate) {
+      where.date = Between(new Date(query.startDate), new Date(query.endDate));
+    } else if (query.startDate) {
+      where.date = MoreThanOrEqual(new Date(query.startDate));
+    } else if (query.endDate) {
+      where.date = LessThanOrEqual(new Date(query.endDate));
+    }
 
     return this.attendanceRepository.find({
       where,

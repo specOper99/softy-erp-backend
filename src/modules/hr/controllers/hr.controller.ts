@@ -110,6 +110,7 @@ export class HrController {
   @Get('profiles/cursor/no-filters')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all profiles with cursor pagination (no filters)' })
+  @ApiResponse({ status: 200, description: 'Return profiles list' })
   findAllProfilesCursor(@Query() query: CursorPaginationDto) {
     return this.hrService.findAllProfilesCursor(query);
   }
@@ -133,6 +134,8 @@ export class HrController {
   @Get('profiles/:id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get profile by ID' })
+  @ApiResponse({ status: 200, description: 'Return profile detail' })
+  @ApiResponse({ status: 404, description: 'Profile not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.hrService.findProfileById(id);
   }
@@ -140,6 +143,8 @@ export class HrController {
   @Get('profiles/user/:userId')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get profile by user ID' })
+  @ApiResponse({ status: 200, description: 'Return profile detail' })
+  @ApiResponse({ status: 404, description: 'Profile not found' })
   findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.hrService.findProfileByUserId(userId);
   }
@@ -148,6 +153,7 @@ export class HrController {
   @Roles(Role.ADMIN)
   @MfaRequired()
   @ApiOperation({ summary: 'Update profile (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateProfileDto) {
     return this.hrService.updateProfile(id, dto);
   }
@@ -156,6 +162,7 @@ export class HrController {
   @Roles(Role.ADMIN)
   @MfaRequired()
   @ApiOperation({ summary: 'Delete profile (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Profile deleted successfully' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.hrService.deleteProfile(id);
   }
@@ -168,7 +175,7 @@ export class HrController {
     description:
       'Runs payroll for the specified month/year. When no body is provided, defaults to the current month and year.',
   })
-  @ApiBody({ type: RunPayrollDto, required: false })
+  @ApiBody({ type: RunPayrollDto })
   @ApiResponse({ status: 201, description: 'Payroll run completed' })
   runPayroll(@Body() dto: RunPayrollDto = new RunPayrollDto()) {
     return this.payrollService.runPayroll(dto);
@@ -181,6 +188,7 @@ export class HrController {
     deprecated: true,
     description: 'Use /hr/payroll/history/cursor for better performance with large datasets.',
   })
+  @ApiResponse({ status: 200, description: 'Return payroll history list' })
   getPayrollHistory(@Query() query: PaginationDto = new PaginationDto()) {
     return this.payrollService.getPayrollHistory(query);
   }
@@ -188,6 +196,7 @@ export class HrController {
   @Get('payroll/history/cursor')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get payroll run history with cursor pagination (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Return payroll history list' })
   getPayrollHistoryCursor(@Query() query: CursorPaginationDto) {
     return this.payrollService.getPayrollHistoryCursor(query);
   }
