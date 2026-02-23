@@ -12,7 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiExtraModels, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { isUUID } from 'class-validator';
 import { ApiErrorResponses, CurrentUser } from '../../../common/decorators';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -26,6 +26,7 @@ import { AttendanceService } from '../services/attendance.service';
 
 @ApiTags('HR Attendance')
 @ApiBearerAuth()
+@ApiExtraModels(ListAttendanceDto)
 @ApiErrorResponses('BAD_REQUEST', 'UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'UNPROCESSABLE_ENTITY', 'TOO_MANY_REQUESTS')
 @Controller('hr/attendance')
 @UseGuards(JwtAuthGuard, RolesGuard)

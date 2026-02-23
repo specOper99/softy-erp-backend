@@ -1,15 +1,14 @@
 // IMPORTANT: Import instrument.ts FIRST for Sentry to work correctly
 import './instrument';
+import 'reflect-metadata';
 
 import { ClassSerializerInterceptor, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import type { NextFunction, Request, Response } from 'express';
-import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters';
 import { initTracing } from './common/telemetry/tracing';
 import { corsOriginDelegate, getCorsOriginAllowlist } from './common/utils/cors-origins.util';
+import { configureSwagger } from './config/swagger.config';
 
 // Initialize OpenTelemetry tracing
 initTracing();
@@ -28,70 +27,7 @@ async function bootstrap() {
     app.set('trust proxy', 1);
   }
 
-  const strictCspDirectives = {
-    defaultSrc: ["'self'"],
-    scriptSrc: ["'self'"],
-    styleSrc: ["'self'"],
-    imgSrc: ["'self'", 'data:'],
-    connectSrc: ["'self'"],
-    objectSrc: ["'none'"],
-    baseUri: ["'self'"],
-    formAction: ["'self'"],
-    frameAncestors: ["'none'"],
-    ...(process.env.CSP_REPORT_URI ? { reportUri: process.env.CSP_REPORT_URI } : {}),
-  };
-
-  const strictHelmet = helmet({
-    contentSecurityPolicy: {
-      directives: strictCspDirectives,
-      reportOnly: false,
-    },
-    hsts: isProd
-      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
-      : { maxAge: 86400, includeSubDomains: false },
-    crossOriginResourcePolicy: isProd ? { policy: 'same-site' } : false,
-    crossOriginOpenerPolicy: isProd ? { policy: 'same-origin' } : false,
-    crossOriginEmbedderPolicy: false,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    xContentTypeOptions: true,
-    xDnsPrefetchControl: { allow: false },
-    xDownloadOptions: true,
-    xFrameOptions: { action: 'deny' },
-    xXssProtection: false,
-  });
-
-  const swaggerHelmet = helmet({
-    contentSecurityPolicy: {
-      directives: {
-        ...strictCspDirectives,
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-      },
-      reportOnly: false,
-    },
-    hsts: isProd
-      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
-      : { maxAge: 86400, includeSubDomains: false },
-    crossOriginResourcePolicy: isProd ? { policy: 'same-site' } : false,
-    crossOriginOpenerPolicy: isProd ? { policy: 'same-origin' } : false,
-    crossOriginEmbedderPolicy: false,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    xContentTypeOptions: true,
-    xDnsPrefetchControl: { allow: false },
-    xDownloadOptions: true,
-    xFrameOptions: { action: 'deny' },
-    xXssProtection: false,
-  });
-
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const isSwaggerDocsRoute = req.path === '/api/docs' || req.path.startsWith('/api/docs/');
-
-    if (swaggerEnabled && isSwaggerDocsRoute) {
-      return swaggerHelmet(req, res, next);
-    }
-
-    return strictHelmet(req, res, next);
-  });
+  configureSwagger(app, { isProd, swaggerEnabled });
 
   // Enable graceful shutdown hooks (SIGTERM, SIGINT)
   app.enableShutdownHooks();
@@ -136,102 +72,6 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'x-client-token'],
     exposedHeaders: ['Retry-After', 'X-Correlation-ID'],
   });
-
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle(process.env.APP_NAME || 'SaaS ERP API')
-    .setDescription(
-      `API for ${process.env.COMPANY_NAME || 'SaaS Platform'} - Manages Bookings, Field Tasks, Finance, and HR/Payroll.
-
-## API Contexts
-
-This API supports three distinct contexts:
-
-### 🏢 Tenant Context (Business Operations)
-Regular business users access tenant-scoped endpoints. JWT tokens have \`audience: "tenant"\`.
-
-### 👑 Platform Context (Superadmin)
-Platform administrators access \`/platform/*\` endpoints for SaaS management. JWT tokens have \`audience: "platform"\`. **MFA is mandatory.**
-
-### 🔓 Public Context
-Unauthenticated endpoints for registration, login, and public resources.
-
-### CSRF
-This API uses Authorization Bearer tokens and does not require CSRF tokens.
-
-## Rate Limit Contract
-
-- 429 responses include \`Retry-After\` header with retry seconds.
-- Common throttled responses: \`Too many requests\` or \`Too many requests. Blocked for N seconds.\`
-
-## Role Hierarchy
-
-| Context | Roles | Access Level |
-|---------|-------|--------------|
-| Platform | SUPER_ADMIN | Full platform access |
-| Platform | SUPPORT_ADMIN | Impersonation, view logs, suspend tenants |
-| Platform | BILLING_ADMIN | Subscriptions, refunds, revenue |
-| Platform | SECURITY_ADMIN | Lock tenants, force password reset |
-| Platform | COMPLIANCE_ADMIN | GDPR export/delete, audit logs |
-| Platform | ANALYTICS_VIEWER | Read-only metrics |
-| Tenant | ADMIN | Full tenant access |
-| Tenant | OPS_MANAGER | Operations management |
-| Tenant | FIELD_STAFF | Task execution |
-| Tenant | CLIENT | Portal access only |
-
-### Tenant Admin - User Creation Guidance
-
-Tenant Admin can create studio-side users primarily with roles: \`OPS_MANAGER\`, \`FIELD_STAFF\`, and \`CLIENT\`.
-`,
-    )
-    .setVersion('1.0')
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Enter JWT token' },
-      'tenant-auth',
-    )
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Platform Admin JWT (MFA required)' },
-      'platform-auth',
-    )
-    .addApiKey(
-      {
-        type: 'apiKey',
-        in: 'header',
-        name: 'x-client-token',
-        description: 'Client portal access token (magic-link session)',
-      },
-      'client-token',
-    )
-    // Public endpoints
-    .addTag('Auth', '🔓 Authentication - Login, Register, Password Reset')
-    .addTag('Client Portal', '🔓 Client-facing portal with Magic Link auth')
-    // Tenant-level endpoints (Business Operations)
-    .addTag('Users', '🏢 [Tenant] User management')
-    .addTag('Service Packages', '🏢 [Tenant] Catalog - Service packages')
-    .addTag('Task Types', '🏢 [Tenant] Catalog - Task type definitions')
-    .addTag('Bookings', '🏢 [Tenant] Booking management and workflows')
-    .addTag('Tasks', '🏢 [Tenant] Task assignment and completion')
-    .addTag('Finance - Transactions', '🏢 [Tenant] Financial transactions')
-    .addTag('Finance - Wallets', '🏢 [Tenant] Employee commission wallets')
-    .addTag('HR', '🏢 [Tenant] HR and Payroll management')
-    .addTag('Dashboard', '🏢 [Tenant] Reporting and analytics dashboard')
-    .addTag('Audit', '🏢 [Tenant] System audit logs')
-    .addTag('Metrics', '🏢 [Tenant] System performance metrics')
-    // Platform-level endpoints (Superadmin)
-    .addTag('Platform - Auth', '👑 [Superadmin] Platform authentication (MFA required)')
-    .addTag('Platform - Tenants', '👑 [Superadmin] Tenant lifecycle management')
-    .addTag('Platform - Support', '👑 [Superadmin] Impersonation and support tools')
-    .addTag('Platform - Security', '👑 [Superadmin] Security operations (password reset, session revoke)')
-    .addTag('Platform - Analytics', '👑 [Superadmin] Platform-wide metrics and revenue')
-    .addTag('Platform - Audit', '👑 [Superadmin] Platform audit logs')
-    .addTag('Platform - MFA', '👑 [Superadmin] Multi-factor authentication setup')
-    .setLicense(`Private - ${process.env.COMPANY_NAME || 'Softy'}`, process.env.COMPANY_URL || 'https://erp.soft-y.org')
-    .build();
-
-  if (swaggerEnabled) {
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document);
-  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
