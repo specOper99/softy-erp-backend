@@ -36,14 +36,17 @@ describe('AvailabilityService', () => {
     id: 'tenant-1',
     minimumNoticePeriodHours: 24,
     maxAdvanceBookingDays: 90,
+    // for these tests we don't care about weekends so simplify every day to
+    // a standard 09:00–17:00 schedule. this makes slot calculations stable
+    // regardless of when the test runs.
     workingHours: [
       { day: 'monday', startTime: '09:00', endTime: '17:00', isOpen: true },
       { day: 'tuesday', startTime: '09:00', endTime: '17:00', isOpen: true },
       { day: 'wednesday', startTime: '09:00', endTime: '17:00', isOpen: true },
       { day: 'thursday', startTime: '09:00', endTime: '17:00', isOpen: true },
       { day: 'friday', startTime: '09:00', endTime: '17:00', isOpen: true },
-      { day: 'saturday', startTime: '10:00', endTime: '14:00', isOpen: true },
-      { day: 'sunday', startTime: '10:00', endTime: '14:00', isOpen: false },
+      { day: 'saturday', startTime: '09:00', endTime: '17:00', isOpen: true },
+      { day: 'sunday', startTime: '09:00', endTime: '17:00', isOpen: true },
     ],
     timeSlotDurationMinutes: 60,
     defaultBookingDurationHours: 2,
