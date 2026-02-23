@@ -2,13 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
-import { BookingRepository } from '../../bookings/repositories/booking.repository';
-import { AvailabilityService } from './availability.service';
 import type { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
+import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import type { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { AvailabilityService } from './availability.service';
 
 /**
  * Helper to generate relative dates for stable tests.
