@@ -10,7 +10,7 @@ export class CreateBookingDto {
   @IsUUID()
   clientId: string;
 
-  @ApiProperty({ example: '2024-12-31T18:00:00Z' })
+  @ApiProperty({ example: '2024-12-31T18:00:00Z', description: 'Canonical UTC event datetime (ISO 8601)' })
   @IsDateString()
   eventDate: string;
 
@@ -84,7 +84,7 @@ export class UpdateBookingDto {
   @ApiPropertyOptional({
     enum: BookingStatus,
     description:
-      'Booking lifecycle: DRAFT=request, CONFIRMED=accepted request, COMPLETED=service delivered, CANCELLED=cancelled/rejected',
+      'Lifecycle transitions are workflow-only. Generic PATCH with status is rejected; use /confirm, /cancel, /complete, /reschedule endpoints.',
   })
   @IsEnum(BookingStatus)
   @IsOptional()

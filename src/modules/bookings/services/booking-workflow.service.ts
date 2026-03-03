@@ -1,7 +1,8 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
@@ -28,6 +29,8 @@ import { StaffConflictService } from './staff-conflict.service';
 
 @Injectable()
 export class BookingWorkflowService {
+  private readonly logger = new Logger(BookingWorkflowService.name);
+
   constructor(
     private readonly financeService: FinanceService,
     private readonly auditService: AuditPublisher,
@@ -37,6 +40,7 @@ export class BookingWorkflowService {
     private readonly stateMachine: BookingStateMachineService,
     private readonly staffConflictService: StaffConflictService,
     private readonly invoiceService: InvoiceService,
+    private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
   ) {}
 
   /**
@@ -186,6 +190,8 @@ export class BookingWorkflowService {
     if (eventToPublish) {
       this.eventBus.publish(eventToPublish);
     }
+
+    await this.invalidateAvailabilityCache(result.booking);
 
     return result;
   }
@@ -357,6 +363,8 @@ export class BookingWorkflowService {
       this.eventBus.publish(eventToPublish);
     }
 
+    await this.invalidateAvailabilityCache(savedBooking);
+
     return savedBooking;
   }
 
@@ -418,12 +426,15 @@ export class BookingWorkflowService {
       this.eventBus.publish(eventToPublish);
     }
 
+    await this.invalidateAvailabilityCache(savedBooking);
+
     return savedBooking;
   }
 
   async rescheduleBooking(id: string, dto: RescheduleBookingDto): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     let eventToPublish: BookingRescheduledEvent | null = null;
+    let previousDate: Date | null = null;
 
     const savedBooking = await this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(Booking, {
@@ -438,6 +449,8 @@ export class BookingWorkflowService {
       if (booking.status !== BookingStatus.CONFIRMED) {
         throw new BadRequestException('booking.only_confirmed_can_be_rescheduled');
       }
+
+      previousDate = new Date(booking.eventDate);
 
       const nextEventDate = new Date(dto.eventDate);
       const oneHourFromNow = new Date(Date.now() + BUSINESS_CONSTANTS.BOOKING.MIN_LEAD_TIME_MS);
@@ -535,6 +548,10 @@ export class BookingWorkflowService {
       this.eventBus.publish(eventToPublish);
     }
 
+    if (previousDate) {
+      await this.invalidateAvailabilityCache(savedBooking, previousDate);
+    }
+
     return savedBooking;
   }
 
@@ -623,5 +640,29 @@ export class BookingWorkflowService {
         availableCount: availability.availableCount,
       },
     });
+  }
+
+  private async invalidateAvailabilityCache(booking: Booking, additionalDate?: Date): Promise<void> {
+    if (!booking.packageId) {
+      return;
+    }
+
+    const targetDates = [booking.eventDate, additionalDate].filter((value): value is Date => value instanceof Date);
+    if (targetDates.length === 0) {
+      return;
+    }
+
+    const uniqueDateStrings = [...new Set(targetDates.map((date) => date.toISOString().split('T')[0] ?? ''))].filter(
+      (value) => value.length > 0,
+    );
+
+    for (const dateStr of uniqueDateStrings) {
+      try {
+        await this.availabilityCacheOwner.delAvailability(booking.tenantId, booking.packageId, dateStr);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to invalidate availability cache: ${message}`);
+      }
+    }
   }
 }

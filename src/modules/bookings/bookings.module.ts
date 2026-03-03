@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CommonModule } from '../../common/common.module';
 import { CatalogModule } from '../catalog/catalog.module';
 import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceModule } from '../finance/finance.module';
+import { MetricsModule } from '../metrics/metrics.module';
 import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
 import { TaskTypeEligibilityRepository } from '../hr/repositories/task-type-eligibility.repository';
 import { MailModule } from '../mail/mail.module';
@@ -43,8 +45,10 @@ import { StaffConflictService } from './services/staff-conflict.service';
       TaskAssignee,
       Task,
     ]),
+    CommonModule,
     FinanceModule,
     CatalogModule,
+    MetricsModule,
     TenantsModule,
     MailModule,
     AuditModule,
@@ -68,6 +72,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
   ],
   exports: [
     BookingsService,
+    BookingWorkflowService,
     BookingStateMachineService,
     ClientsService,
     BookingExportService,

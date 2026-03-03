@@ -2,11 +2,12 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
+import { FlagsService } from '../../../common/flags/flags.service';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { DataSource } from 'typeorm';
 import {
   createMockAuditService,
   createMockBooking,
-  createMockBookingStateMachine,
   createMockCatalogService,
   createMockDataSource,
   createMockEventBus,
@@ -29,7 +30,6 @@ import { BookingPriceChangedEvent } from '../events/booking-price-changed.event'
 import { BookingUpdatedEvent } from '../events/booking-updated.event';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingRepository } from '../repositories/booking.repository';
-import { BookingStateMachineService } from './booking-state-machine.service';
 import { BookingsService } from './bookings.service';
 import { StaffConflictService } from './staff-conflict.service';
 
@@ -41,8 +41,8 @@ describe('BookingsService', () => {
   let auditService: ReturnType<typeof createMockAuditService>;
   let dataSource: ReturnType<typeof createMockDataSource>;
   let eventBus: ReturnType<typeof createMockEventBus>;
-  let stateMachine: ReturnType<typeof createMockBookingStateMachine>;
   let staffConflictService: { checkPackageStaffAvailability: jest.Mock };
+  let flagsService: { isEnabled: jest.Mock };
 
   const mockBooking = createMockBooking({
     id: 'booking-123',
@@ -71,7 +71,6 @@ describe('BookingsService', () => {
     auditService = createMockAuditService();
     dataSource = createMockDataSource();
     eventBus = createMockEventBus();
-    stateMachine = createMockBookingStateMachine();
     staffConflictService = {
       checkPackageStaffAvailability: jest.fn().mockResolvedValue({
         ok: true,
@@ -80,6 +79,9 @@ describe('BookingsService', () => {
         busyCount: 0,
         availableCount: 1,
       }),
+    };
+    flagsService = {
+      isEnabled: jest.fn().mockReturnValue(true),
     };
 
     // Override dataSource transaction to return mock booking
@@ -122,10 +124,6 @@ describe('BookingsService', () => {
           useValue: eventBus,
         },
         {
-          provide: BookingStateMachineService,
-          useValue: stateMachine,
-        },
-        {
           provide: AvailabilityCacheOwnerService,
           useValue: {
             delAvailability: jest.fn(),
@@ -136,6 +134,16 @@ describe('BookingsService', () => {
         {
           provide: StaffConflictService,
           useValue: staffConflictService,
+        },
+        {
+          provide: FlagsService,
+          useValue: flagsService,
+        },
+        {
+          provide: MetricsFactory,
+          useValue: {
+            getOrCreateCounter: jest.fn().mockReturnValue({ inc: jest.fn() }),
+          },
         },
       ],
     }).compile();
@@ -310,6 +318,35 @@ describe('BookingsService', () => {
       expect(eventBus.publish).toHaveBeenCalledTimes(2);
       expect(eventBus.publish).toHaveBeenNthCalledWith(1, expect.any(BookingUpdatedEvent));
       expect(eventBus.publish).toHaveBeenNthCalledWith(2, expect.any(BookingPriceChangedEvent));
+    });
+
+    it('rejects lifecycle status updates via generic update endpoint', async () => {
+      flagsService.isEnabled.mockReturnValue(true);
+      await expect(service.update('booking-123', { status: BookingStatus.CONFIRMED })).rejects.toThrow(
+        'booking.lifecycle_status_requires_workflow',
+      );
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('treats status field as no-op when strict lifecycle flag is disabled', async () => {
+      flagsService.isEnabled.mockReturnValue(false);
+
+      const lockedBooking = {
+        ...mockBooking,
+        status: BookingStatus.DRAFT,
+      };
+
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(lockedBooking),
+          save: jest.fn().mockResolvedValue(lockedBooking),
+        }),
+      );
+
+      const result = await service.update('booking-123', { status: BookingStatus.CONFIRMED, notes: 'noop status' });
+
+      expect(result.status).toBe(BookingStatus.DRAFT);
+      expect(result.notes).toBe('noop status');
     });
 
     it('publishes only BookingUpdatedEvent when pricing does not change', async () => {

@@ -1,9 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { Counter } from 'prom-client';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 
+import { FlagsService } from '../../../common/flags/flags.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
@@ -36,10 +39,9 @@ import { BookingPriceChangedEvent } from '../events/booking-price-changed.event'
 import { BookingUpdatedEvent } from '../events/booking-updated.event';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
-import { BookingStateMachineService } from './booking-state-machine.service';
-
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BookingRepository } from '../repositories/booking.repository';
+import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
 import { StaffConflictService } from './staff-conflict.service';
 
@@ -58,6 +60,7 @@ interface BookingFilterFields {
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
+  private readonly lifecycleStatusRejectedCounter: Counter<'tenantId' | 'enforced'>;
 
   constructor(
     private readonly bookingRepository: BookingRepository,
@@ -66,10 +69,17 @@ export class BookingsService {
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
-    private readonly stateMachine: BookingStateMachineService,
     private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
     private readonly staffConflictService: StaffConflictService,
-  ) {}
+    private readonly flagsService: FlagsService,
+    metricsFactory: MetricsFactory,
+  ) {
+    this.lifecycleStatusRejectedCounter = metricsFactory.getOrCreateCounter({
+      name: 'booking_lifecycle_status_update_rejected_total',
+      help: 'Total generic booking update status transition attempts rejected',
+      labelNames: ['tenantId', 'enforced'],
+    });
+  }
 
   async create(dto: CreateBookingDto): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -77,7 +87,7 @@ export class BookingsService {
     const pkg = await this.catalogService.findPackageById(dto.packageId);
 
     // Validate event date is at least 1 hour in the future
-    const eventDate = new Date(dto.eventDate);
+    const eventDate = parseCanonicalBookingDateInput(dto.eventDate);
     const oneHourFromNow = new Date(Date.now() + BUSINESS_CONSTANTS.BOOKING.MIN_LEAD_TIME_MS);
     if (eventDate < oneHourFromNow) {
       throw new BadRequestException('booking.event_date_must_be_future');
@@ -113,7 +123,7 @@ export class BookingsService {
 
     const booking = this.bookingRepository.create({
       clientId: dto.clientId,
-      eventDate: new Date(dto.eventDate),
+      eventDate,
       packageId: dto.packageId,
       notes: dto.notes,
       startTime: dto.startTime ?? null,
@@ -315,13 +325,34 @@ export class BookingsService {
 
   // No changes needed for update method logic itself as it uses findOne which is now scoped.
   // But wait, the previous `findOne` usage in `update` is fine.
-  async update(id: string, dto: UpdateBookingDto): Promise<Booking> {
+  async update(id: string, inputDto: UpdateBookingDto): Promise<Booking> {
+    let dto = { ...inputDto };
+
+    if (dto.status !== undefined) {
+      const tenantId = TenantContextService.getTenantIdOrThrow();
+      const enforceStrictLifecycle = this.flagsService.isEnabled(
+        'strictBookingLifecycle',
+        { tenantId, bookingId: id, requestedStatus: dto.status },
+        true,
+      );
+
+      this.lifecycleStatusRejectedCounter.inc({ tenantId, enforced: enforceStrictLifecycle ? 'true' : 'false' });
+
+      if (enforceStrictLifecycle) {
+        throw new BadRequestException('booking.lifecycle_status_requires_workflow');
+      }
+
+      const { status, ...safeDto } = dto;
+      void status;
+      dto = safeDto;
+    }
+
     // Initial fetch for validation (outside transaction)
     const existingBooking = await this.findOne(id);
 
     // SECURITY: Only allow limited updates on non-draft bookings
     if (existingBooking.status !== BookingStatus.DRAFT) {
-      const allowedUpdates = ['status', 'notes'];
+      const allowedUpdates = ['notes'];
       const attemptedUpdates = Object.keys(dto).filter((k) => dto[k as keyof UpdateBookingDto] !== undefined);
       const disallowed = attemptedUpdates.filter((k) => !allowedUpdates.includes(k));
       if (disallowed.length > 0) {
@@ -329,18 +360,14 @@ export class BookingsService {
       }
     }
 
-    if (dto.status && dto.status !== existingBooking.status) {
-      this.stateMachine.validateTransition(existingBooking.status, dto.status);
-    }
-
-    const nextStatus = dto.status ?? existingBooking.status;
+    const nextStatus = existingBooking.status;
     const nextStartTime = dto.startTime ?? existingBooking.startTime;
     if (nextStatus !== BookingStatus.DRAFT && !nextStartTime) {
       throw new BadRequestException('booking.start_time_required_for_non_draft');
     }
 
     if (dto.eventDate) {
-      const eventDate = new Date(dto.eventDate);
+      const eventDate = parseCanonicalBookingDateInput(dto.eventDate);
       const oneHourFromNow = new Date(Date.now() + BUSINESS_CONSTANTS.BOOKING.MIN_LEAD_TIME_MS);
       if (eventDate < oneHourFromNow) {
         throw new BadRequestException('booking.event_date_must_be_future');
@@ -365,7 +392,7 @@ export class BookingsService {
       };
 
       if (dto.eventDate) {
-        booking.eventDate = new Date(dto.eventDate);
+        booking.eventDate = parseCanonicalBookingDateInput(dto.eventDate);
       }
 
       // Gap 3: Recalculate pricing when draft-only fields change
@@ -397,10 +424,9 @@ export class BookingsService {
       // Apply remaining simple field updates (excluding price fields already handled)
       const simpleUpdates: Partial<Booking> = {};
       if (dto.clientId !== undefined) simpleUpdates.clientId = dto.clientId;
-      if (dto.eventDate !== undefined) simpleUpdates.eventDate = new Date(dto.eventDate);
+      if (dto.eventDate !== undefined) simpleUpdates.eventDate = parseCanonicalBookingDateInput(dto.eventDate);
       if (dto.startTime !== undefined) simpleUpdates.startTime = dto.startTime;
       if (dto.notes !== undefined) simpleUpdates.notes = dto.notes;
-      if (dto.status !== undefined) simpleUpdates.status = dto.status;
       if (dto.locationLink !== undefined) simpleUpdates.locationLink = dto.locationLink;
 
       Object.assign(booking, simpleUpdates);
@@ -425,10 +451,6 @@ export class BookingsService {
     if (dto.startTime !== undefined) {
       allowedChanges.startTime = dto.startTime;
     }
-    if (dto.status !== undefined) {
-      allowedChanges.status = dto.status;
-    }
-
     this.eventBus.publish(new BookingUpdatedEvent(savedBooking.id, savedBooking.tenantId, allowedChanges, new Date()));
 
     const oldSubTotal = previousPricing.subTotal;
@@ -453,7 +475,7 @@ export class BookingsService {
       );
     }
 
-    if ((dto.eventDate || dto.status || dto.startTime) && savedBooking.packageId) {
+    if ((dto.eventDate || dto.startTime) && savedBooking.packageId) {
       try {
         const dateParts = savedBooking.eventDate.toISOString().split('T');
         const dateStr = dateParts[0] ?? '';

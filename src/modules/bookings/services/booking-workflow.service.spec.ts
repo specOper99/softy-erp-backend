@@ -9,6 +9,7 @@ import {
   createMockQueryRunner,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { Transaction } from '../../finance/entities/transaction.entity';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
@@ -40,6 +41,7 @@ describe('BookingWorkflowService', () => {
   let eventBus: EventBus;
   let mockBooking: Partial<Booking>;
   let staffConflictService: { checkPackageStaffAvailability: jest.Mock };
+  let availabilityCacheOwner: { delAvailability: jest.Mock };
 
   const mockStateMachine = {
     validateTransition: jest.fn(),
@@ -122,6 +124,10 @@ describe('BookingWorkflowService', () => {
       }),
     };
 
+    availabilityCacheOwner = {
+      delAvailability: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BookingWorkflowService,
@@ -156,6 +162,7 @@ describe('BookingWorkflowService', () => {
         },
         { provide: BookingStateMachineService, useValue: mockStateMachine },
         { provide: StaffConflictService, useValue: staffConflictService },
+        { provide: AvailabilityCacheOwnerService, useValue: availabilityCacheOwner },
         {
           provide: InvoiceService,
           useValue: {
@@ -220,6 +227,7 @@ describe('BookingWorkflowService', () => {
       expect(event.tenantId).toBe('tenant-1');
 
       expect(result.tasksCreated).toBe(2);
+      expect(availabilityCacheOwner.delAvailability).toHaveBeenCalled();
     });
 
     it('should propagate error', async () => {
@@ -735,6 +743,7 @@ describe('BookingWorkflowService', () => {
       const event = (eventBus.publish as jest.Mock).mock.calls[0][0] as BookingCompletedEvent;
       expect(event.bookingId).toBe('booking-1');
       expect(event.tenantId).toBe('tenant-1');
+      expect(availabilityCacheOwner.delAvailability).toHaveBeenCalled();
     });
   });
 

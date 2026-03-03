@@ -650,4 +650,25 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
     const reversalAfterRetry = transactionsAfterRetry.filter((transaction) => Number(transaction.amount) < 0);
     expect(reversalAfterRetry).toHaveLength(1);
   });
+
+  it('rejects lifecycle status transition through generic patch endpoint', async () => {
+    const fixture = await bootstrapTenantFixture();
+
+    const bookingId = await createBooking(fixture, {
+      eventDate: createFutureDate(55),
+      startTime: '15:00',
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch(`/api/v1/bookings/${bookingId}`)
+      .set('Host', fixture.tenantHost)
+      .set('Authorization', `Bearer ${fixture.adminToken}`)
+      .send({ status: BookingStatus.CONFIRMED })
+      .expect(400);
+
+    expect(response.body.message).toContain('booking.lifecycle_status_requires_workflow');
+
+    const persisted = await bookingRepository.findOneByOrFail({ id: bookingId, tenantId: fixture.tenantId });
+    expect(persisted.status).toBe(BookingStatus.DRAFT);
+  });
 });
