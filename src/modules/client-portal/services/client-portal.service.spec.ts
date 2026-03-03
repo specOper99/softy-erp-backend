@@ -7,6 +7,7 @@ import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { BookingsService } from '../../bookings/services/bookings.service';
+import { BookingWorkflowService } from '../../bookings/services/booking-workflow.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { NotificationService } from '../../notifications/services/notification.service';
 import { ReviewsService } from '../../reviews/services/reviews.service';
@@ -27,6 +28,7 @@ describe('ClientPortalService', () => {
     count: jest.Mock;
   };
   let bookingsService: { create: jest.Mock };
+  let bookingWorkflowService: { cancelBooking: jest.Mock };
   let catalogService: { findPackageById: jest.Mock; findAllPackagesWithFilters: jest.Mock };
   let reviewsService: { getApprovedAggregatesByPackageIds: jest.Mock };
   let tenantsService: { findOne: jest.Mock };
@@ -61,6 +63,7 @@ describe('ClientPortalService', () => {
     };
 
     bookingsService = { create: jest.fn() };
+    bookingWorkflowService = { cancelBooking: jest.fn() };
     catalogService = { findPackageById: jest.fn(), findAllPackagesWithFilters: jest.fn() };
     reviewsService = { getApprovedAggregatesByPackageIds: jest.fn() };
     tenantsService = { findOne: jest.fn() };
@@ -73,6 +76,7 @@ describe('ClientPortalService', () => {
         { provide: TENANT_REPO_CLIENT, useValue: clientRepository },
         { provide: BookingRepository, useValue: bookingRepository },
         { provide: BookingsService, useValue: bookingsService },
+        { provide: BookingWorkflowService, useValue: bookingWorkflowService },
         { provide: CatalogService, useValue: catalogService },
         { provide: ReviewsService, useValue: reviewsService },
         { provide: TenantsService, useValue: tenantsService },
@@ -349,6 +353,31 @@ describe('ClientPortalService', () => {
         page: 2,
         limit: 5,
       });
+    });
+  });
+
+  describe('cancelMyBooking', () => {
+    it('routes cancellation through booking workflow service', async () => {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({
+          ...mockBooking,
+          status: BookingStatus.CONFIRMED,
+          canBeCancelled: jest.fn().mockReturnValue(true),
+        }),
+      };
+      bookingRepository.createQueryBuilder.mockReturnValue(qb);
+
+      bookingWorkflowService.cancelBooking.mockResolvedValue({
+        ...mockBooking,
+        status: BookingStatus.CANCELLED,
+      });
+
+      await service.cancelMyBooking('booking-1', 'client-1', 'tenant-1', 'Client request');
+
+      expect(bookingWorkflowService.cancelBooking).toHaveBeenCalledWith('booking-1', { reason: 'Client request' });
     });
   });
 });

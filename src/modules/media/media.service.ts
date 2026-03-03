@@ -4,6 +4,8 @@ import { CursorPaginationDto } from '../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { FileTypeUtil } from '../../common/utils/file-type.util';
+import { Booking } from '../bookings/entities/booking.entity';
+import { Task } from '../tasks/entities/task.entity';
 import { Attachment } from './entities/attachment.entity';
 import { AttachmentRepository } from './repositories/attachment.repository';
 import { StorageService } from './storage.service';
@@ -36,19 +38,27 @@ export class MediaService {
    */
   private async validateReferences(tenantId: string, bookingId?: string, taskId?: string): Promise<void> {
     if (bookingId) {
-      const booking = await this.dataSource.manager.findOne('Booking', {
+      const booking = await this.dataSource.manager.findOne(Booking, {
         where: { id: bookingId, tenantId },
+        withDeleted: true,
       });
       if (!booking) {
         throw new BadRequestException('media.booking_not_found_in_tenant');
       }
+      if (booking.deletedAt) {
+        throw new BadRequestException('media.booking_reference_soft_deleted');
+      }
     }
     if (taskId) {
-      const task = await this.dataSource.manager.findOne('Task', {
+      const task = await this.dataSource.manager.findOne(Task, {
         where: { id: taskId, tenantId },
+        withDeleted: true,
       });
       if (!task) {
         throw new BadRequestException('media.task_not_found_in_tenant');
+      }
+      if (task.deletedAt) {
+        throw new BadRequestException('media.task_reference_soft_deleted');
       }
     }
   }

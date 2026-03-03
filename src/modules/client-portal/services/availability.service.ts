@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Raw, Repository } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
@@ -55,14 +56,8 @@ export class AvailabilityService {
         throw new Error('Package not found');
       }
 
-      // Parse date (YYYY-MM-DD)
-      const [yearStr, monthStr, dayStr] = date.split('-');
-      const year = parseInt(yearStr || '0', 10);
-      const month = parseInt(monthStr || '0', 10);
-      const day = parseInt(dayStr || '0', 10);
-      const targetDate = new Date(Date.UTC(year, month - 1, day));
-      // Start of next day for range query (exclusive upper bound)
-      const nextDayDate = new Date(Date.UTC(year, month - 1, day + 1));
+      const targetDate = parseDateOnlyToUtc(date);
+      const dayRange = toUtcDayRange(targetDate);
 
       // Validate date is within booking window
       const now = new Date();
@@ -123,13 +118,16 @@ export class AvailabilityService {
         normalized.start,
         normalized.end,
         tenant.timeSlotDurationMinutes ?? 60,
-        tenant.defaultBookingDurationHours ?? 2,
+        servicePackage.durationMinutes,
       );
 
       const bookings = await this.bookingRepository.find({
         where: {
           packageId,
-          eventDate: Raw((alias) => `${alias} >= :targetDate AND ${alias} < :nextDayDate`, { targetDate, nextDayDate }),
+          eventDate: Raw((alias) => `${alias} >= :targetDate AND ${alias} < :nextDayDate`, {
+            targetDate: dayRange.dayStart,
+            nextDayDate: dayRange.dayEnd,
+          }),
           status: BookingStatus.CONFIRMED,
         },
         select: ['startTime', 'eventDate'],
@@ -171,11 +169,7 @@ export class AvailabilityService {
 
   async findNextAvailableDate(tenantId: string, packageId: string, fromDate: string): Promise<string | null> {
     return TenantContextService.run(tenantId, async () => {
-      const [yearStr, monthStr, dayStr] = fromDate.split('-');
-      const year = parseInt(yearStr || '0', 10);
-      const month = parseInt(monthStr || '0', 10);
-      const day = parseInt(dayStr || '0', 10);
-      const startDate = new Date(Date.UTC(year, month - 1, day));
+      const startDate = parseDateOnlyToUtc(fromDate);
 
       const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
       if (!tenant) {
@@ -208,14 +202,14 @@ export class AvailabilityService {
     startTime: string,
     endTime: string,
     slotDurationMinutes: number,
-    bookingDurationHours: number,
+    bookingDurationMinutes: number,
   ): TimeSlot[] {
     const slots: TimeSlot[] = [];
 
     // Parse UTC times
     const startMinutes = this.timeToMinutes(startTime);
     const endMinutes = this.timeToMinutes(endTime);
-    const bookingMinutes = bookingDurationHours * 60;
+    const bookingMinutes = bookingDurationMinutes;
 
     // Generate slots where booking can fit
     for (let minutes = startMinutes; minutes <= endMinutes - bookingMinutes; minutes += slotDurationMinutes) {

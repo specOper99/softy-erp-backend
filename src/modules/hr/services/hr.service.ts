@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -326,12 +326,8 @@ export class HrService {
 
     if (filter.search) {
       qb.andWhere(
-        new Brackets((qb2) => {
-          qb2
-            .where('profile.firstName ILIKE :search', { search: `%${filter.search}%` })
-            .orWhere('profile.lastName ILIKE :search', { search: `%${filter.search}%` })
-            .orWhere('profile.employeeId ILIKE :search', { search: `%${filter.search}%` });
-        }),
+        '(profile.firstName ILIKE :search OR profile.lastName ILIKE :search OR profile.employeeId ILIKE :search)',
+        { search: `%${filter.search}%` },
       );
     }
   }

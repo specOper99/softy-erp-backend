@@ -1,13 +1,16 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Raw } from 'typeorm';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { CreateBookingDto } from '../../bookings/dto';
+import { CancelBookingDto, CreateBookingDto } from '../../bookings/dto';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { BookingsService } from '../../bookings/services/bookings.service';
+import { BookingWorkflowService } from '../../bookings/services/booking-workflow.service';
+import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
 import { PackageFilterDto } from '../../catalog/dto/package-filter.dto';
 import { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
@@ -32,6 +35,7 @@ export class ClientPortalService {
     private readonly clientRepository: TenantAwareRepository<Client>,
     private readonly bookingRepository: BookingRepository,
     private readonly bookingsService: BookingsService,
+    private readonly bookingWorkflowService: BookingWorkflowService,
     private readonly catalogService: CatalogService,
     private readonly reviewsService: ReviewsService,
     private readonly tenantsService: TenantsService,
@@ -197,13 +201,8 @@ export class ClientPortalService {
       throw new BadRequestException('Booking cannot be cancelled in its current status');
     }
 
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancelledAt = new Date();
-    if (reason) {
-      booking.cancellationReason = reason;
-    }
-
-    return this.bookingRepository.save(booking);
+    const cancelDto: CancelBookingDto = reason ? { reason } : {};
+    return this.bookingWorkflowService.cancelBooking(booking.id, cancelDto);
   }
 
   private async ensureSlotCapacity(
@@ -212,10 +211,15 @@ export class ClientPortalService {
     startTime: string,
     tenant: Tenant,
   ): Promise<void> {
+    const dayRange = toUtcDayRange(eventDate);
+
     const confirmedCount = await this.bookingRepository.count({
       where: {
         packageId,
-        eventDate,
+        eventDate: Raw((alias) => `${alias} >= :dayStart AND ${alias} < :dayEnd`, {
+          dayStart: dayRange.dayStart,
+          dayEnd: dayRange.dayEnd,
+        }),
         startTime,
         status: BookingStatus.CONFIRMED,
       },
@@ -236,11 +240,7 @@ export class ClientPortalService {
   }
 
   private toUtcDate(date: string): Date {
-    const [yearStr, monthStr, dayStr] = date.split('-');
-    const year = parseInt(yearStr || '0', 10);
-    const month = parseInt(monthStr || '0', 10);
-    const day = parseInt(dayStr || '0', 10);
-    return new Date(Date.UTC(year, month - 1, day));
+    return parseDateOnlyToUtc(date);
   }
 
   private async sendBookingNotifications(client: Client, tenant: Tenant, booking: Booking): Promise<void> {

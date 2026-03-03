@@ -4,7 +4,6 @@ import {
   ExecutionContext,
   Injectable,
   NestMiddleware,
-  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { NextFunction, Request, Response } from 'express';
@@ -22,7 +21,7 @@ export class ValidateTenantSlugMiddleware implements NestMiddleware {
     private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
-  async use(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async use(req: Request, _res: Response, next: NextFunction): Promise<void> {
     const slug = req.params.slug as string;
 
     if (!slug) {
@@ -33,12 +32,8 @@ export class ValidateTenantSlugMiddleware implements NestMiddleware {
       where: { slug: slug },
     });
 
-    if (!tenant) {
-      throw new NotFoundException(`Tenant with slug "${slug}" not found`);
-    }
-
-    if (tenant.status !== TenantStatus.ACTIVE) {
-      throw new NotFoundException(`Tenant with slug "${slug}" is not active`);
+    if (!tenant || tenant.status !== TenantStatus.ACTIVE) {
+      throw new BadRequestException('client-portal.tenant_blocked');
     }
 
     // Inject tenant into request for downstream use
@@ -51,11 +46,11 @@ export class ValidateTenantSlugMiddleware implements NestMiddleware {
 /**
  * Decorator to extract validated tenant from request
  */
-export const GetTenant = createParamDecorator((data: unknown, ctx: ExecutionContext): Tenant => {
+export const GetTenant = createParamDecorator((_data: unknown, ctx: ExecutionContext): Tenant => {
   const request = ctx.switchToHttp().getRequest<Request & { tenant?: Tenant }>();
 
   if (!request.tenant) {
-    throw new NotFoundException('Tenant not found in request context');
+    throw new BadRequestException('client-portal.tenant_blocked');
   }
 
   return request.tenant;

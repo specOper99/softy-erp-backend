@@ -33,6 +33,7 @@ describe('MediaService', () => {
     mockDataSource.manager.findOne.mockResolvedValue({
       id: 'valid-id',
       tenantId: 'tenant-123',
+      deletedAt: null,
     });
 
     const module: TestingModule = await Test.createTestingModule({
@@ -106,6 +107,41 @@ describe('MediaService', () => {
       await expect(service.uploadFile(params as any)).rejects.toThrow(BadRequestException);
       await expect(service.uploadFile(params as any)).rejects.toThrow('media.file_too_large');
       expect(storageService.uploadFile).not.toHaveBeenCalled();
+    });
+
+    it('rejects upload when booking reference is soft-deleted', async () => {
+      mockDataSource.manager.findOne.mockResolvedValueOnce({
+        id: 'booking-id',
+        tenantId: 'tenant-123',
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.uploadFile({
+          buffer: Buffer.from('test'),
+          originalName: 'test.png',
+          mimeType: 'image/png',
+          size: 4,
+          bookingId: 'booking-id',
+        }),
+      ).rejects.toThrow('media.booking_reference_soft_deleted');
+    });
+
+    it('rejects upload when task reference is soft-deleted', async () => {
+      mockDataSource.manager.findOne
+        .mockResolvedValueOnce({ id: 'booking-id', tenantId: 'tenant-123', deletedAt: null })
+        .mockResolvedValueOnce({ id: 'task-id', tenantId: 'tenant-123', deletedAt: new Date() });
+
+      await expect(
+        service.uploadFile({
+          buffer: Buffer.from('test'),
+          originalName: 'test.png',
+          mimeType: 'image/png',
+          size: 4,
+          bookingId: 'booking-id',
+          taskId: 'task-id',
+        }),
+      ).rejects.toThrow('media.task_reference_soft_deleted');
     });
   });
 

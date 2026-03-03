@@ -3,12 +3,11 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { Response } from 'express';
-import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -43,7 +42,6 @@ import { TaskRepository } from '../repositories/task.repository';
 
 @Injectable()
 export class TasksService {
-  private readonly logger = new Logger(TasksService.name);
   private readonly tenantTx: TenantScopedManager;
 
   private static readonly MAX_LIST_LIMIT = 100;
@@ -54,7 +52,7 @@ export class TasksService {
     private readonly financeService: FinanceService,
     private readonly walletService: WalletService,
     private readonly auditService: AuditService,
-    private readonly dataSource: DataSource,
+    dataSource: DataSource,
     private readonly eventBus: EventBus,
     private readonly tasksExportService: TasksExportService,
     private readonly taskAssigneeRepository: TaskAssigneeRepository,
@@ -137,13 +135,7 @@ export class TasksService {
     }
 
     if (filter.search) {
-      qb.andWhere(
-        new Brackets((qb2) => {
-          qb2
-            .where('task.notes ILIKE :search', { search: `%${filter.search}%` })
-            .orWhere('taskType.name ILIKE :search', { search: `%${filter.search}%` });
-        }),
-      );
+      qb.andWhere('(task.notes ILIKE :search OR taskType.name ILIKE :search)', { search: `%${filter.search}%` });
     }
   }
 
@@ -258,7 +250,7 @@ export class TasksService {
       await this.financeService.transferPendingCommission(manager, oldUserId, dto.userId, commissionAmount);
 
       // Step 6: Audit Log
-      await this.logTaskAssignment(manager, task, oldUserId, dto.userId, commissionAmount);
+      await this.logTaskAssignment(task, oldUserId, dto.userId, commissionAmount);
 
       // Ensure booking.client is loaded for the email
       await this.ensureClientLoaded(manager, task, tenantId);
@@ -438,7 +430,6 @@ export class TasksService {
   }
 
   private async logTaskAssignment(
-    manager: import('typeorm').EntityManager,
     task: Task,
     oldUserId: string | null,
     newUserId: string | undefined,

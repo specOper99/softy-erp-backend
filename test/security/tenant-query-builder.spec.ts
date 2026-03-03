@@ -63,4 +63,22 @@ describe('Tenant scoping in QueryBuilder usages', () => {
       fail(msg);
     }
   });
+
+  it('search filters in tasks/catalog/hr use tenant-safe single andWhere clauses', () => {
+    const targets = [
+      path.join(__dirname, '..', '..', 'src', 'modules', 'tasks', 'services', 'tasks.service.ts'),
+      path.join(__dirname, '..', '..', 'src', 'modules', 'catalog', 'services', 'catalog.service.ts'),
+      path.join(__dirname, '..', '..', 'src', 'modules', 'hr', 'services', 'hr.service.ts'),
+    ];
+
+    for (const file of targets) {
+      const content = fs.readFileSync(file, 'utf8');
+      expect(content).not.toContain('.orWhere(');
+    }
+  });
+
+  it('has no dangling package event contract file after decommission', () => {
+    const eventFile = path.join(__dirname, '..', '..', 'src', 'modules', 'catalog', 'events', 'package.events.ts');
+    expect(fs.existsSync(eventFile)).toBe(false);
+  });
 });

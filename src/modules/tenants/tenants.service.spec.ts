@@ -1,14 +1,18 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { FlagsService } from '../../common/flags/flags.service';
+import { MetricsFactory } from '../../common/services/metrics.factory';
 import { EntityManager, Repository } from 'typeorm';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { Tenant } from './entities/tenant.entity';
+import { TenantStatus } from './enums/tenant-status.enum';
 import { TenantsService } from './tenants.service';
 
 describe('TenantsService', () => {
   let service: TenantsService;
   let repository: Repository<Tenant>;
+  let flagsService: { isEnabled: jest.Mock };
 
   const mockTenant: Tenant = {
     id: 'tenant-123',
@@ -30,12 +34,26 @@ describe('TenantsService', () => {
   };
 
   beforeEach(async () => {
+    flagsService = {
+      isEnabled: jest.fn().mockReturnValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TenantsService,
         {
           provide: getRepositoryToken(Tenant),
           useValue: mockRepository,
+        },
+        {
+          provide: FlagsService,
+          useValue: flagsService,
+        },
+        {
+          provide: MetricsFactory,
+          useValue: {
+            getOrCreateCounter: jest.fn().mockReturnValue({ inc: jest.fn() }),
+          },
         },
       ],
     }).compile();
@@ -142,6 +160,22 @@ describe('TenantsService', () => {
     it('should throw NotFoundException if tenant to remove not found', async () => {
       jest.spyOn(repository, 'findOne').mockResolvedValueOnce(null);
       await expect(service.remove('invalid')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('ensurePortalTenantAccessible', () => {
+    it('throws for suspended tenant when strict flag enabled', () => {
+      flagsService.isEnabled.mockReturnValue(true);
+      const suspendedTenant = { ...mockTenant, status: TenantStatus.SUSPENDED } as Tenant;
+
+      expect(() => service.ensurePortalTenantAccessible(suspendedTenant)).toThrow('client-portal.tenant_blocked');
+    });
+
+    it('allows suspended tenant when strict flag disabled', () => {
+      flagsService.isEnabled.mockReturnValue(false);
+      const suspendedTenant = { ...mockTenant, status: TenantStatus.SUSPENDED } as Tenant;
+
+      expect(() => service.ensurePortalTenantAccessible(suspendedTenant)).not.toThrow();
     });
   });
 });

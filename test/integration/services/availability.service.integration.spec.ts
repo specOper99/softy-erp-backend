@@ -204,4 +204,68 @@ describe('AvailabilityService Integration Tests', () => {
     const tenant2CachedResponse = await availabilityCacheOwner.getAvailability(tenant2, tenant1Package.id, testDate);
     expect(tenant2CachedResponse).toBeUndefined();
   });
+
+  it('applies UTC day boundaries consistently for slot counting', async () => {
+    const tenantId = uuidv4();
+
+    await tenantRepository.save({
+      id: tenantId,
+      name: 'UTC Boundary Tenant',
+      slug: `utc-boundary-${uuidv4().slice(0, 8)}`,
+      minimumNoticePeriodHours: 0,
+      maxAdvanceBookingDays: 36500,
+      workingHours: [
+        { day: 'monday', startTime: '00:00', endTime: '23:59', isOpen: true },
+        { day: 'tuesday', startTime: '00:00', endTime: '23:59', isOpen: true },
+        { day: 'wednesday', startTime: '00:00', endTime: '23:59', isOpen: true },
+        { day: 'thursday', startTime: '00:00', endTime: '23:59', isOpen: true },
+        { day: 'friday', startTime: '00:00', endTime: '23:59', isOpen: true },
+        { day: 'saturday', startTime: '00:00', endTime: '23:59', isOpen: true },
+        { day: 'sunday', startTime: '00:00', endTime: '23:59', isOpen: true },
+      ],
+    });
+
+    const servicePackage = await packageTypeOrmRepository.save({
+      name: 'UTC Boundary Package',
+      description: 'Boundary package',
+      price: 3000,
+      durationMinutes: 60,
+      requiredStaffCount: 1,
+      tenantId,
+    });
+
+    const client = await clientRepository.save({
+      name: 'UTC Boundary Client',
+      email: `utc-boundary-${uuidv4()}@test.local`,
+      phone: '+1000000003',
+      tenantId,
+    });
+
+    await bookingTypeOrmRepository.save({
+      clientId: client.id,
+      packageId: servicePackage.id,
+      eventDate: new Date('2031-04-19T00:30:00.000Z'),
+      startTime: '00:30',
+      durationMinutes: 60,
+      status: BookingStatus.CONFIRMED,
+      totalPrice: 3000,
+      subTotal: 3000,
+      taxRate: 0,
+      taxAmount: 0,
+      depositPercentage: 0,
+      depositAmount: 0,
+      amountPaid: 0,
+      refundAmount: 0,
+      tenantId,
+    });
+
+    const day18 = await availabilityService.checkAvailability(tenantId, servicePackage.id, '2031-04-18');
+    const day19 = await availabilityService.checkAvailability(tenantId, servicePackage.id, '2031-04-19');
+
+    const slot1830 = day18.timeSlots.find((slot) => slot.start === '00:30');
+    const slot1930 = day19.timeSlots.find((slot) => slot.start === '00:30');
+
+    expect(slot1830?.booked ?? 0).toBe(0);
+    expect(slot1930?.booked ?? 0).toBe(1);
+  });
 });

@@ -15,6 +15,7 @@ import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
+import { allowsNegativeIncomeForRefundOrReversal } from '../utils/transaction-rule.util';
 
 // Transaction DTOs
 @ValidatorConstraint({ name: 'negativeAmountRefundOrReversal', async: false })
@@ -28,15 +29,11 @@ class NegativeAmountRefundOrReversalConstraint implements ValidatorConstraintInt
     if (!dto) {
       return false;
     }
-    if (dto.type !== TransactionType.INCOME) {
-      return false;
-    }
-
-    const hasBookingId = typeof dto.bookingId === 'string' && dto.bookingId.trim().length > 0;
-    const normalizedCategory = typeof dto.category === 'string' ? dto.category.toLowerCase() : '';
-    const hasRefundOrReversalMarker = normalizedCategory.includes('refund') || normalizedCategory.includes('reversal');
-
-    return hasBookingId || hasRefundOrReversalMarker;
+    return allowsNegativeIncomeForRefundOrReversal({
+      type: dto.type,
+      category: dto.category,
+      bookingId: dto.bookingId,
+    });
   }
 
   defaultMessage(): string {

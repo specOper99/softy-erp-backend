@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -96,6 +96,7 @@ describe('ClientPortalController', () => {
         .fn()
         .mockResolvedValue({ id: 'tenant-1', slug: 'test-tenant', name: 'Test Tenant', address: 'Baghdad' }),
       findBySlug: jest.fn(),
+      ensurePortalTenantAccessible: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -308,6 +309,38 @@ describe('ClientPortalController', () => {
       );
       expect(result.items[0]?.rating).toBe(4.5);
       expect(result.items[0]?.reviewCount).toBe(2);
+    });
+
+    it('blocks listings when tenant status is suspended', async () => {
+      tenantsService.findBySlug.mockResolvedValue({
+        id: 'tenant-1',
+        slug: 'test-tenant',
+        name: 'Test Tenant',
+        status: 'SUSPENDED',
+      } as unknown as Tenant);
+      tenantsService.ensurePortalTenantAccessible.mockImplementation(() => {
+        throw new ForbiddenException('client-portal.tenant_blocked');
+      });
+
+      await expect(controller.getListings({ tenantSlug: 'test-tenant' })).rejects.toThrow(
+        'client-portal.tenant_blocked',
+      );
+    });
+
+    it('blocks listings when tenant status is locked', async () => {
+      tenantsService.findBySlug.mockResolvedValue({
+        id: 'tenant-1',
+        slug: 'test-tenant',
+        name: 'Test Tenant',
+        status: 'LOCKED',
+      } as unknown as Tenant);
+      tenantsService.ensurePortalTenantAccessible.mockImplementation(() => {
+        throw new ForbiddenException('client-portal.tenant_blocked');
+      });
+
+      await expect(controller.getListings({ tenantSlug: 'test-tenant' })).rejects.toThrow(
+        'client-portal.tenant_blocked',
+      );
     });
   });
 

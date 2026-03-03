@@ -613,7 +613,12 @@ export class ClientPortalController {
     if (!tenantSlug) {
       throw new BadRequestException('tenantSlug is required');
     }
-    return this.tenantsService.findBySlug(tenantSlug);
+    const tenant = await this.tenantsService.findBySlug(tenantSlug);
+    this.tenantsService.ensurePortalTenantAccessible(tenant, {
+      route: 'client-portal-listings',
+      tenantSlug,
+    });
+    return tenant;
   }
 
   private mapListingSummary(

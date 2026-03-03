@@ -16,6 +16,7 @@ import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { TransactionCreatedEvent } from '../events/transaction-created.event';
 import { TransactionRepository } from '../repositories/transaction.repository';
+import { allowsNegativeIncomeForRefundOrReversal } from '../utils/transaction-rule.util';
 import { CurrencyService } from './currency.service';
 import { FinancialReportService } from './financial-report.service';
 import { WalletService } from './wallet.service';
@@ -149,12 +150,7 @@ export class FinanceService {
     }
 
     if (amount < 0) {
-      const normalizedCategory = typeof category === 'string' ? category.toLowerCase() : '';
-      const hasBookingId = typeof bookingId === 'string' && bookingId.trim().length > 0;
-      const hasRefundOrReversalMarker =
-        normalizedCategory.includes('refund') || normalizedCategory.includes('reversal');
-
-      if (type !== TransactionType.INCOME || (!hasBookingId && !hasRefundOrReversalMarker)) {
+      if (!allowsNegativeIncomeForRefundOrReversal({ type, category, bookingId })) {
         throw new BadRequestException('finance.amount_must_be_positive');
       }
     }

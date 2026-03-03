@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { Client } from '../../bookings/entities/client.entity';
+import { TenantsService } from '../../tenants/tenants.service';
 import { ClientAuthService } from '../services/client-auth.service';
 
 /**
@@ -9,7 +10,10 @@ import { ClientAuthService } from '../services/client-auth.service';
  */
 @Injectable()
 export class ClientTokenGuard implements CanActivate {
-  constructor(private readonly clientAuthService: ClientAuthService) {}
+  constructor(
+    private readonly clientAuthService: ClientAuthService,
+    private readonly tenantsService: TenantsService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -21,6 +25,13 @@ export class ClientTokenGuard implements CanActivate {
     if (!client) {
       throw new UnauthorizedException('client-portal.token_invalid');
     }
+
+    const tenant = await this.tenantsService.findOne(client.tenantId);
+    this.tenantsService.ensurePortalTenantAccessible(tenant, {
+      path: request.path,
+      guard: 'ClientTokenGuard',
+    });
+
     (request as Request & { client?: Client }).client = client;
     return true;
   }

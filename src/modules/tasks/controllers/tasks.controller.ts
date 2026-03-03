@@ -201,6 +201,7 @@ export class TasksController {
   }
 
   @Patch(':id/start')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Start task (changes status to IN_PROGRESS)' })
   @ApiResponse({ status: 200, description: 'Task started' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -211,6 +212,7 @@ export class TasksController {
   }
 
   @Patch(':id/complete')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Complete task (accrues commission to wallet)' })
   @ApiResponse({ status: 200, description: 'Task completed, commission credited' })
   @ApiResponse({ status: 400, description: 'Task already completed or not assigned' })

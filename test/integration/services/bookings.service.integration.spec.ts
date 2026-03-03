@@ -5,6 +5,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { BookingRepository } from '../../../src/modules/bookings/repositories/booking.repository';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
+import { FlagsService } from '../../../src/common/flags/flags.service';
+import { MetricsFactory } from '../../../src/common/services/metrics.factory';
 
 void globalThis.fetch;
 import { v4 as uuidv4 } from 'uuid';
@@ -154,6 +156,18 @@ describe('BookingsService Integration Tests', () => {
             getKey: jest.fn(),
           },
         },
+        {
+          provide: FlagsService,
+          useValue: {
+            isEnabled: jest.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: MetricsFactory,
+          useValue: {
+            getOrCreateCounter: jest.fn().mockReturnValue({ inc: jest.fn() }),
+          },
+        },
       ],
     }).compile();
 
@@ -286,6 +300,35 @@ describe('BookingsService Integration Tests', () => {
       expect(result.client.name).toBe('Test Client');
       expect(result.servicePackage).toBeDefined();
       expect(result.servicePackage.name).toBe('Premium Package');
+    });
+  });
+
+  describe('lifecycle contract', () => {
+    it('rejects status transition through generic update', async () => {
+      const client = await clientRepository.save({
+        name: 'Lifecycle Contract Client',
+        email: 'lifecycle-contract@test.com',
+        phone: '+1234567890',
+        tenantId: tenant1,
+      });
+
+      const pkg = await packageRepository.save({
+        name: 'Lifecycle Contract Package',
+        description: 'Contract package',
+        price: 1500,
+        tenantId: tenant1,
+      });
+
+      const booking = await service.create({
+        clientId: client.id,
+        packageId: pkg.id,
+        eventDate: getFutureDate(20),
+        notes: 'Contract test',
+      });
+
+      await expect(service.update(booking.id, { status: BookingStatus.CONFIRMED })).rejects.toThrow(
+        'booking.lifecycle_status_requires_workflow',
+      );
     });
   });
 });

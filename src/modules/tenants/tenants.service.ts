@@ -1,18 +1,32 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Counter } from 'prom-client';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { FlagsService } from '../../common/flags/flags.service';
+import { MetricsFactory } from '../../common/services/metrics.factory';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { StudioSettingsResponseDto, UpdateStudioSettingsDto, WorkingHoursDto } from './dto/studio-settings.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { Tenant } from './entities/tenant.entity';
+import { TenantStatus } from './enums/tenant-status.enum';
 
 @Injectable()
 export class TenantsService {
+  private readonly portalTenantBlockedCounter: Counter<'tenantStatus' | 'enforced'>;
+
   constructor(
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
-  ) {}
+    private readonly flagsService: FlagsService,
+    metricsFactory: MetricsFactory,
+  ) {
+    this.portalTenantBlockedCounter = metricsFactory.getOrCreateCounter({
+      name: 'client_portal_tenant_blocked_total',
+      help: 'Total client portal tenant status access blocks',
+      labelNames: ['tenantStatus', 'enforced'],
+    });
+  }
 
   async create(createTenantDto: CreateTenantDto): Promise<Tenant> {
     const tenant = this.tenantRepository.create(createTenantDto);
@@ -47,6 +61,25 @@ export class TenantsService {
       throw new NotFoundException(`Tenant with slug ${slug} not found`);
     }
     return tenant;
+  }
+
+  ensurePortalTenantAccessible(tenant: Tenant, context?: Record<string, string>): void {
+    const enforceStrictPortalTenantStatus = this.flagsService.isEnabled(
+      'strictPortalTenantStatus',
+      { tenantId: tenant.id, tenantStatus: tenant.status, ...context },
+      true,
+    );
+
+    if (tenant.status !== TenantStatus.ACTIVE) {
+      this.portalTenantBlockedCounter.inc({
+        tenantStatus: tenant.status,
+        enforced: enforceStrictPortalTenantStatus ? 'true' : 'false',
+      });
+    }
+
+    if (enforceStrictPortalTenantStatus && tenant.status !== TenantStatus.ACTIVE) {
+      throw new ForbiddenException('client-portal.tenant_blocked');
+    }
   }
 
   async update(id: string, updateTenantDto: UpdateTenantDto): Promise<Tenant> {

@@ -57,6 +57,7 @@ describe('AvailabilityService', () => {
     id: 'package-1',
     tenantId: 'tenant-1',
     name: 'Test Package',
+    durationMinutes: 120,
   };
 
   beforeEach(async () => {
