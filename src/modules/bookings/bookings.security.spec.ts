@@ -2,18 +2,20 @@ import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { mockTenantContext } from '../../../test/helpers/mock-factories';
+import { AvailabilityCacheOwnerService } from '../../common/cache/availability-cache-owner.service';
+import { CacheUtilsService } from '../../common/cache/cache-utils.service';
+import { FlagsService } from '../../common/flags/flags.service';
+import { MetricsFactory } from '../../common/services/metrics.factory';
 import { AuditService } from '../audit/audit.service';
 import { CatalogService } from '../catalog/services/catalog.service';
 import { FinanceService } from '../finance/services/finance.service';
+import { Task } from '../tasks/entities/task.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { BookingFilterDto } from './dto';
 import { BookingRepository } from './repositories/booking.repository';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingsService } from './services/bookings.service';
-import { AvailabilityCacheOwnerService } from '../../common/cache/availability-cache-owner.service';
-import { CacheUtilsService } from '../../common/cache/cache-utils.service';
-import { Task } from '../tasks/entities/task.entity';
 import { StaffConflictService } from './services/staff-conflict.service';
 
 describe('Bookings Security Test', () => {
@@ -55,6 +57,8 @@ describe('Bookings Security Test', () => {
         { provide: AvailabilityCacheOwnerService, useValue: { delAvailability: jest.fn() } },
         { provide: DataSource, useValue: {} },
         { provide: EventBus, useValue: {} },
+        { provide: FlagsService, useValue: { isEnabled: jest.fn().mockReturnValue(false) } },
+        { provide: MetricsFactory, useValue: { getOrCreateCounter: jest.fn().mockReturnValue({ inc: jest.fn() }) } },
       ],
     }).compile();
 
