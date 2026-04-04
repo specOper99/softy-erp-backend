@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'node:path';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
+import { normalizeMigrationNamesForTypeOrm } from './utils/typeorm-migration-name.util';
 
 const jestE2eGlobalSetup = async () => {
   // 1. Load base .env file
@@ -71,12 +72,14 @@ const jestE2eGlobalSetup = async () => {
     await migrationDataSource.initialize();
   }
 
+  normalizeMigrationNamesForTypeOrm(migrationDataSource.migrations);
+
   globalThis.__DATA_SOURCE__ = migrationDataSource;
 
   try {
     await migrationDataSource.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
 
-    await migrationDataSource.synchronize(true);
+    await migrationDataSource.runMigrations();
 
     // 4. Seed base data
     // eslint-disable-next-line @typescript-eslint/no-require-imports

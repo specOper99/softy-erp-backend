@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
@@ -230,12 +230,23 @@ describe('CatalogService', () => {
   describe('deletePackage', () => {
     it('should delete package', async () => {
       jest.spyOn(service, 'findPackageById').mockResolvedValue(mockPackage as unknown as ServicePackage);
+      packageRepo.remove.mockResolvedValue(mockPackage as unknown as ServicePackage);
 
       await service.deletePackage('pkg-123');
 
+      expect(packageRepo.remove).toHaveBeenCalledWith(mockPackage);
+      expect(packageRepo.softRemove).not.toHaveBeenCalled();
       expect(auditService.log).toHaveBeenCalled();
       expect(cacheUtils.del).toHaveBeenCalled();
-      // Note: Current implementation only audits and invalidates cache, doesn't actually remove the entity
+    });
+
+    it('should throw conflict when package is still referenced', async () => {
+      jest.spyOn(service, 'findPackageById').mockResolvedValue(mockPackage as unknown as ServicePackage);
+      packageRepo.remove.mockRejectedValue({ code: '23503' });
+
+      await expect(service.deletePackage('pkg-123')).rejects.toThrow(ConflictException);
+      expect(auditService.log).not.toHaveBeenCalled();
+      expect(cacheUtils.del).not.toHaveBeenCalled();
     });
   });
 

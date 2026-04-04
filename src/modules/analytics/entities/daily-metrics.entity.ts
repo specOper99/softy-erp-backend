@@ -6,30 +6,30 @@ export class DailyMetrics {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId: string;
 
   @Column({ type: 'date' })
   date: string; // YYYY-MM-DD string for easy querying
 
-  @Column('decimal', { precision: 12, scale: 2, default: 0 })
+  @Column('decimal', { name: 'total_revenue', precision: 12, scale: 2, default: 0 })
   totalRevenue: number;
 
-  @Column('int', { default: 0 })
+  @Column('int', { name: 'bookings_count', default: 0 })
   bookingsCount: number;
 
-  @Column('int', { default: 0 })
+  @Column('int', { name: 'tasks_completed_count', default: 0 })
   tasksCompletedCount: number;
 
-  @Column('int', { default: 0 })
+  @Column('int', { name: 'active_clients_count', default: 0 })
   activeClientsCount: number;
 
-  @Column('int', { default: 0 })
+  @Column('int', { name: 'cancellations_count', default: 0 })
   cancellationsCount: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

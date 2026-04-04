@@ -22,6 +22,7 @@ import { TasksModule } from '../tasks/tasks.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { UsersModule } from '../users/users.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { SchemaContractValidatorService } from './schema-contract-validator.service';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     BillingModule,
     PlatformModule,
   ],
+  providers: [SchemaContractValidatorService],
   exports: [
     AdminModule,
     AuthModule,

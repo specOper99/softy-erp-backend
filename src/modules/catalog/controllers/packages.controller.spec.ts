@@ -2,7 +2,12 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
-import { AddPackageItemsDto, CreateServicePackageDto, UpdateServicePackageDto } from '../dto/catalog.dto';
+import {
+  AddPackageItemsDto,
+  CreateServicePackageDto,
+  PackageFilterDto,
+  UpdateServicePackageDto,
+} from '../dto/catalog.dto';
 import { CatalogService } from '../services/catalog.service';
 import { PackagesController } from './packages.controller';
 
@@ -56,7 +61,7 @@ describe('PackagesController', () => {
 
   describe('findAllWithFilters', () => {
     it('should call service.findAllPackagesWithFilters', async () => {
-      const query = {};
+      const query = {} as PackageFilterDto;
       await controller.findAllWithFilters(query);
       expect(service.findAllPackagesWithFilters).toHaveBeenCalledWith(query);
     });

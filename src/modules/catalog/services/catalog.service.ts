@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { SelectQueryBuilder } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -254,15 +254,25 @@ export class CatalogService {
   async deletePackage(id: string): Promise<void> {
     const pkg = await this.findPackageById(id);
 
+    try {
+      await this.packageRepository.remove(pkg);
+    } catch (error) {
+      const dbError = error as { code?: string; driverError?: { code?: string } };
+      const errorCode = dbError.code ?? dbError.driverError?.code;
+
+      if (errorCode === '23503') {
+        throw new ConflictException('Package is in use and cannot be deleted');
+      }
+
+      throw error;
+    }
+
     await this.auditService.log({
       action: 'DELETE',
       entityName: 'ServicePackage',
       entityId: id,
       oldValues: { name: pkg.name, price: pkg.price },
     });
-
-    // Perform actual deletion
-    await this.packageRepository.softRemove(pkg);
 
     // Invalidate cache
     const tenantId = TenantContextService.getTenantIdOrThrow();
