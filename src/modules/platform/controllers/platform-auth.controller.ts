@@ -1,11 +1,11 @@
 import { Body, Controller, HttpCode, HttpStatus, Logger, Post, Request, UseGuards } from '@nestjs/common';
-import { createHash } from 'node:crypto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { createHash } from 'node:crypto';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
-import { PlatformLoginDto, PlatformRevokeAllSessionsDto } from '../dto/platform-auth.dto';
+import { PlatformLoginDto, PlatformRefreshDto, PlatformRevokeAllSessionsDto } from '../dto/platform-auth.dto';
 import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { PlatformAuthService } from '../services/platform-auth.service';
 
@@ -58,6 +58,22 @@ export class PlatformAuthController {
     this.logger.log(`Platform login attempt for email hash: ${emailHash} (ip: ${ipAddress}, ua: ${userAgent})`);
 
     return this.authService.login(dto, ipAddress, userAgent);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Refresh platform tokens',
+    description: 'Exchange a valid refresh token for a new access + refresh token pair.',
+  })
+  @ApiBody({ type: PlatformRefreshDto })
+  @ApiResponse({ status: 200, description: 'Tokens refreshed' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
+  async refresh(@Body() dto: PlatformRefreshDto, @Request() req: PlatformRequest) {
+    const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
+    const userAgent: string = req.headers['user-agent'] ?? 'unknown';
+
+    return this.authService.refresh(dto.refreshToken, ipAddress, userAgent);
   }
 
   @Post('logout')

@@ -186,22 +186,30 @@ export class PlatformTenantsController {
 
   @Delete(':id')
   @RequirePlatformPermissions(PlatformPermission.TENANTS_DELETE)
+  @RequireReason()
+  @UseGuards(RequireReasonGuard)
   @ApiOperation({
     summary: 'Schedule tenant deletion',
     description: `Schedule tenant for deletion with a grace period (default 30 days).
 
 **Required Permission:** \`platform:tenants:delete\`
 **Allowed Roles:** SUPER_ADMIN only
-**⚠️ Destructive operation - all data will be permanently deleted**`,
+**⚠️ Destructive operation - all data will be permanently deleted**
+**⚠️ Requires reason field (minimum 10 characters) in body or query**`,
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
+  @ApiQuery({
+    name: 'reason',
+    required: false,
+    description: 'Deletion reason when the client cannot send a DELETE body',
+  })
   @ApiResponse({ status: 200, description: 'Deletion scheduled' })
   async deleteTenant(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: DeleteTenantDto,
     @Req() req: PlatformTenantRequest,
   ) {
-    return this.tenantService.deleteTenant(id, dto, req.user.userId, req.ip);
+    return this.tenantService.deleteTenant(id, dto, req.user.userId, req.ip, req.validatedReason ?? '');
   }
 
   @Get(':id/metrics')

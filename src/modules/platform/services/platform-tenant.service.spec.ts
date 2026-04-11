@@ -411,4 +411,61 @@ describe('PlatformTenantService', () => {
       expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-123');
     });
   });
+
+  describe('deleteTenant', () => {
+    const deleteDto = {
+      scheduleFor: '2026-05-01T00:00:00Z',
+    };
+
+    it('should schedule tenant deletion and persist the validated reason', async () => {
+      tenantRepository.findOne.mockResolvedValue({ ...mockTenant } as Tenant);
+      tenantRepository.save.mockImplementation((tenant) => Promise.resolve(tenant as Tenant));
+
+      const result = await service.deleteTenant(
+        'tenant-123',
+        deleteDto,
+        platformUserId,
+        ipAddress,
+        'Customer requested account deletion',
+      );
+
+      expect(result.status).toBe(TenantStatus.PENDING_DELETION);
+      expect(result.deletionScheduledAt).toEqual(new Date(deleteDto.scheduleFor));
+      expect(lifecycleEventRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'DELETION_SCHEDULED',
+          reason: 'Customer requested account deletion',
+        }),
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: PlatformAction.TENANT_DELETED,
+          reason: 'Customer requested account deletion',
+        }),
+      );
+    });
+
+    it('should default deletion to 30 days when scheduleFor is not provided', async () => {
+      tenantRepository.findOne.mockResolvedValue({ ...mockTenant } as Tenant);
+      tenantRepository.save.mockImplementation((tenant) => Promise.resolve(tenant as Tenant));
+
+      const before = Date.now();
+      const result = await service.deleteTenant(
+        'tenant-123',
+        {},
+        platformUserId,
+        ipAddress,
+        'Operational cleanup after tenant offboarding',
+      );
+      const after = Date.now();
+
+      expect(result.status).toBe(TenantStatus.PENDING_DELETION);
+      expect(result.deletionScheduledAt).toBeInstanceOf(Date);
+      const scheduledTime = result.deletionScheduledAt!.getTime();
+      const minExpected = before + 30 * 24 * 60 * 60 * 1000;
+      const maxExpected = after + 30 * 24 * 60 * 60 * 1000;
+      expect(scheduledTime).toBeGreaterThanOrEqual(minExpected);
+      expect(scheduledTime).toBeLessThanOrEqual(maxExpected);
+    });
+  });
 });

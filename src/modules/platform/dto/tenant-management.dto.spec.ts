@@ -279,11 +279,10 @@ describe('Tenant Management DTOs', () => {
       expect(errors).toHaveLength(0);
     });
 
-    it('should fail validation without reason', async () => {
+    it('should validate without reason when reason is supplied through the guard', async () => {
       const dto = plainToInstance(DeleteTenantDto, {});
       const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors).toHaveLength(0);
     });
 
     it('should validate with scheduleFor date', async () => {

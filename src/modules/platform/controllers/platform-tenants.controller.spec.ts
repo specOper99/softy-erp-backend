@@ -6,6 +6,12 @@ describe('PlatformTenantsController', () => {
   let controller: PlatformTenantsController;
   let tenantService: PlatformTenantService;
 
+  const mockRequest = {
+    ip: '127.0.0.1',
+    user: { userId: 'platform-user-123' },
+    validatedReason: 'Customer requested account deletion',
+  };
+
   const mockTenant = {
     id: 'tenant-123',
     name: 'Acme Corporation',
@@ -20,13 +26,17 @@ describe('PlatformTenantsController', () => {
         {
           provide: PlatformTenantService,
           useValue: {
-            findAll: jest.fn().mockResolvedValue({
+            listTenants: jest.fn().mockResolvedValue({
               tenants: [mockTenant],
               total: 1,
             }),
-            findOne: jest.fn().mockResolvedValue(mockTenant),
-            suspend: jest.fn().mockResolvedValue(void 0),
-            reactivate: jest.fn().mockResolvedValue(void 0),
+            getTenant: jest.fn().mockResolvedValue(mockTenant),
+            suspendTenant: jest.fn().mockResolvedValue(void 0),
+            reactivateTenant: jest.fn().mockResolvedValue(void 0),
+            deleteTenant: jest.fn().mockResolvedValue({
+              ...mockTenant,
+              status: 'PENDING_DELETION',
+            }),
           },
         },
       ],
@@ -47,12 +57,26 @@ describe('PlatformTenantsController', () => {
   });
 
   describe('Tenant Management', () => {
-    it('should have findAll method', () => {
-      expect(tenantService.findAll).toBeDefined();
+    it('should have listTenants method', () => {
+      expect(tenantService.listTenants).toBeDefined();
     });
 
-    it('should have suspend method', () => {
-      expect(tenantService.suspend).toBeDefined();
+    it('should have suspendTenant method', () => {
+      expect(tenantService.suspendTenant).toBeDefined();
+    });
+
+    it('should pass the validated deletion reason to the service', async () => {
+      const dto = { scheduleFor: '2026-05-01T00:00:00Z' };
+
+      await controller.deleteTenant('tenant-123', dto, mockRequest);
+
+      expect(tenantService.deleteTenant).toHaveBeenCalledWith(
+        'tenant-123',
+        dto,
+        mockRequest.user.userId,
+        mockRequest.ip,
+        mockRequest.validatedReason,
+      );
     });
   });
 });

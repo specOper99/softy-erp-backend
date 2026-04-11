@@ -9,8 +9,8 @@ import { PlatformSession } from '../entities/platform-session.entity';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { MFAService } from './mfa.service';
-import { PlatformMfaTokenService } from './platform-mfa-token.service';
 import { PlatformAuditService } from './platform-audit.service';
+import { PlatformMfaTokenService } from './platform-mfa-token.service';
 
 export interface PlatformLoginInput {
   email: string;
@@ -273,6 +273,74 @@ export class PlatformAuthService {
     );
 
     return result.affected || 0;
+  }
+
+  /**
+   * Exchange a valid refresh token for a new access + refresh token pair.
+   * The old refresh token hash is replaced atomically so it cannot be reused.
+   */
+  async refresh(
+    refreshToken: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+    let payload: { sub: string; sessionId: string; type: string; aud: string };
+    try {
+      payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (payload.type !== 'refresh' || payload.aud !== 'platform') {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const session = await this.sessionRepository.findOne({
+      where: { id: payload.sessionId, userId: payload.sub },
+    });
+
+    if (!session || session.isRevoked || session.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Session expired or revoked');
+    }
+
+    // Validate the refresh token hash matches what's stored
+    const incomingHash = this.hashToken(refreshToken);
+    if (session.refreshTokenHash !== incomingHash) {
+      // Possible token reuse / replay — revoke session for safety
+      session.isRevoked = true;
+      session.revokedAt = new Date();
+      session.revokedReason = 'Refresh token mismatch (possible replay)';
+      await this.sessionRepository.save(session);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+      select: ['id', 'email', 'fullName', 'role', 'status'],
+    });
+
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('User inactive');
+    }
+
+    // Generate new token pair and rotate the refresh token
+    const newAccessToken = this.generateAccessToken(user, session.id);
+    const newRefreshToken = this.generateRefreshToken(user, session.id);
+
+    session.sessionTokenHash = this.hashToken(newAccessToken);
+    session.refreshTokenHash = this.hashToken(newRefreshToken);
+    session.lastActivityAt = new Date();
+    session.ipAddress = ipAddress;
+    session.userAgent = userAgent;
+    await this.sessionRepository.save(session);
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      expiresIn: this.SESSION_DURATION / 1000,
+    };
   }
 
   private async createSession(

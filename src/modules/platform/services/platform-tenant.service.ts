@@ -376,6 +376,7 @@ export class PlatformTenantService {
     dto: DeleteTenantDto,
     platformUserId: string,
     ipAddress: string,
+    reason: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
     const before = { status: tenant.status };
@@ -397,7 +398,7 @@ export class PlatformTenantService {
       eventType: 'DELETION_SCHEDULED',
       triggeredBy: platformUserId,
       triggeredByType: 'platform_user',
-      reason: dto.reason,
+      reason,
       previousState: before,
       newState: {
         status: updated.status,
@@ -411,7 +412,7 @@ export class PlatformTenantService {
       action: PlatformAction.TENANT_DELETED,
       targetTenantId: updated.id,
       ipAddress,
-      reason: dto.reason,
+      reason,
       changesBefore: before,
       changesAfter: {
         status: updated.status,
