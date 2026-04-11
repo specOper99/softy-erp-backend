@@ -69,7 +69,7 @@ export class ClientsService {
         const sanitized = trimmed.slice(0, 100).replace(/[%_]/g, '');
         if (sanitized.length >= 1) {
           queryBuilder.andWhere(
-            '(client.name ILIKE :search OR client.email ILIKE :search OR client.phone ILIKE :search)',
+            '(client.name ILIKE :search OR client.email ILIKE :search OR client.phone ILIKE :search OR client.phone2 ILIKE :search)',
             { search: `%${sanitized}%` },
           );
         }
@@ -121,6 +121,10 @@ export class ClientsService {
     if (dto.phone !== undefined && dto.phone !== client.phone) {
       changes['phone'] = { old: client.phone, new: dto.phone };
       client.phone = dto.phone;
+    }
+    if (dto.phone2 !== undefined && dto.phone2 !== client.phone2) {
+      changes['phone2'] = { old: client.phone2, new: dto.phone2 };
+      client.phone2 = dto.phone2 ?? null;
     }
     if (dto.notes !== undefined && dto.notes !== client.notes) {
       changes['notes'] = { old: client.notes, new: dto.notes };
@@ -190,7 +194,15 @@ export class ClientsService {
         .createQueryBuilder('client')
         .leftJoin(Booking, 'booking', 'booking.clientId = client.id AND booking.tenantId = client.tenantId')
         // tenantId handled by repo
-        .select(['client.id', 'client.name', 'client.email', 'client.phone', 'client.notes', 'client.createdAt'])
+        .select([
+          'client.id',
+          'client.name',
+          'client.email',
+          'client.phone',
+          'client.phone2',
+          'client.notes',
+          'client.createdAt',
+        ])
         .addSelect('COUNT(booking.id)', 'bookingCount')
         .groupBy('client.id')
         .orderBy('client.createdAt', 'DESC')
@@ -201,7 +213,7 @@ export class ClientsService {
   async exportToCSV(res: StreamableResponse): Promise<void> {
     const stream = await this.getClientExportStream();
 
-    const fields = ['id', 'name', 'email', 'phone', 'notes', 'bookingCount', 'createdAt'];
+    const fields = ['id', 'name', 'email', 'phone', 'phone2', 'notes', 'bookingCount', 'createdAt'];
 
     // Type for raw stream row from QueryBuilder
     interface ClientExportRow {
@@ -209,6 +221,7 @@ export class ClientsService {
       client_name: string;
       client_email: string | null;
       client_phone: string | null;
+      client_phone2: string | null;
       client_notes: string | null;
       client_createdAt: Date;
       bookingCount: string;
@@ -224,6 +237,7 @@ export class ClientsService {
         name: row.client_name,
         email: row.client_email || '',
         phone: row.client_phone || '',
+        phone2: row.client_phone2 || '',
         notes: row.client_notes || '',
         bookingCount: Number(row.bookingCount) || 0,
         createdAt: row.client_createdAt,

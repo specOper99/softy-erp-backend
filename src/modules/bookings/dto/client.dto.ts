@@ -18,6 +18,11 @@ export class CreateClientDto {
   @IsNotEmpty()
   phone: string;
 
+  @ApiPropertyOptional({ description: 'Secondary phone number / WhatsApp', example: '+9647709876543' })
+  @IsString()
+  @IsOptional()
+  phone2?: string;
+
   @ApiPropertyOptional({ description: 'Optional notes about the client' })
   @IsString()
   @IsOptional()
@@ -52,6 +57,11 @@ export class UpdateClientDto {
   @IsOptional()
   @ApiProperty({ required: false, description: 'Client phone number' })
   phone?: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty({ required: false, description: 'Secondary phone number / WhatsApp' })
+  phone2?: string;
 
   @IsString()
   @IsOptional()

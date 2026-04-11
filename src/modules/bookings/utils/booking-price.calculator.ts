@@ -10,6 +10,8 @@ export interface BookingPriceInput {
   taxRate: number;
   /** Deposit percentage (0-100) */
   depositPercentage: number;
+  /** Fixed discount amount (applied before tax; capped at subTotal) */
+  discountAmount?: number;
 }
 
 /**
@@ -18,11 +20,13 @@ export interface BookingPriceInput {
 export interface BookingPriceResult {
   /** Base package price */
   subTotal: number;
+  /** Fixed discount amount applied */
+  discountAmount: number;
   /** Tax rate applied */
   taxRate: number;
-  /** Calculated tax amount */
+  /** Calculated tax amount (on discounted base) */
   taxAmount: number;
-  /** Total price including tax */
+  /** Total price including tax after discount */
   totalPrice: number;
   /** Deposit percentage */
   depositPercentage: number;
@@ -56,12 +60,17 @@ export class BookingPriceCalculator {
     const taxRate = input.taxRate ?? 0;
     const depositPercentage = input.depositPercentage ?? 0;
 
-    const taxAmount = MathUtils.round(subTotal * (taxRate / 100), 2);
-    const totalPrice = MathUtils.round(subTotal + taxAmount, 2);
+    // Apply fixed discount before tax (capped at subTotal)
+    const discountAmount = MathUtils.round(Math.min(input.discountAmount ?? 0, subTotal), 2);
+    const discountedBase = MathUtils.round(subTotal - discountAmount, 2);
+
+    const taxAmount = MathUtils.round(discountedBase * (taxRate / 100), 2);
+    const totalPrice = MathUtils.round(discountedBase + taxAmount, 2);
     const depositAmount = MathUtils.round(totalPrice * (depositPercentage / 100), 2);
 
     return {
       subTotal,
+      discountAmount,
       taxRate,
       taxAmount,
       totalPrice,

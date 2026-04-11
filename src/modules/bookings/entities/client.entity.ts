@@ -21,6 +21,10 @@ export class Client extends BaseTenantEntity {
   @PII()
   phone: string;
 
+  @Column({ name: 'phone2', nullable: true })
+  @PII()
+  phone2: string | null;
+
   @Column({ type: 'text', nullable: true })
   @SanitizeHtml()
   notes: string;

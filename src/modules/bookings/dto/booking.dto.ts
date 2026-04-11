@@ -39,6 +39,15 @@ export class CreateBookingDto {
   taxRate?: number;
 
   @ApiPropertyOptional({
+    description: 'Fixed discount amount (applied before tax)',
+    example: 50,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  discountAmount?: number;
+
+  @ApiPropertyOptional({
     description: 'Deposit percentage (0-100)',
     example: 25,
   })
@@ -101,6 +110,12 @@ export class UpdateBookingDto {
   @Min(0)
   @Max(50)
   taxRate?: number;
+
+  @ApiPropertyOptional({ description: 'Fixed discount amount (DRAFT only)', example: 50 })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  discountAmount?: number;
 
   @ApiPropertyOptional({ description: 'Deposit percentage (0-100) (DRAFT only)', example: 25 })
   @IsNumber()
@@ -188,6 +203,9 @@ export class BookingResponseDto {
   @ApiProperty()
   subTotal: number;
 
+  @ApiProperty({ description: 'Fixed discount amount applied' })
+  discountAmount: number;
+
   @ApiProperty()
   taxRate: number;
 
@@ -205,6 +223,9 @@ export class BookingResponseDto {
 
   @ApiProperty({ description: 'Booking completion percentage (0-100)', example: 75 })
   completionPercentage: number;
+
+  @ApiPropertyOptional({ description: 'Invoice ID linked to this booking (generated on confirm)' })
+  invoiceId?: string;
 
   @ApiProperty()
   createdAt: Date;

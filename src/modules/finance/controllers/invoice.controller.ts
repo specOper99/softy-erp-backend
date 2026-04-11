@@ -16,6 +16,16 @@ import { InvoiceService } from '../services/invoice.service';
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
+  @Get('booking/:bookingId')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get invoice for a booking' })
+  @ApiResponse({ status: 200, description: 'Invoice returned (null if not yet generated)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async getByBookingId(@Param('bookingId', ParseUUIDPipe) bookingId: string) {
+    return this.invoiceService.findByBookingId(bookingId);
+  }
+
   @Post('generate/:bookingId')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Generate invoice for a booking' })

@@ -12,6 +12,7 @@ import { MathUtils } from '../../../common/utils/math.utils';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
+import { Transaction } from '../../finance/entities/transaction.entity';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { Task } from '../../tasks/entities/task.entity';
@@ -28,6 +29,7 @@ import {
   CreateBookingDto,
   MarkBookingPaidDto,
   RecordPaymentDto,
+  RefundBookingDto,
   SortOrder,
   UpdateBookingDto,
 } from '../dto';
@@ -103,6 +105,7 @@ export class BookingsService {
       packagePrice: Number(pkg.price),
       taxRate: dto.taxRate ?? 0,
       depositPercentage: dto.depositPercentage ?? 0,
+      discountAmount: dto.discountAmount ?? 0,
     };
 
     // Validate deposit percentage bounds
@@ -129,6 +132,7 @@ export class BookingsService {
       startTime: dto.startTime ?? null,
       durationMinutes: pkg.durationMinutes,
       subTotal: pricing.subTotal,
+      discountAmount: pricing.discountAmount,
       taxRate: pricing.taxRate,
       taxAmount: pricing.taxAmount,
       totalPrice: pricing.totalPrice,
@@ -397,7 +401,10 @@ export class BookingsService {
 
       // Gap 3: Recalculate pricing when draft-only fields change
       const hasPriceFieldChange =
-        dto.packageId !== undefined || dto.taxRate !== undefined || dto.depositPercentage !== undefined;
+        dto.packageId !== undefined ||
+        dto.taxRate !== undefined ||
+        dto.depositPercentage !== undefined ||
+        dto.discountAmount !== undefined;
 
       if (booking.status === BookingStatus.DRAFT && hasPriceFieldChange) {
         const pkgId = dto.packageId ?? booking.packageId;
@@ -407,11 +414,13 @@ export class BookingsService {
           packagePrice: Number(pkg.price),
           taxRate: dto.taxRate ?? Number(booking.taxRate),
           depositPercentage: dto.depositPercentage ?? Number(booking.depositPercentage),
+          discountAmount: dto.discountAmount ?? Number(booking.discountAmount ?? 0),
         });
 
         booking.packageId = pkgId;
         booking.durationMinutes = pkg.durationMinutes;
         booking.subTotal = pricing.subTotal;
+        booking.discountAmount = pricing.discountAmount;
         booking.taxRate = pricing.taxRate;
         booking.taxAmount = pricing.taxAmount;
         booking.totalPrice = pricing.totalPrice;
@@ -596,6 +605,55 @@ export class BookingsService {
         Number(booking.amountPaid),
       ),
     );
+  }
+
+  async recordRefund(id: string, dto: RefundBookingDto): Promise<void> {
+    const booking = await this.findOne(id);
+
+    if (booking.status !== BookingStatus.CONFIRMED && booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException('booking.refund_only_confirmed_or_completed');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const lockedBooking = await manager.findOne(Booking, {
+        where: { id: booking.id, tenantId: booking.tenantId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!lockedBooking) {
+        throw new NotFoundException('bookings.not_found');
+      }
+
+      const amountPaid = Number(lockedBooking.amountPaid || 0);
+      if (dto.amount > amountPaid) {
+        throw new BadRequestException('booking.refund_exceeds_amount_paid');
+      }
+
+      await this.financeService.createTransactionWithManager(manager, {
+        type: TransactionType.INCOME,
+        amount: -dto.amount,
+        category: 'Booking Refund',
+        bookingId: lockedBooking.id,
+        paymentMethod: dto.paymentMethod,
+        description: dto.reason,
+        transactionDate: new Date(),
+      });
+
+      const newAmountPaid = MathUtils.subtract(amountPaid, dto.amount);
+      const currentRefund = Number(lockedBooking.refundAmount || 0);
+      const newRefundAmount = MathUtils.add(currentRefund, dto.amount);
+
+      lockedBooking.amountPaid = newAmountPaid;
+      lockedBooking.refundAmount = newRefundAmount;
+      lockedBooking.paymentStatus = lockedBooking.derivePaymentStatus();
+
+      await manager.save(lockedBooking);
+    });
+  }
+
+  async getBookingTransactions(id: string, user?: User): Promise<Transaction[]> {
+    const booking = await this.findOne(id, user);
+    return this.financeService.findTransactionsByBookingId(booking.id, booking.tenantId);
   }
 
   async markAsPaid(id: string, dto: MarkBookingPaidDto = {}): Promise<void> {

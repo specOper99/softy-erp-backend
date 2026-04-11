@@ -75,6 +75,9 @@ export class Transaction extends BaseTenantEntity {
   @Index() // Frequent range queries
   transactionDate: Date;
 
+  @Column({ name: 'payment_method', type: 'varchar', length: 50, nullable: true })
+  paymentMethod: string | null;
+
   @ManyToOne('Booking', { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'booking_id' })
   booking: Booking | null;

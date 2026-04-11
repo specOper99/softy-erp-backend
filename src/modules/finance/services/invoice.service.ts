@@ -27,6 +27,10 @@ export class InvoiceService {
     return `${INVOICE_NUMBER_PREFIX}-${datePart}-${randomPart}`;
   }
 
+  async findByBookingId(bookingId: string): Promise<Invoice | null> {
+    return this.invoiceRepository.findOne({ where: { bookingId } }) ?? null;
+  }
+
   async createInvoice(bookingId: string): Promise<Invoice> {
     const booking = await this.bookingRepository.findOne({
       where: { id: bookingId },

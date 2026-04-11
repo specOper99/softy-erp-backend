@@ -30,6 +30,7 @@ import {
   CreateBookingDto,
   MarkBookingPaidDto,
   RecordPaymentDto,
+  RefundBookingDto,
   RescheduleBookingDto,
   UpdateBookingDto,
 } from '../dto';
@@ -291,6 +292,27 @@ export class BookingsController {
   @ApiResponse({ status: 400, description: 'Booking is already fully paid' })
   markPaid(@Param('id', ParseUUIDPipe) id: string, @Body() dto: MarkBookingPaidDto = {}) {
     return this.bookingsService.markAsPaid(id, dto);
+  }
+
+  @Post(':id/refunds')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Record a refund for this booking' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiBody({ type: RefundBookingDto })
+  @ApiResponse({ status: 201, description: 'Refund recorded' })
+  @ApiResponse({ status: 400, description: 'Refund exceeds amount paid or invalid booking status' })
+  recordRefund(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RefundBookingDto) {
+    return this.bookingsService.recordRefund(id, dto);
+  }
+
+  @Get(':id/transactions')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
+  @ApiOperation({ summary: 'Get financial transactions for this booking' })
+  @ApiParam({ name: 'id', description: 'Booking UUID' })
+  @ApiResponse({ status: 200, description: 'Booking transactions returned' })
+  @ApiResponse({ status: 404, description: 'Booking not found' })
+  getBookingTransactions(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.bookingsService.getBookingTransactions(id, user);
   }
 
   @Post(':id/duplicate')

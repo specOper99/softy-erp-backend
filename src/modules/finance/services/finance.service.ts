@@ -191,6 +191,7 @@ export class FinanceService {
       description?: string;
       transactionDate: Date;
       revenueAccountCode?: string;
+      paymentMethod?: string;
     },
   ): Promise<Transaction> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -202,6 +203,7 @@ export class FinanceService {
     const transaction = manager.create(Transaction, {
       ...preparedData,
       revenueAccountCode: data.revenueAccountCode ?? null,
+      paymentMethod: data.paymentMethod ?? null,
     });
     const savedTransaction = await manager.save(transaction);
 
@@ -277,6 +279,15 @@ export class FinanceService {
     }
   }
 
+  async findTransactionsByBookingId(bookingId: string, tenantId: string): Promise<Transaction[]> {
+    return this.transactionRepository
+      .createQueryBuilder('t')
+      .where('t.bookingId = :bookingId', { bookingId })
+      .andWhere('t.tenantId = :tenantId', { tenantId })
+      .orderBy('t.transactionDate', 'DESC')
+      .getMany();
+  }
+
   async findAllTransactions(filter?: TransactionFilterDto): Promise<Transaction[]> {
     const queryBuilder = this.transactionRepository.createQueryBuilder('t');
 
@@ -289,6 +300,10 @@ export class FinanceService {
         start: new Date(filter.startDate),
         end: new Date(filter.endDate),
       });
+    }
+
+    if (filter?.bookingId) {
+      queryBuilder.andWhere('t.bookingId = :bookingId', { bookingId: filter.bookingId });
     }
 
     return queryBuilder.orderBy('t.transactionDate', 'DESC').skip(filter?.getSkip()).take(filter?.getTake()).getMany();

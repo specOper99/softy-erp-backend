@@ -7,3 +7,4 @@ export * from './client-filter.dto';
 export * from './client.dto';
 export * from './mark-booking-paid.dto';
 export * from './record-payment.dto';
+export * from './refund-booking.dto';

@@ -39,6 +39,9 @@ export class Booking extends BaseTenantEntity {
   @MoneyColumn('sub_total')
   subTotal: number;
 
+  @MoneyColumn('discount_amount')
+  discountAmount: number;
+
   @PercentColumn('tax_rate')
   taxRate: number;
 

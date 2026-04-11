@@ -164,4 +164,9 @@ export class TransactionFilterDto extends PaginationDto {
   @IsDateString()
   @IsOptional()
   endDate?: string;
+
+  @ApiPropertyOptional({ description: 'Filter transactions by booking ID' })
+  @IsUUID()
+  @IsOptional()
+  bookingId?: string;
 }
