@@ -5,10 +5,10 @@ import { CatalogModule } from '../catalog/catalog.module';
 import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceModule } from '../finance/finance.module';
-import { MetricsModule } from '../metrics/metrics.module';
 import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
 import { TaskTypeEligibilityRepository } from '../hr/repositories/task-type-eligibility.repository';
 import { MailModule } from '../mail/mail.module';
+import { MetricsModule } from '../metrics/metrics.module';
 import { TaskAssignee } from '../tasks/entities/task-assignee.entity';
 import { Task } from '../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../tasks/repositories/task-assignee.repository';
@@ -16,8 +16,10 @@ import { User } from '../users/entities/user.entity';
 import { UserRepository } from '../users/repositories/user.repository';
 import { BookingsController } from './controllers/bookings.controller';
 import { ClientsController } from './controllers/clients.controller';
+import { ProcessingTypesController } from './controllers/processing-types.controller';
 import { Booking } from './entities/booking.entity';
 import { Client } from './entities/client.entity';
+import { ProcessingType } from './entities/processing-type.entity';
 
 import { ExportService } from '../../common/services/export.service';
 import { AuditModule } from '../audit/audit.module';
@@ -31,6 +33,7 @@ import { BookingStateMachineService } from './services/booking-state-machine.ser
 import { BookingWorkflowService } from './services/booking-workflow.service';
 import { BookingsService } from './services/bookings.service';
 import { ClientsService } from './services/clients.service';
+import { ProcessingTypeService } from './services/processing-type.service';
 import { StaffConflictService } from './services/staff-conflict.service';
 
 @Module({
@@ -44,6 +47,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
       User,
       TaskAssignee,
       Task,
+      ProcessingType,
     ]),
     CommonModule,
     FinanceModule,
@@ -54,7 +58,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     AuditModule,
     TasksModule,
   ],
-  controllers: [BookingsController, ClientsController],
+  controllers: [BookingsController, ClientsController, ProcessingTypesController],
   providers: [
     BookingsService,
     BookingWorkflowService,
@@ -69,6 +73,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     TaskTypeEligibilityRepository,
     StaffConflictService,
     BookingCompletionHandler,
+    ProcessingTypeService,
   ],
   exports: [
     BookingsService,
@@ -78,6 +83,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     BookingExportService,
     BookingRepository,
     ClientRepository,
+    ProcessingTypeService,
   ],
 })
 export class BookingsModule {}

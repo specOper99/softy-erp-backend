@@ -1,9 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, Min } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { BookingStatus } from '../enums/booking-status.enum';
+import { ProcessingTypeResponseDto } from './processing-type.dto';
 
 export class CreateBookingDto {
   @ApiProperty({ description: 'Client ID' })
@@ -64,6 +76,16 @@ export class CreateBookingDto {
   @IsString()
   @IsOptional()
   locationLink?: string;
+
+  @ApiPropertyOptional({
+    description: 'Processing type IDs to associate with this booking',
+    type: [String],
+    example: ['uuid-1', 'uuid-2'],
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  processingTypeIds?: string[];
 }
 
 export class UpdateBookingDto {
@@ -128,6 +150,15 @@ export class UpdateBookingDto {
   @IsString()
   @IsOptional()
   locationLink?: string;
+
+  @ApiPropertyOptional({
+    description: 'Processing type IDs to associate with this booking (replaces existing selection)',
+    type: [String],
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  processingTypeIds?: string[];
 }
 
 export class RescheduleBookingDto {
@@ -226,6 +257,9 @@ export class BookingResponseDto {
 
   @ApiPropertyOptional({ description: 'Invoice ID linked to this booking (generated on confirm)' })
   invoiceId?: string;
+
+  @ApiPropertyOptional({ description: 'Processing types selected for this booking', type: [ProcessingTypeResponseDto] })
+  processingTypes?: ProcessingTypeResponseDto[];
 
   @ApiProperty()
   createdAt: Date;

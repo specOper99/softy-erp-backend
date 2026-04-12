@@ -1,4 +1,4 @@
-import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, DeleteDateColumn, Entity, Index, JoinColumn, JoinTable, ManyToMany, ManyToOne } from 'typeorm';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { BookingStatus } from '../enums/booking-status.enum';
 
@@ -7,6 +7,7 @@ import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { MathUtils } from '../../../common/utils/math.utils';
 import type { ServicePackage } from '../../catalog/entities/service-package.entity';
 import type { Client } from './client.entity';
+import { ProcessingType } from './processing-type.entity';
 
 @Entity('bookings')
 @Index(['tenantId', 'status', 'eventDate'])
@@ -104,6 +105,14 @@ export class Booking extends BaseTenantEntity {
   @ManyToOne('ServicePackage')
   @JoinColumn({ name: 'package_id' })
   servicePackage: ServicePackage;
+
+  @ManyToMany(() => ProcessingType, { eager: false })
+  @JoinTable({
+    name: 'booking_processing_types',
+    joinColumn: { name: 'booking_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'processing_type_id', referencedColumnName: 'id' },
+  })
+  processingTypes: ProcessingType[];
 
   // ==================== Domain Methods ====================
 

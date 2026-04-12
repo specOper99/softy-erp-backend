@@ -6,5 +6,7 @@ export * from './cancel-booking.dto';
 export * from './client-filter.dto';
 export * from './client.dto';
 export * from './mark-booking-paid.dto';
+export * from './processing-type.dto';
 export * from './record-payment.dto';
 export * from './refund-booking.dto';
+

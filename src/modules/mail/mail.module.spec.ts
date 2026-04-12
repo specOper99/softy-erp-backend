@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { join } from 'node:path';
 import { createMailerOptions } from './mail.module';
 

@@ -1,18 +1,19 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Counter } from 'prom-client';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 
 import { FlagsService } from '../../../common/flags/flags.service';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
-import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { Transaction } from '../../finance/entities/transaction.entity';
+import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { Task } from '../../tasks/entities/task.entity';
@@ -34,6 +35,7 @@ import {
   UpdateBookingDto,
 } from '../dto';
 import { Booking } from '../entities/booking.entity';
+import { ProcessingType } from '../entities/processing-type.entity';
 
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCreatedEvent } from '../events/booking-created.event';
@@ -67,7 +69,6 @@ export class BookingsService {
   constructor(
     private readonly bookingRepository: BookingRepository,
     private readonly catalogService: CatalogService,
-
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
     private readonly eventBus: EventBus,
@@ -75,6 +76,8 @@ export class BookingsService {
     private readonly staffConflictService: StaffConflictService,
     private readonly flagsService: FlagsService,
     metricsFactory: MetricsFactory,
+    @InjectRepository(ProcessingType)
+    private readonly processingTypeRepository: Repository<ProcessingType>,
   ) {
     this.lifecycleStatusRejectedCounter = metricsFactory.getOrCreateCounter({
       name: 'booking_lifecycle_status_update_rejected_total',
@@ -147,6 +150,18 @@ export class BookingsService {
 
     const savedBooking = await this.bookingRepository.save(booking);
 
+    // Attach processing types via join table if provided
+    if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
+      const tenantId = TenantContextService.getTenantIdOrThrow();
+      const types = await this.processingTypeRepository.find({
+        where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
+      });
+      savedBooking.processingTypes = types;
+      await this.bookingRepository.save(savedBooking);
+    } else {
+      savedBooking.processingTypes = [];
+    }
+
     // Publish domain event for cross-module reactions
     this.eventBus.publish(
       new BookingCreatedEvent(
@@ -188,6 +203,7 @@ export class BookingsService {
 
     qb.leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
+      .leftJoinAndSelect('booking.processingTypes', 'processingTypes')
       .leftJoinAndSelect(Task, 'tasks', 'tasks.bookingId = booking.id AND tasks.tenantId = booking.tenantId')
       .leftJoinAndSelect('tasks.assignedUser', 'taskAssignedUser')
       .where('booking.tenantId = :tenantId', { tenantId });
@@ -245,6 +261,7 @@ export class BookingsService {
 
     qb.leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
+      .leftJoinAndSelect('booking.processingTypes', 'processingTypes')
       .where('booking.tenantId = :tenantId', { tenantId });
 
     this.applyBookingFilters(qb, query);
@@ -286,6 +303,7 @@ export class BookingsService {
     // Apply standard relations
     qb.leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
+      .leftJoinAndSelect('booking.processingTypes', 'processingTypes')
       .leftJoinAndMapMany(
         'servicePackage.packageItems',
         PackageItem,
@@ -439,6 +457,17 @@ export class BookingsService {
       if (dto.locationLink !== undefined) simpleUpdates.locationLink = dto.locationLink;
 
       Object.assign(booking, simpleUpdates);
+
+      // Update processing types if provided
+      if (dto.processingTypeIds !== undefined) {
+        if (dto.processingTypeIds.length > 0) {
+          booking.processingTypes = await manager.find(ProcessingType, {
+            where: dto.processingTypeIds.map((ptId) => ({ id: ptId, tenantId: existingBooking.tenantId })),
+          });
+        } else {
+          booking.processingTypes = [];
+        }
+      }
 
       const saved = await manager.save(booking);
 

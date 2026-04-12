@@ -2,20 +2,21 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
-import { FlagsService } from '../../../common/flags/flags.service';
-import { MetricsFactory } from '../../../common/services/metrics.factory';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
-  createMockAuditService,
-  createMockBooking,
-  createMockCatalogService,
-  createMockDataSource,
-  createMockEventBus,
-  createMockFinanceService,
-  createMockRepository,
-  mockTenantContext,
+    createMockAuditService,
+    createMockBooking,
+    createMockCatalogService,
+    createMockDataSource,
+    createMockEventBus,
+    createMockFinanceService,
+    createMockRepository,
+    mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
+import { FlagsService } from '../../../common/flags/flags.service';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
@@ -24,6 +25,7 @@ import { FinanceService } from '../../finance/services/finance.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { CreateBookingDto } from '../dto';
+import { ProcessingType } from '../entities/processing-type.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCreatedEvent } from '../events/booking-created.event';
 import { BookingPriceChangedEvent } from '../events/booking-price-changed.event';
@@ -43,6 +45,7 @@ describe('BookingsService', () => {
   let eventBus: ReturnType<typeof createMockEventBus>;
   let staffConflictService: { checkPackageStaffAvailability: jest.Mock };
   let flagsService: { isEnabled: jest.Mock };
+  let processingTypeRepository: ReturnType<typeof createMockRepository>;
 
   const mockBooking = createMockBooking({
     id: 'booking-123',
@@ -83,6 +86,8 @@ describe('BookingsService', () => {
     flagsService = {
       isEnabled: jest.fn().mockReturnValue(true),
     };
+    processingTypeRepository = createMockRepository<ProcessingType>();
+    processingTypeRepository.find.mockResolvedValue([]);
 
     // Override dataSource transaction to return mock booking
     dataSource.transaction.mockImplementation((cb) =>
@@ -144,6 +149,10 @@ describe('BookingsService', () => {
           useValue: {
             getOrCreateCounter: jest.fn().mockReturnValue({ inc: jest.fn() }),
           },
+        },
+        {
+          provide: getRepositoryToken(ProcessingType),
+          useValue: processingTypeRepository,
         },
       ],
     }).compile();
@@ -252,6 +261,32 @@ describe('BookingsService', () => {
       };
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should attach processing types when processingTypeIds provided', async () => {
+      const mockProcessingType = { id: 'pt-1', tenantId: 'tenant-123', name: 'Raw Edit' };
+      const dto: CreateBookingDto = {
+        clientId: 'client-1',
+        packageId: 'pkg-1',
+        eventDate: new Date(Date.now() + 86400000).toISOString(),
+        processingTypeIds: ['pt-1'],
+      };
+
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-1',
+        price: 100,
+        name: 'Test Package',
+        durationMinutes: 60,
+      });
+      bookingRepository.create.mockReturnValue({ ...mockBooking, processingTypes: [] });
+      bookingRepository.save.mockResolvedValue({ ...mockBooking, processingTypes: [mockProcessingType] });
+      processingTypeRepository.find.mockResolvedValue([mockProcessingType]);
+
+      await service.create(dto);
+
+      expect(processingTypeRepository.find).toHaveBeenCalled();
+      // save is called twice: once for main booking, once to persist relations
+      expect(bookingRepository.save).toHaveBeenCalledTimes(2);
     });
 
     it('should reject create when staff conflict exists', async () => {
