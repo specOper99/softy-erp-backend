@@ -25,7 +25,7 @@ describe('Tenant scoping in QueryBuilder usages', () => {
       const content = fs.readFileSync(file, 'utf8');
       const lines = content.split('\n');
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const line = lines[i]!;
         if (line.includes('.createQueryBuilder(')) {
           // Skip tenant-aware repository implementation file itself
           if (file.endsWith('tenant-aware.repository.ts')) continue;

@@ -4,6 +4,9 @@ on:
     - cron: '0 4 * * *' # Nightly at 4 AM (Mutation testing is slow)
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   mutation-test:
     name: Stryker Mutation Test
@@ -12,8 +15,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
       
       - name: Install dependencies
         run: npm ci
@@ -37,8 +41,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -54,8 +59,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
           
       - name: Install dependencies
         run: npm ci

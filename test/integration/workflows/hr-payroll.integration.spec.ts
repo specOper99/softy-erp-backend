@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 import { ExportService } from '../../../src/common/services/export.service';
 import { DistributedLockService } from '../../../src/common/services/distributed-lock.service';
@@ -60,7 +60,7 @@ describe('HR Payroll Workflow Integration', () => {
     }),
   };
 
-  const tenantId = uuidv4();
+  const tenantId = randomUUID();
 
   beforeAll(async () => {
     // Mock tenant context

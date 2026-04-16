@@ -325,7 +325,7 @@ export class UsersService {
     return savedUser;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, reason?: string): Promise<void> {
     const user = await this.findOne(id);
 
     await this.auditService.log({
@@ -333,6 +333,7 @@ export class UsersService {
       entityName: 'User',
       entityId: id,
       oldValues: { email: user.email, role: user.role },
+      ...(reason ? { newValues: { reason } } : {}),
     });
 
     await this.userRepository.softRemove(user);

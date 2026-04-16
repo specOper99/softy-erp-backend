@@ -12,6 +12,7 @@ import {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
@@ -169,4 +170,35 @@ export class TransactionFilterDto extends PaginationDto {
   @IsUUID()
   @IsOptional()
   bookingId?: string;
+}
+
+export class TransactionCursorQueryDto extends CursorPaginationDto {
+  @ApiPropertyOptional({ enum: TransactionType })
+  @IsEnum(TransactionType)
+  @IsOptional()
+  type?: TransactionType;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional({ description: 'Filter transactions by booking ID' })
+  @IsUUID()
+  @IsOptional()
+  bookingId?: string;
+}
+
+export class VoidTransactionDto {
+  @ApiPropertyOptional({ example: 'Duplicate entry — client paid twice' })
+  @IsOptional()
+  @IsString()
+  @IsOptional()
+  @SanitizeHtml()
+  reason?: string;
 }

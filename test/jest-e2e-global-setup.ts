@@ -4,6 +4,22 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
 import { normalizeMigrationNamesForTypeOrm } from './utils/typeorm-migration-name.util';
 
+function readExistingDbConfig() {
+  const host = process.env.DB_HOST;
+  const port = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : undefined;
+  const username = process.env.DB_USERNAME;
+  const password = process.env.DB_PASSWORD;
+  const database = process.env.DB_DATABASE;
+
+  if (!host || !port || !username || password === undefined || !database) {
+    throw new Error(
+      'E2E_USE_EXISTING_DB=true requires DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, and DB_DATABASE to be set.',
+    );
+  }
+
+  return { host, port, username, password, database };
+}
+
 const jestE2eGlobalSetup = async () => {
   // 1. Load base .env file
   dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -18,20 +34,33 @@ const jestE2eGlobalSetup = async () => {
   process.env.CSRF_ENABLED = 'false';
   process.env.DB_LOGGING = 'false';
 
-  console.log('\n🐳 Starting PostgreSQL container for e2e tests...');
+  let host: string;
+  let port: number;
+  let username: string;
+  let password: string;
+  let database: string;
 
-  const postgresContainer = await new PostgreSqlContainer('postgres:15-alpine')
-    .withDatabase('test_db')
-    .withUsername('test_user')
-    .withPassword('test_password')
-    .withExposedPorts(5432)
-    .start();
+  if (process.env.E2E_USE_EXISTING_DB === 'true') {
+    console.log('\n🗄️ Using existing PostgreSQL database for e2e tests...');
+    ({ host, port, username, password, database } = readExistingDbConfig());
+  } else {
+    console.log('\n🐳 Starting PostgreSQL container for e2e tests...');
 
-  const host = postgresContainer.getHost();
-  const port = postgresContainer.getPort();
-  const username = postgresContainer.getUsername();
-  const password = postgresContainer.getPassword();
-  const database = postgresContainer.getDatabase();
+    const postgresContainer = await new PostgreSqlContainer('postgres:15-alpine')
+      .withDatabase('test_db')
+      .withUsername('test_user')
+      .withPassword('test_password')
+      .withExposedPorts(5432)
+      .start();
+
+    host = postgresContainer.getHost();
+    port = postgresContainer.getPort();
+    username = postgresContainer.getUsername();
+    password = postgresContainer.getPassword();
+    database = postgresContainer.getDatabase();
+    globalThis.__POSTGRES_CONTAINER__ = postgresContainer;
+    console.log(`✅ PostgreSQL container started on ${host}:${port}`);
+  }
 
   process.env.DB_HOST = host;
   process.env.DB_PORT = String(port);
@@ -39,7 +68,6 @@ const jestE2eGlobalSetup = async () => {
   process.env.DB_PASSWORD = password;
   process.env.DB_DATABASE = database;
 
-  globalThis.__POSTGRES_CONTAINER__ = postgresContainer;
   globalThis.__DB_CONFIG__ = {
     host,
     port,
@@ -47,8 +75,6 @@ const jestE2eGlobalSetup = async () => {
     password,
     database,
   };
-
-  console.log(`✅ PostgreSQL container started on ${host}:${port}`);
 
   const databaseName = process.env.DB_DATABASE;
   if (!databaseName) {

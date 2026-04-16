@@ -51,9 +51,9 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result: any) => {
-        expect(result._meta).toBeDefined();
-        expect(result._meta.apiVersion).toBeDefined();
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result: unknown) => {
+        expect((result as Record<string, unknown>)['_meta']).toBeDefined();
+        expect(((result as Record<string, unknown>)['_meta'] as Record<string, unknown>)?.['apiVersion']).toBeDefined();
         done();
       });
     });
@@ -63,9 +63,9 @@ describe('ApiVersionInterceptor', () => {
         handle: () => of([{ id: 1 }, { id: 2 }]),
       };
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result: any) => {
+      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result: unknown) => {
         expect(Array.isArray(result)).toBe(true);
-        expect(result._meta).toBeUndefined();
+        expect((result as Record<string, unknown>)['_meta']).toBeUndefined();
         done();
       });
     });
@@ -118,7 +118,7 @@ describe('ApiVersionInterceptor', () => {
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
         try {
           expect(result).toBeInstanceOf(Foo);
-          expect((result as any)._meta).toBeUndefined();
+          expect((result as Record<string, unknown>)['_meta']).toBeUndefined();
           done();
         } catch (e) {
           done(e);

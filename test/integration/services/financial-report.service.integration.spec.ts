@@ -1,5 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
@@ -46,8 +46,8 @@ describe('FinancialReportService Integration Tests', () => {
   const createBookingFixture = async (tenantId: string, label: string, eventDate: Date): Promise<Booking> => {
     const client = await clientRepository.save({
       name: `${label} Client`,
-      email: `${label.toLowerCase()}-${uuidv4()}@test.local`,
-      phone: `+1${uuidv4().replace(/-/g, '').slice(0, 10)}`,
+      email: `${label.toLowerCase()}-${randomUUID()}@test.local`,
+      phone: `+1${randomUUID().replace(/-/g, '').slice(0, 10)}`,
       tenantId,
     });
 
@@ -123,19 +123,19 @@ describe('FinancialReportService Integration Tests', () => {
   });
 
   it('excludes cross-tenant in-range transactions from tenant1 P&L report', async () => {
-    const tenant1 = uuidv4();
-    const tenant2 = uuidv4();
+    const tenant1 = randomUUID();
+    const tenant2 = randomUUID();
 
     await tenantRepository.save([
       {
         id: tenant1,
         name: 'Finance Tenant One',
-        slug: `finance-tenant-one-${uuidv4().slice(0, 8)}`,
+        slug: `finance-tenant-one-${randomUUID().slice(0, 8)}`,
       },
       {
         id: tenant2,
         name: 'Finance Tenant Two',
-        slug: `finance-tenant-two-${uuidv4().slice(0, 8)}`,
+        slug: `finance-tenant-two-${randomUUID().slice(0, 8)}`,
       },
     ]);
 

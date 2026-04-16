@@ -2,7 +2,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
 import { mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { EMAIL_QUEUE } from '../mail.types';
+import { BookingEmailData, EMAIL_QUEUE, TaskAssignmentEmailData } from '../mail.types';
 import { MailQueueService } from './mail-queue.service';
 import { MailSenderService } from './mail-sender.service';
 
@@ -53,7 +53,7 @@ describe('MailQueueService', () => {
 
   describe('queueBookingConfirmation', () => {
     it('should add job to queue', async () => {
-      const data: any = { eventDate: new Date() };
+      const data = { eventDate: new Date() } as unknown as BookingEmailData;
       await service.queueBookingConfirmation(data);
       expect(mockEmailQueue.add).toHaveBeenCalledWith('booking-confirmation', expect.any(Object), expect.any(Object));
     });
@@ -61,7 +61,7 @@ describe('MailQueueService', () => {
 
   describe('queueTaskAssignment', () => {
     it('should add job to queue', async () => {
-      const data: any = { eventDate: new Date() };
+      const data = { eventDate: new Date() } as unknown as TaskAssignmentEmailData;
       await service.queueTaskAssignment(data);
       expect(mockEmailQueue.add).toHaveBeenCalledWith('task-assignment', expect.any(Object), expect.any(Object));
     });
@@ -89,7 +89,7 @@ describe('MailQueueService', () => {
     });
 
     it('should call sender service directly if queue missing for booking confirmation', async () => {
-      const data: any = { eventDate: new Date() };
+      const data = { eventDate: new Date() } as unknown as BookingEmailData;
       await serviceNoQueue.queueBookingConfirmation(data);
       expect(mockSenderService.sendBookingConfirmation).toHaveBeenCalledWith(data);
     });

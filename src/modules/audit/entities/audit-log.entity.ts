@@ -25,10 +25,10 @@ export class AuditLog {
   entityId: string;
 
   @Column({ type: 'jsonb', name: 'old_values', nullable: true })
-  oldValues: unknown;
+  oldValues: Record<string, unknown> | null;
 
   @Column({ type: 'jsonb', name: 'new_values', nullable: true })
-  newValues: unknown;
+  newValues: Record<string, unknown> | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string;

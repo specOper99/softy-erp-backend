@@ -1,5 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
@@ -21,8 +21,8 @@ describe('FinanceRepository Integration Tests', () => {
   let packageRepository: Repository<ServicePackage>;
   let taskTypeRepository: Repository<TaskType>;
 
-  const tenant1 = uuidv4();
-  const tenant2 = uuidv4();
+  const tenant1 = randomUUID();
+  const tenant2 = randomUUID();
 
   beforeAll(async () => {
     const dbConfig = globalThis.__DB_CONFIG__!;

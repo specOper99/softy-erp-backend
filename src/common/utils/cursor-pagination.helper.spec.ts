@@ -3,7 +3,7 @@ import { CursorPaginationHelper } from './cursor-pagination.helper';
 
 describe('CursorPaginationHelper', () => {
   describe('paginate', () => {
-    let qb: SelectQueryBuilder<any>;
+    let qb: SelectQueryBuilder<TestEntity>;
 
     beforeEach(() => {
       qb = {
@@ -12,7 +12,7 @@ describe('CursorPaginationHelper', () => {
         take: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn(),
-      } as unknown as SelectQueryBuilder<any>;
+      } as unknown as SelectQueryBuilder<TestEntity>;
     });
 
     interface TestEntity {
@@ -39,7 +39,7 @@ describe('CursorPaginationHelper', () => {
   });
 
   describe('paginateWithCustomDateField', () => {
-    let qb: SelectQueryBuilder<any>;
+    let qb: SelectQueryBuilder<TestEntity>;
 
     beforeEach(() => {
       qb = {
@@ -48,7 +48,7 @@ describe('CursorPaginationHelper', () => {
         take: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn(),
-      } as unknown as SelectQueryBuilder<any>;
+      } as unknown as SelectQueryBuilder<TestEntity>;
     });
 
     interface TestEntity {

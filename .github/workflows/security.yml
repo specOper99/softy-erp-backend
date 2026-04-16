@@ -1,11 +1,15 @@
-name: Security Audit
+name: Backend Security
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main, develop ]
   schedule:
     - cron: '0 0 * * 0' # Weekly scan
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   trufflehog:
@@ -18,7 +22,7 @@ jobs:
       
       - name: TruffleHog OSS (Pull Request)
         if: github.event_name == 'pull_request'
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v3.91.2
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
@@ -27,7 +31,7 @@ jobs:
 
       - name: TruffleHog OSS (Push)
         if: github.event_name == 'push'
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v3.91.2
         with:
           path: ./
           base: ${{ github.event.before }}
@@ -35,8 +39,8 @@ jobs:
           extra_args: --debug --only-verified
 
       - name: TruffleHog OSS (Scheduled)
-        if: github.event_name == 'schedule'
-        uses: trufflesecurity/trufflehog@main
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: trufflesecurity/trufflehog@v3.91.2
         with:
           path: ./
           extra_args: --debug --only-verified
@@ -51,7 +55,7 @@ jobs:
         run: docker build -t app:${{ github.sha }} .
         
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: 'app:${{ github.sha }}'
           format: 'table'
@@ -67,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Checkov GitHub Action
-        uses: bridgecrewio/checkov-action@master
+        uses: bridgecrewio/checkov-action@v12.1347.0
         with:
           directory: .
           framework: dockerfile,helm,kubernetes
@@ -82,8 +86,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
       
       - name: Install dependencies
         run: npm ci --ignore-scripts

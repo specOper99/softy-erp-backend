@@ -76,7 +76,7 @@ describe('AuditProcessor - Tenant Context', () => {
         ...data,
         id: 'audit-2',
         calculateHash: jest.fn().mockReturnValue('hash-456'),
-      };
+      } as unknown as AuditLog;
     });
 
     await TenantContextService.run(tenantId, async () => {
@@ -104,7 +104,7 @@ describe('AuditProcessor - Tenant Context', () => {
         ...data,
         id: 'audit-3',
         calculateHash: jest.fn().mockReturnValue('new-hash'),
-      };
+      } as unknown as AuditLog;
     });
 
     await TenantContextService.run(tenantId, async () => {

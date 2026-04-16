@@ -9,7 +9,7 @@ describe('KeyRotationService', () => {
   let _encryptionService: EncryptionService;
   let _webhookRepository: ReturnType<typeof jest.fn>;
 
-  let mockWebhooks: any[];
+  let mockWebhooks: Pick<Webhook, 'id' | 'secret'>[];
 
   const mockEncryptionService = {
     encrypt: jest.fn().mockReturnValue('encrypted'),

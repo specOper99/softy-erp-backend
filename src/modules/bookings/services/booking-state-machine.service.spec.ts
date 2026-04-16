@@ -158,9 +158,9 @@ describe('BookingStateMachineService', () => {
       );
 
       // Verify invocation order
-      const beforeCall = (hooks.beforeTransition as jest.Mock).mock.invocationCallOrder[0];
-      const saveCall = saveCallback.mock.invocationCallOrder[0];
-      const afterCall = (hooks.afterTransition as jest.Mock).mock.invocationCallOrder[0];
+      const beforeCall = (hooks.beforeTransition as jest.Mock).mock.invocationCallOrder[0]!;
+      const saveCall = saveCallback.mock.invocationCallOrder[0]!;
+      const afterCall = (hooks.afterTransition as jest.Mock).mock.invocationCallOrder[0]!;
 
       expect(beforeCall).toBeLessThan(saveCall);
       expect(saveCall).toBeLessThan(afterCall);

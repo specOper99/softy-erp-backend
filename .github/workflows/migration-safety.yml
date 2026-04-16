@@ -97,6 +97,5 @@ jobs:
       - name: Migration Summary
         if: always()
         run: |
-          echo "## Migration Safety Check Results" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Migrations validated successfully" >> $GITHUB_STEP_SUMMARY
-
+          echo "## Migration Safety Check Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Migrations validated successfully" >> "$GITHUB_STEP_SUMMARY"

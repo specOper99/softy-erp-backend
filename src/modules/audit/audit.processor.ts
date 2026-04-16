@@ -15,8 +15,8 @@ interface AuditLogJobData {
   entityName?: string;
   entityId?: string;
   userId?: string;
-  oldValues?: unknown;
-  newValues?: unknown;
+  oldValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
   notes?: string;
   ipAddress?: string;
   userAgent?: string;

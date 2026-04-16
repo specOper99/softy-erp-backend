@@ -24,8 +24,8 @@ describe('EmailNotificationService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string, fallback?: any) => {
-              const config: Record<string, any> = {
+            get: jest.fn((key: string, fallback?: unknown) => {
+              const config: Record<string, unknown> = {
                 SMTP_HOST: 'smtp.example.com',
                 SMTP_PORT: 587,
                 SMTP_USER: 'admin@example.com',
@@ -111,7 +111,7 @@ describe('EmailNotificationService', () => {
           {
             provide: ConfigService,
             useValue: {
-              get: jest.fn((key: string, fallback?: any) => fallback),
+              get: jest.fn((key: string, fallback?: unknown) => fallback),
             },
           },
         ],

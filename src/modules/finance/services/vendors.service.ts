@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { CreateVendorDto } from '../dto';
+import { CreateVendorDto, UpdateVendorDto } from '../dto';
 import { Vendor } from '../entities';
 
 @Injectable()
@@ -45,5 +45,19 @@ export class VendorsService {
     }
 
     return vendor;
+  }
+
+  async update(id: string, dto: UpdateVendorDto): Promise<Vendor> {
+    const vendor = await this.findById(id);
+    if (dto.name !== undefined) vendor.name = dto.name;
+    if (dto.email !== undefined) vendor.email = dto.email ?? null;
+    if (dto.phone !== undefined) vendor.phone = dto.phone ?? null;
+    if (dto.notes !== undefined) vendor.notes = dto.notes ?? null;
+    return this.vendorRepository.save(vendor);
+  }
+
+  async remove(id: string): Promise<void> {
+    const vendor = await this.findById(id);
+    await this.vendorRepository.remove(vendor);
   }
 }

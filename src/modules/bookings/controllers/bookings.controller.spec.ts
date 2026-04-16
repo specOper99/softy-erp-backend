@@ -123,8 +123,9 @@ describe('BookingsController', () => {
 
   describe('remove', () => {
     it('should call service.remove', async () => {
-      await controller.remove('uuid');
-      expect(service.remove).toHaveBeenCalledWith('uuid');
+      const dto = { reason: 'duplicate booking' };
+      await controller.remove('uuid', dto);
+      expect(service.remove).toHaveBeenCalledWith('uuid', dto.reason);
     });
   });
 

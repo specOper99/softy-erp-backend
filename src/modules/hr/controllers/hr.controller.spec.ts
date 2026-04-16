@@ -121,6 +121,14 @@ describe('HrController', () => {
       await controller.runPayroll();
       expect(payrollService.runPayroll).toHaveBeenCalled();
     });
+
+    it('should pass explicit month and year payload to payroll service', async () => {
+      const dto = { month: 2, year: 2026 };
+
+      await controller.runPayroll(dto);
+
+      expect(payrollService.runPayroll).toHaveBeenCalledWith(dto);
+    });
   });
 
   describe('getAvailability', () => {

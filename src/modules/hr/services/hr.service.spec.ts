@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, FindOneOptions } from 'typeorm';
 import {
   createMockEmployeeWallet,
   createMockProfile,
@@ -91,8 +91,8 @@ describe('HrService - Comprehensive Tests', () => {
   beforeEach(async () => {
     mockProfileRepository = createMockRepository();
     // Configure default behaviors from original manual mock
-    mockProfileRepository.save.mockImplementation((profile: any) =>
-      Promise.resolve({ id: 'profile-uuid-123', ...profile }),
+    mockProfileRepository.save.mockImplementation((profile: Profile) =>
+      Promise.resolve({ ...profile, id: 'profile-uuid-123' }),
     );
     mockProfileRepository.find.mockResolvedValue([mockProfile]);
     mockProfileRepository.remove.mockResolvedValue(mockProfile);
@@ -136,8 +136,9 @@ describe('HrService - Comprehensive Tests', () => {
     // jest.clearAllMocks() clears usage data. implementation persists.
     // But better re-apply critical overrides.
 
-    mockProfileRepository.findOne.mockImplementation(({ where }: any) => {
-      if (where.id === 'profile-uuid-123' || where.userId === 'user-uuid-123') {
+    mockProfileRepository.findOne.mockImplementation(({ where }: FindOneOptions<Profile>) => {
+      const w = Array.isArray(where) ? where[0] : where;
+      if (w?.id === 'profile-uuid-123' || w?.userId === 'user-uuid-123') {
         return Promise.resolve(mockProfile);
       }
       return Promise.resolve(null);

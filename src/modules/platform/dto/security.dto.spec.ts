@@ -23,7 +23,7 @@ describe('Security DTOs', () => {
       const dto = plainToInstance(ForcePasswordResetDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
 
     it('should validate with notifyUser true', async () => {
@@ -51,7 +51,7 @@ describe('Security DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('notifyUser');
+      expect(errors[0]!.property).toBe('notifyUser');
     });
   });
 
@@ -68,7 +68,7 @@ describe('Security DTOs', () => {
       const dto = plainToInstance(RevokeSessionsDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
 
     it('should validate with notifyUser option', async () => {
@@ -97,7 +97,7 @@ describe('Security DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('ipAddresses');
+      expect(errors[0]!.property).toBe('ipAddresses');
     });
 
     it('should fail validation without reason', async () => {
@@ -106,7 +106,7 @@ describe('Security DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
 
     it('should validate with empty array for clearing allowlist', async () => {
@@ -125,7 +125,7 @@ describe('Security DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('ipAddresses');
+      expect(errors[0]!.property).toBe('ipAddresses');
     });
   });
 
@@ -142,7 +142,7 @@ describe('Security DTOs', () => {
       const dto = plainToInstance(InitiateDataExportDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
 
     it('should validate with dataCategories', async () => {
@@ -177,7 +177,7 @@ describe('Security DTOs', () => {
       const dto = plainToInstance(InitiateDataDeletionDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
 
     it('should validate with hardDelete true', async () => {
@@ -217,7 +217,7 @@ describe('Security DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('policyKey');
+      expect(errors[0]!.property).toBe('policyKey');
     });
 
     it('should fail validation without policyValue', async () => {
@@ -227,7 +227,7 @@ describe('Security DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('policyValue');
+      expect(errors[0]!.property).toBe('policyValue');
     });
 
     it('should fail validation without reason', async () => {
@@ -237,7 +237,7 @@ describe('Security DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
 
     it('should validate with complex policyValue object', async () => {

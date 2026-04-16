@@ -27,7 +27,7 @@ describe('TokenService', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn((key: string, defaultValue?: any) => defaultValue),
+    get: jest.fn((key: string, defaultValue?: unknown) => defaultValue),
   };
 
   beforeEach(async () => {

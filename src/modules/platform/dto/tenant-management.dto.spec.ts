@@ -36,7 +36,7 @@ describe('Tenant Management DTOs', () => {
       const dto = plainToInstance(ListTenantsDto, { status: 'INVALID_STATUS' });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('status');
+      expect(errors[0]!.property).toBe('status');
     });
 
     it('should validate with valid plan enum', async () => {
@@ -55,14 +55,14 @@ describe('Tenant Management DTOs', () => {
       const dto = plainToInstance(ListTenantsDto, { minRiskScore: 1.5 });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('minRiskScore');
+      expect(errors[0]!.property).toBe('minRiskScore');
     });
 
     it('should fail validation with negative minRiskScore', async () => {
       const dto = plainToInstance(ListTenantsDto, { minRiskScore: -0.1 });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('minRiskScore');
+      expect(errors[0]!.property).toBe('minRiskScore');
     });
 
     it('should validate with valid date strings', async () => {
@@ -78,7 +78,7 @@ describe('Tenant Management DTOs', () => {
       const dto = plainToInstance(ListTenantsDto, { createdAfter: 'not-a-date' });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('createdAfter');
+      expect(errors[0]!.property).toBe('createdAfter');
     });
 
     it('should validate with valid limit and offset', async () => {
@@ -91,21 +91,21 @@ describe('Tenant Management DTOs', () => {
       const dto = plainToInstance(ListTenantsDto, { limit: 150 });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('limit');
+      expect(errors[0]!.property).toBe('limit');
     });
 
     it('should fail validation with limit below min (1)', async () => {
       const dto = plainToInstance(ListTenantsDto, { limit: 0 });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('limit');
+      expect(errors[0]!.property).toBe('limit');
     });
 
     it('should fail validation with negative offset', async () => {
       const dto = plainToInstance(ListTenantsDto, { offset: -1 });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('offset');
+      expect(errors[0]!.property).toBe('offset');
     });
   });
 
@@ -123,14 +123,14 @@ describe('Tenant Management DTOs', () => {
       const dto = plainToInstance(CreateTenantDto, { slug: 'test-tenant' });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('name');
+      expect(errors[0]!.property).toBe('name');
     });
 
     it('should fail validation without slug', async () => {
       const dto = plainToInstance(CreateTenantDto, { name: 'Test Tenant' });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('slug');
+      expect(errors[0]!.property).toBe('slug');
     });
 
     it('should validate with optional subscriptionPlan', async () => {
@@ -161,7 +161,7 @@ describe('Tenant Management DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('billingEmail');
+      expect(errors[0]!.property).toBe('billingEmail');
     });
   });
 
@@ -211,7 +211,7 @@ describe('Tenant Management DTOs', () => {
       const dto = plainToInstance(SuspendTenantDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
 
     it('should validate with gracePeriodDays in range', async () => {
@@ -230,7 +230,7 @@ describe('Tenant Management DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('gracePeriodDays');
+      expect(errors[0]!.property).toBe('gracePeriodDays');
     });
 
     it('should fail validation with negative gracePeriodDays', async () => {
@@ -240,7 +240,7 @@ describe('Tenant Management DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('gracePeriodDays');
+      expect(errors[0]!.property).toBe('gracePeriodDays');
     });
 
     it('should validate with suspendUntil date', async () => {
@@ -266,7 +266,7 @@ describe('Tenant Management DTOs', () => {
       const dto = plainToInstance(ReactivateTenantDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('reason');
+      expect(errors[0]!.property).toBe('reason');
     });
   });
 
@@ -301,7 +301,7 @@ describe('Tenant Management DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('scheduleFor');
+      expect(errors[0]!.property).toBe('scheduleFor');
     });
   });
 });

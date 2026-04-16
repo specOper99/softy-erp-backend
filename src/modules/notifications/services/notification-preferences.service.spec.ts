@@ -61,7 +61,7 @@ describe('NotificationPreferencesService', () => {
         take: 100,
       });
       expect(result).toHaveLength(1);
-      expect(result[0].notificationType).toBe(NotificationType.BOOKING_UPDATED);
+      expect(result[0]!.notificationType).toBe(NotificationType.BOOKING_UPDATED);
     });
 
     it('should return empty array when no preferences exist', async () => {
@@ -113,7 +113,7 @@ describe('NotificationPreferencesService', () => {
       const result = await service.updatePreferences(mockUserId, updates);
 
       expect(preferenceRepository.create).not.toHaveBeenCalled();
-      expect(result[0].emailEnabled).toBe(false);
+      expect(result[0]!.emailEnabled).toBe(false);
     });
 
     it('should handle multiple updates', async () => {

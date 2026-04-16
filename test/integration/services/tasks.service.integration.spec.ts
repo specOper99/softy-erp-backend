@@ -1,7 +1,7 @@
 import { EventBus } from '@nestjs/cqrs';
 import { ForbiddenException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
@@ -42,8 +42,8 @@ describe('TasksService Integration Tests', () => {
   ): Promise<{ booking: Booking; taskType: TaskType }> => {
     const client = await clientRepository.save({
       name: `${label} Client`,
-      email: `${label.toLowerCase()}-${uuidv4()}@test.local`,
-      phone: `+1${uuidv4().replace(/-/g, '').slice(0, 10)}`,
+      email: `${label.toLowerCase()}-${randomUUID()}@test.local`,
+      phone: `+1${randomUUID().replace(/-/g, '').slice(0, 10)}`,
       tenantId,
     });
 
@@ -159,16 +159,16 @@ describe('TasksService Integration Tests', () => {
   });
 
   it('keeps findByUser tenant-isolated even with a leak-trap cross-tenant assigned_user_id row', async () => {
-    const tenant1 = uuidv4();
-    const tenant2 = uuidv4();
+    const tenant1 = randomUUID();
+    const tenant2 = randomUUID();
 
     await tenantRepository.save([
-      { id: tenant1, name: 'Tenant One', slug: `tasks-tenant-one-${uuidv4().slice(0, 8)}` },
-      { id: tenant2, name: 'Tenant Two', slug: `tasks-tenant-two-${uuidv4().slice(0, 8)}` },
+      { id: tenant1, name: 'Tenant One', slug: `tasks-tenant-one-${randomUUID().slice(0, 8)}` },
+      { id: tenant2, name: 'Tenant Two', slug: `tasks-tenant-two-${randomUUID().slice(0, 8)}` },
     ]);
 
     const tenant1FieldStaff = await userRepository.save({
-      email: `fieldstaff-${uuidv4()}@tenant1.local`,
+      email: `fieldstaff-${randomUUID()}@tenant1.local`,
       passwordHash: 'hash',
       role: Role.FIELD_STAFF,
       isActive: true,
@@ -187,7 +187,7 @@ describe('TasksService Integration Tests', () => {
     });
 
     const tenant2Fixture = await createBookingAndTaskType(tenant2, 'Tenant2');
-    const tenant2LeakTrapTaskId = uuidv4();
+    const tenant2LeakTrapTaskId = randomUUID();
 
     try {
       await taskRepository.save({
@@ -235,15 +235,15 @@ describe('TasksService Integration Tests', () => {
   });
 
   it('forbids FIELD_STAFF from reading task assignees when they are neither assigned nor listed', async () => {
-    const tenant1 = uuidv4();
+    const tenant1 = randomUUID();
     await tenantRepository.save({
       id: tenant1,
       name: 'Tenant One',
-      slug: `tasks-field-staff-${uuidv4().slice(0, 8)}`,
+      slug: `tasks-field-staff-${randomUUID().slice(0, 8)}`,
     });
 
     const fieldStaff = await userRepository.save({
-      email: `fieldstaff-${uuidv4()}@tenant.local`,
+      email: `fieldstaff-${randomUUID()}@tenant.local`,
       passwordHash: 'hash',
       role: Role.FIELD_STAFF,
       isActive: true,
@@ -253,7 +253,7 @@ describe('TasksService Integration Tests', () => {
     });
 
     const leadUser = await userRepository.save({
-      email: `lead-${uuidv4()}@tenant.local`,
+      email: `lead-${randomUUID()}@tenant.local`,
       passwordHash: 'hash',
       role: Role.FIELD_STAFF,
       isActive: true,

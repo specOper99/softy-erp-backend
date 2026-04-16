@@ -116,10 +116,13 @@ import { CoreModule } from './modules/core/core.module';
         const baseOptions = {
           type: 'postgres' as const,
           autoLoadEntities: true,
+          manualInitialization: configService.get<boolean>('database.manualInitialization'),
           synchronize: configService.get<boolean>('database.synchronize'),
           logging: configService.get<boolean>('database.logging'),
           logger: configService.get<boolean>('database.logging') ? ('advanced-console' as const) : undefined,
           maxQueryExecutionTime: 100,
+          retryAttempts: configService.get<number>('database.retryAttempts'),
+          retryDelay: configService.get<number>('database.retryDelay'),
           extra: configService.get<Record<string, unknown>>('database.extra'),
         };
 

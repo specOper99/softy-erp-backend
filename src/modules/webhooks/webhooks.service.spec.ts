@@ -1,6 +1,7 @@
 import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { SelectQueryBuilder } from 'typeorm';
 import { createMockRepository, mockTenantContext } from '../../../test/helpers/mock-factories';
 import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
@@ -26,6 +27,12 @@ jest.mock('p-limit', () => ({
 import { lookup } from 'node:dns/promises';
 
 describe('WebhookService', () => {
+  type WebhookServiceInternals = {
+    postPinnedJson: jest.Mock;
+    sendWebhookWithRetry: jest.Mock;
+    getConcurrencyLimit: jest.Mock;
+  };
+
   let service: WebhookService;
   let webhookRepository: jest.Mocked<WebhookRepository>;
   let qb: { andWhere: jest.Mock; getMany: jest.Mock };
@@ -62,18 +69,20 @@ describe('WebhookService', () => {
       andWhere: jest.fn().mockReturnThis(),
       getMany: jest.fn(),
     };
-    webhookRepository.createQueryBuilder = jest.fn().mockReturnValue(qb as any);
+    webhookRepository.createQueryBuilder = jest.fn().mockReturnValue(qb as unknown as SelectQueryBuilder<Webhook>);
 
     // Mock TenantContext
     mockTenantContext(mockTenantId);
 
-    jest.spyOn(service as any, 'postPinnedJson').mockResolvedValue({
+    jest.spyOn(service as unknown as WebhookServiceInternals, 'postPinnedJson').mockResolvedValue({
       statusCode: 200,
       statusMessage: 'OK',
     });
 
     // Mock getConcurrencyLimit to return a no-op limiter
-    jest.spyOn(service as any, 'getConcurrencyLimit').mockResolvedValue(<T>(fn: () => T | Promise<T>) => fn());
+    jest
+      .spyOn(service as unknown as WebhookServiceInternals, 'getConcurrencyLimit')
+      .mockResolvedValue(<T>(fn: () => T | Promise<T>) => fn());
 
     // Speed up retries
     Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
@@ -146,7 +155,7 @@ describe('WebhookService', () => {
 
       expect(webhookRepository.findOne).toHaveBeenCalledWith({ where: { id: 'w-partial' } });
 
-      expect((service as any).postPinnedJson).toHaveBeenCalledWith(
+      expect((service as unknown as WebhookServiceInternals).postPinnedJson).toHaveBeenCalledWith(
         expect.objectContaining({ href: full.url }),
         '93.184.216.34',
         JSON.stringify(event),
@@ -196,7 +205,9 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([webhook]);
 
       // Spy on the private sendWebhookWithRetry method
-      const sendSpy = jest.spyOn(service as any, 'sendWebhookWithRetry').mockResolvedValue(undefined);
+      const sendSpy = jest
+        .spyOn(service as unknown as WebhookServiceInternals, 'sendWebhookWithRetry')
+        .mockResolvedValue(undefined);
 
       await service.emit(event);
 
@@ -208,7 +219,7 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([webhook]);
       await service.emit(event);
 
-      expect((service as any).postPinnedJson).toHaveBeenCalledWith(
+      expect((service as unknown as WebhookServiceInternals).postPinnedJson).toHaveBeenCalledWith(
         expect.objectContaining({ href: config.url }),
         '93.184.216.34',
         JSON.stringify(event),
@@ -245,7 +256,7 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([webhook]);
       await service.emit(event);
 
-      expect((service as any).postPinnedJson).toHaveBeenCalled();
+      expect((service as unknown as WebhookServiceInternals).postPinnedJson).toHaveBeenCalled();
     });
 
     it('should not send webhook if event type does not match', async () => {
@@ -253,12 +264,12 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([]);
       await service.emit(unmatchedEvent);
 
-      expect((service as any).postPinnedJson).not.toHaveBeenCalled();
+      expect((service as unknown as WebhookServiceInternals).postPinnedJson).not.toHaveBeenCalled();
     });
 
     it('should log error if delivery fails', async () => {
       const loggerErrorSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
-      (service as any).postPinnedJson.mockResolvedValue({
+      (service as unknown as WebhookServiceInternals).postPinnedJson.mockResolvedValue({
         statusCode: 500,
         statusMessage: 'Internal Server Error',
       });
@@ -460,7 +471,7 @@ describe('WebhookService', () => {
       const abortError = new Error('Aborted');
       abortError.name = 'AbortError';
 
-      (service as any).postPinnedJson.mockRejectedValue(abortError);
+      (service as unknown as WebhookServiceInternals).postPinnedJson.mockRejectedValue(abortError);
 
       const webhook = {
         id: 'webhook-1',
@@ -481,7 +492,7 @@ describe('WebhookService', () => {
     });
 
     it('should rethrow non-abort errors', async () => {
-      (service as any).postPinnedJson.mockRejectedValue(new Error('Network error'));
+      (service as unknown as WebhookServiceInternals).postPinnedJson.mockRejectedValue(new Error('Network error'));
 
       const webhook = {
         id: 'webhook-1',
@@ -502,7 +513,7 @@ describe('WebhookService', () => {
     });
 
     it('should block redirects and log redirect_blocked', async () => {
-      (service as any).postPinnedJson.mockResolvedValue({
+      (service as unknown as WebhookServiceInternals).postPinnedJson.mockResolvedValue({
         statusCode: 301,
         statusMessage: 'Moved Permanently',
       });
@@ -546,7 +557,7 @@ describe('WebhookService', () => {
       qb.getMany.mockResolvedValue([webhook]);
       await service.emit(event);
 
-      expect((service as any).postPinnedJson).toHaveBeenCalledWith(
+      expect((service as unknown as WebhookServiceInternals).postPinnedJson).toHaveBeenCalledWith(
         expect.objectContaining({ href: webhook.url }),
         '93.184.216.34',
         JSON.stringify(event),
@@ -634,7 +645,13 @@ describe('WebhookService', () => {
       const serviceWithQueue = module.get<WebhookService>(WebhookService);
       const repo = module.get(WebhookRepository);
 
-      const webhook = { id: 'w1', tenantId: 't1', url: 'https://queue.com', events: ['*'], isActive: true } as any;
+      const webhook = {
+        id: 'w1',
+        tenantId: 't1',
+        url: 'https://queue.com',
+        events: ['*'],
+        isActive: true,
+      } as unknown as Webhook;
       const qbWithQueue = { andWhere: jest.fn().mockReturnThis(), getMany: jest.fn().mockResolvedValue([webhook]) };
       (repo.createQueryBuilder as jest.Mock).mockReturnValue(qbWithQueue);
 
@@ -653,7 +670,7 @@ describe('WebhookService', () => {
       Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
 
       let callCount = 0;
-      (service as any).postPinnedJson.mockImplementation(() => {
+      (service as unknown as WebhookServiceInternals).postPinnedJson.mockImplementation(() => {
         callCount++;
         if (callCount < 3) return Promise.reject(new Error('fail'));
         return Promise.resolve({ statusCode: 200, statusMessage: 'OK' });
@@ -666,7 +683,7 @@ describe('WebhookService', () => {
         events: ['*'],
         isActive: true,
         resolvedIps: ['1.1.1.1'],
-      } as any;
+      } as unknown as Webhook;
       (lookup as jest.Mock).mockResolvedValue([{ address: '1.1.1.1', family: 4 }]);
 
       qb.getMany.mockResolvedValue([webhook]);
@@ -684,7 +701,7 @@ describe('WebhookService', () => {
     it('should give up after max retries', async () => {
       Object.defineProperty(service, 'INITIAL_RETRY_DELAY', { value: 1 });
 
-      (service as any).postPinnedJson.mockRejectedValue(new Error('fail forever'));
+      (service as unknown as WebhookServiceInternals).postPinnedJson.mockRejectedValue(new Error('fail forever'));
 
       const webhook = {
         id: 'fail-1',
@@ -693,7 +710,7 @@ describe('WebhookService', () => {
         events: ['*'],
         isActive: true,
         resolvedIps: ['1.1.1.1'],
-      } as any;
+      } as unknown as Webhook;
       (lookup as jest.Mock).mockResolvedValue([{ address: '1.1.1.1', family: 4 }]);
       qb.getMany.mockResolvedValue([webhook]);
 
@@ -712,16 +729,18 @@ describe('WebhookService', () => {
 
   describe('emit edge cases', () => {
     it('should throw if tenantId missing in event', async () => {
-      await expect(service.emit({ type: 'booking.created' } as any)).rejects.toThrow('common.tenant_missing');
+      await expect(service.emit({ type: 'booking.created' } as unknown as WebhookEvent)).rejects.toThrow(
+        'common.tenant_missing',
+      );
     });
 
     it('should skip invalid webhooks (no events)', async () => {
-      const webhook = { id: 'w1', events: null, isActive: true } as any;
+      const webhook = { id: 'w1', events: null, isActive: true } as unknown as Webhook;
       qb.getMany.mockResolvedValue([webhook]);
 
       const loggerWarnSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'warn');
 
-      await service.emit({ type: 'booking.created', tenantId: 't1' } as any);
+      await service.emit({ type: 'booking.created', tenantId: 't1' } as unknown as WebhookEvent);
 
       expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining('no events defined'));
     });

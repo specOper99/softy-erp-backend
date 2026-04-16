@@ -32,6 +32,7 @@ describe('TaskAssignedHandler', () => {
     it('should send task assignment email', async () => {
       const event: TaskAssignedEvent = {
         taskId: 'task-123',
+        tenantId: 'test-tenant',
         employeeName: 'John Employee',
         employeeEmail: 'john@company.com',
         taskTypeName: 'Photography',
@@ -57,6 +58,7 @@ describe('TaskAssignedHandler', () => {
 
       const event: TaskAssignedEvent = {
         taskId: 'task-456',
+        tenantId: 'test-tenant',
         employeeName: 'Jane Employee',
         employeeEmail: 'jane@company.com',
         taskTypeName: 'Videography',

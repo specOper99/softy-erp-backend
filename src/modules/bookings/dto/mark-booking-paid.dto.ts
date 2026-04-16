@@ -1,11 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 
 export class MarkBookingPaidDto {
-  @ApiPropertyOptional({ example: 'BANK_TRANSFER' })
+  @ApiPropertyOptional({ enum: PaymentMethod, example: PaymentMethod.E_PAYMENT })
   @IsOptional()
-  @IsString()
-  paymentMethod?: string;
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
 
   @ApiPropertyOptional({ example: 'Receipt #A-102' })
   @IsOptional()

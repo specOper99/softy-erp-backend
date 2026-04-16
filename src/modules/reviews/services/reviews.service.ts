@@ -127,4 +127,9 @@ export class ReviewsService {
 
     return !!existingReview;
   }
+
+  async remove(id: string): Promise<void> {
+    const review = await this.findOne(id);
+    await this.reviewRepository.remove(review);
+  }
 }

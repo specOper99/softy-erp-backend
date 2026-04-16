@@ -7,6 +7,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
 import { Repository } from 'typeorm';
+import { areBackgroundJobsEnabled } from '../../common/queue/background-jobs.runtime';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { EmailTemplatesController } from './controllers/email-templates.controller';
 import { EmailTemplate } from './entities/email-template.entity';
@@ -25,6 +26,7 @@ import { MailTemplateService } from './services/mail-template.service';
 
 /** Injection token for tenant-aware EmailTemplate repository */
 const EMAIL_TEMPLATE_REPO_TOKEN = 'EMAIL_TEMPLATE_TENANT_REPO';
+const backgroundJobsEnabled = areBackgroundJobsEnabled();
 
 export const createMailerOptions = (configService: ConfigService): MailerOptions => ({
   transport: {
@@ -65,9 +67,13 @@ export const createMailerOptions = (configService: ConfigService): MailerOptions
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => createMailerOptions(configService),
     }),
-    BullModule.registerQueue({
-      name: EMAIL_QUEUE,
-    }),
+    ...(backgroundJobsEnabled
+      ? [
+          BullModule.registerQueue({
+            name: EMAIL_QUEUE,
+          }),
+        ]
+      : []),
     CqrsModule,
     TypeOrmModule.forFeature([EmailTemplate]),
   ],
@@ -77,7 +83,7 @@ export const createMailerOptions = (configService: ConfigService): MailerOptions
     MailSenderService,
     MailQueueService,
     MailService,
-    EmailProcessor,
+    ...(backgroundJobsEnabled ? [EmailProcessor] : []),
     BookingConfirmedMailHandler,
     BookingCancelledHandler,
     BookingRescheduledHandler,

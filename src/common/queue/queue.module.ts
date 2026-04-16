@@ -1,6 +1,9 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { areBackgroundJobsEnabled } from './background-jobs.runtime';
+
+const backgroundJobsEnabled = areBackgroundJobsEnabled();
 
 /**
  * Global Queue module for background job processing using BullMQ.
@@ -8,33 +11,31 @@ import { ConfigService } from '@nestjs/config';
  */
 @Global()
 @Module({
-  imports: [
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const redisUrl = configService.get<string>('REDIS_URL');
-        if (!redisUrl) {
-          // Return default config for testing/development without Redis
-          return {
-            connection: {
-              host: 'localhost',
-              port: 9379,
-            },
-          };
-        }
+  imports: backgroundJobsEnabled
+    ? [
+        BullModule.forRootAsync({
+          inject: [ConfigService],
+          useFactory: (configService: ConfigService) => {
+            const redisUrl = configService.get<string>('REDIS_URL');
+            if (!redisUrl) {
+              throw new Error(
+                'REDIS_URL is required when ENABLE_BACKGROUND_JOBS is not false. Set ENABLE_BACKGROUND_JOBS=false to boot without queues.',
+              );
+            }
 
-        const url = new URL(redisUrl);
-        return {
-          connection: {
-            host: url.hostname,
-            port: parseInt(url.port, 10) || 9379,
-            password: url.password || undefined,
-            username: url.username || undefined,
+            const url = new URL(redisUrl);
+            return {
+              connection: {
+                host: url.hostname,
+                port: parseInt(url.port, 10) || 9379,
+                password: url.password || undefined,
+                username: url.username || undefined,
+              },
+            };
           },
-        };
-      },
-    }),
-  ],
-  exports: [BullModule],
+        }),
+      ]
+    : [],
+  exports: backgroundJobsEnabled ? [BullModule] : [],
 })
 export class QueueModule {}

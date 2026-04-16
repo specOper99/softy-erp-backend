@@ -9,7 +9,7 @@ import { FlagsService } from '../../../src/common/flags/flags.service';
 import { MetricsFactory } from '../../../src/common/services/metrics.factory';
 
 void globalThis.fetch;
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { ExportService } from '../../../src/common/services/export.service';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 
@@ -36,7 +36,7 @@ describe('BookingsService Integration Tests', () => {
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
 
-  const tenant1 = uuidv4();
+  const tenant1 = randomUUID();
 
   const getFutureDate = (daysAhead: number): string => {
     const date = new Date();
@@ -77,7 +77,7 @@ describe('BookingsService Integration Tests', () => {
         {
           provide: FinanceService,
           useValue: {
-            createTransaction: jest.fn().mockResolvedValue({ id: uuidv4() }),
+            createTransaction: jest.fn().mockResolvedValue({ id: randomUUID() }),
           },
         },
         {
@@ -232,7 +232,7 @@ describe('BookingsService Integration Tests', () => {
     });
 
     it('should enforce tenant isolation in service layer', async () => {
-      const tenant2 = uuidv4();
+      const tenant2 = randomUUID();
 
       // Create package for tenant2
       const pkg = await packageRepository.save({

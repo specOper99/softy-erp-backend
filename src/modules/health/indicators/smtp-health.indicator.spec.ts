@@ -7,6 +7,14 @@ import { SmtpHealthIndicator } from './smtp-health.indicator';
 jest.mock('net');
 
 describe('SmtpHealthIndicator', () => {
+  interface MockSocket {
+    setTimeout: jest.Mock;
+    connect: jest.Mock;
+    destroy: jest.Mock;
+    removeAllListeners: jest.Mock;
+    once: jest.Mock;
+  }
+
   let indicator: SmtpHealthIndicator;
 
   const mockConfig = {
@@ -36,11 +44,12 @@ describe('SmtpHealthIndicator', () => {
 
   describe('isHealthy', () => {
     it('should return up status if SMTP is responsive', async () => {
-      const mockSocket: any = {
+      const mockSocket: MockSocket = {
         setTimeout: jest.fn(),
         connect: jest.fn(),
         destroy: jest.fn(),
         removeAllListeners: jest.fn(),
+        once: jest.fn(),
       };
       mockSocket.once = jest.fn((event, cb) => {
         if (event === 'connect') setTimeout(() => cb(), 10);
@@ -56,11 +65,12 @@ describe('SmtpHealthIndicator', () => {
     });
 
     it('should throw HealthCheckError if SMTP connection fails', async () => {
-      const mockSocket: any = {
+      const mockSocket: MockSocket = {
         setTimeout: jest.fn(),
         connect: jest.fn(),
         destroy: jest.fn(),
         removeAllListeners: jest.fn(),
+        once: jest.fn(),
       };
       mockSocket.once = jest.fn((event, cb) => {
         if (event === 'error') setTimeout(() => cb(new Error('Connection refused')), 10);
@@ -72,11 +82,12 @@ describe('SmtpHealthIndicator', () => {
     });
 
     it('should throw HealthCheckError if SMTP connection timeouts', async () => {
-      const mockSocket: any = {
+      const mockSocket: MockSocket = {
         setTimeout: jest.fn(),
         connect: jest.fn(),
         destroy: jest.fn(),
         removeAllListeners: jest.fn(),
+        once: jest.fn(),
       };
       mockSocket.once = jest.fn((event, cb) => {
         if (event === 'timeout') setTimeout(() => cb(), 10);

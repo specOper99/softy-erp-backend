@@ -5,14 +5,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
-    createMockAuditService,
-    createMockBooking,
-    createMockCatalogService,
-    createMockDataSource,
-    createMockEventBus,
-    createMockFinanceService,
-    createMockRepository,
-    mockTenantContext,
+  createMockAuditService,
+  createMockBooking,
+  createMockCatalogService,
+  createMockDataSource,
+  createMockEventBus,
+  createMockFinanceService,
+  createMockRepository,
+  mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { FlagsService } from '../../../common/flags/flags.service';
@@ -437,7 +437,7 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'CARD', reference: 'ref-1' });
+      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'E_PAYMENT', reference: 'ref-1' });
 
       expect(eventBus.publish).toHaveBeenCalledTimes(1);
       expect(eventBus.publish).toHaveBeenCalledWith(expect.any(PaymentRecordedEvent));
@@ -472,7 +472,7 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'CARD' });
+      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'E_PAYMENT' });
 
       expect(foundBooking.derivePaymentStatus).toHaveBeenCalled();
       // Verify update was called with paymentStatus

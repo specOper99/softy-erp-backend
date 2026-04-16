@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 import { TransformInterceptor } from './transform.interceptor';
 
 describe('TransformInterceptor', () => {
-  let interceptor: TransformInterceptor<any>;
+  let interceptor: TransformInterceptor<unknown>;
 
   const mockResponse = {
     statusCode: 200,
@@ -21,7 +21,7 @@ describe('TransformInterceptor', () => {
       providers: [TransformInterceptor],
     }).compile();
 
-    interceptor = module.get<TransformInterceptor<any>>(TransformInterceptor);
+    interceptor = module.get<TransformInterceptor<unknown>>(TransformInterceptor);
   });
 
   it('should be defined', () => {

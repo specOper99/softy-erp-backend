@@ -206,7 +206,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
   // ============ FIND OPERATIONS TESTS ============
   describe('findAll', () => {
-    let queryBuilderMock: any;
+    let queryBuilderMock: SelectQueryBuilder<User>;
 
     beforeEach(() => {
       queryBuilderMock = {
@@ -218,7 +218,7 @@ describe('UsersService - Comprehensive Tests', () => {
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([mockUser]),
-      };
+      } as unknown as SelectQueryBuilder<User>;
       userRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
     });
 
@@ -228,14 +228,14 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should return empty array when no users exist', async () => {
-      queryBuilderMock.getMany.mockResolvedValueOnce([]);
+      (queryBuilderMock.getMany as jest.Mock).mockResolvedValueOnce([]);
       const result = await service.findAll();
       expect(result).toEqual([]);
     });
 
     it('should return multiple users', async () => {
       const users = [mockUser, { ...mockUser, id: 'uuid-2', email: 'user2@example.com' }];
-      queryBuilderMock.getMany.mockResolvedValueOnce(users);
+      (queryBuilderMock.getMany as jest.Mock).mockResolvedValueOnce(users);
       const result = await service.findAll();
       expect(result.length).toBe(2);
     });
@@ -295,7 +295,7 @@ describe('UsersService - Comprehensive Tests', () => {
         where: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(mockUser),
       };
-      userRepository.createQueryBuilder.mockReturnValue(qbMock as any);
+      userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
 
       const result = await service.findOne('test-uuid-123');
       expect(result).toMatchObject({ id: 'test-uuid-123' });
@@ -307,7 +307,7 @@ describe('UsersService - Comprehensive Tests', () => {
         where: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
       };
-      userRepository.createQueryBuilder.mockReturnValue(qbMock as any);
+      userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
 
       await expect(service.findOne('invalid-uuid')).rejects.toThrow(NotFoundException);
     });
@@ -318,7 +318,7 @@ describe('UsersService - Comprehensive Tests', () => {
         where: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
       };
-      userRepository.createQueryBuilder.mockReturnValue(qbMock as any);
+      userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
 
       await expect(service.findOne('')).rejects.toThrow(NotFoundException);
     });
@@ -479,7 +479,7 @@ describe('UsersService - Comprehensive Tests', () => {
   });
   // ============ CURSOR PAGINATION TESTS ============
   describe('findAllCursor', () => {
-    let queryBuilderMock: any;
+    let queryBuilderMock: SelectQueryBuilder<User>;
 
     beforeEach(() => {
       queryBuilderMock = {
@@ -490,7 +490,7 @@ describe('UsersService - Comprehensive Tests', () => {
         addOrderBy: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([mockUser]),
-      };
+      } as unknown as SelectQueryBuilder<User>;
       userRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
     });
 
@@ -526,7 +526,7 @@ describe('UsersService - Comprehensive Tests', () => {
       const users = Array(21)
         .fill(mockUser)
         .map((u, i) => ({ ...u, id: `user-${i}` }));
-      queryBuilderMock.getMany.mockResolvedValue(users);
+      (queryBuilderMock.getMany as jest.Mock).mockResolvedValue(users);
       mockCursorAuthService.createUserCursor.mockReturnValue('next-cursor');
 
       const query = new UserFilterDto();
@@ -549,7 +549,7 @@ describe('UsersService - Comprehensive Tests', () => {
 
   // ============ MFA RELATED TESTS ============
   describe('MFA methods', () => {
-    let queryBuilderMock: any;
+    let queryBuilderMock: SelectQueryBuilder<User>;
 
     beforeEach(() => {
       queryBuilderMock = {
@@ -557,7 +557,7 @@ describe('UsersService - Comprehensive Tests', () => {
         where: jest.fn().mockReturnThis(),
         addSelect: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue({ ...mockUser, mfaSecret: 'secret', mfaRecoveryCodes: ['code1'] }),
-      };
+      } as unknown as SelectQueryBuilder<User>;
       userRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
     });
 
@@ -577,7 +577,7 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('findByIdWithRecoveryCodesGlobal should return user with recovery codes ignoring tenant', async () => {
-      const rawQbMock = { ...queryBuilderMock };
+      const rawQbMock = { ...queryBuilderMock, addSelect: jest.fn().mockReturnThis() };
       (service['rawUserRepository'].createQueryBuilder as jest.Mock).mockReturnValue(rawQbMock);
 
       await service.findByIdWithRecoveryCodesGlobal('user-1');
@@ -602,14 +602,12 @@ describe('UsersService - Comprehensive Tests', () => {
   describe('create error handling', () => {
     it('should throw ConflictException on duplicate email', async () => {
       userRepository.save.mockRejectedValue({ code: '23505' });
-      await expect(service.create({ email: 'dup@example.com', password: 'p' } as any)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.create({ email: 'dup@example.com', password: 'p' })).rejects.toThrow(ConflictException);
     });
 
     it('should rethrow other errors', async () => {
       userRepository.save.mockRejectedValue(new Error('db error'));
-      await expect(service.create({ email: 'err@example.com', password: 'p' } as any)).rejects.toThrow('db error');
+      await expect(service.create({ email: 'err@example.com', password: 'p' })).rejects.toThrow('db error');
     });
   });
 });

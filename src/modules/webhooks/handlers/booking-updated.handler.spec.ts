@@ -35,7 +35,6 @@ describe('BookingUpdatedWebhookHandler', () => {
         tenantId: 'tenant-123',
         changes: { status: 'CONFIRMED' },
         updatedAt: new Date('2025-06-15'),
-        performedBy: 'user-123',
       };
 
       await handler.handle(event);

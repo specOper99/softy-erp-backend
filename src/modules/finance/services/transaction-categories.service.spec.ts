@@ -106,7 +106,7 @@ describe('TransactionCategoriesService', () => {
         description: 'Test description',
         applicableType: TransactionType.EXPENSE,
       };
-      repository.save.mockImplementation((cat: any) => Promise.resolve({ ...cat, id: 'new-uuid' }));
+      repository.save.mockImplementation((cat: TransactionCategory) => Promise.resolve({ ...cat, id: 'new-uuid' }));
 
       const result = await service.create(dto);
 
@@ -126,7 +126,7 @@ describe('TransactionCategoriesService', () => {
         name: 'Sub Category',
         parentId: 'category-uuid-123',
       };
-      repository.save.mockImplementation((cat: any) => Promise.resolve({ ...cat, id: 'new-sub-uuid' }));
+      repository.save.mockImplementation((cat: TransactionCategory) => Promise.resolve({ ...cat, id: 'new-sub-uuid' }));
 
       const result = await service.create(dto);
 

@@ -23,7 +23,7 @@ describe('ConsentService', () => {
     id: 'consent-1',
     userId: mockUserId,
     tenantId: mockTenantId,
-    type: ConsentType.MARKETING,
+    type: ConsentType.MARKETING_EMAILS,
     granted: true,
     grantedAt: new Date(),
     revokedAt: null,
@@ -65,7 +65,7 @@ describe('ConsentService', () => {
         where: { userId: mockUserId, tenantId: mockTenantId },
       });
       expect(result).toHaveLength(1);
-      expect(result[0].type).toBe(ConsentType.MARKETING);
+      expect(result[0]!.type).toBe(ConsentType.MARKETING_EMAILS);
     });
 
     it('should throw BadRequestException when tenant context is missing', async () => {
@@ -86,13 +86,13 @@ describe('ConsentService', () => {
 
       const result = await service.grantConsent(
         mockUserId,
-        { type: ConsentType.MARKETING, policyVersion: '1.0' },
+        { type: ConsentType.MARKETING_EMAILS, policyVersion: '1.0' },
         { ipAddress: '127.0.0.1', userAgent: 'test-agent' },
       );
 
       expect(consentRepository.create).toHaveBeenCalled();
       expect(newConsent.grant).toHaveBeenCalledWith('127.0.0.1', 'test-agent', '1.0');
-      expect(result.type).toBe(ConsentType.MARKETING);
+      expect(result.type).toBe(ConsentType.MARKETING_EMAILS);
     });
 
     it('should update existing consent', async () => {
@@ -101,13 +101,13 @@ describe('ConsentService', () => {
       consentRepository.save.mockResolvedValue(existingConsent);
 
       const result = await service.grantConsent(mockUserId, {
-        type: ConsentType.MARKETING,
+        type: ConsentType.MARKETING_EMAILS,
         policyVersion: '2.0',
       });
 
       expect(consentRepository.create).not.toHaveBeenCalled();
       expect(existingConsent.grant).toHaveBeenCalledWith(undefined, undefined, '2.0');
-      expect(result.type).toBe(ConsentType.MARKETING);
+      expect(result.type).toBe(ConsentType.MARKETING_EMAILS);
     });
 
     it('should throw BadRequestException when tenant context is missing', async () => {
@@ -115,7 +115,7 @@ describe('ConsentService', () => {
         throw new BadRequestException('Tenant context missing');
       });
 
-      await expect(service.grantConsent(mockUserId, { type: ConsentType.MARKETING })).rejects.toThrow(
+      await expect(service.grantConsent(mockUserId, { type: ConsentType.MARKETING_EMAILS })).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -132,7 +132,7 @@ describe('ConsentService', () => {
       consentRepository.findOne.mockResolvedValue(existingConsent);
       consentRepository.save.mockResolvedValue(existingConsent);
 
-      const result = await service.revokeConsent(mockUserId, ConsentType.MARKETING);
+      const result = await service.revokeConsent(mockUserId, ConsentType.MARKETING_EMAILS);
 
       expect(existingConsent.revoke).toHaveBeenCalled();
       expect(result.granted).toBe(false);
@@ -141,7 +141,9 @@ describe('ConsentService', () => {
     it('should throw BadRequestException when consent not found', async () => {
       consentRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.revokeConsent(mockUserId, ConsentType.MARKETING)).rejects.toThrow(BadRequestException);
+      await expect(service.revokeConsent(mockUserId, ConsentType.MARKETING_EMAILS)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -149,7 +151,7 @@ describe('ConsentService', () => {
     it('should return true when consent exists and is granted', async () => {
       consentRepository.findOne.mockResolvedValue(mockConsent);
 
-      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING);
+      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING_EMAILS);
 
       expect(result).toBe(true);
     });
@@ -157,7 +159,7 @@ describe('ConsentService', () => {
     it('should return false when consent not found', async () => {
       consentRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING);
+      const result = await service.hasConsent(mockUserId, ConsentType.MARKETING_EMAILS);
 
       expect(result).toBe(false);
     });
@@ -167,7 +169,7 @@ describe('ConsentService', () => {
         throw new BadRequestException('Tenant context missing');
       });
 
-      await expect(service.hasConsent(mockUserId, ConsentType.MARKETING)).rejects.toThrow(BadRequestException);
+      await expect(service.hasConsent(mockUserId, ConsentType.MARKETING_EMAILS)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -175,13 +177,15 @@ describe('ConsentService', () => {
     it('should not throw when consent exists', async () => {
       consentRepository.findOne.mockResolvedValue(mockConsent);
 
-      await expect(service.requireConsent(mockUserId, ConsentType.MARKETING)).resolves.not.toThrow();
+      await expect(service.requireConsent(mockUserId, ConsentType.MARKETING_EMAILS)).resolves.not.toThrow();
     });
 
     it('should throw BadRequestException when consent not granted', async () => {
       consentRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.requireConsent(mockUserId, ConsentType.MARKETING)).rejects.toThrow(BadRequestException);
+      await expect(service.requireConsent(mockUserId, ConsentType.MARKETING_EMAILS)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

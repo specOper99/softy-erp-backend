@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { AuditPublisher } from '../../../src/modules/audit/audit.publisher';
 import { UpdateBookingDto } from '../../../src/modules/bookings/dto';
@@ -158,25 +158,25 @@ describe('Booking -> Finance Integrity Integration', () => {
     await tenantRepository.save({
       id: tenantId,
       name: `Tenant ${tenantId.slice(0, 8)}`,
-      slug: `tenant-${tenantId.slice(0, 8)}-${uuidv4().slice(0, 8)}`,
+      slug: `tenant-${tenantId.slice(0, 8)}-${randomUUID().slice(0, 8)}`,
     });
 
     const client = await clientRepository.save({
-      name: `Client ${uuidv4()}`,
-      email: `client-${uuidv4()}@test.local`,
+      name: `Client ${randomUUID()}`,
+      email: `client-${randomUUID()}@test.local`,
       phone: '+1000000000',
       tenantId,
     });
 
     const servicePackage = await packageRepository.save({
-      name: `Package ${uuidv4()}`,
+      name: `Package ${randomUUID()}`,
       description: 'Booking-finance integration fixture',
       price: subTotal,
       tenantId,
     });
 
     const taskType = await taskTypeRepository.save({
-      name: `TaskType ${uuidv4()}`,
+      name: `TaskType ${randomUUID()}`,
       description: 'Fixture task type',
       defaultCommissionAmount: 75,
       tenantId,
@@ -251,7 +251,7 @@ describe('Booking -> Finance Integrity Integration', () => {
   });
 
   it('creates booking tasks and finance transaction on successful confirmation', async () => {
-    const tenantId = uuidv4();
+    const tenantId = randomUUID();
     const { booking, taskCount } = await createBookingFixture(tenantId);
 
     const eventBusSpy = createEventBusSpy();
@@ -280,7 +280,7 @@ describe('Booking -> Finance Integrity Integration', () => {
   });
 
   it('rolls back confirmation when finance transaction step fails', async () => {
-    const tenantId = uuidv4();
+    const tenantId = randomUUID();
     const { booking } = await createBookingFixture(tenantId);
 
     const eventBusSpy = createEventBusSpy();
@@ -315,7 +315,7 @@ describe('Booking -> Finance Integrity Integration', () => {
       expectedDelta: 110,
     },
   ])('creates $caseName from booking price delta', async (testCase) => {
-    const tenantId = uuidv4();
+    const tenantId = randomUUID();
     const { booking } = await createBookingFixture(tenantId);
 
     await transactionRepository.save({
@@ -371,7 +371,7 @@ describe('Booking -> Finance Integrity Integration', () => {
   });
 
   it('publishes FinancialReconciliationFailedEvent and does not block booking update persistence', async () => {
-    const tenantId = uuidv4();
+    const tenantId = randomUUID();
     const { booking } = await createBookingFixture(tenantId);
 
     const eventBusSpy = createEventBusSpy();

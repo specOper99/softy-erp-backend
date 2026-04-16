@@ -1,290 +1,116 @@
-name: Deploy
+name: Backend Deploy
 
 on:
   push:
     branches: [main]
     tags:
-      - 'v*'
+      - "v*"
+  workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-deploy-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-push:
-    name: Build and Push Docker Image
+  deploy:
+    name: Deploy Backend to Self-Hosted Server
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-      image_ref: ${{ steps.image.outputs.ref }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
-
-      - name: Define deploy image ref
-        id: image
-        run: |
-          echo "ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # Migration Gating - Run migrations before deployment
-  migrate:
-    name: Run Database Migrations
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: >-
-      startsWith(github.ref, 'refs/tags/v') &&
-      secrets.STAGING_DB_HOST != '' &&
-      secrets.STAGING_DB_USER != '' &&
-      secrets.STAGING_DB_PASSWORD != '' &&
-      secrets.STAGING_DB_NAME != ''
-    environment: staging
-
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH }}
+      PM2_APP_NAME: ${{ vars.BACKEND_PM2_APP_NAME }}
+      HEALTHCHECK_URL: ${{ vars.BACKEND_HEALTHCHECK_URL }}
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Migration Dry-Run
+      - name: Validate deploy configuration
+        shell: bash
         run: |
-          echo "🔄 Validating migrations..."
-          npm run migration:show
-        env:
-          NODE_ENV: production
-          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
-          DB_PORT: 5432
-          DB_USERNAME: ${{ secrets.STAGING_DB_USER }}
-          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
-          DB_DATABASE: ${{ secrets.STAGING_DB_NAME }}
-          DB_SYNCHRONIZE: false
-          DB_LOGGING: true
+          test -n "${DEPLOY_HOST}" || (echo "DEPLOY_HOST is required." && exit 1)
+          test -n "${DEPLOY_USER}" || (echo "DEPLOY_USER is required." && exit 1)
+          test -n "${DEPLOY_PATH}" || (echo "DEPLOY_PATH is required." && exit 1)
 
-      - name: Run Migrations
+      - name: Validate deployable build
         run: |
-          echo "🚀 Running migrations on staging..."
+          npm ci
+          npm run lint:check
+          npm run type-check
+          npm run build
+
+      - name: Create release bundle
+        run: git archive --format=tar.gz --output=backend-release.tgz HEAD
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add deploy host to known_hosts
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload release bundle
+        shell: bash
+        run: |
+          scp -P "${DEPLOY_PORT:-22}" backend-release.tgz "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/backend-${GITHUB_SHA}.tgz"
+
+      - name: Deploy release on server
+        shell: bash
+        run: |
+          ssh -p "${DEPLOY_PORT:-22}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "export GITHUB_SHA='${GITHUB_SHA}' DEPLOY_PATH='${DEPLOY_PATH}' PM2_APP_NAME='${PM2_APP_NAME:-softy-backend}' HEALTHCHECK_URL='${HEALTHCHECK_URL}' NODE_ENV='production'; bash -s" <<'EOF'
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_PATH:-}" ]; then
+            echo "DEPLOY_PATH is required."
+            exit 1
+          fi
+
+          RELEASES_DIR="${DEPLOY_PATH}/releases"
+          RELEASE_DIR="${RELEASES_DIR}/${GITHUB_SHA}"
+          CURRENT_LINK="${DEPLOY_PATH}/current"
+          SHARED_DIR="${DEPLOY_PATH}/shared"
+          ARCHIVE_PATH="/tmp/backend-${GITHUB_SHA}.tgz"
+
+          mkdir -p "${RELEASES_DIR}" "${SHARED_DIR}"
+          rm -rf "${RELEASE_DIR}"
+          mkdir -p "${RELEASE_DIR}"
+
+          tar -xzf "${ARCHIVE_PATH}" -C "${RELEASE_DIR}"
+          rm -f "${ARCHIVE_PATH}"
+
+          if [ -f "${SHARED_DIR}/.env" ]; then
+            ln -sfn "${SHARED_DIR}/.env" "${RELEASE_DIR}/.env"
+          fi
+
+          ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
+
+          cd "${CURRENT_LINK}"
+          npm ci
+          npm run build
           npm run migration:run
-        env:
-          NODE_ENV: production
-          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
-          DB_PORT: 5432
-          DB_USERNAME: ${{ secrets.STAGING_DB_USER }}
-          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
-          DB_DATABASE: ${{ secrets.STAGING_DB_NAME }}
-          DB_SYNCHRONIZE: false
-          DB_LOGGING: true
 
-  # Deploy to Staging first
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [build-and-push, migrate]
-    if: >-
-      startsWith(github.ref, 'refs/tags/v') &&
-      secrets.STAGING_KUBECONFIG != '' &&
-      secrets.STAGING_URL != ''
-    environment: staging
+          pm2 delete "${PM2_APP_NAME}" || true
+          pm2 start npm --name "${PM2_APP_NAME}" --cwd "${CURRENT_LINK}" -- start:prod
+          pm2 save
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
-          echo "KUBECONFIG=$PWD/kubeconfig" >> "$GITHUB_ENV"
-
-      - name: Deploy to Staging
-        run: |
-          kubectl set image deployment/softy-erp \
-            app=${{ needs.build-and-push.outputs.image_ref }} \
-            --namespace=staging
-
-      - name: Wait for Rollout
-        run: |
-          kubectl rollout status deployment/softy-erp \
-            --namespace=staging --timeout=300s
-
-      - name: Verify Health
-        run: |
-          STAGING_URL="${{ secrets.STAGING_URL }}"
-          for i in {1..10}; do
-            if curl -sf "${STAGING_URL}/api/v1/health"; then
-              echo "✅ Staging health check passed"
-              exit 0
-            fi
-            echo "⏳ Waiting for staging to be healthy... ($i/10)"
-            sleep 10
-          done
-          echo "❌ Staging health check failed"
-          exit 1
-
-  # Canary Deployment to Production
-  deploy-canary:
-    name: Deploy Canary (10%)
-    runs-on: ubuntu-latest
-    needs: [build-and-push, deploy-staging]
-    if: >-
-      startsWith(github.ref, 'refs/tags/v') &&
-      secrets.PROD_KUBECONFIG != '' &&
-      secrets.PRODUCTION_URL != ''
-    environment:
-      name: production-canary
-      url: ${{ secrets.PRODUCTION_URL }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > kubeconfig
-          echo "KUBECONFIG=$PWD/kubeconfig" >> "$GITHUB_ENV"
-
-      - name: Install Argo Rollouts kubectl plugin
-        run: |
-          curl -sSL -o kubectl-argo-rollouts \
-            https://github.com/argoproj/argo-rollouts/releases/download/v1.6.6/kubectl-argo-rollouts-linux-amd64
-          chmod +x kubectl-argo-rollouts
-          sudo mv kubectl-argo-rollouts /usr/local/bin/kubectl-argo-rollouts
-
-      - name: Deploy Canary (Argo Rollouts)
-        run: |
-          # Update the rollout image
-          kubectl argo rollouts set image softy-erp \
-            app=${{ needs.build-and-push.outputs.image_ref }} \
-            --namespace=production
-
-      - name: Wait for Canary Analysis
-        run: |
-          # Wait for the first canary step (10% traffic)
-          kubectl argo rollouts status softy-erp \
-            --namespace=production --watch --timeout=600s
-
-  # Manual approval gate before full production
-  deploy-production:
-    name: Deploy to Production (100%)
-    runs-on: ubuntu-latest
-    needs: [build-and-push, deploy-canary]
-    if: >-
-      startsWith(github.ref, 'refs/tags/v') &&
-      secrets.PROD_KUBECONFIG != '' &&
-      secrets.PRODUCTION_URL != ''
-    environment:
-      name: production
-      url: ${{ secrets.PRODUCTION_URL }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > kubeconfig
-          echo "KUBECONFIG=$PWD/kubeconfig" >> "$GITHUB_ENV"
-
-      - name: Install Argo Rollouts kubectl plugin
-        run: |
-          curl -sSL -o kubectl-argo-rollouts \
-            https://github.com/argoproj/argo-rollouts/releases/download/v1.6.6/kubectl-argo-rollouts-linux-amd64
-          chmod +x kubectl-argo-rollouts
-          sudo mv kubectl-argo-rollouts /usr/local/bin/kubectl-argo-rollouts
-
-      - name: Promote Canary to 100%
-        run: |
-          kubectl argo rollouts promote softy-erp \
-            --namespace=production
-
-      - name: Wait for Full Rollout
-        run: |
-          kubectl argo rollouts status softy-erp \
-            --namespace=production --watch --timeout=600s
-
-      - name: Verify Production Health
-        run: |
-          PROD_URL="${{ secrets.PRODUCTION_URL }}"
-          for i in {1..10}; do
-            if curl -sf "${PROD_URL}/api/v1/health"; then
-              echo "✅ Production health check passed"
-              exit 0
-            fi
-            echo "⏳ Waiting for production to be healthy... ($i/10)"
-            sleep 10
-          done
-          echo "❌ Production health check failed"
-          exit 1
-
-  # Rollback job (manual trigger)
-  rollback:
-    name: Rollback Production
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && secrets.PROD_KUBECONFIG != ''
-    environment: production
-
-    steps:
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > kubeconfig
-          echo "KUBECONFIG=$PWD/kubeconfig" >> "$GITHUB_ENV"
-
-      - name: Install Argo Rollouts kubectl plugin
-        run: |
-          curl -sSL -o kubectl-argo-rollouts \
-            https://github.com/argoproj/argo-rollouts/releases/download/v1.6.6/kubectl-argo-rollouts-linux-amd64
-          chmod +x kubectl-argo-rollouts
-          sudo mv kubectl-argo-rollouts /usr/local/bin/kubectl-argo-rollouts
-
-      - name: Rollback
-        run: |
-          kubectl argo rollouts abort softy-erp --namespace=production
-          kubectl argo rollouts undo softy-erp --namespace=production
-          echo "🔙 Rollback initiated"
+          if [ -n "${HEALTHCHECK_URL:-}" ]; then
+            curl --fail --silent --show-error "${HEALTHCHECK_URL}"
+          fi
+          EOF

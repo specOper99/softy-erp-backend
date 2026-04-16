@@ -32,6 +32,7 @@ describe('BookingConfirmedMailHandler', () => {
     it('should send booking confirmation email', async () => {
       const event: BookingConfirmedEvent = {
         bookingId: 'booking-123',
+        tenantId: 'test-tenant',
         clientName: 'John Doe',
         clientEmail: 'john@example.com',
         eventDate: new Date('2025-06-15'),
@@ -56,6 +57,7 @@ describe('BookingConfirmedMailHandler', () => {
 
       const event: BookingConfirmedEvent = {
         bookingId: 'booking-456',
+        tenantId: 'test-tenant',
         clientName: 'Jane Doe',
         clientEmail: 'jane@example.com',
         eventDate: new Date('2025-07-20'),

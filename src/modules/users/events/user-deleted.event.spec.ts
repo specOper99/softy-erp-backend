@@ -1,41 +1,26 @@
 import { UserDeletedEvent } from './user-deleted.event';
 
 describe('UserDeletedEvent', () => {
-  it('should create a user deleted event', () => {
-    const event = new UserDeletedEvent();
-    event.userId = 'user-123';
-    event.tenantId = 'tenant-456';
-    event.deletedAt = new Date();
-    event.deletedBy = 'admin-789';
+  it('should create a user deleted event with all fields', () => {
+    const event = new UserDeletedEvent('user-123', 'tenant-456', 'user@example.com');
 
     expect(event.userId).toBe('user-123');
     expect(event.tenantId).toBe('tenant-456');
-    expect(event.deletedAt).toBeDefined();
-    expect(event.deletedBy).toBe('admin-789');
+    expect(event.email).toBe('user@example.com');
   });
 
-  it('should support cascade deletion flag', () => {
-    const event = new UserDeletedEvent();
-    event.userId = 'user-123';
-    event.cascadeDelete = true;
-
-    expect(event.cascadeDelete).toBe(true);
+  it('should expose userId', () => {
+    const event = new UserDeletedEvent('user-abc', 'tenant-xyz', 'a@b.com');
+    expect(event.userId).toBe('user-abc');
   });
 
-  it('should support reason for deletion', () => {
-    const event = new UserDeletedEvent();
-    event.userId = 'user-123';
-    event.reason = 'Account termination request';
-
-    expect(event.reason).toBe('Account termination request');
+  it('should expose tenantId', () => {
+    const event = new UserDeletedEvent('user-abc', 'tenant-xyz', 'a@b.com');
+    expect(event.tenantId).toBe('tenant-xyz');
   });
 
-  it('should have timestamp for auditing', () => {
-    const event = new UserDeletedEvent();
-    const now = new Date();
-    event.userId = 'user-123';
-    event.deletedAt = now;
-
-    expect(event.deletedAt).toEqual(now);
+  it('should expose email', () => {
+    const event = new UserDeletedEvent('user-abc', 'tenant-xyz', 'a@b.com');
+    expect(event.email).toBe('a@b.com');
   });
 });

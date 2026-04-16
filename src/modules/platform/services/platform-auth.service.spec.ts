@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, UpdateResult } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { PlatformAuditLog } from '../entities/platform-audit-log.entity';
 import { PlatformSession } from '../entities/platform-session.entity';
@@ -281,7 +281,9 @@ describe('PlatformAuthService', () => {
 
   describe('logout', () => {
     it('should revoke session on logout', async () => {
-      const updateSpy = jest.spyOn(sessionRepository, 'update').mockResolvedValue({ affected: 1 } as any);
+      const updateSpy = jest
+        .spyOn(sessionRepository, 'update')
+        .mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] } as UpdateResult);
 
       await service.logout('session-123', 'user-123');
 
@@ -297,7 +299,9 @@ describe('PlatformAuthService', () => {
 
   describe('revokeAllSessions', () => {
     it('should revoke all active sessions for a user', async () => {
-      const updateSpy = jest.spyOn(sessionRepository, 'update').mockResolvedValue({ affected: 3 } as any);
+      const updateSpy = jest
+        .spyOn(sessionRepository, 'update')
+        .mockResolvedValue({ affected: 3, raw: [], generatedMaps: [] } as UpdateResult);
 
       const result = await service.revokeAllSessions('user-123', 'admin-456', 'Security incident');
 

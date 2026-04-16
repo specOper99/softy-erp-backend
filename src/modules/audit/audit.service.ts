@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { Counter } from 'prom-client';
 import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
@@ -27,8 +27,8 @@ export class AuditService implements AuditPublisher {
 
   constructor(
     private readonly auditRepository: AuditLogRepository,
-    @InjectQueue('audit-queue') private readonly auditQueue: Queue,
     private readonly metricsFactory: MetricsFactory,
+    @Optional() @InjectQueue('audit-queue') private readonly auditQueue?: Queue,
   ) {
     // Best-effort policy: never fail request, but emit a counter for alerting.
     this.auditWriteFailureCounter = this.metricsFactory.getOrCreateCounter({
@@ -45,13 +45,16 @@ export class AuditService implements AuditPublisher {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const sanitizedData = {
       ...data,
-      oldValues: this.sanitize(data.oldValues),
-      newValues: this.sanitize(data.newValues),
+      oldValues: this.sanitize(data.oldValues) as Record<string, unknown> | null | undefined,
+      newValues: this.sanitize(data.newValues) as Record<string, unknown> | null | undefined,
       tenantId, // Pass tenantId explicitly as context won't exist in worker
     };
 
     try {
       // Primary path: Async queue processing for performance
+      if (!this.auditQueue) {
+        throw new Error('Audit queue not available');
+      }
       await this.auditQueue.add('log', sanitizedData);
     } catch (queueError) {
       this.auditWriteFailureCounter.inc({ tenant_id: tenantId, stage: 'queue' });

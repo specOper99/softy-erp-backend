@@ -3,14 +3,13 @@ import { EventBus } from '@nestjs/cqrs';
 import Decimal from 'decimal.js';
 import type { Response } from 'express';
 import { EntityManager } from 'typeorm';
-import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 
 import { TenantsService } from '../../tenants/tenants.service';
-import { CreateTransactionDto, TransactionFilterDto } from '../dto';
+import { CreateTransactionDto, TransactionCursorQueryDto, TransactionFilterDto } from '../dto';
 import { Transaction } from '../entities/transaction.entity';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
@@ -310,9 +309,24 @@ export class FinanceService {
   }
 
   async findAllTransactionsCursor(
-    query: CursorPaginationDto,
+    query: TransactionCursorQueryDto,
   ): Promise<{ data: Transaction[]; nextCursor: string | null }> {
     const qb = this.transactionRepository.createQueryBuilder('t');
+
+    if (query.type) {
+      qb.andWhere('t.type = :type', { type: query.type });
+    }
+
+    if (query.startDate && query.endDate) {
+      qb.andWhere('t.transactionDate BETWEEN :start AND :end', {
+        start: new Date(query.startDate),
+        end: new Date(query.endDate),
+      });
+    }
+
+    if (query.bookingId) {
+      qb.andWhere('t.bookingId = :bookingId', { bookingId: query.bookingId });
+    }
 
     return CursorPaginationHelper.paginateWithCustomDateField(
       qb,
@@ -333,6 +347,19 @@ export class FinanceService {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
     return transaction;
+  }
+
+  async voidTransaction(id: string, reason?: string): Promise<Transaction> {
+    const original = await this.findTransactionById(id);
+    const description = reason ? `Void: ${reason} — reversal of transaction ${id}` : `Reversal of transaction ${id}`;
+    return this.createTransaction({
+      type: TransactionType.INCOME,
+      amount: -original.amount,
+      currency: original.currency,
+      category: 'REVERSAL',
+      description,
+      transactionDate: new Date().toISOString().slice(0, 10),
+    });
   }
 
   async exportTransactionsToCSV(res: Response): Promise<void> {

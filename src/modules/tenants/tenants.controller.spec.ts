@@ -1,7 +1,8 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantContextService } from '../../common/services/tenant-context.service';
-import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
+import { CreateTenantDto } from './dto/create-tenant.dto';
+import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantsController } from './tenants.controller';
 import { TenantsService } from './tenants.service';
 

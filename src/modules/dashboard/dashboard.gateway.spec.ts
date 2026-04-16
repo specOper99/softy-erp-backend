@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { GATEWAY_OPTIONS } from '@nestjs/websockets/constants';
-import type { Server } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
@@ -82,16 +82,19 @@ describe('DashboardGateway', () => {
   });
 
   it('should reject handshake when Origin is not allowlisted', async () => {
-    const options = Reflect.getMetadata(GATEWAY_OPTIONS, DashboardGateway) as { allowRequest?: any } | undefined;
+    const options = Reflect.getMetadata(GATEWAY_OPTIONS, DashboardGateway) as
+      | { allowRequest?: (req: unknown, callback: (err: string | null | undefined, ok: boolean) => void) => void }
+      | undefined;
     const allowRequest = options?.allowRequest;
     expect(typeof allowRequest).toBe('function');
+    if (!allowRequest) return;
 
     const req = {
       headers: {
         origin: 'https://evil.example',
         host: 'evil.example',
       },
-    } as any;
+    };
 
     const result = await new Promise<{ err: string | null | undefined; ok: boolean }>((resolve) => {
       allowRequest(req, (err: string | null | undefined, ok: boolean) => resolve({ err, ok }));
@@ -107,7 +110,7 @@ describe('DashboardGateway', () => {
       join: jest.fn(),
       disconnect: jest.fn(),
       data: {},
-    } as any;
+    } as unknown as Socket;
 
     const jwtService = gateway['jwtService'];
     (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ tenantId: 'tenant-123', sub: 'user-123' });
@@ -128,7 +131,7 @@ describe('DashboardGateway', () => {
       handshake: { headers: { authorization: 'Bearer invalid-token' }, query: {}, auth: {} },
       join: jest.fn(),
       disconnect: jest.fn(),
-    } as any;
+    } as unknown as Socket;
 
     const jwtService = gateway['jwtService'];
     (jwtService.verifyAsync as jest.Mock).mockImplementation(() => {
@@ -141,7 +144,7 @@ describe('DashboardGateway', () => {
   });
 
   it('should handle disconnection', () => {
-    gateway.handleDisconnect({} as any);
+    gateway.handleDisconnect({} as unknown as Socket);
     // Expect nothing to happen essentially as it is empty
   });
 

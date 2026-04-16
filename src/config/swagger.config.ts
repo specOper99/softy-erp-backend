@@ -226,23 +226,27 @@ Tenant Admin can create studio-side users primarily with roles: \`OPS_MANAGER\`,
 }
 
 function setupSwaggerDocumentation(app: INestApplication, meta: SwaggerBuildMeta): void {
-  const config = buildSwaggerDocumentConfig();
+  const document = createSwaggerDocument(app, meta);
+  SwaggerModule.setup('api/docs', app, document);
+}
 
+export function createSwaggerDocument(app: INestApplication, meta?: SwaggerBuildMeta) {
+  const effectiveMeta = meta ?? buildSwaggerMeta();
+  const config = buildSwaggerDocumentConfig();
   const document = SwaggerModule.createDocument(app, config, {
     deepScanRoutes: true,
   });
 
-  document.info.version = `${document.info.version}+${meta.commitSha}`;
-  document.info.description = `${document.info.description}\n\n---\nDocs build: ${meta.commitSha} @ ${meta.generatedAt}`;
-
+  document.info.version = `${document.info.version}+${effectiveMeta.commitSha}`;
+  document.info.description = `${document.info.description}\n\n---\nDocs build: ${effectiveMeta.commitSha} @ ${effectiveMeta.generatedAt}`;
   Object.assign(document, {
     'x-docs-build': {
-      commitSha: meta.commitSha,
-      generatedAt: meta.generatedAt,
+      commitSha: effectiveMeta.commitSha,
+      generatedAt: effectiveMeta.generatedAt,
     },
   });
 
-  SwaggerModule.setup('api/docs', app, document);
+  return document;
 }
 
 export function configureSwagger(app: INestApplication, options: { isProd: boolean; swaggerEnabled: boolean }): void {

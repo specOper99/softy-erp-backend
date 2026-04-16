@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
+import { SelectQueryBuilder } from 'typeorm';
 import {
   createMockPackageItem,
   createMockRepository,
@@ -111,7 +112,7 @@ describe('CatalogService', () => {
       getOne: jest.fn().mockResolvedValue(mockPackage),
       getCount: jest.fn().mockResolvedValue(1),
     };
-    packageRepo.createQueryBuilder.mockReturnValue(qbMock as any);
+    packageRepo.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<ServicePackage>);
   });
 
   afterEach(() => {
@@ -203,7 +204,7 @@ describe('CatalogService', () => {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
-      } as any);
+      } as unknown as SelectQueryBuilder<ServicePackage>);
 
       await expect(service.findPackageById('not-found')).rejects.toThrow(NotFoundException);
     });

@@ -23,7 +23,7 @@ describe('HealthController', () => {
           useValue: {
             check: jest.fn().mockImplementation((checks) => {
               // Execute the checks to get coverage
-              checks.forEach((c: any) => c());
+              checks.forEach((c: () => void) => c());
               return Promise.resolve({ status: 'ok' });
             }),
           },

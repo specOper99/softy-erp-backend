@@ -22,28 +22,30 @@ describe('UpdateMetricsHandler (unit)', () => {
     async insert(entity: Partial<DailyMetrics>): Promise<void> {
       const k = this.key(entity.tenantId!, entity.date!);
       if (this.store.has(k)) {
-        const err = new Error('UNIQUE constraint failed: daily_metrics.tenantId,date');
+        const err: Error & { driverError?: { code: string } } = new Error(
+          'UNIQUE constraint failed: daily_metrics.tenantId,date',
+        );
         // emulate TypeORM/SQLite duplicate signal
-        (err as any).driverError = { code: 'SQLITE_CONSTRAINT' };
+        err.driverError = { code: 'SQLITE_CONSTRAINT' };
         throw err;
       }
       this.store.set(k, {
         id: 'mock-id',
         tenantId: entity.tenantId!,
         date: entity.date!,
-        bookingsCount: (entity.bookingsCount as any) ?? 0,
-        tasksCompletedCount: (entity.tasksCompletedCount as any) ?? 0,
-        activeClientsCount: (entity.activeClientsCount as any) ?? 0,
-        cancellationsCount: (entity.cancellationsCount as any) ?? 0,
-        totalRevenue: (entity.totalRevenue as any) ?? 0,
+        bookingsCount: entity.bookingsCount ?? 0,
+        tasksCompletedCount: entity.tasksCompletedCount ?? 0,
+        activeClientsCount: entity.activeClientsCount ?? 0,
+        cancellationsCount: entity.cancellationsCount ?? 0,
+        totalRevenue: entity.totalRevenue ?? 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as DailyMetrics);
     }
 
     async increment(criteria: Partial<DailyMetrics>, propertyPath: string, value: number): Promise<void> {
-      const tenantId = (criteria as any).tenantId as string;
-      const date = (criteria as any).date as string;
+      const tenantId = criteria.tenantId as string;
+      const date = criteria.date as string;
       const k = this.key(tenantId, date);
       const existing = this.store.get(k);
       if (!existing) {

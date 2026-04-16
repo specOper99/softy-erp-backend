@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { validate as isUUID } from 'uuid';
+import { isUUID } from 'class-validator';
 
 /**
  * TargetTenant Decorator

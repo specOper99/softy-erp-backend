@@ -17,7 +17,6 @@ import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { createHash } from 'node:crypto';
-import Stripe from 'stripe';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -30,7 +29,14 @@ import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
 } from '../dto/billing.dto';
-import { StripeService } from '../services/stripe.service';
+import {
+  type StripeEvent,
+  type StripeInvoiceList,
+  type StripePriceList,
+  type StripeProductList,
+  type StripeUpcomingInvoice,
+  StripeService,
+} from '../services/stripe.service';
 import { SubscriptionService } from '../services/subscription.service';
 
 @ApiTags('Billing')
@@ -109,7 +115,7 @@ export class BillingController {
   @Get('invoices')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'List invoices' })
-  async listInvoices() {
+  async listInvoices(): Promise<StripeInvoiceList> {
     const tenantId = this.getTenantIdOrThrow();
     const customer = await this.subscriptionService.getOrCreateCustomer(tenantId);
     return this.stripeService.listInvoices(customer.stripeCustomerId);
@@ -118,7 +124,7 @@ export class BillingController {
   @Get('upcoming-invoice')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get upcoming invoice preview' })
-  async getUpcomingInvoice() {
+  async getUpcomingInvoice(): Promise<StripeUpcomingInvoice> {
     const tenantId = this.getTenantIdOrThrow();
     const customer = await this.subscriptionService.getOrCreateCustomer(tenantId);
     return this.stripeService.getUpcomingInvoice(customer.stripeCustomerId);
@@ -126,13 +132,13 @@ export class BillingController {
 
   @Get('prices')
   @ApiOperation({ summary: 'List available subscription prices' })
-  async listPrices() {
+  async listPrices(): Promise<StripePriceList> {
     return this.stripeService.listPrices();
   }
 
   @Get('products')
   @ApiOperation({ summary: 'List available products' })
-  async listProducts() {
+  async listProducts(): Promise<StripeProductList> {
     return this.stripeService.listProducts();
   }
 }
@@ -169,7 +175,7 @@ export class BillingWebhookController {
       throw new BadRequestException('billing.missing_stripe_signature');
     }
 
-    let event: Stripe.Event;
+    let event: StripeEvent;
     try {
       event = this.stripeService.constructWebhookEvent(rawBody, signature, webhookSecret);
     } catch (error) {

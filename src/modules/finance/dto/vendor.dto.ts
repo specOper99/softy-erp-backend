@@ -28,6 +28,33 @@ export class CreateVendorDto {
   notes?: string;
 }
 
+export class UpdateVendorDto {
+  @ApiPropertyOptional({ example: 'Acme Supplies LLC' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  @SanitizeHtml()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'accounts@acme.test' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ example: '+9647500000000' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  @SanitizeHtml()
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'Preferred supplier for printing materials' })
+  @IsOptional()
+  @IsString()
+  @SanitizeHtml()
+  notes?: string;
+}
+
 export class VendorResponseDto {
   @ApiProperty()
   id: string;

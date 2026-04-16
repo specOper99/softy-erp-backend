@@ -17,6 +17,7 @@ import { RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantQuotaGuard } from '../../tenants/guards/tenant-quota.guard';
+import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
 import { CreateUserDto, UpdateUserDto, UserFilterDto } from '../dto';
 import { Role } from '../enums/role.enum';
 import { UsersService } from '../services/users.service';
@@ -115,7 +116,7 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Insufficient permissions or MFA missing' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DeleteWithReasonDto) {
+    return this.usersService.remove(id, dto.reason);
   }
 }

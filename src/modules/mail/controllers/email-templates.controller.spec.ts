@@ -87,6 +87,7 @@ describe('EmailTemplatesController', () => {
         name: 'welcome',
         subject: 'Welcome!',
         content: '<p>Hi</p>',
+        variables: [],
       };
       emailTemplatesService.create.mockResolvedValue(mockTemplate);
 
@@ -120,7 +121,7 @@ describe('EmailTemplatesController', () => {
 
   describe('remove', () => {
     it('should delete non-system template', async () => {
-      emailTemplatesService.remove.mockResolvedValue(undefined);
+      emailTemplatesService.remove.mockResolvedValue(mockTemplate);
 
       await controller.remove('template-123');
 

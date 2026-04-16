@@ -239,6 +239,81 @@ describe('Finance Module E2E Tests', () => {
       });
     });
 
+    describe('GET /api/v1/transactions/cursor', () => {
+      it('should filter transactions by bookingId', async () => {
+        const clientRes = await request(app.getHttpServer())
+          .post('/api/v1/clients')
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            name: 'Finance Cursor Client',
+            email: `finance.cursor.${Date.now()}@example.com`,
+            phone: '+1234567800',
+          })
+          .expect(201);
+
+        const packagesRes = await request(app.getHttpServer())
+          .get('/api/v1/packages')
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+        const packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id;
+
+        const createBooking = async () =>
+          request(app.getHttpServer())
+            .post('/api/v1/bookings')
+            .set('Host', tenantHost)
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({
+              clientId: clientRes.body.data.id,
+              eventDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+              packageId,
+            })
+            .expect(201);
+
+        const bookingA = await createBooking();
+        const bookingB = await createBooking();
+
+        await request(app.getHttpServer())
+          .post('/api/v1/transactions')
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            type: 'INCOME',
+            amount: 111,
+            category: 'BOOKING',
+            description: 'Cursor filter target',
+            transactionDate: new Date().toISOString(),
+            bookingId: bookingA.body.data.id,
+          })
+          .expect(201);
+
+        await request(app.getHttpServer())
+          .post('/api/v1/transactions')
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            type: 'INCOME',
+            amount: 222,
+            category: 'BOOKING',
+            description: 'Cursor filter distractor',
+            transactionDate: new Date().toISOString(),
+            bookingId: bookingB.body.data.id,
+          })
+          .expect(201);
+
+        const response = await request(app.getHttpServer())
+          .get(`/api/v1/transactions/cursor?bookingId=${bookingA.body.data.id}&limit=1`)
+          .set('Host', tenantHost)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+
+        expect(response.body.data?.data).toHaveLength(1);
+        expect(response.body.data?.data[0]?.bookingId).toBe(bookingA.body.data.id);
+        expect(response.body.data?.data[0]?.description).toBe('Cursor filter target');
+      });
+    });
+
     describe('GET /api/v1/transactions/:id', () => {
       it('should return a specific transaction', async () => {
         const response = await request(app.getHttpServer())

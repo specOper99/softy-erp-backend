@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { MFAService } from '../services/mfa.service';
@@ -18,7 +19,7 @@ class VerifyMFADto {
 describe('MFAController', () => {
   let controller: MFAController;
   let mfaService: MFAService;
-  let userRepository: any;
+  let userRepository: jest.Mocked<Pick<Repository<PlatformUser>, 'findOne' | 'save'>>;
 
   const verifyTokenMock = jest.fn((_secret: string, _code: string) => false);
   const verifyBackupCodeMock = jest.fn((_code: string, _recoveryCodes: string[]) => false);
@@ -274,7 +275,7 @@ describe('MFAController', () => {
 
   describe('regenerateBackupCodes', () => {
     it('should generate new backup codes', async () => {
-      userRepository.findOne.mockResolvedValueOnce(mockUser);
+      userRepository.findOne.mockResolvedValueOnce(mockUser as unknown as PlatformUser);
 
       const mockRequest = {
         user: { userId: 'user-123' },

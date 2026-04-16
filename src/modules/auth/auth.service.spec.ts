@@ -1,4 +1,4 @@
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -366,7 +366,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.validatePassword.mockResolvedValue(true);
       mockSessionService.checkSuspiciousActivity.mockRejectedValue(new Error('suspicious check failed'));
 
-      const loggerSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       const dto = { email: 'test@example.com', password: TEST_PASSWORD };
 
@@ -386,7 +386,7 @@ describe('AuthService - Comprehensive Tests', () => {
       mockUsersService.validatePassword.mockResolvedValue(true);
       mockSessionService.checkNewDevice.mockRejectedValue(new Error('new device check failed'));
 
-      const loggerSpy = jest.spyOn((service as any).logger, 'error');
+      const loggerSpy = jest.spyOn((service as unknown as { logger: Logger }).logger, 'error');
 
       mockTokenService.generateTokens.mockImplementation((_user, context, _rememberMe, onNewDevice) => {
         if (onNewDevice && context?.userAgent && context?.ipAddress) {

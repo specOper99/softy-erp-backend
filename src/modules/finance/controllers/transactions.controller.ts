@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -13,13 +14,19 @@ import {
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators';
-import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { IDEMPOTENCY_HEADER, IdempotencyInterceptor, Idempotent } from '../../../common/interceptors';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import { BudgetReportQueryDto, CreateBudgetDto, CreateTransactionDto, TransactionFilterDto } from '../dto';
+import {
+  BudgetReportQueryDto,
+  CreateBudgetDto,
+  TransactionCursorQueryDto,
+  CreateTransactionDto,
+  TransactionFilterDto,
+  VoidTransactionDto,
+} from '../dto';
 import { FinanceService } from '../services/finance.service';
 import { FinancialReportService } from '../services/financial-report.service';
 
@@ -73,7 +80,7 @@ export class TransactionsController {
   @ApiResponse({ status: 200, description: 'Return paginated transactions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  findAllCursor(@Query() query: CursorPaginationDto) {
+  findAllCursor(@Query() query: TransactionCursorQueryDto) {
     return this.financeService.findAllTransactionsCursor(query);
   }
 
@@ -93,6 +100,16 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.financeService.findTransactionById(id);
+  }
+
+  @Post(':id/void')
+  @Roles(Role.ADMIN)
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Void a transaction by creating a compensating reversal entry' })
+  @ApiResponse({ status: 201, description: 'Reversal transaction created' })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  voidTransaction(@Param('id', ParseUUIDPipe) id: string, @Body() dto: VoidTransactionDto) {
+    return this.financeService.voidTransaction(id, dto.reason);
   }
 
   // Budget Methods

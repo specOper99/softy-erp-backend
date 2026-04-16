@@ -1,6 +1,7 @@
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { mockTenantContext } from '../../../test/helpers/mock-factories';
 import { AvailabilityCacheOwnerService } from '../../common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
@@ -13,6 +14,7 @@ import { Task } from '../tasks/entities/task.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { BookingFilterDto } from './dto';
+import { ProcessingType } from './entities/processing-type.entity';
 import { BookingRepository } from './repositories/booking.repository';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingsService } from './services/bookings.service';
@@ -20,7 +22,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
 
 describe('Bookings Security Test', () => {
   let service: BookingsService;
-  let mockQueryBuilder: Partial<SelectQueryBuilder<any>>;
+  let mockQueryBuilder: Partial<SelectQueryBuilder<ObjectLiteral>>;
 
   beforeEach(async () => {
     mockTenantContext('test-tenant-123');
@@ -46,6 +48,12 @@ describe('Bookings Security Test', () => {
             create: jest.fn(),
             save: jest.fn(),
             findOne: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(ProcessingType),
+          useValue: {
+            find: jest.fn().mockResolvedValue([]),
           },
         },
         { provide: CatalogService, useValue: {} },

@@ -36,26 +36,27 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const platformAdminPassword = 'SecurePassword123!';
   const platformAdminPasswordHash = await passwordHashService.hash(platformAdminPassword);
 
-  let platformAdmin = await platformUserRepo.findOne({
+  const platformAdmin = await platformUserRepo.findOne({
     where: { email: platformAdminEmail },
   });
   if (!platformAdmin) {
-    platformAdmin = platformUserRepo.create({
-      email: platformAdminEmail,
-      fullName: 'Platform Admin',
-      passwordHash: platformAdminPasswordHash,
-      role: PlatformRole.SUPER_ADMIN,
-      status: 'active',
-      mfaEnabled: false,
-    });
-    platformAdmin = await platformUserRepo.save(platformAdmin);
+    await platformUserRepo.save(
+      platformUserRepo.create({
+        email: platformAdminEmail,
+        fullName: 'Platform Admin',
+        passwordHash: platformAdminPasswordHash,
+        role: PlatformRole.SUPER_ADMIN,
+        status: 'active',
+        mfaEnabled: false,
+      }),
+    );
   } else {
     // Ensure deterministic credentials for repeatable E2E runs.
     platformAdmin.passwordHash = platformAdminPasswordHash;
     platformAdmin.status = 'active';
     platformAdmin.role = PlatformRole.SUPER_ADMIN;
     platformAdmin.mfaEnabled = false;
-    platformAdmin = await platformUserRepo.save(platformAdmin);
+    await platformUserRepo.save(platformAdmin);
   }
 
   // Create MFA platform user
@@ -63,26 +64,27 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const mfaUserPassword = 'SecurePassword123!';
   const mfaUserPasswordHash = await passwordHashService.hash(mfaUserPassword);
 
-  let mfaUser = await platformUserRepo.findOne({
+  const mfaUser = await platformUserRepo.findOne({
     where: { email: mfaUserEmail },
   });
   if (!mfaUser) {
-    mfaUser = platformUserRepo.create({
-      email: mfaUserEmail,
-      fullName: 'MFA Test User',
-      passwordHash: mfaUserPasswordHash,
-      role: PlatformRole.SUPPORT_ADMIN,
-      status: 'active',
-      mfaEnabled: true,
-    });
-    mfaUser = await platformUserRepo.save(mfaUser);
+    await platformUserRepo.save(
+      platformUserRepo.create({
+        email: mfaUserEmail,
+        fullName: 'MFA Test User',
+        passwordHash: mfaUserPasswordHash,
+        role: PlatformRole.SUPPORT_ADMIN,
+        status: 'active',
+        mfaEnabled: true,
+      }),
+    );
   } else {
     // Ensure deterministic credentials + MFA flag for repeatable E2E runs.
     mfaUser.passwordHash = mfaUserPasswordHash;
     mfaUser.status = 'active';
     mfaUser.role = PlatformRole.SUPPORT_ADMIN;
     mfaUser.mfaEnabled = true;
-    mfaUser = await platformUserRepo.save(mfaUser);
+    await platformUserRepo.save(mfaUser);
   }
 
   // Generate random suffix for isolation

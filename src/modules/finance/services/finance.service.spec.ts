@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, FindOneOptions } from 'typeorm';
 import {
   createMockQueryRunner,
   createMockRepository,
@@ -26,6 +26,7 @@ import { WalletService } from './wallet.service';
 import { ExportService } from '../../../common/services/export.service';
 
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 
 describe('FinanceService - Comprehensive Tests', () => {
   let service: FinanceService;
@@ -124,8 +125,8 @@ describe('FinanceService - Comprehensive Tests', () => {
       });
 
     // Configure other default behaviors
-    mockTransactionRepository.save.mockImplementation((txn: any) =>
-      Promise.resolve({ id: 'txn-uuid-123', ...txn } as unknown as Transaction),
+    mockTransactionRepository.save.mockImplementation((txn: Transaction) =>
+      Promise.resolve({ ...txn, id: 'txn-uuid-123' } as unknown as Transaction),
     );
 
     mockBookingRepository = createMockRepository();
@@ -182,13 +183,14 @@ describe('FinanceService - Comprehensive Tests', () => {
     jest.clearAllMocks();
 
     // Default behavior
-    mockTransactionRepository.findOne.mockImplementation(({ where }: any) => {
-      if (where?.id === 'txn-uuid-123') return Promise.resolve(mockTransaction);
+    mockTransactionRepository.findOne.mockImplementation(({ where }: FindOneOptions<Transaction>) => {
+      const w = Array.isArray(where) ? where[0] : where;
+      if (w?.id === 'txn-uuid-123') return Promise.resolve(mockTransaction);
       return Promise.resolve(null);
     });
 
     // Mock queryRunner manager findOne
-    const managerFindOneImpl = (_entity: any, _options: any) => {
+    const managerFindOneImpl = (_entity: unknown, _options: unknown) => {
       return Promise.resolve(null);
     };
 
@@ -411,6 +413,33 @@ describe('FinanceService - Comprehensive Tests', () => {
       filter.endDate = '2024-12-31';
       await service.findAllTransactions(filter);
       expect(mockTransactionRepository.createQueryBuilder).toHaveBeenCalled();
+    });
+  });
+
+  describe('findAllTransactionsCursor', () => {
+    it('should apply bookingId filter before cursor pagination', async () => {
+      const queryBuilder = mockTransactionRepository.createQueryBuilder();
+      const paginateSpy = jest
+        .spyOn(CursorPaginationHelper, 'paginateWithCustomDateField')
+        .mockResolvedValue({ data: [mockTransaction], nextCursor: null });
+
+      const result = await service.findAllTransactionsCursor({
+        cursor: undefined,
+        limit: 10,
+        bookingId: 'booking-uuid-123',
+      });
+
+      expect(result).toEqual({ data: [mockTransaction], nextCursor: null });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('t.bookingId = :bookingId', { bookingId: 'booking-uuid-123' });
+      expect(paginateSpy).toHaveBeenCalledWith(
+        queryBuilder,
+        expect.objectContaining({
+          cursor: undefined,
+          limit: 10,
+          alias: 't',
+        }),
+        'transactionDate',
+      );
     });
   });
 

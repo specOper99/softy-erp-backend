@@ -1,10 +1,22 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
-import { CreateVendorDto } from '../dto';
+import { CreateVendorDto, UpdateVendorDto } from '../dto';
 import { VendorsService } from '../services/vendors.service';
 
 @ApiTags('Finance - Vendors')
@@ -42,5 +54,24 @@ export class VendorsController {
   @ApiResponse({ status: 404, description: 'Vendor not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.vendorsService.findById(id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update vendor' })
+  @ApiResponse({ status: 200, description: 'Vendor updated' })
+  @ApiResponse({ status: 404, description: 'Vendor not found' })
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateVendorDto) {
+    return this.vendorsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete vendor' })
+  @ApiResponse({ status: 204, description: 'Vendor deleted' })
+  @ApiResponse({ status: 404, description: 'Vendor not found' })
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.vendorsService.remove(id);
   }
 }

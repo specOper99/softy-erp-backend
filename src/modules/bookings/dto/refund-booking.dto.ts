@@ -17,7 +17,7 @@ export class RefundBookingDto {
 
   @ApiPropertyOptional({
     description: 'Payment method used for the refund',
-    example: 'BANK_TRANSFER',
+    example: 'E_PAYMENT',
   })
   @IsOptional()
   @IsString()

@@ -5,6 +5,7 @@ import {
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
+  S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -157,23 +158,9 @@ export class StorageService implements OnModuleInit {
   }
 
   private isS3NotFoundError(error: unknown): boolean {
-    if (!error || typeof error !== 'object') return false;
-
-    const err = error as {
-      name?: unknown;
-      $metadata?: unknown;
-    };
-
-    const name = err.name;
-    if (typeof name === 'string' && name === 'NotFound') {
-      return true;
-    }
-
-    const metadata = err.$metadata;
-    if (!metadata || typeof metadata !== 'object') return false;
-
-    const httpStatusCode = (metadata as { httpStatusCode?: unknown }).httpStatusCode;
-    return httpStatusCode === 404;
+    if (!(error instanceof S3ServiceException)) return false;
+    if (error.name === 'NotFound') return true;
+    return error.$metadata.httpStatusCode === 404;
   }
 
   /**

@@ -61,7 +61,7 @@ describe('UsersController', () => {
 
   describe('findAllCursor', () => {
     it('should call service.findAllCursor', async () => {
-      const query = { limit: 10, cursor: 'abc' };
+      const query = { limit: 10, cursor: 'abc' } as unknown as UserFilterDto;
       await controller.findAllCursor(query);
       expect(service.findAllCursor).toHaveBeenCalledWith(query);
     });
@@ -84,8 +84,9 @@ describe('UsersController', () => {
 
   describe('remove', () => {
     it('should call service.remove', async () => {
-      await controller.remove('uuid');
-      expect(service.remove).toHaveBeenCalledWith('uuid');
+      const dto = { reason: 'user requested deletion' };
+      await controller.remove('uuid', dto);
+      expect(service.remove).toHaveBeenCalledWith('uuid', dto.reason);
     });
   });
 });

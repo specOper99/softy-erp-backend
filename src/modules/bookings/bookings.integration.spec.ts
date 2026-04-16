@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 import request from 'supertest';
 import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { TransformInterceptor } from '../../common/interceptors';
 import { IpRateLimitGuard } from '../../common/guards/ip-rate-limit.guard';
 import { Client } from './entities/client.entity';
@@ -204,7 +204,7 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
   };
 
   const seedTenantFixture = async (): Promise<SeedResult> => {
-    const suffix = uuidv4().slice(0, 8);
+    const suffix = randomUUID().slice(0, 8);
     const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'softYERP123!';
     const staffPassword = process.env.SEED_STAFF_PASSWORD || 'softYERP123!';
 

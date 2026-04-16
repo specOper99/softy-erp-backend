@@ -19,7 +19,7 @@ describe('Platform Auth DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('email');
+      expect(errors[0]!.property).toBe('email');
     });
 
     it('should fail validation without password', async () => {
@@ -28,7 +28,7 @@ describe('Platform Auth DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('password');
+      expect(errors[0]!.property).toBe('password');
     });
 
     it('should fail validation with invalid email format', async () => {
@@ -38,7 +38,7 @@ describe('Platform Auth DTOs', () => {
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('email');
+      expect(errors[0]!.property).toBe('email');
     });
 
     it('should validate email with various valid formats', async () => {

@@ -14,6 +14,7 @@ import { Task } from '../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../tasks/repositories/task-assignee.repository';
 import { User } from '../users/entities/user.entity';
 import { UserRepository } from '../users/repositories/user.repository';
+import { BookingIntakeController } from './controllers/booking-intake.controller';
 import { BookingsController } from './controllers/bookings.controller';
 import { ClientsController } from './controllers/clients.controller';
 import { ProcessingTypesController } from './controllers/processing-types.controller';
@@ -29,6 +30,7 @@ import { BookingCompletionHandler } from './handlers/booking-completion.handler'
 import { BookingRepository } from './repositories/booking.repository';
 import { ClientRepository } from './repositories/client.repository';
 import { BookingExportService } from './services/booking-export.service';
+import { BookingIntakeService } from './services/booking-intake.service';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingWorkflowService } from './services/booking-workflow.service';
 import { BookingsService } from './services/bookings.service';
@@ -58,7 +60,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     AuditModule,
     TasksModule,
   ],
-  controllers: [BookingsController, ClientsController, ProcessingTypesController],
+  controllers: [BookingsController, BookingIntakeController, ClientsController, ProcessingTypesController],
   providers: [
     BookingsService,
     BookingWorkflowService,
@@ -74,6 +76,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     StaffConflictService,
     BookingCompletionHandler,
     ProcessingTypeService,
+    BookingIntakeService,
   ],
   exports: [
     BookingsService,

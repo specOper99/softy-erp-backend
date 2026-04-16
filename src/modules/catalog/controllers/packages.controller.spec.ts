@@ -2,12 +2,8 @@ import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
-import {
-  AddPackageItemsDto,
-  CreateServicePackageDto,
-  PackageFilterDto,
-  UpdateServicePackageDto,
-} from '../dto/catalog.dto';
+import { AddPackageItemsDto, CreateServicePackageDto, UpdateServicePackageDto } from '../dto/catalog.dto';
+import { PackageFilterDto } from '../dto/package-filter.dto';
 import { CatalogService } from '../services/catalog.service';
 import { PackagesController } from './packages.controller';
 

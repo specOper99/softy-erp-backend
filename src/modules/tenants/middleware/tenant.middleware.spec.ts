@@ -18,7 +18,7 @@ describe('TenantMiddleware', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn((key: string, defaultValue?: any) => {
+    get: jest.fn((key: string, defaultValue?: unknown) => {
       if (key === 'auth.jwtSecret') return 'secret';
       return defaultValue;
     }),
@@ -83,7 +83,7 @@ describe('TenantMiddleware', () => {
       next = jest.fn();
 
       // Reset config service mocks to defaults for each test
-      mockConfigService.get.mockImplementation((key: string, defaultValue?: any) => {
+      mockConfigService.get.mockImplementation((key: string, defaultValue?: unknown) => {
         if (key === 'auth.jwtSecret') return 'secret';
         return defaultValue;
       });
@@ -145,7 +145,7 @@ describe('TenantMiddleware', () => {
     });
 
     it('should extract RS256 token', async () => {
-      mockConfigService.get.mockImplementation((key: string, defaultValue?: any) => {
+      mockConfigService.get.mockImplementation((key: string, defaultValue?: unknown) => {
         if (key === 'JWT_ALLOWED_ALGORITHMS') return 'RS256';
         if (key === 'JWT_PUBLIC_KEY') return 'pubkey';
         if (key === 'auth.jwtSecret') return 'secret';
@@ -164,7 +164,7 @@ describe('TenantMiddleware', () => {
     });
 
     it('should throw if RS256 configured but no key', async () => {
-      mockConfigService.get.mockImplementation((key: string, defaultValue?: any) => {
+      mockConfigService.get.mockImplementation((key: string, defaultValue?: unknown) => {
         if (key === 'JWT_ALLOWED_ALGORITHMS') return 'RS256';
         if (key === 'JWT_PUBLIC_KEY') return undefined;
         if (key === 'auth.jwtSecret') return 'secret';

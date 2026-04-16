@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindManyOptions, Repository, SelectQueryBuilder } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../enums/tenant-status.enum';
 import { PlatformAnalyticsService } from './platform-analytics.service';
@@ -80,11 +80,12 @@ describe('PlatformAnalyticsService', () => {
 
   describe('getPlatformMetrics', () => {
     it('should calculate platform metrics correctly', async () => {
-      jest.spyOn(tenantRepository, 'count').mockImplementation(async (options?: any) => {
+      jest.spyOn(tenantRepository, 'count').mockImplementation(async (options?: FindManyOptions<Tenant>) => {
         if (!options) return 3;
-        if (options?.where?.status === TenantStatus.ACTIVE) return 2;
-        if (options?.where?.status === TenantStatus.SUSPENDED) return 1;
-        if (options?.where?.subscriptionStartedAt) return 0;
+        const where = Array.isArray(options?.where) ? options?.where[0] : options?.where;
+        if (where?.status === TenantStatus.ACTIVE) return 2;
+        if (where?.status === TenantStatus.SUSPENDED) return 1;
+        if (where?.subscriptionStartedAt) return 0;
         return 0;
       });
 
@@ -97,7 +98,9 @@ describe('PlatformAnalyticsService', () => {
           mrr: '270',
         }),
       };
-      jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
+      jest
+        .spyOn(tenantRepository, 'createQueryBuilder')
+        .mockReturnValue(qbMock as unknown as SelectQueryBuilder<Tenant>);
 
       const result = await service.getPlatformMetrics();
 
@@ -123,7 +126,9 @@ describe('PlatformAnalyticsService', () => {
           mrr: '0',
         }),
       };
-      jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
+      jest
+        .spyOn(tenantRepository, 'createQueryBuilder')
+        .mockReturnValue(qbMock as unknown as SelectQueryBuilder<Tenant>);
 
       const result = await service.getPlatformMetrics();
 
@@ -136,11 +141,12 @@ describe('PlatformAnalyticsService', () => {
     });
 
     it('should calculate growth rate based on 30-day window', async () => {
-      jest.spyOn(tenantRepository, 'count').mockImplementation(async (options?: any) => {
+      jest.spyOn(tenantRepository, 'count').mockImplementation(async (options?: FindManyOptions<Tenant>) => {
         if (!options) return 2;
-        if (options?.where?.status === TenantStatus.ACTIVE) return 2;
-        if (options?.where?.status === TenantStatus.SUSPENDED) return 0;
-        if (options?.where?.subscriptionStartedAt) return 1;
+        const where = Array.isArray(options?.where) ? options?.where[0] : options?.where;
+        if (where?.status === TenantStatus.ACTIVE) return 2;
+        if (where?.status === TenantStatus.SUSPENDED) return 0;
+        if (where?.subscriptionStartedAt) return 1;
         return 0;
       });
 
@@ -153,7 +159,9 @@ describe('PlatformAnalyticsService', () => {
           mrr: '250',
         }),
       };
-      jest.spyOn(tenantRepository, 'createQueryBuilder').mockReturnValue(qbMock as any);
+      jest
+        .spyOn(tenantRepository, 'createQueryBuilder')
+        .mockReturnValue(qbMock as unknown as SelectQueryBuilder<Tenant>);
 
       const result = await service.getPlatformMetrics();
 
@@ -295,9 +303,9 @@ describe('PlatformAnalyticsService', () => {
 
       jest
         .spyOn(tenantRepository, 'createQueryBuilder')
-        .mockReturnValueOnce(totalsQb as any)
-        .mockReturnValueOnce(byPlanQb as any)
-        .mockReturnValueOnce(topTenantsQb as any);
+        .mockReturnValueOnce(totalsQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(byPlanQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(topTenantsQb as unknown as SelectQueryBuilder<Tenant>);
 
       const result = await service.getRevenueAnalytics();
 
@@ -306,8 +314,8 @@ describe('PlatformAnalyticsService', () => {
       expect(result.arr).toBe(3000); // MRR * 12
       expect(result.byPlan).toHaveProperty('pro');
       expect(result.byPlan).toHaveProperty('starter');
-      expect(result.byPlan.pro.count).toBe(1);
-      expect(result.byPlan.starter.count).toBe(1);
+      expect(result.byPlan.pro!.count).toBe(1);
+      expect(result.byPlan.starter!.count).toBe(1);
     });
 
     it('should list top tenants by revenue', async () => {
@@ -341,15 +349,15 @@ describe('PlatformAnalyticsService', () => {
 
       jest
         .spyOn(tenantRepository, 'createQueryBuilder')
-        .mockReturnValueOnce(totalsQb as any)
-        .mockReturnValueOnce(byPlanQb as any)
-        .mockReturnValueOnce(topTenantsQb as any);
+        .mockReturnValueOnce(totalsQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(byPlanQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(topTenantsQb as unknown as SelectQueryBuilder<Tenant>);
 
       const result = await service.getRevenueAnalytics();
 
       expect(result.topTenants).toHaveLength(2);
-      expect(result.topTenants[0].revenue).toBeGreaterThanOrEqual(result.topTenants[1].revenue);
-      expect(result.topTenants[0].tenantId).toBe('tenant-1');
+      expect(result.topTenants[0]!.revenue).toBeGreaterThanOrEqual(result.topTenants[1]!.revenue);
+      expect(result.topTenants[0]!.tenantId).toBe('tenant-1');
     });
 
     it('should limit top tenants to 10', async () => {
@@ -386,9 +394,9 @@ describe('PlatformAnalyticsService', () => {
 
       jest
         .spyOn(tenantRepository, 'createQueryBuilder')
-        .mockReturnValueOnce(totalsQb as any)
-        .mockReturnValueOnce(byPlanQb as any)
-        .mockReturnValueOnce(topTenantsQb as any);
+        .mockReturnValueOnce(totalsQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(byPlanQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(topTenantsQb as unknown as SelectQueryBuilder<Tenant>);
 
       const result = await service.getRevenueAnalytics();
 
@@ -423,14 +431,14 @@ describe('PlatformAnalyticsService', () => {
 
       jest
         .spyOn(tenantRepository, 'createQueryBuilder')
-        .mockReturnValueOnce(totalsQb as any)
-        .mockReturnValueOnce(byPlanQb as any)
-        .mockReturnValueOnce(topTenantsQb as any);
+        .mockReturnValueOnce(totalsQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(byPlanQb as unknown as SelectQueryBuilder<Tenant>)
+        .mockReturnValueOnce(topTenantsQb as unknown as SelectQueryBuilder<Tenant>);
 
       const result = await service.getRevenueAnalytics();
 
       expect(result.byPlan).toHaveProperty('free');
-      expect(result.byPlan.free.count).toBe(2);
+      expect(result.byPlan.free!.count).toBe(2);
     });
   });
 

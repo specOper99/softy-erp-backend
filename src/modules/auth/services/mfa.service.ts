@@ -44,7 +44,7 @@ export class MfaService {
       throw new BadRequestException('auth.mfa_setup_not_started');
     }
 
-    let isValid = false;
+    let isValid: boolean;
     try {
       const totp = new OTPAuth.TOTP({
         secret: OTPAuth.Secret.fromBase32(userWithSecret.mfaSecret),

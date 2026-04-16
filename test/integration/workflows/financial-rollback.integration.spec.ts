@@ -1,5 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
@@ -10,20 +10,20 @@ import { TransactionType } from '../../../src/modules/finance/enums/transaction-
 describe('Financial Transaction Rollback Integration', () => {
   let dataSource: DataSource;
   let transactionRepository: Repository<Transaction>;
-  const tenantId = uuidv4();
+  const tenantId = randomUUID();
 
   const createBookingWithRefs = async (manager: {
     save: (entityClass: unknown, entity: unknown) => Promise<unknown>;
   }): Promise<Booking> => {
     const client = await manager.save(Client, {
-      name: `Client ${uuidv4()}`,
-      email: `client-${uuidv4()}@test.com`,
+      name: `Client ${randomUUID()}`,
+      email: `client-${randomUUID()}@test.com`,
       phone: '123456789',
       tenantId,
     });
 
     const pkg = await manager.save(ServicePackage, {
-      name: `Package ${uuidv4()}`,
+      name: `Package ${randomUUID()}`,
       description: 'Test',
       price: 1000,
       tenantId,
@@ -260,7 +260,7 @@ describe('Financial Transaction Rollback Integration', () => {
 
   describe('Transaction Isolation', () => {
     it('should maintain isolation between concurrent transactions', async () => {
-      const tenant2Id = uuidv4();
+      const tenant2Id = randomUUID();
 
       const queryRunner1 = dataSource.createQueryRunner();
       const queryRunner2 = dataSource.createQueryRunner();
@@ -330,8 +330,8 @@ describe('Financial Transaction Rollback Integration', () => {
 
       try {
         const booking = await queryRunner.manager.save(Booking, {
-          clientId: uuidv4(),
-          packageId: uuidv4(),
+          clientId: randomUUID(),
+          packageId: randomUUID(),
           eventDate: new Date(),
           totalPrice: 5000,
           subTotal: 5000,

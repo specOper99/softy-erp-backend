@@ -43,7 +43,7 @@ module.exports = {
     },
 
     create(context) {
-        const filename = context.getFilename();
+        const filename = context.filename ?? context.getFilename?.() ?? '';
         const isController = filename.endsWith('.controller.ts');
         const isPlatformModule = filename.includes('/platform/');
         const isCommonGuard = filename.includes('/common/guards/');

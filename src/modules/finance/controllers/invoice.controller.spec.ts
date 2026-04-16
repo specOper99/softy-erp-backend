@@ -25,6 +25,7 @@ describe('InvoiceController', () => {
         {
           provide: InvoiceService,
           useValue: {
+            findByBookingId: jest.fn(),
             createInvoice: jest.fn(),
             getInvoicePdf: jest.fn(),
           },
@@ -56,6 +57,17 @@ describe('InvoiceController', () => {
       const result = await controller.generate('booking-123');
 
       expect(invoiceService.createInvoice).toHaveBeenCalledWith('booking-123');
+      expect(result).toEqual(mockInvoice);
+    });
+  });
+
+  describe('getByBookingId', () => {
+    it('should look up invoice by booking id', async () => {
+      invoiceService.findByBookingId.mockResolvedValue(mockInvoice as unknown as Invoice);
+
+      const result = await controller.getByBookingId('booking-123');
+
+      expect(invoiceService.findByBookingId).toHaveBeenCalledWith('booking-123');
       expect(result).toEqual(mockInvoice);
     });
   });

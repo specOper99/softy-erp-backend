@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import Stripe from 'stripe';
 import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
@@ -8,15 +7,21 @@ import { BillingCustomer } from '../entities/billing-customer.entity';
 import { BillingWebhookEvent } from '../entities/billing-webhook-event.entity';
 import { PaymentMethod } from '../entities/payment-method.entity';
 import { BillingInterval, Subscription, SubscriptionStatus } from '../entities/subscription.entity';
-import { StripeService } from './stripe.service';
+import {
+  type StripeEvent,
+  type StripeInvoice,
+  type StripeSubscription,
+  type StripeSubscriptionCreateParams,
+  StripeService,
+} from './stripe.service';
 
-interface StripeSubscriptionWithPeriod extends Stripe.Subscription {
+interface StripeSubscriptionWithPeriod extends StripeSubscription {
   current_period_start: number;
   current_period_end: number;
 }
 
-interface StripeInvoiceWithExpandedSubscription extends Stripe.Invoice {
-  subscription: string | Stripe.Subscription | null;
+interface StripeInvoiceWithExpandedSubscription extends StripeInvoice {
+  subscription: string | StripeSubscription | null;
 }
 
 @Injectable()
@@ -73,7 +78,7 @@ export class SubscriptionService {
       throw new BadRequestException('Tenant already has an active subscription');
     }
 
-    const params: Stripe.SubscriptionCreateParams = {
+    const params: StripeSubscriptionCreateParams = {
       customer: customer.stripeCustomerId,
       items: [{ price: priceId }],
       expand: ['latest_invoice.payment_intent'],
@@ -135,7 +140,7 @@ export class SubscriptionService {
     return this.subscriptionRepo.findOne({ where: { tenantId } });
   }
 
-  async handleWebhookEvent(event: Stripe.Event): Promise<void> {
+  async handleWebhookEvent(event: StripeEvent): Promise<void> {
     const firstSeen = await this.markWebhookEventProcessed('stripe', event.id);
     if (!firstSeen) {
       this.logger.warn(`Skipping duplicate webhook event: ${event.id}`);
@@ -147,19 +152,19 @@ export class SubscriptionService {
     switch (event.type) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
-        await this.syncSubscriptionFromStripe(event.data.object);
+        await this.syncSubscriptionFromStripe(event.data.object as StripeSubscription);
         break;
 
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionDeleted(event.data.object);
+        await this.handleSubscriptionDeleted(event.data.object as StripeSubscription);
         break;
 
       case 'invoice.payment_succeeded':
-        await this.handlePaymentSucceeded(event.data.object);
+        await this.handlePaymentSucceeded(event.data.object as StripeInvoice);
         break;
 
       case 'invoice.payment_failed':
-        await this.handlePaymentFailed(event.data.object);
+        await this.handlePaymentFailed(event.data.object as StripeInvoice);
         break;
 
       default:
@@ -167,7 +172,7 @@ export class SubscriptionService {
     }
   }
 
-  private async syncSubscriptionFromStripe(stripeSub: Stripe.Subscription): Promise<void> {
+  private async syncSubscriptionFromStripe(stripeSub: StripeSubscription): Promise<void> {
     const stripeCustomerId = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer?.id;
 
     if (!stripeCustomerId) {
@@ -220,7 +225,7 @@ export class SubscriptionService {
     await this.subscriptionRepo.save(subscription);
   }
 
-  private async handleSubscriptionDeleted(stripeSub: Stripe.Subscription): Promise<void> {
+  private async handleSubscriptionDeleted(stripeSub: StripeSubscription): Promise<void> {
     const subscription = await this.subscriptionRepo.findOne({
       where: { stripeSubscriptionId: stripeSub.id },
     });
@@ -235,7 +240,7 @@ export class SubscriptionService {
     });
   }
 
-  private async handlePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
+  private async handlePaymentSucceeded(invoice: StripeInvoice): Promise<void> {
     const subscription = await this.getSubscriptionFromInvoice(invoice);
     if (!subscription) return;
 
@@ -245,7 +250,7 @@ export class SubscriptionService {
     }
   }
 
-  private async handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+  private async handlePaymentFailed(invoice: StripeInvoice): Promise<void> {
     const subscription = await this.getSubscriptionFromInvoice(invoice);
     if (!subscription) return;
 
@@ -253,7 +258,7 @@ export class SubscriptionService {
     await this.subscriptionRepo.save(subscription);
   }
 
-  private async getSubscriptionFromInvoice(invoice: Stripe.Invoice): Promise<Subscription | null> {
+  private async getSubscriptionFromInvoice(invoice: StripeInvoice): Promise<Subscription | null> {
     const sub = (invoice as unknown as StripeInvoiceWithExpandedSubscription).subscription;
 
     if (!sub) return null;
@@ -270,8 +275,8 @@ export class SubscriptionService {
     await this.tenantRepo.update(tenantId, { subscriptionPlan: plan });
   }
 
-  private mapStripeStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
-    const mapping: Record<Stripe.Subscription.Status, SubscriptionStatus> = {
+  private mapStripeStatus(status: StripeSubscription['status']): SubscriptionStatus {
+    const mapping: Record<StripeSubscription['status'], SubscriptionStatus> = {
       trialing: SubscriptionStatus.TRIALING,
       active: SubscriptionStatus.ACTIVE,
       past_due: SubscriptionStatus.PAST_DUE,

@@ -25,7 +25,10 @@ export default registerAs('database', () => {
     type: 'postgres' as const,
     synchronize,
     autoLoadEntities: true,
+    manualInitialization: process.env.DB_MANUAL_INITIALIZATION === 'true',
     logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
+    retryAttempts: parseInt(process.env.DB_RETRY_ATTEMPTS || '10', 10),
+    retryDelay: parseInt(process.env.DB_RETRY_DELAY_MS || '3000', 10),
     extra: {
       max: parseInt(process.env.DB_POOL_SIZE || defaultPoolSize.toString(), 10),
       connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000', 10),

@@ -1,5 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { AvailabilityCacheOwnerService } from '../../../src/common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 import { AvailabilityService } from '../../../src/modules/client-portal/services/availability.service';
@@ -78,14 +78,14 @@ describe('AvailabilityService Integration Tests', () => {
   });
 
   it('keeps availability tenant-scoped and cache keys separated by tenant', async () => {
-    const tenant1 = uuidv4();
-    const tenant2 = uuidv4();
+    const tenant1 = randomUUID();
+    const tenant2 = randomUUID();
 
     await tenantRepository.save([
       {
         id: tenant1,
         name: 'Availability Tenant One',
-        slug: `availability-tenant-one-${uuidv4().slice(0, 8)}`,
+        slug: `availability-tenant-one-${randomUUID().slice(0, 8)}`,
         minimumNoticePeriodHours: 0,
         maxAdvanceBookingDays: 36500,
         workingHours: [
@@ -101,7 +101,7 @@ describe('AvailabilityService Integration Tests', () => {
       {
         id: tenant2,
         name: 'Availability Tenant Two',
-        slug: `availability-tenant-two-${uuidv4().slice(0, 8)}`,
+        slug: `availability-tenant-two-${randomUUID().slice(0, 8)}`,
         minimumNoticePeriodHours: 0,
         maxAdvanceBookingDays: 36500,
         workingHours: [
@@ -206,12 +206,12 @@ describe('AvailabilityService Integration Tests', () => {
   });
 
   it('applies UTC day boundaries consistently for slot counting', async () => {
-    const tenantId = uuidv4();
+    const tenantId = randomUUID();
 
     await tenantRepository.save({
       id: tenantId,
       name: 'UTC Boundary Tenant',
-      slug: `utc-boundary-${uuidv4().slice(0, 8)}`,
+      slug: `utc-boundary-${randomUUID().slice(0, 8)}`,
       minimumNoticePeriodHours: 0,
       maxAdvanceBookingDays: 36500,
       workingHours: [
@@ -236,7 +236,7 @@ describe('AvailabilityService Integration Tests', () => {
 
     const client = await clientRepository.save({
       name: 'UTC Boundary Client',
-      email: `utc-boundary-${uuidv4()}@test.local`,
+      email: `utc-boundary-${randomUUID()}@test.local`,
       phone: '+1000000003',
       tenantId,
     });

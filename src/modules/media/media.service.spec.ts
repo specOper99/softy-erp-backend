@@ -104,8 +104,8 @@ describe('MediaService', () => {
         size: tooLarge,
       };
 
-      await expect(service.uploadFile(params as any)).rejects.toThrow(BadRequestException);
-      await expect(service.uploadFile(params as any)).rejects.toThrow('media.file_too_large');
+      await expect(service.uploadFile(params)).rejects.toThrow(BadRequestException);
+      await expect(service.uploadFile(params)).rejects.toThrow('media.file_too_large');
       expect(storageService.uploadFile).not.toHaveBeenCalled();
     });
 

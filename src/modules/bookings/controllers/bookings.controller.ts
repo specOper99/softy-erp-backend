@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TasksService } from '../../tasks/services/tasks.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
+import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
 import {
   BookingAvailabilityQueryDto,
   BookingAvailabilityResponseDto,
@@ -184,8 +185,8 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Booking not found' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingsService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DeleteWithReasonDto) {
+    return this.bookingsService.remove(id, dto.reason);
   }
 
   @Patch(':id/confirm')

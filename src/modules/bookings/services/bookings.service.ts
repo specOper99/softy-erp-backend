@@ -530,8 +530,9 @@ export class BookingsService {
     return savedBooking;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, reason?: string): Promise<void> {
     const booking = await this.findOne(id);
+    void reason; // reserved for audit logging
 
     // SRS rule: block deletion only when tasks have started (IN_PROGRESS or COMPLETED)
     if (booking.status === BookingStatus.COMPLETED || booking.status === BookingStatus.CANCELLED) {

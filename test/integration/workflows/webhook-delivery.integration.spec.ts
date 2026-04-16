@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { WebhookRepository } from '../../../src/modules/webhooks/repositories/webhook.repository';
 
 import { WEBHOOK_QUEUE } from '../../../src/modules/webhooks/webhooks.types';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { EncryptionService } from '../../../src/common/services/encryption.service';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 
@@ -110,7 +110,7 @@ describe('Webhook Delivery Integration', () => {
   let _encryptionService: EncryptionService;
   let httpsRequestSpy: jest.SpiedFunction<typeof https.request>;
   let httpsRequestOutcomes: HttpsMockOutcome[];
-  const tenantId = uuidv4();
+  const tenantId = randomUUID();
 
   beforeAll(async () => {
     const dbConfig = globalThis.__DB_CONFIG__!;

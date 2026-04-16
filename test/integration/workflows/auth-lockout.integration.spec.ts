@@ -4,7 +4,7 @@ import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 import { CursorAuthService } from '../../../src/common/services/cursor-auth.service';
 import { PasswordHashService } from '../../../src/common/services/password-hash.service';
@@ -232,9 +232,9 @@ describe('Auth Lockout Integration', () => {
 
   it('should lock out user after max failed attempts and expire lock', async () => {
     const registerDto: RegisterDto = {
-      email: `test-${uuidv4()}@example.com`,
+      email: `test-${randomUUID()}@example.com`,
       password: 'Password123!',
-      companyName: `Test Co ${uuidv4()}`,
+      companyName: `Test Co ${randomUUID()}`,
     };
 
     const registerResult = await authService.register(registerDto);

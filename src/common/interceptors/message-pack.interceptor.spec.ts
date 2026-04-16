@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, InternalServerErrorException, StreamableFile } from '@nestjs/common';
+import { CallHandler, ExecutionContext, InternalServerErrorException, Logger, StreamableFile } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { of } from 'rxjs';
 import { MessagePackInterceptor } from './message-pack.interceptor';
@@ -134,8 +134,8 @@ describe('MessagePackInterceptor', () => {
         handle: () => of({ data: 'test' }),
       };
 
-      const loggerErrorSpy = jest.spyOn((interceptor as any).logger, 'error');
-      (interceptor as any).packr.pack = jest.fn(() => {
+      const loggerErrorSpy = jest.spyOn((interceptor as unknown as { logger: Logger }).logger, 'error');
+      (interceptor as unknown as { packr: { pack: (data: unknown) => Buffer } }).packr.pack = jest.fn(() => {
         throw new Error('pack failed');
       });
 

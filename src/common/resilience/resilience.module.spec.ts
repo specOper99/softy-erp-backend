@@ -23,10 +23,16 @@ describe('ResilienceModule', () => {
         imports: [ResilienceModule.forRoot([{ name: 'default_breaker' }])],
       }).compile();
 
-      const breaker = module.get<any>('CIRCUIT_BREAKER_DEFAULT_BREAKER');
-      // Accessing private options via any
-      expect(breaker.options.errorThresholdPercentage).toBe(50);
-      expect(breaker.options.resetTimeout).toBe(30000);
+      const breaker = module.get<CircuitBreaker>('CIRCUIT_BREAKER_DEFAULT_BREAKER');
+      // Accessing runtime-only options
+      expect(
+        (breaker as unknown as { options: { errorThresholdPercentage: number; resetTimeout: number } }).options
+          .errorThresholdPercentage,
+      ).toBe(50);
+      expect(
+        (breaker as unknown as { options: { errorThresholdPercentage: number; resetTimeout: number } }).options
+          .resetTimeout,
+      ).toBe(30000);
     });
 
     it('should handle circuit breaker firing', async () => {

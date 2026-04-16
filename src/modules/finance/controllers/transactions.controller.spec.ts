@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createMockTransaction } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CreateTransactionDto, TransactionFilterDto } from '../dto';
+import { TransactionCursorQueryDto } from '../dto/finance.dto';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from '../services/finance.service';
 import { FinancialReportService } from '../services/financial-report.service';
@@ -26,6 +27,7 @@ describe('TransactionsController', () => {
           provide: FinanceService,
           useValue: {
             findAllTransactions: jest.fn().mockResolvedValue([mockTransaction]),
+            findAllTransactionsCursor: jest.fn().mockResolvedValue({ data: [mockTransaction], nextCursor: null }),
             findTransactionById: jest.fn().mockResolvedValue(mockTransaction),
             createTransaction: jest.fn().mockResolvedValue(mockTransaction),
             getTransactionSummary: jest.fn().mockResolvedValue({ totalIncome: 1000 }),
@@ -64,6 +66,14 @@ describe('TransactionsController', () => {
       const filter = new TransactionFilterDto();
       await controller.findAll(filter);
       expect(service.findAllTransactions).toHaveBeenCalledWith(filter);
+    });
+  });
+
+  describe('findAllCursor', () => {
+    it('should call service.findAllTransactionsCursor', async () => {
+      const query: TransactionCursorQueryDto = { cursor: 'cursor-1', limit: 10, bookingId: 'booking-uuid-123' };
+      await controller.findAllCursor(query);
+      expect(service.findAllTransactionsCursor).toHaveBeenCalledWith(query);
     });
   });
 

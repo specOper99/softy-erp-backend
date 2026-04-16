@@ -62,7 +62,7 @@ describe('ProfileRepository', () => {
   describe('softRemove', () => {
     it('should soft remove entity with matching tenant', async () => {
       const entity = { tenantId: 'tenant-1' } as Profile;
-      (mockTypeOrmRepository.softRemove as jest.Mock).mockResolvedValue(entity as any);
+      (mockTypeOrmRepository.softRemove as jest.Mock).mockResolvedValue(entity);
 
       await repository.softRemove(entity);
 
@@ -95,7 +95,7 @@ describe('ProfileRepository', () => {
       // If the code uses `instanceof Profile`, we must provide a Profile instance.
       Object.setPrototypeOf(entity, Profile.prototype);
 
-      (mockTypeOrmRepository.remove as jest.Mock).mockResolvedValue(entity as any);
+      (mockTypeOrmRepository.remove as jest.Mock).mockResolvedValue(entity);
 
       await repository.remove(entity);
 

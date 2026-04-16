@@ -1,10 +1,24 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
+import { CreateReviewDto } from '../dto/create-review.dto';
 import { UpdateReviewStatusDto } from '../dto/update-review-status.dto';
 import { Review } from '../entities/review.entity';
 import { ReviewStatus } from '../enums/review-status.enum';
@@ -43,5 +57,22 @@ export class ReviewsController {
   @Roles(Role.ADMIN)
   async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateReviewStatusDto): Promise<Review> {
     return this.reviewsService.updateStatus(id, dto);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create a review (Admin only)' })
+  @Roles(Role.ADMIN)
+  async create(
+    @Body() body: CreateReviewDto & { clientId: string; bookingId: string; packageId: string },
+  ): Promise<Review> {
+    return this.reviewsService.create(body.clientId, body.bookingId, body.packageId, body);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a review (Admin only)' })
+  @Roles(Role.ADMIN)
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.reviewsService.remove(id);
   }
 }

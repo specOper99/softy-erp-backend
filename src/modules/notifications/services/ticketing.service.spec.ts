@@ -11,7 +11,7 @@ describe('TicketingService', () => {
   let service: TicketingService;
 
   const mockConfigService = {
-    get: jest.fn((key: string, defaultValue?: any) => {
+    get: jest.fn((key: string, defaultValue?: unknown) => {
       if (key === 'TICKETING_WEBHOOK_URL') return 'https://example.com/webhook';
       if (key === 'TICKETING_WEBHOOK_TIMEOUT_MS') return 1000;
       return defaultValue;
