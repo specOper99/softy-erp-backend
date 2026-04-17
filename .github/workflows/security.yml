@@ -14,9 +14,9 @@ permissions:
 jobs:
   trufflehog:
     name: Secret Scanning
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
       
@@ -47,15 +47,15 @@ jobs:
 
   trivy:
     name: Container Vulnerabilities
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, docker]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
       
       - name: Build Docker Image
         run: docker build -t app:${{ github.sha }} .
         
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: 'app:${{ github.sha }}'
           format: 'table'
@@ -65,28 +65,38 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
   checkov:
-    name: IaC Security
-    runs-on: ubuntu-latest
+    name: IaC Security (${{ matrix.framework }})
+    runs-on: [self-hosted, linux, x64, docker]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - framework: dockerfile
+            skip_check: CKV_DOCKER_2
+          - framework: helm
+            skip_check: ""
+          - framework: kubernetes
+            skip_check: ""
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
       
       - name: Checkov GitHub Action
         uses: bridgecrewio/checkov-action@v12.1347.0
         with:
           directory: .
-          framework: dockerfile,helm,kubernetes
+          framework: ${{ matrix.framework }}
           quiet: true
           soft_fail: false # Fail build on violations
-          skip_check: CKV_DOCKER_2 # Distroless images don't support HEALTHCHECK - using K8s probes instead
+          skip_check: ${{ matrix.skip_check }}
 
   npm-audit:
     name: Dependency Audit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-node@v6.3.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: package-lock.json
       

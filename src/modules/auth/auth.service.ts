@@ -21,6 +21,9 @@ import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
 import { RequestContext, TokenPayload, TokenService } from './services/token.service';
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const REMEMBER_ME_TOKEN_LIFETIME_MARGIN_MS = 12 * 60 * 60 * 1000;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -237,6 +240,13 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
+      const user = storedToken.user;
+      if (!user?.isActive) {
+        throw new UnauthorizedException('User not found or inactive');
+      }
+
+      const rememberMe = this.isRememberMeRefreshToken(storedToken);
+
       if (!storedToken.isValid()) {
         if (storedToken.isRevoked) {
           const now = Date.now();
@@ -255,36 +265,27 @@ export class AuthService {
             now - lastUsedAtMs <= recentRevocationGraceMs &&
             userAgentMatches &&
             ipMatches;
-
-          if (!isLikelyConcurrentRefresh) {
-            this.logger.warn({
-              message: 'Possible token reuse detected',
-              userId: storedToken.userId,
-              tokenId: storedToken.id,
-              ipAddress: context?.ipAddress,
-              userAgent: context?.userAgent,
-            });
-            await manager.update(RefreshToken, { userId: storedToken.userId, isRevoked: false }, { isRevoked: true });
+          if (isLikelyConcurrentRefresh) {
+            return this.generateSessionTokens(user, context, rememberMe);
           }
+
+          this.logger.warn({
+            message: 'Possible token reuse detected',
+            userId: storedToken.userId,
+            tokenId: storedToken.id,
+            ipAddress: context?.ipAddress,
+            userAgent: context?.userAgent,
+          });
+          await manager.update(RefreshToken, { userId: storedToken.userId, isRevoked: false }, { isRevoked: true });
         }
         throw new UnauthorizedException('Refresh token expired or revoked');
-      }
-
-      const user = storedToken.user;
-      if (!user?.isActive) {
-        throw new UnauthorizedException('User not found or inactive');
       }
 
       storedToken.isRevoked = true;
       storedToken.lastUsedAt = new Date();
       await manager.save(storedToken);
 
-      return this.tokenService.generateTokens(user, context, false, (userId, userAgent, ipAddress, userEmail) => {
-        this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail).catch((error) => {
-          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-          this.logger.error(`New device check failed: ${message}`);
-        });
-      });
+      return this.generateSessionTokens(user, context, rememberMe);
     });
   }
 
@@ -385,22 +386,31 @@ export class AuthService {
     await this.sendVerificationEmail(user);
   }
 
+  private isRememberMeRefreshToken(storedToken: RefreshToken): boolean {
+    if (!(storedToken.createdAt instanceof Date) || !(storedToken.expiresAt instanceof Date)) {
+      return false;
+    }
+
+    const standardLifetimeMs = this.tokenService.refreshTokenExpiresIn * ONE_DAY_MS;
+    const tokenLifetimeMs = storedToken.expiresAt.getTime() - storedToken.createdAt.getTime();
+    return tokenLifetimeMs > standardLifetimeMs + REMEMBER_ME_TOKEN_LIFETIME_MARGIN_MS;
+  }
+
+  private async generateSessionTokens(user: User, context?: RequestContext, rememberMe?: boolean): Promise<TokensDto> {
+    return this.tokenService.generateTokens(user, context, rememberMe, (userId, userAgent, ipAddress, userEmail) => {
+      this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail).catch((error) => {
+        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+        this.logger.error(`New device check failed: ${message}`);
+      });
+    });
+  }
+
   private async generateAuthResponse(
     user: User,
     context?: RequestContext,
     rememberMe?: boolean,
   ): Promise<AuthResponseDto> {
-    const tokens = await this.tokenService.generateTokens(
-      user,
-      context,
-      rememberMe,
-      (userId, userAgent, ipAddress, userEmail) => {
-        this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail).catch((error) => {
-          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-          this.logger.error(`New device check failed: ${message}`);
-        });
-      },
-    );
+    const tokens = await this.generateSessionTokens(user, context, rememberMe);
 
     return {
       ...tokens,

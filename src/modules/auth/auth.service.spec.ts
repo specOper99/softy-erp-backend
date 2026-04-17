@@ -81,6 +81,8 @@ describe('AuthService - Comprehensive Tests', () => {
       refreshToken: 'mock-refresh-token',
       expiresIn: 900,
     }),
+    accessTokenExpiresIn: 900,
+    refreshTokenExpiresIn: 7,
     hashToken: jest.fn().mockReturnValue('mock-token-hash'),
     revokeToken: jest.fn().mockResolvedValue(undefined),
     revokeAllUserTokens: jest.fn().mockResolvedValue(3),
@@ -374,6 +376,7 @@ describe('AuthService - Comprehensive Tests', () => {
         'accessToken',
         'mock-jwt-token',
       );
+      expect(mockTokenService.generateTokens).toHaveBeenCalled();
 
       // Wait for promise resolution (catch block)
       await new Promise(process.nextTick);
@@ -521,22 +524,26 @@ describe('AuthService - Comprehensive Tests', () => {
   });
 
   describe('refreshTokens', () => {
-    it('should not revoke all sessions on likely concurrent refresh (revoked token used immediately)', async () => {
+    it('should issue new tokens on likely concurrent refresh without revoking all sessions', async () => {
       const now = Date.now();
+      const createdAt = new Date(now - 60 * 60 * 1000);
+      const expiresAt = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
       mockTransactionManager.findOne.mockResolvedValue({
         id: 'rt-1',
         userId: mockUser.id,
         isRevoked: true,
         lastUsedAt: new Date(now - 1_000),
+        createdAt,
+        expiresAt,
         ipAddress: '1.2.3.4',
         userAgent: 'ua',
         user: mockUser,
         isValid: () => false,
       });
-
-      await expect(service.refreshTokens('refresh', { ipAddress: '1.2.3.4', userAgent: 'ua' })).rejects.toThrow(
-        UnauthorizedException,
+      await expect(service.refreshTokens('refresh', { ipAddress: '1.2.3.4', userAgent: 'ua' })).resolves.toEqual(
+        expect.objectContaining({ accessToken: 'mock-jwt-token' }),
       );
+      expect(mockTokenService.generateTokens).toHaveBeenCalled();
 
       expect(mockTransactionManager.update).not.toHaveBeenCalledWith(
         RefreshToken,
@@ -546,11 +553,15 @@ describe('AuthService - Comprehensive Tests', () => {
     });
 
     it('should revoke all sessions on suspected token reuse (revoked token used later)', async () => {
+      const createdAt = new Date(Date.now() - 60 * 60 * 1000);
+      const expiresAt = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
       mockTransactionManager.findOne.mockResolvedValue({
         id: 'rt-1',
         userId: mockUser.id,
         isRevoked: true,
         lastUsedAt: new Date(Date.now() - 60_000),
+        createdAt,
+        expiresAt,
         ipAddress: '1.2.3.4',
         userAgent: 'ua',
         user: mockUser,
@@ -566,6 +577,28 @@ describe('AuthService - Comprehensive Tests', () => {
         { userId: mockUser.id, isRevoked: false },
         { isRevoked: true },
       );
+    });
+
+    it('should preserve remember-me lifetime when rotating a long-lived refresh token', async () => {
+      const createdAt = new Date(Date.now() - 60 * 60 * 1000);
+      const expiresAt = new Date(createdAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      mockTransactionManager.findOne.mockResolvedValue({
+        id: 'rt-remember',
+        userId: mockUser.id,
+        isRevoked: false,
+        lastUsedAt: null,
+        createdAt,
+        expiresAt,
+        ipAddress: '1.2.3.4',
+        userAgent: 'ua',
+        user: mockUser,
+        isValid: () => true,
+      });
+
+      await service.refreshTokens('refresh', { ipAddress: '1.2.3.4', userAgent: 'ua' });
+
+      expect((mockTokenService.generateTokens as jest.Mock).mock.calls[0]?.[2]).toBe(true);
     });
   });
 

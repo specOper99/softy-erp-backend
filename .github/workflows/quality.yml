@@ -6,16 +6,23 @@ on:
 
 permissions:
   contents: read
+  checks: write
 
 jobs:
   mutation-test:
     name: Stryker Mutation Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
+    env:
+      NODE_ENV: test
+      VAULT_ENABLED: 'false'
+      JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+      PLATFORM_JWT_SECRET: test-platform-jwt-secret-minimum-32-chars-here
+      DISABLE_RATE_LIMITING: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-node@v6.3.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: package-lock.json
       
@@ -27,7 +34,7 @@ jobs:
         continue-on-error: true # Don't fail the workflow yet, just report
         
       - name: Upload Mutation Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: mutation-report
@@ -36,12 +43,12 @@ jobs:
           
   duplication-check:
     name: Code Duplication Check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-node@v6.3.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -54,12 +61,18 @@ jobs:
 
   flaky-test-analysis:
     name: Flaky Test Report
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
+    env:
+      NODE_ENV: test
+      VAULT_ENABLED: 'false'
+      JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+      PLATFORM_JWT_SECRET: test-platform-jwt-secret-minimum-32-chars-here
+      DISABLE_RATE_LIMITING: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-node@v6.3.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: package-lock.json
           
@@ -76,9 +89,10 @@ jobs:
           JEST_JUNIT_OUTPUT_NAME: jest-junit.xml
           
       - name: Publish Test Report
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3.0.0
         if: success() || failure()
         with:
           name: Test Results
           path: reports/jest-junit.xml
           reporter: jest-junit
+          fail-on-empty: false

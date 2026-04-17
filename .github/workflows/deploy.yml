@@ -15,9 +15,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  preflight:
+    name: Deploy Preflight
+    runs-on: [self-hosted, linux, x64]
+    environment: production
+    outputs:
+      deploy_ready: ${{ steps.preflight.outputs.deploy_ready }}
+    steps:
+      - name: Evaluate deploy configuration
+        id: preflight
+        shell: bash
+        env:
+          BACKEND_DEPLOY_ENABLED: ${{ vars.BACKEND_DEPLOY_ENABLED }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || secrets.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          missing=()
+
+          if [ "${BACKEND_DEPLOY_ENABLED}" != "true" ]; then
+            echo "deploy_ready=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Backend deploy skipped"
+              echo ""
+              echo "Set \`BACKEND_DEPLOY_ENABLED\` to \`true\` to enable deployment from this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          [ -n "${DEPLOY_HOST}" ] || missing+=("DEPLOY_HOST")
+          [ -n "${DEPLOY_USER}" ] || missing+=("DEPLOY_USER")
+          [ -n "${DEPLOY_PATH}" ] || missing+=("DEPLOY_PATH")
+          [ -n "${DEPLOY_SSH_KEY}" ] || missing+=("DEPLOY_SSH_KEY")
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "deploy_ready=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Backend deploy skipped"
+              echo ""
+              echo "Missing required deploy configuration: ${missing[*]}."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "deploy_ready=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Backend deploy enabled"
+            echo ""
+            echo "Deploy configuration is present. Continuing with deploy job."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deploy Backend to Self-Hosted Server
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
+    needs: preflight
+    if: needs.preflight.outputs.deploy_ready == 'true'
     environment: production
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
@@ -28,21 +82,14 @@ jobs:
       HEALTHCHECK_URL: ${{ vars.BACKEND_HEALTHCHECK_URL }}
       NODE_ENV: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.3.0
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: package-lock.json
-
-      - name: Validate deploy configuration
-        shell: bash
-        run: |
-          test -n "${DEPLOY_HOST}" || (echo "DEPLOY_HOST is required." && exit 1)
-          test -n "${DEPLOY_USER}" || (echo "DEPLOY_USER is required." && exit 1)
-          test -n "${DEPLOY_PATH}" || (echo "DEPLOY_PATH is required." && exit 1)
 
       - name: Validate deployable build
         run: |

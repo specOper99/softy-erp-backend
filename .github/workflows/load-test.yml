@@ -13,10 +13,10 @@ on:
 
 jobs:
   load-test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'performance')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
       - name: Resolve BASE_URL
         run: |
