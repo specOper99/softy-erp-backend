@@ -1,6 +1,5 @@
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { mockTenantContext } from '../../../test/helpers/mock-factories';
 import { AvailabilityCacheOwnerService } from '../../common/cache/availability-cache-owner.service';
@@ -14,8 +13,8 @@ import { Task } from '../tasks/entities/task.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { BookingFilterDto } from './dto';
-import { ProcessingType } from './entities/processing-type.entity';
 import { BookingRepository } from './repositories/booking.repository';
+import { ProcessingTypeRepository } from './repositories/processing-type.repository';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingsService } from './services/bookings.service';
 import { StaffConflictService } from './services/staff-conflict.service';
@@ -51,7 +50,7 @@ describe('Bookings Security Test', () => {
           },
         },
         {
-          provide: getRepositoryToken(ProcessingType),
+          provide: ProcessingTypeRepository,
           useValue: {
             find: jest.fn().mockResolvedValue([]),
           },

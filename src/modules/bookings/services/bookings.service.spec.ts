@@ -2,7 +2,6 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
   createMockAuditService,
@@ -32,6 +31,7 @@ import { BookingPriceChangedEvent } from '../events/booking-price-changed.event'
 import { BookingUpdatedEvent } from '../events/booking-updated.event';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingRepository } from '../repositories/booking.repository';
+import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { BookingsService } from './bookings.service';
 import { StaffConflictService } from './staff-conflict.service';
 
@@ -151,7 +151,7 @@ describe('BookingsService', () => {
           },
         },
         {
-          provide: getRepositoryToken(ProcessingType),
+          provide: ProcessingTypeRepository,
           useValue: processingTypeRepository,
         },
       ],
