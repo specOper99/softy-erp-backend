@@ -1,4 +1,5 @@
 import { registerAs } from '@nestjs/config';
+import { join } from 'path';
 
 const parseReplicaHosts = (hostsStr: string | undefined): string[] => {
   if (!hostsStr) return [];
@@ -27,6 +28,9 @@ export default registerAs('database', () => {
     autoLoadEntities: true,
     manualInitialization: process.env.DB_MANUAL_INITIALIZATION === 'true',
     logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
+    migrations: [join(__dirname, '..', 'database', 'migrations', '*.js')],
+    migrationsTableName: 'migrations',
+    migrationsRun: process.env.DB_MIGRATIONS_RUN !== 'false',
     retryAttempts: parseInt(process.env.DB_RETRY_ATTEMPTS || '10', 10),
     retryDelay: parseInt(process.env.DB_RETRY_DELAY_MS || '3000', 10),
     extra: {
