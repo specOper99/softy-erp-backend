@@ -135,6 +135,7 @@
     "stripe": "^22.0.1",
     "typeorm": "^0.3.28",
     "unleash-client": "^6.10.1",
+    "uuid": "^9.0.0",
     "winston": "^3.19.0",
     "winston-loki": "^6.1.4"
   },
