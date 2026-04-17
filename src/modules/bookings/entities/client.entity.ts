@@ -21,7 +21,7 @@ export class Client extends BaseTenantEntity {
   @PII()
   phone: string;
 
-  @Column({ name: 'phone2', nullable: true })
+  @Column({ name: 'phone2', type: 'varchar', nullable: true })
   @PII()
   phone2: string | null;
 
