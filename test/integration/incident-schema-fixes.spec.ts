@@ -1,6 +1,6 @@
 import type { QueryRunner } from 'typeorm';
-import { AlignTenantScopedPreferences1771500000001 } from './1771500000001-AlignTenantScopedPreferences';
-import { CreateDailyMetricsTable1771500000000 } from './1771500000000-CreateDailyMetricsTable';
+import { CreateDailyMetricsTable1771500000000 } from '../../src/database/migrations/1771500000000-CreateDailyMetricsTable';
+import { AlignTenantScopedPreferences1771500000001 } from '../../src/database/migrations/1771500000001-AlignTenantScopedPreferences';
 
 describe('incident schema fix migrations', () => {
   it('creates daily_metrics with the expected unique tenant/date index', async () => {

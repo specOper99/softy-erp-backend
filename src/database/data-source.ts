@@ -116,7 +116,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Webhook,
     Review,
   ],
-  migrations: ['src/database/migrations/*.{ts,js}'],
+  migrations: ['src/database/migrations/[0-9]*.{ts,js}'],
   migrationsTableName: 'migrations',
   logging: process.env.DB_LOGGING === 'true',
 
