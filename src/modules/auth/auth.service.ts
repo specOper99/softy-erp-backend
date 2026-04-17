@@ -232,7 +232,6 @@ export class AuthService {
     return this.dataSource.transaction(async (manager) => {
       const storedToken = await manager.findOne(RefreshToken, {
         where: { tokenHash },
-        relations: ['user'],
         lock: { mode: 'pessimistic_write' },
       });
 
@@ -240,7 +239,11 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      const user = storedToken.user;
+      const user =
+        storedToken.user ||
+        (await manager.findOne(User, {
+          where: { id: storedToken.userId },
+        }));
       if (!user?.isActive) {
         throw new UnauthorizedException('User not found or inactive');
       }
