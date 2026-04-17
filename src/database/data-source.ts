@@ -7,11 +7,14 @@ import { AuditLog } from '../modules/audit/entities/audit-log.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { Booking } from '../modules/bookings/entities/booking.entity';
 import { Client } from '../modules/bookings/entities/client.entity';
+import { ProcessingType } from '../modules/bookings/entities/processing-type.entity';
+import { TaskType } from '../modules/catalog/entities/task-type.entity';
 import { PackageItem } from '../modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
-import { TaskType } from '../modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
 import { Invoice } from '../modules/finance/entities/invoice.entity';
+import { PurchaseInvoice } from '../modules/finance/entities/purchase-invoice.entity';
+import { Vendor } from '../modules/finance/entities/vendor.entity';
 import { Payout } from '../modules/finance/entities/payout.entity';
 import { RecurringTransaction } from '../modules/finance/entities/recurring-transaction.entity';
 import { TransactionCategory } from '../modules/finance/entities/transaction-category.entity';
@@ -20,6 +23,7 @@ import { PayrollRun } from '../modules/hr/entities/payroll-run.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
 import { EmailTemplate } from '../modules/mail/entities/email-template.entity';
 import { Attachment } from '../modules/media/entities/attachment.entity';
+import { Notification } from '../modules/notifications/entities/notification.entity';
 import { NotificationPreference } from '../modules/notifications/entities/notification-preference.entity';
 import { Consent } from '../modules/privacy/entities/consent.entity';
 import { Task } from '../modules/tasks/entities/task.entity';
@@ -33,6 +37,7 @@ import { DailyMetrics } from '../modules/analytics/entities/daily-metrics.entity
 import { EmailVerificationToken } from '../modules/auth/entities/email-verification-token.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { BillingCustomer } from '../modules/billing/entities/billing-customer.entity';
+import { BillingWebhookEvent } from '../modules/billing/entities/billing-webhook-event.entity';
 import { PaymentMethod } from '../modules/billing/entities/payment-method.entity';
 import { Subscription as BillingSubscription } from '../modules/billing/entities/subscription.entity';
 import { UsageRecord } from '../modules/billing/entities/usage-record.entity';
@@ -44,12 +49,14 @@ import { TaskTypeEligibility } from '../modules/hr/entities/task-type-eligibilit
 import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
 import { ImpersonationSession } from '../modules/platform/entities/impersonation-session.entity';
 import { PlatformSession } from '../modules/platform/entities/platform-session.entity';
+import { TenantLifecycleEvent } from '../modules/platform/entities/tenant-lifecycle-event.entity';
 import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
 import { PrivacyRequest } from '../modules/privacy/entities/privacy-request.entity';
 import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
 import { WebhookDelivery } from '../modules/webhooks/entities/webhook-delivery.entity';
 import { Webhook } from '../modules/webhooks/entities/webhook.entity';
+import { Review } from '../modules/reviews/entities/review.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -64,6 +71,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TaskType,
     Booking,
     Client,
+    ProcessingType,
     Task,
     TaskAssignee,
     TimeEntry,
@@ -77,13 +85,17 @@ export const dataSourceOptions: DataSourceOptions = {
     RefreshToken,
     Attachment,
     Invoice,
+    PurchaseInvoice,
+    Vendor,
     EmailTemplate,
+    Notification,
     NotificationPreference,
     Consent,
     DailyMetrics,
     EmailVerificationToken,
     PasswordResetToken,
     BillingCustomer,
+    BillingWebhookEvent,
     PaymentMethod,
     BillingSubscription,
     UsageRecord,
@@ -96,11 +108,13 @@ export const dataSourceOptions: DataSourceOptions = {
     PlatformSession,
     PlatformAuditLog,
     ImpersonationSession,
+    TenantLifecycleEvent,
     PrivacyRequest,
     TaskTemplate,
     TenantSubscription,
     WebhookDelivery,
     Webhook,
+    Review,
   ],
   migrations: ['src/database/migrations/*.{ts,js}'],
   migrationsTableName: 'migrations',
