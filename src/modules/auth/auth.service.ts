@@ -251,20 +251,12 @@ export class AuthService {
         if (storedToken.isRevoked) {
           const now = Date.now();
           const lastUsedAtMs = storedToken.lastUsedAt?.getTime();
-          const recentRevocationGraceMs = 5_000;
-
-          const contextUserAgent = context?.userAgent?.substring(0, 200);
-          const userAgentMatches =
-            !!contextUserAgent && !!storedToken.userAgent ? storedToken.userAgent === contextUserAgent : false;
-          const ipMatches =
-            !!context?.ipAddress && !!storedToken.ipAddress ? storedToken.ipAddress === context.ipAddress : false;
+          const recentRevocationGraceMs = 10_000;
 
           const isLikelyConcurrentRefresh =
             typeof lastUsedAtMs === 'number' &&
             now - lastUsedAtMs >= 0 &&
-            now - lastUsedAtMs <= recentRevocationGraceMs &&
-            userAgentMatches &&
-            ipMatches;
+            now - lastUsedAtMs <= recentRevocationGraceMs;
           if (isLikelyConcurrentRefresh) {
             return this.generateSessionTokens(user, context, rememberMe);
           }
