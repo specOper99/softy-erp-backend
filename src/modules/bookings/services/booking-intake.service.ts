@@ -1,27 +1,26 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { CatalogService } from '../../catalog/services/catalog.service';
-import { Client } from '../entities/client.entity';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
 import { BookingIntakeDto, BookingIntakeResponseDto } from '../dto/booking-intake.dto';
 import { Booking } from '../entities/booking.entity';
-import { ProcessingType } from '../entities/processing-type.entity';
+import { Client } from '../entities/client.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCreatedEvent } from '../events/booking-created.event';
 import { ClientCreatedEvent } from '../events/client.events';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingRepository } from '../repositories/booking.repository';
 import { ClientRepository } from '../repositories/client.repository';
-import { StaffConflictService } from './staff-conflict.service';
+import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
+import { StaffConflictService } from './staff-conflict.service';
 
 @Injectable()
 export class BookingIntakeService {
@@ -35,8 +34,7 @@ export class BookingIntakeService {
     private readonly financeService: FinanceService,
     private readonly staffConflictService: StaffConflictService,
     private readonly eventBus: EventBus,
-    @InjectRepository(ProcessingType)
-    private readonly processingTypeRepository: Repository<ProcessingType>,
+    private readonly processingTypeRepository: ProcessingTypeRepository,
   ) {}
 
   /**

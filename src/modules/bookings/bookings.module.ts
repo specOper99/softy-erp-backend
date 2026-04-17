@@ -29,6 +29,7 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { BookingCompletionHandler } from './handlers/booking-completion.handler';
 import { BookingRepository } from './repositories/booking.repository';
 import { ClientRepository } from './repositories/client.repository';
+import { ProcessingTypeRepository } from './repositories/processing-type.repository';
 import { BookingExportService } from './services/booking-export.service';
 import { BookingIntakeService } from './services/booking-intake.service';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
@@ -70,6 +71,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     ExportService,
     BookingRepository,
     ClientRepository,
+    ProcessingTypeRepository,
     UserRepository,
     TaskAssigneeRepository,
     TaskTypeEligibilityRepository,

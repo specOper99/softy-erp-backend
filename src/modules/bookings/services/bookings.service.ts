@@ -1,8 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Counter } from 'prom-client';
-import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 
 import { FlagsService } from '../../../common/flags/flags.service';
@@ -45,6 +44,7 @@ import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BookingRepository } from '../repositories/booking.repository';
+import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
 import { StaffConflictService } from './staff-conflict.service';
@@ -76,8 +76,7 @@ export class BookingsService {
     private readonly staffConflictService: StaffConflictService,
     private readonly flagsService: FlagsService,
     metricsFactory: MetricsFactory,
-    @InjectRepository(ProcessingType)
-    private readonly processingTypeRepository: Repository<ProcessingType>,
+    private readonly processingTypeRepository: ProcessingTypeRepository,
   ) {
     this.lifecycleStatusRejectedCounter = metricsFactory.getOrCreateCounter({
       name: 'booking_lifecycle_status_update_rejected_total',

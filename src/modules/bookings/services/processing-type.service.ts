@@ -1,16 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreateProcessingTypeDto, UpdateProcessingTypeDto } from '../dto/processing-type.dto';
 import { ProcessingType } from '../entities/processing-type.entity';
+import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 
 @Injectable()
 export class ProcessingTypeService {
-  constructor(
-    @InjectRepository(ProcessingType)
-    private readonly repository: Repository<ProcessingType>,
-  ) {}
+  constructor(private readonly repository: ProcessingTypeRepository) {}
 
   async findAll(): Promise<ProcessingType[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
