@@ -245,7 +245,7 @@ export class DashboardService {
       .andWhere('task.status = :status', { status: TaskStatus.COMPLETED })
       .andWhere('task.updatedAt BETWEEN :start AND :end', { start, end })
       .groupBy('staffName')
-      .orderBy('totalCommission', 'DESC')
+      .orderBy('SUM(task.commissionSnapshot)', 'DESC')
       .take(50)
       .getRawMany<{
         staffName: string;

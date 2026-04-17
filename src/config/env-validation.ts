@@ -346,16 +346,16 @@ export function validate(config: Record<string, unknown>) {
     }
   }
 
+  // DB_SYNCHRONIZE is forbidden in ALL environments — migrations are the only way to change schema.
+  if (validatedConfig.DB_SYNCHRONIZE === 'true') {
+    throw new Error('SECURITY: DB_SYNCHRONIZE=true is forbidden in all environments. Use migrations only.');
+  }
+
   // Enhanced security enforcement for production
   if (isProd) {
     // Never allow disabling global rate limiting in production.
     if (validatedConfig.DISABLE_RATE_LIMITING === 'true') {
       throw new Error('SECURITY: DISABLE_RATE_LIMITING is forbidden in production environments.');
-    }
-
-    // Never allow TypeORM schema synchronization in production.
-    if (validatedConfig.DB_SYNCHRONIZE === 'true') {
-      throw new Error('SECURITY: DB_SYNCHRONIZE=true is forbidden in production environments. Use migrations only.');
     }
 
     // JWT algorithm must be a single mode (HS256 OR RS256) to prevent alg confusion.

@@ -120,24 +120,17 @@ export const dataSourceOptions: DataSourceOptions = {
   migrationsTableName: 'migrations',
   logging: process.env.DB_LOGGING === 'true',
 
-  // CRITICAL SECURITY: Synchronize must NEVER be enabled in production
-  // This prevents accidental schema changes that could cause data loss
+  // CRITICAL SECURITY: synchronize is unconditionally disabled in all environments.
+  // Schema changes must only happen through TypeORM migrations.
   synchronize: (() => {
-    const syncEnabled = process.env.DB_SYNCHRONIZE === 'true';
-    const nodeEnv = process.env.NODE_ENV || 'development';
-
-    if (syncEnabled && nodeEnv === 'production') {
+    if (process.env.DB_SYNCHRONIZE === 'true') {
       throw new Error(
-        'CRITICAL SECURITY VIOLATION: Database synchronization ' +
-          '(DB_SYNCHRONIZE=true) is NOT allowed in production environments. ' +
-          'This setting can cause unintended schema changes and DATA LOSS. ' +
-          'Current configuration: DB_SYNCHRONIZE=true, NODE_ENV=production. ' +
-          'Please set DB_SYNCHRONIZE=false in your production environment variables.',
+        'CRITICAL SECURITY VIOLATION: DB_SYNCHRONIZE=true is forbidden in all environments. ' +
+          'Schema changes must go through migrations only. ' +
+          'Remove DB_SYNCHRONIZE from your environment variables.',
       );
     }
-
-    // Disable auto-synchronize in test environment to manually control it in global setup
-    return false; // Disabled after creating missing tables
+    return false;
   })(),
 };
 
