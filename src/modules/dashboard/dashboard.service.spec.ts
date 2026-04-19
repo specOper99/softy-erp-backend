@@ -36,6 +36,7 @@ describe('DashboardService', () => {
     innerJoin: jest.fn().mockReturnThis(),
     leftJoin: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
+    addGroupBy: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     setParameter: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),

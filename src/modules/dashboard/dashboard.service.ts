@@ -237,15 +237,16 @@ export class DashboardService {
     const stats = await this.taskRepository
       .createQueryBuilder('task')
       .innerJoin('task.assignedUser', 'user')
-      .select("CONCAT(profile.firstName, ' ', profile.lastName)", 'staffName')
+      .select("CONCAT(profile.first_name, ' ', profile.last_name)", 'staffName')
       .addSelect('COUNT(task.id)', 'completedTasks')
-      .addSelect('SUM(task.commissionSnapshot)', 'totalCommission')
-      .leftJoin(Profile, 'profile', 'profile.userId = user.id')
+      .addSelect('SUM(task.commission_snapshot)', 'totalCommission')
+      .leftJoin(Profile, 'profile', 'profile.user_id = user.id')
       // tenantId handled by repo
       .andWhere('task.status = :status', { status: TaskStatus.COMPLETED })
       .andWhere('task.updatedAt BETWEEN :start AND :end', { start, end })
-      .groupBy("CONCAT(profile.firstName, ' ', profile.lastName)")
-      .orderBy('SUM(task.commissionSnapshot)', 'DESC')
+      .groupBy('profile.first_name')
+      .addGroupBy('profile.last_name')
+      .orderBy('SUM(task.commission_snapshot)', 'DESC')
       .take(50)
       .getRawMany<{
         staffName: string;
