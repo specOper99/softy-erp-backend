@@ -244,7 +244,7 @@ export class DashboardService {
       // tenantId handled by repo
       .andWhere('task.status = :status', { status: TaskStatus.COMPLETED })
       .andWhere('task.updatedAt BETWEEN :start AND :end', { start, end })
-      .groupBy('staffName')
+      .groupBy("CONCAT(profile.firstName, ' ', profile.lastName)")
       .orderBy('SUM(task.commissionSnapshot)', 'DESC')
       .take(50)
       .getRawMany<{
@@ -272,7 +272,7 @@ export class DashboardService {
       // tenantId handled by repo
       .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
       .groupBy('pkg.name')
-      .orderBy('bookingCount', 'DESC')
+      .orderBy('COUNT(b.id)', 'DESC')
       .take(50)
       .getRawMany<{
         packageName: string;
@@ -340,7 +340,7 @@ export class DashboardService {
         .addSelect('SUM(CASE WHEN b.status = :draft THEN 1 ELSE 0 END)', 'pending')
         .addSelect('SUM(CASE WHEN b.status = :confirmed THEN 1 ELSE 0 END)', 'confirmed')
         .addSelect(
-          'SUM(CASE WHEN b.scheduledAt >= :today AND b.scheduledAt <= :endOfDay THEN 1 ELSE 0 END)',
+          'SUM(CASE WHEN b.event_date >= :today AND b.event_date <= :endOfDay THEN 1 ELSE 0 END)',
           'todayBookings',
         )
         .setParameter('draft', BookingStatus.DRAFT)
@@ -363,14 +363,7 @@ export class DashboardService {
         .getRawOne<{ total: string; pending: string; inProgress: string; todayTasks: string }>(),
 
       // Staff data
-      this.profileRepository
-        .createQueryBuilder('p')
-        .select('COUNT(p.id)', 'total')
-        .addSelect('SUM(CASE WHEN p.status = :active THEN 1 ELSE 0 END)', 'active')
-        .addSelect('SUM(CASE WHEN p.status = :onLeave THEN 1 ELSE 0 END)', 'onLeave')
-        .setParameter('active', 'active')
-        .setParameter('onLeave', 'on_leave')
-        .getRawOne<{ total: string; active: string; onLeave: string }>(),
+      this.profileRepository.createQueryBuilder('p').select('COUNT(p.id)', 'total').getRawOne<{ total: string }>(),
 
       // Revenue data
       this.transactionRepository
@@ -404,8 +397,8 @@ export class DashboardService {
 
       // Staff
       totalStaff: Number(staffData?.total) || 0,
-      activeStaff: Number(staffData?.active) || 0,
-      onLeaveStaff: Number(staffData?.onLeave) || 0,
+      activeStaff: 0,
+      onLeaveStaff: 0,
 
       // Revenue
       totalRevenue: MathUtils.parseFinancialAmount(revenueData?.total, 0),
