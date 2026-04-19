@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { I18nService } from '../../../common/i18n';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { MFAService } from '../services/mfa.service';
 import { PlatformAuthService } from '../services/platform-auth.service';
@@ -75,6 +76,19 @@ describe('MFAController', () => {
         {
           provide: getRepositoryToken(PlatformUser),
           useValue: userRepository,
+        },
+        {
+          provide: I18nService,
+          useValue: {
+            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
+            translate: jest.fn().mockImplementation((key: string) => {
+              const translations: Record<string, string> = {
+                'security.mfa_enabled': 'MFA enabled successfully',
+                'security.mfa_disabled': 'MFA disabled',
+              };
+              return translations[key] ?? key;
+            }),
+          },
         },
       ],
     }).compile();

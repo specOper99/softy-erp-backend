@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
+import { I18nService } from '../../common/i18n';
 import { User } from '../users/entities/user.entity';
 import { ConsentService } from './consent.service';
 import { GrantConsentDto } from './dto/consent.dto';
@@ -50,6 +51,19 @@ describe('PrivacyController', () => {
       providers: [
         { provide: PrivacyService, useValue: mockPrivacyService },
         { provide: ConsentService, useValue: mockConsentService },
+        {
+          provide: I18nService,
+          useValue: {
+            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
+            translate: jest.fn().mockImplementation((key: string) => {
+              const translations: Record<string, string> = {
+                'operations.data_export_processed': 'Data export processed successfully',
+                'operations.data_deletion_processed': 'Data deletion processed successfully',
+              };
+              return translations[key] ?? key;
+            }),
+          },
+        },
       ],
     }).compile();
 

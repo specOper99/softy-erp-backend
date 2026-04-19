@@ -1,6 +1,7 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
+import { I18nService } from '../../common/i18n';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
@@ -110,6 +111,18 @@ describe('ClientPortalController', () => {
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: ClientsService, useValue: mockClientsService },
         { provide: TenantsService, useValue: mockTenantsService },
+        {
+          provide: I18nService,
+          useValue: {
+            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
+            translate: jest.fn().mockImplementation((key: string) => {
+              const translations: Record<string, string> = {
+                'operations.logout_success': 'Logged out successfully',
+              };
+              return translations[key] ?? key;
+            }),
+          },
+        },
       ],
     }).compile();
 
@@ -138,7 +151,7 @@ describe('ClientPortalController', () => {
         tenantSlug: 'test-tenant',
       });
 
-      expect(clientAuthService.requestMagicLink).toHaveBeenCalledWith('acme', 'test@example.com');
+      expect(clientAuthService.requestMagicLink).toHaveBeenCalledWith('acme', 'test@example.com', undefined);
       expect(result).toEqual({ message: 'Magic link sent' });
     });
   });

@@ -6,6 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { createHash } from 'node:crypto';
 import { register } from 'prom-client';
 import { createMockMetricsFactory } from '../../../../test/helpers/mock-factories';
+import { I18nService } from '../../../common/i18n';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MailService } from '../../mail/mail.service';
@@ -101,6 +102,18 @@ describe('ClientAuthService', () => {
         {
           provide: TenantsService,
           useValue: mockTenantsService,
+        },
+        {
+          provide: I18nService,
+          useValue: {
+            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
+            translate: jest.fn().mockImplementation((key: string) => {
+              const translations: Record<string, string> = {
+                'auth.magic_link_sent': 'If an account exists, a magic link has been sent.',
+              };
+              return translations[key] ?? key;
+            }),
+          },
         },
       ],
     }).compile();
