@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { Request } from 'express';
+import { I18nService } from '../../common/i18n';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { AuthController } from './auth.controller';
@@ -50,6 +51,13 @@ describe('AuthController', () => {
             logoutAllSessions: jest.fn().mockResolvedValue(1),
             getActiveSessions: jest.fn().mockResolvedValue([]),
             validateUser: jest.fn().mockResolvedValue(mockUser),
+          },
+        },
+        {
+          provide: I18nService,
+          useValue: {
+            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
+            translate: jest.fn().mockImplementation((key: string) => key),
           },
         },
       ],

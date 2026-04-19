@@ -8,23 +8,25 @@ import { IpRateLimitGuard } from './ip-rate-limit.guard';
 describe('IpRateLimitGuard', () => {
   let guard: IpRateLimitGuard;
 
+  const defaultConfigGet = (key: string) => {
+    switch (key) {
+      case 'RATE_LIMIT_SOFT':
+        return 50;
+      case 'RATE_LIMIT_HARD':
+        return 100;
+      case 'RATE_LIMIT_WINDOW_SECONDS':
+        return 60;
+      case 'RATE_LIMIT_BLOCK_SECONDS':
+        return 900;
+      case 'RATE_LIMIT_DELAY_MS':
+        return 500;
+      default:
+        return null;
+    }
+  };
+
   const mockConfigService = {
-    get: jest.fn((key: string) => {
-      switch (key) {
-        case 'RATE_LIMIT_SOFT':
-          return 50;
-        case 'RATE_LIMIT_HARD':
-          return 100;
-        case 'RATE_LIMIT_WINDOW_SECONDS':
-          return 60;
-        case 'RATE_LIMIT_BLOCK_SECONDS':
-          return 900;
-        case 'RATE_LIMIT_DELAY_MS':
-          return 500;
-        default:
-          return null;
-      }
-    }) as unknown as jest.Mock<any, any>,
+    get: jest.fn(defaultConfigGet) as unknown as jest.Mock<any, any>,
   };
 
   const mockCacheService = {
@@ -45,6 +47,7 @@ describe('IpRateLimitGuard', () => {
     guard = module.get<IpRateLimitGuard>(IpRateLimitGuard);
     mockCacheService.get.mockClear();
     mockCacheService.set.mockClear();
+    mockConfigService.get.mockImplementation(defaultConfigGet);
   });
 
   it('should be defined', () => {

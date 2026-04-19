@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createMockArgumentsHost } from '../../../test/helpers/test-setup.utils';
+import { I18nService } from '../i18n';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 describe('AllExceptionsFilter', () => {
@@ -9,7 +10,21 @@ describe('AllExceptionsFilter', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AllExceptionsFilter],
+      providers: [
+        AllExceptionsFilter,
+        {
+          provide: I18nService,
+          useValue: {
+            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
+            translate: jest.fn().mockImplementation((key: string) => {
+              if (key === 'common.internal_error') {
+                return 'An unexpected error occurred. Please try again later.';
+              }
+              return key;
+            }),
+          },
+        },
+      ],
     }).compile();
 
     filter = module.get<AllExceptionsFilter>(AllExceptionsFilter);

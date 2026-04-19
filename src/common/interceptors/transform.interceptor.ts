@@ -15,9 +15,9 @@ export class TransformInterceptor<T> implements NestInterceptor<T, TransformResp
     const response = context.switchToHttp().getResponse<Response>();
     return next.handle().pipe(
       map((data: T) => {
-        // 204 No Content and explicit null/undefined responses must not be wrapped —
-        // wrapping them would change the status code semantics and send an unexpected body.
-        if (data === undefined || data === null || response.statusCode === 204) {
+        // 204 No Content responses must not be wrapped — wrapping would send an
+        // unexpected body and violate the "no content" contract.
+        if (response.statusCode === 204) {
           return data;
         }
         return {
