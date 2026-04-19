@@ -10,15 +10,22 @@ export interface TransformResponse<T> {
 }
 
 @Injectable()
-export class TransformInterceptor<T> implements NestInterceptor<T, TransformResponse<T>> {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<TransformResponse<T>> {
+export class TransformInterceptor<T> implements NestInterceptor<T, TransformResponse<T> | T> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<TransformResponse<T> | T> {
     const response = context.switchToHttp().getResponse<Response>();
     return next.handle().pipe(
-      map((data: T) => ({
-        data,
-        statusCode: response.statusCode,
-        timestamp: new Date().toISOString(),
-      })),
+      map((data: T) => {
+        // 204 No Content and explicit null/undefined responses must not be wrapped —
+        // wrapping them would change the status code semantics and send an unexpected body.
+        if (data === undefined || data === null || response.statusCode === 204) {
+          return data;
+        }
+        return {
+          data,
+          statusCode: response.statusCode,
+          timestamp: new Date().toISOString(),
+        };
+      }),
     );
   }
 }

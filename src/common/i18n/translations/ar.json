@@ -1,90 +1,181 @@
 {
-    "common": {
-        "success": "نجاح",
-        "error": "خطأ",
-        "not_found": "غير موجود",
-        "unauthorized": "غير مصرح بالوصول",
-        "forbidden": "الوصول محظور",
-        "bad_request": "طلب غير صالح",
-        "internal_error": "خطأ داخلي في الخادم"
+  "common": {
+    "success": "نجاح",
+    "error": "خطأ",
+    "not_found": "غير موجود",
+    "unauthorized": "غير مصرح بالوصول",
+    "forbidden": "الوصول محظور",
+    "bad_request": "طلب غير صالح",
+    "internal_error": "خطأ داخلي في الخادم",
+    "user_not_found": "المستخدم غير موجود",
+    "tenant_missing": "معرف المستأجر مفقود",
+    "serialization_error": "فشل تسلسل البيانات"
+  },
+  "auth": {
+    "login_success": "تم تسجيل الدخول بنجاح",
+    "login_failed": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+    "token_expired": "انتهت صلاحية الرمز",
+    "token_invalid": "رمز غير صالح",
+    "account_locked": "الحساب مقفل. يرجى المحاولة لاحقاً",
+    "register_success": "تم التسجيل بنجاح",
+    "logout_success": "تم تسجيل الخروج بنجاح",
+    "password_reset_success": "تم إعادة تعيين كلمة المرور بنجاح",
+    "email_verified_success": "تم التحقق من البريد الإلكتروني بنجاح",
+    "magic_link_sent": "إذا كان الحساب موجوداً، فسيتم إرسال رابط سحري.",
+    "mfa_setup_not_started": "إعداد MFA لم يبدأ بعد",
+    "email_already_registered": "البريد الإلكتروني مسجل بالفعل"
+  },
+  "booking": {
+    "created": "تم إنشاء الحجز بنجاح",
+    "confirmed": "تم تأكيد الحجز",
+    "cancelled": "تم إلغاء الحجز",
+    "not_found": "الحجز غير موجود",
+    "already_confirmed": "الحجز مؤكد بالفعل",
+    "invalid_status": "حالة حجز غير صالحة",
+    "cannot_update_non_draft": "لا يمكن تحديث حقول حجز غيرمسودة",
+    "can_only_delete_draft": "يمكن فقط حذف مسودات الحجز",
+    "invalid_tax_rate": "يجب أن تكون ضريبة الحجز بين 0 و 100",
+    "event_date_must_be_future": "يجب أن يكون تاريخ الحدث في المستقبل"
+  },
+  "task": {
+    "created": "تم إنشاء المهمة بنجاح",
+    "assigned": "تم تعيين المهمة إلى {staffName}",
+    "started": "بدأت المهمة",
+    "completed": "اكتملت المهمة",
+    "not_found": "المهمة غير موجودة",
+    "already_assigned": "المهمة معينة بالفعل"
+  },
+  "payroll": {
+    "run_success": "تمت معالجة الرواتب لـ {count} موظف",
+    "no_employees": "لم يتم العثور على موظفين للرواتب",
+    "run_failed": "فشل تشغيل الرواتب"
+  },
+  "validation": {
+    "required": "{field} مطلوب",
+    "invalid_email": "تنسيق البريد الإلكتروني غير صالح",
+    "min_length": "يجب أن يكون {field} على الأقل {min} حروف",
+    "max_length": "يجب ألا يتجاوز {field} {max} حروف",
+    "invalid_date": "تنسيق التاريخ غير صالح",
+    "must_be_string": "يجب أن يكون {field} نصاً",
+    "must_be_number": "يجب أن يكون {field} رقماً",
+    "must_be_boolean": "يجب أن يكون {field} صحيح أو خاطئ",
+    "invalid_choice": "{field} اختيار غير صالح",
+    "invalid_format": "تنسيق {field} غير صالح",
+    "min_value": "يجب أن يكون {field} على الأقل {min}",
+    "max_value": "يجب ألا يتجاوز {field} {max}",
+    "must_be_integer": "يجب أن يكون {field} رقماً صحيحاً",
+    "must_be_array": "يجب أن يكون {field} قائمة",
+    "invalid_uuid": "يجب أن يكون {field} معرف UUID صالح",
+    "invalid_phone": "رقم هاتف غير صالح",
+    "invalid_url": "تنسيق URL غير صالح"
+  },
+  "security": {
+    "mfa_enabled": "تم تفعيل المصادقة الثنائية بنجاح",
+    "mfa_disabled": "تم تعطيل المصادقة الثنائية"
+  },
+  "operations": {
+    "logout_success": "تم تسجيل الخروج بنجاح",
+    "data_export_processed": "تم معالجة تصدير البيانات بنجاح",
+    "data_deletion_processed": "تم معالجة حذف البيانات بنجاح",
+    "notification_deleted": "تم حذف الإشعار بنجاح",
+    "request_processing": "طلب برمز تكرار هذا قيد المعالجة بالفعل"
+  },
+  "consent": {
+    "granted": "تم الموافقة",
+    "revoked": "تم سحب الموافقة"
+  },
+  "clientPortal": {
+    "bookingRequestClient": {
+      "subject": "تم استلام طلب الحجز",
+      "greeting": "مرحباً {{clientName}}،",
+      "thankYou": "شكراً لك على طلب الحجز!",
+      "bookingDetails": "تفاصيل الحجز",
+      "package": "الباقة",
+      "date": "التاريخ",
+      "time": "الوقت",
+      "price": "السعر",
+      "status": "الحالة",
+      "nextSteps": "الخطوات التالية",
+      "nextStepsText": "سيقوم فريقنا بمراجعة طلبك والاتصال بك قريباً لتأكيد الحجز.",
+      "footer": "مع أطيب التحيات"
     },
-    "auth": {
-        "login_success": "تم تسجيل الدخول بنجاح",
-        "login_failed": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
-        "token_expired": "انتهت صلاحية الرمز",
-        "token_invalid": "رمز غير صالح",
-        "account_locked": "الحساب مقفل. يرجى المحاولة لاحقاً",
-        "register_success": "تم التسجيل بنجاح",
-        "logout_success": "تم تسجيل الخروج بنجاح"
+    "bookingRequestAdmin": {
+      "subject": "طلب حجز جديد",
+      "greeting": "مرحباً،",
+      "newBooking": "لديك طلب حجز جديد:",
+      "clientInfo": "معلومات العميل",
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "bookingDetails": "تفاصيل الحجز",
+      "package": "الباقة",
+      "date": "التاريخ",
+      "time": "الوقت",
+      "price": "السعر",
+      "viewDashboard": "عرض في لوحة التحكم",
+      "footer": "يرجى المراجعة واتخاذ الإجراء."
     },
-    "booking": {
-        "created": "تم إنشاء الحجز بنجاح",
-        "confirmed": "تم تأكيد الحجز",
-        "cancelled": "تم إلغاء الحجز",
-        "not_found": "الحجز غير موجود",
-        "already_confirmed": "الحجز مؤكد بالفعل",
-        "invalid_status": "حالة حجز غير صالحة"
-    },
-    "task": {
-        "created": "تم إنشاء المهمة بنجاح",
-        "assigned": "تم تعيين المهمة إلى {staffName}",
-        "started": "بدأت المهمة",
-        "completed": "اكتملت المهمة",
-        "not_found": "المهمة غير موجودة",
-        "already_assigned": "المهمة معينة بالفعل"
-    },
-    "payroll": {
-        "run_success": "تمت معالجة الرواتب لـ {count} موظف",
-        "no_employees": "لم يتم العثور على موظفين للرواتب",
-        "run_failed": "فشل تشغيل الرواتب"
-    },
-    "validation": {
-        "required": "{field} مطلوب",
-        "invalid_email": "تنسيق البريد الإلكتروني غير صالح",
-        "min_length": "يجب أن يكون {field} على الأقل {min} حروف",
-        "max_length": "يجب ألا يتجاوز {field} {max} حروف",
-        "invalid_date": "تنسيق التاريخ غير صالح"
-    },
-    "clientPortal": {
-        "bookingRequestClient": {
-            "subject": "تم استلام طلب الحجز",
-            "greeting": "مرحباً {{clientName}}،",
-            "thankYou": "شكراً لك على طلب الحجز!",
-            "bookingDetails": "تفاصيل الحجز",
-            "package": "الباقة",
-            "date": "التاريخ",
-            "time": "الوقت",
-            "price": "السعر",
-            "status": "الحالة",
-            "nextSteps": "الخطوات التالية",
-            "nextStepsText": "سيقوم فريقنا بمراجعة طلبك والاتصال بك قريباً لتأكيد الحجز.",
-            "footer": "مع أطيب التحيات"
-        },
-        "bookingRequestAdmin": {
-            "subject": "طلب حجز جديد",
-            "greeting": "مرحباً،",
-            "newBooking": "لديك طلب حجز جديد:",
-            "clientInfo": "معلومات العميل",
-            "name": "الاسم",
-            "email": "البريد الإلكتروني",
-            "phone": "الهاتف",
-            "bookingDetails": "تفاصيل الحجز",
-            "package": "الباقة",
-            "date": "التاريخ",
-            "time": "الوقت",
-            "price": "السعر",
-            "viewDashboard": "عرض في لوحة التحكم",
-            "footer": "يرجى المراجعة واتخاذ الإجراء."
-        },
-        "reviewSubmitted": {
-            "subject": "تم إرسال المراجعة",
-            "greeting": "مرحباً {{clientName}}،",
-            "thankYou": "شكراً لك على مراجعتك!",
-            "reviewDetails": "مراجعتك",
-            "rating": "التقييم",
-            "comment": "التعليق",
-            "approvalPending": "مراجعتك قيد الموافقة حالياً وسيتم نشرها بعد مراجعتها من قبل فريقنا.",
-            "footer": "نقدر ملاحظاتك!"
-        }
+    "reviewSubmitted": {
+      "subject": "تم إرسال المراجعة",
+      "greeting": "مرحباً {{clientName}}،",
+      "thankYou": "شكراً لك على مراجعتك!",
+      "reviewDetails": "مراجعتك",
+      "rating": "التقييم",
+      "comment": "التعليق",
+      "approvalPending": "مراجعتك قيد الموافقة حالياً وسيتم نشرها بعد مراجعتها من قبل فريقنا.",
+      "footer": "نقدر ملاحظاتك!"
     }
+  },
+  "media": {
+    "s3_error": "خطأ في خدمة التخزين",
+    "task_not_found_in_tenant": "المهمة غير موجودة في المستأجر",
+    "cross_tenant_denied": "لا يُسمح بكتابة مرفق عبر مستأجرين",
+    "unsupported_file_type": "نوع ملف غير مدعوم: {mimeType}. المسموح: {allowed}",
+    "booking_not_found_in_tenant": "الحجز غير موجود في المستأجر",
+    "attachment_not_found": "المرفق بالمعرف {id} غير موجود"
+  },
+  "billing": {
+    "tenant_required": "معرف المستأجر مطلوب",
+    "stripe_config_error": "خطأ في تكوين Stripe",
+    "raw_body_error": "النص الخام غير متاح"
+  },
+  "finance": {
+    "amount_exceeds_maximum": "مبلغ المعاملة يتجاوز الحد الأقصى المسموح به",
+    "unsupported_currency": "عملة غير مدعومة محددة",
+    "amount_must_be_positive": "يجب أن يكون مبلغ المعاملة إيجابياً"
+  },
+  "attendance": {
+    "invalid_checkout_format": "تنسيق وقت المغادرة غير صالح",
+    "invalid_date_format": "تنسيق التاريخ غير صالح",
+    "checkout_must_be_after_checkin": "يجب أن يكون وقت المغادرة بعد وقت الدخول",
+    "record_not_found": "سجل الحضور غير موجود",
+    "invalid_checkin_format": "تنسيق وقت الدخول غير صالح"
+  },
+  "health": {
+    "endpoint_disabled": "نقطة النهاية معطلة",
+    "invalid_key": "مفتاح غير صالح",
+    "missing_key": "معامل المفتاح مفقود",
+    "test_error": "هذا خطأ تجريبي لمراقبة Sentry"
+  },
+  "catalog": {
+    "price_must_be_positive": "السعر يجب أن يكون أكبر من الصفر"
+  },
+  "webhooks": {
+    "private_ip_denied": "لا يمكن أنيشير رابط الويب إلى عناوين IP خاصة",
+    "localhost_denied": "لا يمكن أن يشير رابط الويب إلى المضيف المحلي",
+    "invalid_protocol": "بروتوكول غير صالح",
+    "secret_length": "سر رابط الويب يجب أن يكون على الأقل {min} أحرف",
+    "invalid_url": "رابط ويب غير صالح"
+  },
+  "wallet": {
+    "transfer_must_be_positive": "مبلغ التحويل يجب أن يكون إيجابياً",
+    "commission_must_be_positive": "مبلغ العمولة يجب أن يكون إيجابياً"
+  },
+  "hr": {
+    "profile_not_found": "الملف الشخصي غير موجود",
+    "user_not_found_in_tenant": "المستخدم غير موجود في المستأجر"
+  },
+  "tenants": {
+    "tenant_id_required": "معرف المستأجر في العنوان مطلوب"
+  }
 }

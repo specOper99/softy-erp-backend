@@ -2,10 +2,15 @@
 import './instrument';
 import 'reflect-metadata';
 
-import { ClassSerializerInterceptor, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
+import {
+  BadRequestException,
+  ClassSerializerInterceptor,
+  Logger,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters';
 import { initTracing } from './common/telemetry/tracing';
 import { corsOriginDelegate, getCorsOriginAllowlist } from './common/utils/cors-origins.util';
 import { configureSwagger } from './config/swagger.config';
@@ -41,7 +46,7 @@ async function bootstrap() {
     defaultVersion: '1',
   });
 
-  // Validation pipe
+  // Validation pipe with i18n error mapping
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -50,11 +55,68 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true,
       },
+      // Map every validation error to an i18n translation key and return ALL
+      // errors at once so the client can highlight every invalid field in one shot.
+      exceptionFactory: (errors) => {
+        // Constraint name → i18n key
+        const keyMap: Record<string, string> = {
+          // Presence
+          isNotEmpty: 'validation.required',
+          isDefined: 'validation.required',
+          isNotEmptyObject: 'validation.required',
+          // String
+          isString: 'validation.must_be_string',
+          // Number
+          isNumber: 'validation.must_be_number',
+          isInt: 'validation.must_be_integer',
+          isPositive: 'validation.must_be_positive',
+          isNegative: 'validation.must_be_negative',
+          min: 'validation.min_value',
+          max: 'validation.max_value',
+          // Boolean
+          isBoolean: 'validation.must_be_boolean',
+          // Date
+          isDate: 'validation.must_be_date',
+          isDateString: 'validation.must_be_date',
+          // Format
+          isEmail: 'validation.invalid_email',
+          isUrl: 'validation.invalid_url',
+          isUUID: 'validation.invalid_uuid',
+          isPhoneNumber: 'validation.invalid_phone',
+          matches: 'validation.invalid_format',
+          // Length
+          minLength: 'validation.min_length',
+          maxLength: 'validation.max_length',
+          length: 'validation.invalid_length',
+          // Enum / choice
+          isEnum: 'validation.invalid_choice',
+          // Array
+          isArray: 'validation.must_be_array',
+          arrayMinSize: 'validation.array_min_size',
+          arrayMaxSize: 'validation.array_max_size',
+          arrayNotEmpty: 'validation.required',
+          // Object
+          isObject: 'validation.must_be_object',
+          // Misc
+          isOptional: 'validation.invalid',
+        };
+
+        const messages = errors.flatMap((error) => {
+          if (!error.constraints) return [];
+          return Object.entries(error.constraints).map(([constraint]) => {
+            const i18nKey = keyMap[constraint] ?? 'validation.invalid';
+            return `${error.property}: ${i18nKey}`;
+          });
+        });
+
+        // Return all field errors so the client can mark every invalid field at once.
+        throw new BadRequestException(messages.length > 0 ? messages : 'Validation failed');
+      },
     }),
   );
 
-  // Global exception filter
-  app.useGlobalFilters(new AllExceptionsFilter());
+  // Global exception filters are now registered via APP_FILTER in app.module.ts
+  // (allows DI injection for I18nService translation)
 
   // Global interceptors (sanitize inputs, transform outputs)
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
@@ -69,7 +131,7 @@ async function bootstrap() {
     origin: corsOriginDelegate(allowlist),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'x-client-token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'x-client-token', 'Accept-Language'],
     exposedHeaders: ['Retry-After', 'X-Correlation-ID'],
   });
 

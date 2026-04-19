@@ -1,90 +1,181 @@
 {
-    "common": {
-        "success": "Succès",
-        "error": "Erreur",
-        "not_found": "Non trouvé",
-        "unauthorized": "Accès non autorisé",
-        "forbidden": "Accès interdit",
-        "bad_request": "Requête invalide",
-        "internal_error": "Erreur interne du serveur"
+  "common": {
+    "success": "Succès",
+    "error": "Erreur",
+    "not_found": "Non trouvé",
+    "unauthorized": "Accès non autorisé",
+    "forbidden": "Accès interdit",
+    "bad_request": "Requête invalide",
+    "internal_error": "Erreur interne du serveur",
+    "user_not_found": "Utilisateur non trouvé",
+    "tenant_missing": "Contexte du locataire manquant",
+    "serialization_error": "Échec de la sérialisation des données"
+  },
+  "auth": {
+    "login_success": "Connexion réussie",
+    "login_failed": "Email ou mot de passe invalide",
+    "token_expired": "Le jeton a expiré",
+    "token_invalid": "Jeton invalide",
+    "account_locked": "Le compte est verrouillé. Veuillez réessayer plus tard",
+    "register_success": "Inscription réussie",
+    "logout_success": "Déconnexion réussie",
+    "password_reset_success": "Votre mot de passe a été réinitialisé avec succès",
+    "email_verified_success": "Email vérifié avec succès",
+    "magic_link_sent": "Si un compte existe, un lien magique a été envoyé.",
+    "mfa_setup_not_started": "Configuration MFA non démarrée",
+    "email_already_registered": "Email déjà enregistré"
+  },
+  "booking": {
+    "created": "Réservation créée avec succès",
+    "confirmed": "Réservation confirmée",
+    "cancelled": "Réservation annulée",
+    "not_found": "Réservation non trouvée",
+    "already_confirmed": "La réservation est déjà confirmée",
+    "invalid_status": "Statut de réservation invalide",
+    "cannot_update_non_draft": "Impossible de modifier les champs d'une réservation non brouillon",
+    "can_only_delete_draft": "Impossible de supprimer que les brouillons",
+    "invalid_tax_rate": "Le taux de taxe doit être entre 0 et 100",
+    "event_date_must_be_future": "La date de l'événement doit être dans le futur"
+  },
+  "task": {
+    "created": "Tâche créée avec succès",
+    "assigned": "Tâche assignée à {staffName}",
+    "started": "Tâche démarrée",
+    "completed": "Tâche terminée",
+    "not_found": "Tâche non trouvée",
+    "already_assigned": "La tâche est déjà assignée"
+  },
+  "payroll": {
+    "run_success": "Paie traitée pour {count} employés",
+    "no_employees": "Aucun employé trouvé pour la paie",
+    "run_failed": "Échec du traitement de la paie"
+  },
+  "validation": {
+    "required": "{field} est requis",
+    "invalid_email": "Format d'email invalide",
+    "min_length": "{field} doit contenir au moins {min} caractères",
+    "max_length": "{field} ne doit pas dépasser {max} caractères",
+    "invalid_date": "Format de date invalide",
+    "must_be_string": "{field} doit être du texte",
+    "must_be_number": "{field} doit être un nombre",
+    "must_be_boolean": "{field} doit être vrai ou faux",
+    "invalid_choice": "{field} a une sélection invalide",
+    "invalid_format": "Le format de {field} est invalide",
+    "min_value": "{field} doit être au moins {min}",
+    "max_value": "{field} ne doit pas dépasser {max}",
+    "must_be_integer": "{field} doit être un nombre entier",
+    "must_be_array": "{field} doit être une liste",
+    "invalid_uuid": "{field} doit être un UUID valide",
+    "invalid_phone": "Numéro de téléphone invalide",
+    "invalid_url": "Format d'URL invalide"
+  },
+  "security": {
+    "mfa_enabled": "Authentification MFA activée avec succès",
+    "mfa_disabled": "Authentification MFA désactivée"
+  },
+  "operations": {
+    "logout_success": "Déconnexion réussie",
+    "data_export_processed": "Export des données traité avec succès",
+    "data_deletion_processed": "Suppression des données traitée avec succès",
+    "notification_deleted": "Notification supprimée avec succès",
+    "request_processing": "Une demande avec cette clé d'idempotence est actuellement en traitement"
+  },
+  "consent": {
+    "granted": "Consentement accordé",
+    "revoked": "Consentement retiré"
+  },
+  "clientPortal": {
+    "bookingRequestClient": {
+      "subject": "Demande de réservation reçue",
+      "greeting": "Bonjour {{clientName}},",
+      "thankYou": "Merci pour votre demande de réservation !",
+      "bookingDetails": "Détails de la réservation",
+      "package": "Forfait",
+      "date": "Date",
+      "time": "Heure",
+      "price": "Prix",
+      "status": "Statut",
+      "nextSteps": "Prochaines étapes",
+      "nextStepsText": "Notre équipe examinera votre demande et vous contactera bientôt pour confirmer la réservation.",
+      "footer": "Cordialement"
     },
-    "auth": {
-        "login_success": "Connexion réussie",
-        "login_failed": "Email ou mot de passe invalide",
-        "token_expired": "Le jeton a expiré",
-        "token_invalid": "Jeton invalide",
-        "account_locked": "Le compte est verrouillé. Veuillez réessayer plus tard",
-        "register_success": "Inscription réussie",
-        "logout_success": "Déconnexion réussie"
+    "bookingRequestAdmin": {
+      "subject": "Nouvelle demande de réservation",
+      "greeting": "Bonjour,",
+      "newBooking": "Vous avez reçu une nouvelle demande de réservation :",
+      "clientInfo": "Informations client",
+      "name": "Nom",
+      "email": "Email",
+      "phone": "Téléphone",
+      "bookingDetails": "Détails de la réservation",
+      "package": "Forfait",
+      "date": "Date",
+      "time": "Heure",
+      "price": "Prix",
+      "viewDashboard": "Voir dans le tableau de bord",
+      "footer": "Veuillez examiner et prendre des mesures."
     },
-    "booking": {
-        "created": "Réservation créée avec succès",
-        "confirmed": "Réservation confirmée",
-        "cancelled": "Réservation annulée",
-        "not_found": "Réservation non trouvée",
-        "already_confirmed": "La réservation est déjà confirmée",
-        "invalid_status": "Statut de réservation invalide"
-    },
-    "task": {
-        "created": "Tâche créée avec succès",
-        "assigned": "Tâche assignée à {staffName}",
-        "started": "Tâche démarrée",
-        "completed": "Tâche terminée",
-        "not_found": "Tâche non trouvée",
-        "already_assigned": "La tâche est déjà assignée"
-    },
-    "payroll": {
-        "run_success": "Paie traitée pour {count} employés",
-        "no_employees": "Aucun employé trouvé pour la paie",
-        "run_failed": "Échec du traitement de la paie"
-    },
-    "validation": {
-        "required": "{field} est requis",
-        "invalid_email": "Format d'email invalide",
-        "min_length": "{field} doit contenir au moins {min} caractères",
-        "max_length": "{field} ne doit pas dépasser {max} caractères",
-        "invalid_date": "Format de date invalide"
-    },
-    "clientPortal": {
-        "bookingRequestClient": {
-            "subject": "Demande de réservation reçue",
-            "greeting": "Bonjour {{clientName}},",
-            "thankYou": "Merci pour votre demande de réservation !",
-            "bookingDetails": "Détails de la réservation",
-            "package": "Forfait",
-            "date": "Date",
-            "time": "Heure",
-            "price": "Prix",
-            "status": "Statut",
-            "nextSteps": "Prochaines étapes",
-            "nextStepsText": "Notre équipe examinera votre demande et vous contactera bientôt pour confirmer la réservation.",
-            "footer": "Cordialement"
-        },
-        "bookingRequestAdmin": {
-            "subject": "Nouvelle demande de réservation",
-            "greeting": "Bonjour,",
-            "newBooking": "Vous avez reçu une nouvelle demande de réservation :",
-            "clientInfo": "Informations client",
-            "name": "Nom",
-            "email": "Email",
-            "phone": "Téléphone",
-            "bookingDetails": "Détails de la réservation",
-            "package": "Forfait",
-            "date": "Date",
-            "time": "Heure",
-            "price": "Prix",
-            "viewDashboard": "Voir dans le tableau de bord",
-            "footer": "Veuillez examiner et prendre des mesures."
-        },
-        "reviewSubmitted": {
-            "subject": "Avis soumis",
-            "greeting": "Bonjour {{clientName}},",
-            "thankYou": "Merci pour votre avis !",
-            "reviewDetails": "Votre avis",
-            "rating": "Note",
-            "comment": "Commentaire",
-            "approvalPending": "Votre avis est en attente d'approbation et sera publié une fois examiné par notre équipe.",
-            "footer": "Nous apprécions vos commentaires !"
-        }
+    "reviewSubmitted": {
+      "subject": "Avis soumis",
+      "greeting": "Bonjour {{clientName}},",
+      "thankYou": "Merci pour votre avis !",
+      "reviewDetails": "Votre avis",
+      "rating": "Note",
+      "comment": "Commentaire",
+      "approvalPending": "Votre avis est en attente d'approbation et sera publié une fois examiné par notre équipe.",
+      "footer": "Nous apprécions vos commentaires !"
     }
+  },
+  "media": {
+    "s3_error": "Erreur du service de stockage",
+    "task_not_found_in_tenant": "Tâche non trouvée dans le locataire",
+    "cross_tenant_denied": "Écriture inter-locataire non autorisée",
+    "unsupported_file_type": "Type de fichier non supporté: {mimeType}. Autorisés: {allowed}",
+    "booking_not_found_in_tenant": "Réservation non trouvée dans le locataire",
+    "attachment_not_found": "Pièce jointe avec l'ID {id} non trouvée"
+  },
+  "billing": {
+    "tenant_required": "Contexte du locataire requis",
+    "stripe_config_error": "Erreur de configuration Stripe",
+    "raw_body_error": "Corps brut non disponible"
+  },
+  "finance": {
+    "amount_exceeds_maximum": "Le montant exceeds le maximum autorisé",
+    "unsupported_currency": "Devise non supportée préciser",
+    "amount_must_be_positive": "Le montant doit être positif"
+  },
+  "attendance": {
+    "invalid_checkout_format": "Format d'heure de départ invalide",
+    "invalid_date_format": "Format de date invalide",
+    "checkout_must_be_after_checkin": "L'heure de départ doit être après l'heure d'arrivée",
+    "record_not_found": "Registro de présence non trouvé",
+    "invalid_checkin_format": "Format d'heure d'arrivée invalide"
+  },
+  "health": {
+    "endpoint_disabled": "Point de terminaison désactivé",
+    "invalid_key": "Clé invalide",
+    "missing_key": "Paramètre de clé manquant",
+    "test_error": "Ceci est une erreur de test pour la surveillance Sentry"
+  },
+  "catalog": {
+    "price_must_be_positive": "Le prix doit être supérieur à zéro"
+  },
+  "webhooks": {
+    "private_ip_denied": "L'URL du webhook ne peut pas pointer vers des adresses IP privées",
+    "localhost_denied": "L'URL du webhook ne peut pas pointer vers localhost",
+    "invalid_protocol": "Protocole invalide",
+    "secret_length": "Le secret du webhook doit contenir au moins {min} caractères",
+    "invalid_url": "URL du webhook invalide"
+  },
+  "wallet": {
+    "transfer_must_be_positive": "Le montant du transfert doit être positif",
+    "commission_must_be_positive": "Le montant de la commission doit être positif"
+  },
+  "hr": {
+    "profile_not_found": "Profil non trouvé",
+    "user_not_found_in_tenant": "Utilisateur non trouvé dans le locataire"
+  },
+  "tenants": {
+    "tenant_id_required": "En-tête d'ID de locataire requis"
+  }
 }

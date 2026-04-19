@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -31,10 +32,13 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
+import { minutes, Throttle } from '@nestjs/throttler';
 import { plainToInstance } from 'class-transformer';
 import type { Request } from 'express';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { Lang } from '../../common/decorators';
+import { I18nService } from '../../common/i18n';
+import type { Language } from '../../common/i18n';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
 import { UpdateClientDto } from '../bookings/dto/client.dto';
@@ -112,6 +116,8 @@ export class ClientPortalController {
     private readonly notificationService: NotificationService,
     private readonly clientsService: ClientsService,
     private readonly tenantsService: TenantsService,
+    @Inject(I18nService)
+    private readonly i18nService: I18nService,
   ) {}
 
   @Post(':slug/auth/request-magic-link')
@@ -119,9 +125,13 @@ export class ClientPortalController {
   @ApiOperation({ summary: 'Request a magic link login email' })
   @ApiBody({ type: RequestMagicLinkDto })
   @ApiOkResponse({ description: 'Magic link request processed', type: ClientPortalMessageResponseDto })
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async requestMagicLink(@Param('slug') slug: string, @Body() dto: RequestMagicLinkDto): Promise<{ message: string }> {
-    return this.clientAuthService.requestMagicLink(slug, dto.email);
+  @Throttle({ default: { limit: 3, ttl: minutes(1) } })
+  async requestMagicLink(
+    @Param('slug') slug: string,
+    @Body() dto: RequestMagicLinkDto,
+    @Lang() lang: Language,
+  ): Promise<{ message: string }> {
+    return this.clientAuthService.requestMagicLink(slug, dto.email, lang);
   }
 
   @Post('auth/verify')
@@ -148,10 +158,10 @@ export class ClientPortalController {
   @UseGuards(ClientTokenGuard)
   @ApiSecurity('client-token')
   @ApiOkResponse({ type: ClientPortalMessageResponseDto })
-  async logout(@Req() req: Request): Promise<{ message: string }> {
+  async logout(@Req() req: Request, @Lang() lang: Language): Promise<{ message: string }> {
     const token = req.headers['x-client-token'] as string;
     await this.clientAuthService.logout(token);
-    return { message: 'Logged out successfully' };
+    return { message: this.i18nService.translate('operations.logout_success', lang) };
   }
 
   @Get('listings')
@@ -387,7 +397,7 @@ export class ClientPortalController {
   @ApiSecurity('client-token')
   @ApiBody({ type: ClientPortalCreateBookingRequestDto })
   @ApiResponse({ status: 201, type: ClientPortalCreateBookingResponseDto })
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 5, ttl: minutes(1) } })
   async createBooking(
     @Req() req: Request,
     @Body() dto: ClientPortalCreateBookingRequestDto,

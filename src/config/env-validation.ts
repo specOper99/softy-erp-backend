@@ -213,13 +213,15 @@ class EnvironmentVariables {
   SEED_ADMIN_PASSWORD?: string;
 
   // Rate Limiting
+  // Defaults tuned for an ERP where a single page load triggers 10-20 parallel API requests.
+  // With multiple concurrent users on the same office IP, 50/100 was too restrictive.
   @IsNumber()
   @IsOptional()
-  RATE_LIMIT_SOFT: number = 50;
+  RATE_LIMIT_SOFT: number = 200;
 
   @IsNumber()
   @IsOptional()
-  RATE_LIMIT_HARD: number = 100;
+  RATE_LIMIT_HARD: number = 500;
 
   @IsNumber()
   @IsOptional()

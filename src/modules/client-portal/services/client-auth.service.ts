@@ -1,5 +1,5 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Cache } from 'cache-manager';
@@ -7,6 +7,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Counter } from 'prom-client';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
+import { I18nService, Language } from '../../../common/i18n';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
@@ -29,6 +30,7 @@ interface ClientMagicLinkPayload {
   jti: string;
 }
 
+@Injectable()
 export class ClientAuthService {
   private readonly logger = new Logger(ClientAuthService.name);
   private readonly TOKEN_EXPIRY_HOURS = 24;
@@ -47,6 +49,8 @@ export class ClientAuthService {
     private readonly tenantsService: TenantsService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly metricsFactory: MetricsFactory,
+    @Inject(I18nService)
+    private readonly i18nService: I18nService,
   ) {
     this.SESSION_EXPIRY_SECONDS = this.configService.get<number>(
       'auth.clientSessionExpires',
@@ -88,7 +92,7 @@ export class ClientAuthService {
     return getAllowedJwtAlgorithm(this.configService);
   }
 
-  async requestMagicLink(slug: string, email: string): Promise<{ message: string }> {
+  async requestMagicLink(slug: string, email: string, lang: Language = 'en'): Promise<{ message: string }> {
     const tenant = await this.tenantsService.findBySlug(slug);
     const tenantId = tenant.id;
 
@@ -103,7 +107,7 @@ export class ClientAuthService {
             tenant_id: tenantId,
             status: 'not_found',
           });
-          return { message: 'If an account exists, a magic link has been sent.' };
+          return { message: this.i18nService.translate('auth.magic_link_sent', lang) };
         }
 
         const jti = randomBytes(16).toString('hex');
@@ -128,7 +132,7 @@ export class ClientAuthService {
           tenant_id: tenantId,
           status: 'success',
         });
-        return { message: 'If an account exists, a magic link has been sent.' };
+        return { message: this.i18nService.translate('auth.magic_link_sent', lang) };
       } catch (error) {
         this.magicLinkRequestedCounter.inc({
           tenant_id: tenantId,

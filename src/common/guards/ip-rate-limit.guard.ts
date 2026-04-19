@@ -118,10 +118,12 @@ export class IpRateLimitGuard implements CanActivate {
     } else {
       info.count++;
 
-      // Authenticated users get full limits, anonymous get half
+      // Authenticated users get full limits, anonymous get 75%.
+      // Using 50% was too aggressive: the frontend fires many unauthenticated API calls
+      // (config, translations, health checks) before the login flow completes.
       const isAuthenticated = !!(request as Request & { user?: unknown }).user;
-      const effectiveSoftLimit = isAuthenticated ? this.softLimit : Math.floor(this.softLimit / 2);
-      const effectiveHardLimit = isAuthenticated ? this.hardLimit : Math.floor(this.hardLimit / 2);
+      const effectiveSoftLimit = isAuthenticated ? this.softLimit : Math.floor((this.softLimit * 3) / 4);
+      const effectiveHardLimit = isAuthenticated ? this.hardLimit : Math.floor((this.hardLimit * 3) / 4);
 
       // Check hard limit - block IP
       if (info.count > effectiveHardLimit) {

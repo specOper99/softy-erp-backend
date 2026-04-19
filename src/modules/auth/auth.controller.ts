@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Ip,
   Param,
   ParseUUIDPipe,
@@ -23,14 +24,17 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { minutes, Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { minutes, SkipThrottle, Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { ApiErrorResponses, CurrentUser } from '../../common/decorators';
+import { ApiErrorResponses, CurrentUser, Lang } from '../../common/decorators';
+import { I18nService } from '../../common/i18n';
+import type { Language } from '../../common/i18n';
 import { SkipTenant } from '../tenants/decorators/skip-tenant.decorator';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import {
   AuthResponseDto,
+  CurrentUserDto,
   EnableMfaDto,
   ForgotPasswordDto,
   LoginDto,
@@ -44,6 +48,7 @@ import {
   RegisterDto,
   ResendVerificationDto,
   ResetPasswordDto,
+  SessionInfoDto,
   TokensDto,
   VerifyEmailDto,
 } from './dto';
@@ -62,8 +67,16 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 )
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
+// Skip the named profiles (short/medium/long) — they are configured globally but each
+// auth endpoint already carries its own @Throttle({ default: ... }) override.
+// Without this, the 'short' profile (3 req/1s) silently stacks on every auth route.
+@SkipThrottle({ short: true, medium: true, long: true })
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @Inject(I18nService)
+    private readonly i18nService: I18nService,
+  ) {}
 
   @Post('register')
   @SkipTenant()
@@ -299,9 +312,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get active sessions for current user' })
-  @ApiResponse({ status: 200, description: 'List of active sessions' })
+  @ApiOkResponse({ description: 'List of active sessions', type: [SessionInfoDto] })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getSessions(@CurrentUser() user: User) {
+  async getSessions(@CurrentUser() user: User): Promise<SessionInfoDto[]> {
     const sessions = await this.authService.getActiveSessions(user.id);
     return sessions.map((s) => s.toSessionInfo());
   }
@@ -332,9 +345,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
-  @ApiResponse({ status: 200, description: 'User info' })
+  @ApiOkResponse({ description: 'Authenticated user information', type: CurrentUserDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getCurrentUser(@CurrentUser() user: User) {
+  getCurrentUser(@CurrentUser() user: User): CurrentUserDto {
     return {
       id: user.id,
       email: user.email,
@@ -374,9 +387,9 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Password reset successful' })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
+  async resetPassword(@Body() dto: ResetPasswordDto, @Lang() lang: Language): Promise<{ message: string }> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
-    return { message: 'Password has been reset successfully' };
+    return { message: this.i18nService.translate('auth.password_reset_success', lang) };
   }
 
   @Post('verify-email')
@@ -384,9 +397,9 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: minutes(5) } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email address' })
-  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Lang() lang: Language): Promise<{ message: string }> {
     await this.authService.verifyEmail(dto.token);
-    return { message: 'Email verified successfully' };
+    return { message: this.i18nService.translate('auth.email_verified_success', lang) };
   }
 
   @Post('resend-verification')

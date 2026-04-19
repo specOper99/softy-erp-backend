@@ -1,90 +1,181 @@
 {
-    "common": {
-        "success": "سەرکەوتوو",
-        "error": "هەڵە",
-        "not_found": "نەدۆزرایەوە",
-        "unauthorized": "دەستگەیشتن نییە",
-        "forbidden": "دەستگەیشتن قەدەغەیە",
-        "bad_request": "داواکاری هەڵە",
-        "internal_error": "هەڵەی ناوخۆیی سێرڤەر"
+  "common": {
+    "success": "سەرکەوتوو",
+    "error": "هەڵە",
+    "not_found": "نەدۆزرایەوە",
+    "unauthorized": "دەستگەیشتن نییە",
+    "forbidden": "دەستگەیشتن قەدەغەیە",
+    "bad_request": "داواکاری هەڵە",
+    "internal_error": "هەڵەی ناوخۆیی سێرڤەر",
+    "user_not_found": "بەکارھێنەرەکە نەدۆزرایەوە",
+    "tenant_missing": "ئایدی تێنەنت بەکارھێنە",
+    "serialization_error": "کۆدەکردنەوەی داتا سەرکەوتوو نەبوو"
+  },
+  "auth": {
+    "login_success": "چوونەژوورەوە سەرکەوتوو بوو",
+    "login_failed": "ئیمەیڵ یان وشەی نهێنی هەڵەیە",
+    "token_expired": "تۆکن بەسەرچووە",
+    "token_invalid": "تۆکنی هەڵە",
+    "account_locked": "ئەکاونت داخراوە. تکایە دواتر هەوڵ بدەرەوە",
+    "register_success": "تۆمارکردن سەرکەوتوو بوو",
+    "logout_success": "چوونەدەرەوە سەرکەوتوو بوو",
+    "password_reset_success": "وشەی نهێنی بە سەرکەوتوویی دووبارە کرایەوە",
+    "email_verified_success": "ئیمەیڵ بە سەرکەوتوویی پشتڕاستکرا",
+    "magic_link_sent": "ئەگەر ئەکاونتێک هەبووبێت، لینکی تایبەت ناردنەوە",
+    "mfa_setup_not_started": "دەستپێکردنی MFA دەستپێنەکراوە",
+    "email_already_registered": "ئیمەیڵ تۆمارکراوە"
+  },
+  "booking": {
+    "created": "نۆرە بە سەرکەوتوویی دروستکرا",
+    "confirmed": "نۆرە پشتڕاستکرایەوە",
+    "cancelled": "نۆرە هەڵوەشێندرایەوە",
+    "not_found": "نۆرە نەدۆزرایەوە",
+    "already_confirmed": "نۆرە پێشتر پشتڕاستکراوەتەوە",
+    "invalid_status": "دۆخی نۆرەی هەڵە",
+    "cannot_update_non_draft": "ناتوانرێت خانەکانی نۆرە نوێبکرێتەوە",
+    "can_only_delete_draft": "تەنها دەتوانرێت مسۆڕ بکرێت",
+    "invalid_tax_rate": "رێژەی باج دەبێت لە نێوان 0 و 100 بێت",
+    "event_date_must_be_future": "بەرواری ئیڤەنت دەبێت لە داهاتوودا بێت"
+  },
+  "task": {
+    "created": "ئەرک بە سەرکەوتوویی دروستکرا",
+    "assigned": "ئەرک دانرا بۆ {staffName}",
+    "started": "ئەرک دەستپێکرد",
+    "completed": "ئەرک تەواو بوو",
+    "not_found": "ئەرک نەدۆزرایەوە",
+    "already_assigned": "ئەرک پێشتر دانراوە"
+  },
+  "payroll": {
+    "run_success": "مووچە بۆ {count} کارمەند جێبەجێکرا",
+    "no_employees": "هیچ کارمەندێک نەدۆزرایەوە بۆ مووچە",
+    "run_failed": "جێبەجێکردنی مووچە سەرکەوتوو نەبوو"
+  },
+  "validation": {
+    "required": "{field} پێویستە",
+    "invalid_email": "فۆرماتی ئیمەیڵ هەڵەیە",
+    "min_length": "{field} دەبێت لانیکەم {min} پیت بێت",
+    "max_length": "{field} نابێت زیاتر لە {max} پیت بێت",
+    "invalid_date": "فۆرماتی بەروار هەڵەیە",
+    "must_be_string": "{field} دەبێت دەق بێت",
+    "must_be_number": "{field} دەبێت ژمارە بێت",
+    "must_be_boolean": "{field} دەبێت بڕوا یان هیچ بێت",
+    "invalid_choice": "{field} هیلەی هەڵە",
+    "invalid_format": "فۆرماتی {field} هەڵەیە",
+    "min_value": "{field} دەبێت لانیکەم {min} بێت",
+    "max_value": "{field} نابێت زیاتر لە {max} بێت",
+    "must_be_integer": "{field} دەبێت ژمارەی تەواو بێت",
+    "must_be_array": "{field} دەبێت لیستە بێت",
+    "invalid_uuid": "{field} دەبێت UUID-ی دروست بێت",
+    "invalid_phone": "ژمارەی تەلەفۆن هەڵەیە",
+    "invalid_url": "فۆرماتی URL هەڵەیە"
+  },
+  "security": {
+    "mfa_enabled": "فلۆتەکڵی دوو لێی تیایدا سەرکەوتوو بوو",
+    "mfa_disabled": "فلۆتەکڵی دوو لێی تیایدا ناچالاک کرا"
+  },
+  "operations": {
+    "logout_success": "چوونەدەرەوە سەرکەوتوو بوو",
+    "data_export_processed": "هەناردەی داتا بە سەرکەوتوویی جێبەجێ کرا",
+    "data_deletion_processed": "سڕینەوەی داتا بە سەرکەوتوویی جێبەجێ کرا",
+    "notification_deleted": "ئاگادیاری بە سەرکەوتوویی سڕاوەتەوە",
+    "request_processing": "داواکاری بە ئەم کلیدی دووپاتکردنەوەیە هاوکات جێبەجێدەکرێت"
+  },
+  "consent": {
+    "granted": "ڕێگەدان دراوە",
+    "revoked": "ڕێگەدان پیچاوەتەوە"
+  },
+  "clientPortal": {
+    "bookingRequestClient": {
+      "subject": "داواکاری نۆرە وەرگیرا",
+      "greeting": "سڵاو {{clientName}}،",
+      "thankYou": "سوپاس بۆ داواکاری نۆرەکەت!",
+      "bookingDetails": "وردەکاری نۆرە",
+      "package": "پاکێج",
+      "date": "بەروار",
+      "time": "کات",
+      "price": "نرخ",
+      "status": "دۆخ",
+      "nextSteps": "هەنگاوەکانی داهاتوو",
+      "nextStepsText": "تیمەکەمان پێداچوونەوە بە داواکاریەکەت دەکات و بەم زووانە پەیوەندیت پێوە دەکات بۆ پشتڕاستکردنەوەی نۆرەکە.",
+      "footer": "لەگەڵ ڕێزدا"
     },
-    "auth": {
-        "login_success": "چوونەژوورەوە سەرکەوتوو بوو",
-        "login_failed": "ئیمەیڵ یان وشەی نهێنی هەڵەیە",
-        "token_expired": "تۆکن بەسەرچووە",
-        "token_invalid": "تۆکنی هەڵە",
-        "account_locked": "ئەکاونت داخراوە. تکایە دواتر هەوڵ بدەرەوە",
-        "register_success": "تۆمارکردن سەرکەوتوو بوو",
-        "logout_success": "چوونەدەرەوە سەرکەوتوو بوو"
+    "bookingRequestAdmin": {
+      "subject": "داواکاری نۆرەی نوێ",
+      "greeting": "سڵاو،",
+      "newBooking": "داواکاری نۆرەیەکی نوێت وەرگرتووە:",
+      "clientInfo": "زانیاری کڕیار",
+      "name": "ناو",
+      "email": "ئیمەیڵ",
+      "phone": "تەلەفۆن",
+      "bookingDetails": "وردەکاری نۆرە",
+      "package": "پاکێج",
+      "date": "بەروار",
+      "time": "کات",
+      "price": "نرخ",
+      "viewDashboard": "بینین لە داشبۆردەکە",
+      "footer": "تکایە پێداچوونەوە بکە و کردار ئەنجام بدە."
     },
-    "booking": {
-        "created": "نۆرە بە سەرکەوتوویی دروستکرا",
-        "confirmed": "نۆرە پشتڕاستکرایەوە",
-        "cancelled": "نۆرە هەڵوەشێندرایەوە",
-        "not_found": "نۆرە نەدۆزرایەوە",
-        "already_confirmed": "نۆرە پێشتر پشتڕاستکراوەتەوە",
-        "invalid_status": "دۆخی نۆرەی هەڵە"
-    },
-    "task": {
-        "created": "ئەرک بە سەرکەوتوویی دروستکرا",
-        "assigned": "ئەرک دانرا بۆ {staffName}",
-        "started": "ئەرک دەستپێکرد",
-        "completed": "ئەرک تەواو بوو",
-        "not_found": "ئەرک نەدۆزرایەوە",
-        "already_assigned": "ئەرک پێشتر دانراوە"
-    },
-    "payroll": {
-        "run_success": "مووچە بۆ {count} کارمەند جێبەجێکرا",
-        "no_employees": "هیچ کارمەندێک نەدۆزرایەوە بۆ مووچە",
-        "run_failed": "جێبەجێکردنی مووچە سەرکەوتوو نەبوو"
-    },
-    "validation": {
-        "required": "{field} پێویستە",
-        "invalid_email": "فۆرماتی ئیمەیڵ هەڵەیە",
-        "min_length": "{field} دەبێت لانیکەم {min} پیت بێت",
-        "max_length": "{field} نابێت زیاتر لە {max} پیت بێت",
-        "invalid_date": "فۆرماتی بەروار هەڵەیە"
-    },
-    "clientPortal": {
-        "bookingRequestClient": {
-            "subject": "داواکاری نۆرە وەرگیرا",
-            "greeting": "سڵاو {{clientName}}،",
-            "thankYou": "سوپاس بۆ داواکاری نۆرەکەت!",
-            "bookingDetails": "وردەکاری نۆرە",
-            "package": "پاکێج",
-            "date": "بەروار",
-            "time": "کات",
-            "price": "نرخ",
-            "status": "دۆخ",
-            "nextSteps": "هەنگاوەکانی داهاتوو",
-            "nextStepsText": "تیمەکەمان پێداچوونەوە بە داواکاریەکەت دەکات و بەم زووانە پەیوەندیت پێوە دەکات بۆ پشتڕاستکردنەوەی نۆرەکە.",
-            "footer": "لەگەڵ ڕێزدا"
-        },
-        "bookingRequestAdmin": {
-            "subject": "داواکاری نۆرەی نوێ",
-            "greeting": "سڵاو،",
-            "newBooking": "داواکاری نۆرەیەکی نوێت وەرگرتووە:",
-            "clientInfo": "زانیاری کڕیار",
-            "name": "ناو",
-            "email": "ئیمەیڵ",
-            "phone": "تەلەفۆن",
-            "bookingDetails": "وردەکاری نۆرە",
-            "package": "پاکێج",
-            "date": "بەروار",
-            "time": "کات",
-            "price": "نرخ",
-            "viewDashboard": "بینین لە داشبۆردەکە",
-            "footer": "تکایە پێداچوونەوە بکە و کردار ئەنجام بدە."
-        },
-        "reviewSubmitted": {
-            "subject": "هەڵسەنگاندن نێردرا",
-            "greeting": "سڵاو {{clientName}}،",
-            "thankYou": "سوپاس بۆ هەڵسەنگاندنەکەت!",
-            "reviewDetails": "هەڵسەنگاندنەکەت",
-            "rating": "هەڵسەنگاندن",
-            "comment": "سەرنج",
-            "approvalPending": "هەڵسەنگاندنەکەت ئێستا چاوەڕێی پەسەندکردنە و دوای پێداچوونەوەی تیمەکەمان بڵاودەکرێتەوە.",
-            "footer": "سوپاسی ڕەخنە و پێشنیارەکانت!"
-        }
+    "reviewSubmitted": {
+      "subject": "هەڵسەنگاندن نێردرا",
+      "greeting": "سڵاو {{clientName}}،",
+      "thankYou": "سوپاس بۆ هەڵسەنگاندنەکەت!",
+      "reviewDetails": "هەڵسەنگاندنەکەت",
+      "rating": "هەڵسەنگاندن",
+      "comment": "سەرنج",
+      "approvalPending": "هەڵسەنگاندنەکەت ئێستا چاوەڕێی پەسەندکردنە و دوای پێداچوونەوەی تیمەکەمان بڵاودەکرێتەوە.",
+      "footer": "سوپاسی ڕەخنە و پێشنیارەکانت!"
     }
+  },
+  "media": {
+    "s3_error": "هەڵەی خزمەتگوزاری هەڵدانەوە",
+    "task_not_found_in_tenant": "ئەرکەکە لە تێنەنتاتدا نەدۆزرایەوە",
+    "cross_tenant_denied": "نووسینی بەلگە لە تێنەنتێکی ترەوە ڕێگەپێنێرێت",
+    "unsupported_file_type": "جۆرێکی فایلێک پشتگیری ناکرێت: {mimeType}. ڕێگەپێدراو: {allowed}",
+    "booking_not_found_in_tenant": "نۆرەکە لە تێنەنتاتدا نەدۆزرایەوە",
+    "attachment_not_found": "بەلگەکە بە ئایدی {id} نەدۆزرایەوە"
+  },
+  "billing": {
+    "tenant_required": "تێنەنت دەوێت",
+    "stripe_config_error": "هەڵەی هەڵگەڕاندنی Stripe",
+    "raw_body_error": "جەستەی خاوە بەردەست نییە"
+  },
+  "finance": {
+    "amount_exceeds_maximum": "بڕی ماملەکە زیاترە لە ئاستی پشتگیریکراو",
+    "unsupported_currency": "دراوێکی پشتگیریکراو دیارینەکراوە",
+    "amount_must_be_positive": "بڕی ماملەکە دەبێت ئەرێنیبێت"
+  },
+  "attendance": {
+    "invalid_checkout_format": "فۆرماتی کاتی دەرچوون هەڵەیە",
+    "invalid_date_format": "فۆرماتی بەروار هەڵەیە",
+    "checkout_must_be_after_checkin": "کاتی دەرچوون دەبێت دوای کاتی دەوێن بێت",
+    "record_not_found": "تۆماری حاضری نەدۆزرایەوە",
+    "invalid_checkin_format": "فۆرماتی کاتی دەوێن هەڵەیە"
+  },
+  "health": {
+    "endpoint_disabled": "ئەندەپۆینتەکە ناچالاککراوە",
+    "invalid_key": "کلیلێکی هەڵە",
+    "missing_key": "پارامەتری کلیلێک کەوتۆتەوە",
+    "test_error": "ئەمە هەڵەیەکی تاقیکردنەوەیە بۆ سەنتەری"
+  },
+  "catalog": {
+    "price_must_be_positive": "نرخ دەبێت گەورەتر بێت لە سیفر"
+  },
+  "webhooks": {
+    "private_ip_denied": "URLی وێب هووک ناتوانرێت بۆ IP-i تایبەتەکانەوە بکات",
+    "localhost_denied": "URLی وێب هووک ناتوانرێت بۆ localhost بکات",
+    "invalid_protocol": "پرۆتۆکۆلێکی هەڵە",
+    "secret_length": "هەرێمەکەی وێب هووک دەبێت ئە Gunn {min} پیتەوە",
+    "invalid_url": "URLی وێب هووکی هەڵە"
+  },
+  "wallet": {
+    "transfer_must_be_positive": "بڕی گواستنەوە دەبێت ئەرێنیبێت",
+    "commission_must_be_positive": "بڕی کۆمیژەن دەبێت ئەرێنیبێت"
+  },
+  "hr": {
+    "profile_not_found": "پرۆفایلەکە نەدۆزرایەوە",
+    "user_not_found_in_tenant": "بەکارھێنەرەکە لە تێنەنتاتدا نەدۆزرایەوە"
+  },
+  "tenants": {
+    "tenant_id_required": "ئایدی تێنەنت دەوێت"
+  }
 }

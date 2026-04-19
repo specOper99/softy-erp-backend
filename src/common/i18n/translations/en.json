@@ -20,7 +20,10 @@
         "register_success": "Registration successful",
         "logout_success": "Logout successful",
         "email_already_registered": "Email already registered",
-        "mfa_setup_not_started": "MFA setup not started"
+        "mfa_setup_not_started": "MFA setup not started",
+        "password_reset_success": "Password has been reset successfully",
+        "email_verified_success": "Email verified successfully",
+        "magic_link_sent": "If an account exists, a magic link has been sent."
     },
     "booking": {
         "created": "Booking created successfully",
@@ -52,7 +55,19 @@
         "invalid_email": "Invalid email format",
         "min_length": "{field} must be at least {min} characters",
         "max_length": "{field} must not exceed {max} characters",
-        "invalid_date": "Invalid date format"
+        "invalid_date": "Invalid date format",
+        "must_be_string": "{field} must be text",
+        "must_be_number": "{field} must be a number",
+        "must_be_boolean": "{field} must be true or false",
+        "invalid_choice": "{field} has an invalid selection",
+        "invalid_format": "{field} format is invalid",
+        "min_value": "{field} must be at least {min}",
+        "max_value": "{field} must not exceed {max}",
+        "must_be_integer": "{field} must be a whole number",
+        "must_be_array": "{field} must be a list",
+        "invalid_uuid": "{field} must be a valid UUID",
+        "invalid_phone": "Invalid phone number",
+        "invalid_url": "Invalid URL format"
     },
     "billing": {
         "tenant_required": "Tenant context required",
@@ -105,6 +120,21 @@
         "missing_key": "Missing key parameter",
         "invalid_key": "Invalid key",
         "test_error": "This is a test error for Sentry monitoring"
+    },
+    "security": {
+        "mfa_enabled": "MFA enabled successfully",
+        "mfa_disabled": "MFA disabled"
+    },
+    "operations": {
+        "logout_success": "Logged out successfully",
+        "data_export_processed": "Data export processed successfully",
+        "data_deletion_processed": "Data deletion processed successfully",
+        "notification_deleted": "Notification deleted successfully",
+        "request_processing": "A request with this idempotency key is currently being processed"
+    },
+    "consent": {
+        "granted": "Consent granted",
+        "revoked": "Consent revoked"
     },
     "clientPortal": {
         "bookingRequestClient": {

@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
 import { seconds, ThrottlerModule } from '@nestjs/throttler';
@@ -16,9 +16,12 @@ import { AppCacheModule } from './common/cache/cache.module';
 import { CommonModule } from './common/common.module';
 import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
 import { I18nModule } from './common/i18n';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { I18nExceptionFilter } from './common/filters/i18n-exception.filter';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 import { MessagePackInterceptor } from './common/interceptors/message-pack.interceptor';
 import { StructuredLoggingInterceptor } from './common/interceptors/structured-logging.interceptor';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { QueueModule } from './common/queue/queue.module';
@@ -123,7 +126,8 @@ import { CoreModule } from './modules/core/core.module';
           migrations: configService.get<string[]>('database.migrations'),
           migrationsTableName: configService.get<string>('database.migrationsTableName'),
           migrationsRun: configService.get<boolean>('database.migrationsRun'),
-          maxQueryExecutionTime: 100,
+          maxQueryExecutionTime: configService.get<number>('database.maxQueryExecutionTime'),
+
           retryAttempts: configService.get<number>('database.retryAttempts'),
           retryDelay: configService.get<number>('database.retryDelay'),
           extra: configService.get<Record<string, unknown>>('database.extra'),
@@ -187,10 +191,19 @@ import { CoreModule } from './modules/core/core.module';
 
     { provide: APP_GUARD, useClass: TenantGuard },
 
-    // Global interceptors for observability
+    // Global filters (registered via APP_FILTER to allow DI injection)
+    // Order matters: I18nExceptionFilter catches HttpException first,
+    // then AllExceptionsFilter catches remaining exceptions
+    { provide: APP_FILTER, useClass: I18nExceptionFilter },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+
+    // Global interceptors — registration order is OUTER-to-INNER.
+    // TransformInterceptor is last (innermost): it wraps the raw handler response first,
+    // then outer interceptors (logging, versioning, compression) see the final shape.
     { provide: APP_INTERCEPTOR, useClass: MessagePackInterceptor },
     { provide: APP_INTERCEPTOR, useClass: StructuredLoggingInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ApiVersionInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
   ],
 })
 export class AppModule implements NestModule {

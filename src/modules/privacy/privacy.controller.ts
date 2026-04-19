@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Ip, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Ip, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CurrentUser, Lang } from '../../common/decorators';
+import { I18nService } from '../../common/i18n';
+import type { Language } from '../../common/i18n';
 import { User } from '../users/entities/user.entity';
 import { CreatePrivacyRequestDto } from './dto/privacy.dto';
 import { GrantConsentDto, RevokeConsentDto, ConsentResponseDto } from './dto/consent.dto';
@@ -21,6 +23,8 @@ export class PrivacyController {
   constructor(
     private readonly privacyService: PrivacyService,
     private readonly consentService: ConsentService,
+    @Inject(I18nService)
+    private readonly i18nService: I18nService,
   ) {}
 
   @Post('requests')
@@ -53,9 +57,9 @@ export class PrivacyController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Process a data export request (Admin only)' })
-  async processExport(@Param('id', ParseUUIDPipe) id: string): Promise<{ message: string }> {
+  async processExport(@Param('id', ParseUUIDPipe) id: string, @Lang() lang: Language): Promise<{ message: string }> {
     await this.privacyService.processDataExport(id);
-    return { message: 'Data export processed successfully' };
+    return { message: this.i18nService.translate('operations.data_export_processed', lang) };
   }
 
   @Post('requests/:id/process-deletion')
@@ -65,9 +69,10 @@ export class PrivacyController {
   async processDeletion(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
+    @Lang() lang: Language,
   ): Promise<{ message: string }> {
     await this.privacyService.processDataDeletion(id, user.id);
-    return { message: 'Data deletion processed successfully' };
+    return { message: this.i18nService.translate('operations.data_deletion_processed', lang) };
   }
 
   @Get('admin/pending')

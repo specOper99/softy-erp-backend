@@ -1,6 +1,8 @@
-import { Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
+import { ApiErrorResponses, CurrentUser, Lang, Roles } from '../../../common/decorators';
+import { I18nService } from '../../../common/i18n';
+import type { Language } from '../../../common/i18n';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
@@ -14,7 +16,11 @@ import { NotificationService } from '../services/notification.service';
 @Controller('notifications')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class NotificationsController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    @Inject(I18nService)
+    private readonly i18nService: I18nService,
+  ) {}
 
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
@@ -63,8 +69,8 @@ export class NotificationsController {
   @ApiParam({ name: 'id', description: 'Notification UUID' })
   @ApiResponse({ status: 200, description: 'Notification deleted' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
-  async deleteNotification(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+  async deleteNotification(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User, @Lang() lang: Language) {
     await this.notificationService.deleteNotification(id, user.id);
-    return { message: 'Notification deleted successfully' };
+    return { message: this.i18nService.translate('operations.notification_deleted', lang) };
   }
 }

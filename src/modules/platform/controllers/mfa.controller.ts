@@ -1,8 +1,11 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
+import { Lang } from '../../../common/decorators';
+import { I18nService } from '../../../common/i18n';
+import type { Language } from '../../../common/i18n';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
 import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
@@ -33,7 +36,11 @@ class DisableMFADto {
 @RequireContext(ContextType.PLATFORM)
 @Controller('platform/mfa')
 export class MFAController {
-  constructor(private readonly mfaService: MFAService) {}
+  constructor(
+    private readonly mfaService: MFAService,
+    @Inject(I18nService)
+    private readonly i18nService: I18nService,
+  ) {}
 
   @Post('setup')
   @HttpCode(HttpStatus.OK)
@@ -102,7 +109,7 @@ export class MFAController {
     },
   })
   @ApiResponse({ status: 400, description: 'Invalid MFA code or MFA not set up' })
-  async verifyAndEnableMFA(@Body() dto: VerifyMFADto, @Request() req: AuthenticatedRequest) {
+  async verifyAndEnableMFA(@Body() dto: VerifyMFADto, @Request() req: AuthenticatedRequest, @Lang() lang: Language) {
     const userId: string = req.user.userId;
     const user = await this.mfaService.getUserById(userId);
 
@@ -121,7 +128,7 @@ export class MFAController {
 
     return {
       success: true,
-      message: 'MFA enabled successfully',
+      message: this.i18nService.translate('security.mfa_enabled', lang),
     };
   }
 
@@ -145,13 +152,13 @@ export class MFAController {
     },
   })
   @ApiResponse({ status: 401, description: 'Invalid password' })
-  async disableMFA(@Body() dto: DisableMFADto, @Request() req: AuthenticatedRequest) {
+  async disableMFA(@Body() dto: DisableMFADto, @Request() req: AuthenticatedRequest, @Lang() lang: Language) {
     const userId: string = req.user.userId;
     await this.mfaService.disableMfa(userId, dto.password);
 
     return {
       success: true,
-      message: 'MFA disabled',
+      message: this.i18nService.translate('security.mfa_disabled', lang),
     };
   }
 

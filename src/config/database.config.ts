@@ -33,6 +33,8 @@ export default registerAs('database', () => {
     migrationsRun: process.env.DB_MIGRATIONS_RUN !== 'false',
     retryAttempts: parseInt(process.env.DB_RETRY_ATTEMPTS || '10', 10),
     retryDelay: parseInt(process.env.DB_RETRY_DELAY_MS || '3000', 10),
+    // Warn and log slow queries. Default 1000ms; lower in production via DB_MAX_QUERY_MS.
+    maxQueryExecutionTime: parseInt(process.env.DB_MAX_QUERY_MS || '1000', 10),
     extra: {
       max: parseInt(process.env.DB_POOL_SIZE || defaultPoolSize.toString(), 10),
       connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000', 10),
