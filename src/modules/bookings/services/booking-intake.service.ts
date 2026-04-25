@@ -167,6 +167,7 @@ export class BookingIntakeService {
         startTime: dto.startTime ?? undefined,
         durationMinutes: pkg.durationMinutes,
         notes: dto.notes ?? undefined,
+        handoverType: dto.handoverType ?? null,
         locationLink: dto.locationLink ?? undefined,
         subTotal: pricing.subTotal,
         discountAmount: pricing.discountAmount,
@@ -179,6 +180,7 @@ export class BookingIntakeService {
         refundAmount: 0,
         status: BookingStatus.DRAFT,
         paymentStatus: PaymentStatus.UNPAID,
+        venueCost: dto.venueCost ?? 0,
       });
 
       booking = await manager.save(Booking, booking);
@@ -207,7 +209,7 @@ export class BookingIntakeService {
           description: `Deposit for booking by ${client.name ?? 'Client'} — ${dto.deposit.paymentMethod}`,
           bookingId: booking.id,
           category: 'Booking Deposit',
-          transactionDate: new Date(),
+          transactionDate: dto.deposit.transactionDate ? new Date(dto.deposit.transactionDate) : new Date(),
           paymentMethod: dto.deposit.paymentMethod,
           ...(dto.deposit.reference ? { reference: dto.deposit.reference } : {}),
         });

@@ -14,11 +14,23 @@ export interface ClientExportRow {
 
 export interface BookingExportRow {
   id: string;
+  eventDate: string;
+  eventDay: string;
   clientName: string;
   clientEmail: string;
+  clientPhone: string;
   package: string;
-  eventDate: string;
+  notes: string;
   totalPrice: number;
+  processingTypes: string;
+  firstPaymentDate: string;
+  amountPaid: number;
+  handoverType: string;
+  venueCost: number;
+  remainingBalance: number;
+  remainingBalanceMinusVenueCost: number;
+  totalDueWithVenueCost: number;
+  paymentStatus: string;
   status: string;
   createdAt: string;
 }

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
+import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 
 export class RefundBookingDto {
   @ApiProperty({ description: 'Refund amount (must not exceed total amount paid)', example: 100.0 })
@@ -17,9 +18,15 @@ export class RefundBookingDto {
 
   @ApiPropertyOptional({
     description: 'Payment method used for the refund',
-    example: 'E_PAYMENT',
+    enum: PaymentMethod,
+    example: PaymentMethod.E_PAYMENT,
   })
   @IsOptional()
-  @IsString()
-  paymentMethod?: string;
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
+
+  @ApiPropertyOptional({ description: 'Date/time the refund was issued. Defaults to now.' })
+  @IsOptional()
+  @IsDateString()
+  transactionDate?: string;
 }

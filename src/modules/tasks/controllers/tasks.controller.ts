@@ -97,14 +97,17 @@ export class TasksController {
   }
 
   @Get('my-tasks')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get current user tasks' })
   @ApiResponse({ status: 200, description: 'Return user tasks' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findMyTasks(@CurrentUser() user: User) {
     return this.tasksService.findByUser(user.id);
   }
 
   @Get('booking/:bookingId')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get tasks by booking ID' })
   @ApiParam({ name: 'bookingId', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Return booking tasks' })

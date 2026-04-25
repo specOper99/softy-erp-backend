@@ -162,7 +162,6 @@ export class AuditService implements AuditPublisher {
       where: { id, tenantId },
     });
   }
-
   private sanitize(data: unknown): unknown {
     if (!data) return data;
     if (typeof data !== 'object') return data;

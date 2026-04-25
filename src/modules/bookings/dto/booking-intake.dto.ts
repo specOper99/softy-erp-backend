@@ -81,6 +81,11 @@ export class BookingIntakeDepositDto {
   @IsOptional()
   @IsString()
   reference?: string;
+
+  @ApiPropertyOptional({ description: 'Date/time the deposit was received. Defaults to now.' })
+  @IsOptional()
+  @IsDateString()
+  transactionDate?: string;
 }
 
 /**
@@ -116,6 +121,11 @@ export class BookingIntakeDto {
   @IsString()
   notes?: string;
 
+  @ApiPropertyOptional({ description: 'How the final deliverables will be handed over', example: 'ماستر' })
+  @IsOptional()
+  @IsString()
+  handoverType?: string;
+
   @ApiPropertyOptional({ description: 'Tax rate percentage (0–50)', example: 15 })
   @IsOptional()
   @IsNumber()
@@ -135,6 +145,15 @@ export class BookingIntakeDto {
   @IsNumber()
   @Min(0)
   discountAmount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Venue/hall cost — recorded as expense on P&L, does not reduce invoice',
+    example: 200,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  venueCost?: number;
 
   @ApiPropertyOptional({ description: 'Google Maps or event location URL' })
   @IsOptional()

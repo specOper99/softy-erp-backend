@@ -289,6 +289,32 @@ describe('BookingsService', () => {
       expect(bookingRepository.save).toHaveBeenCalledTimes(2);
     });
 
+    it('should persist handover type when provided', async () => {
+      const dto: CreateBookingDto = {
+        clientId: 'client-1',
+        packageId: 'pkg-1',
+        eventDate: new Date(Date.now() + 86400000).toISOString(),
+        handoverType: 'ماستر',
+      };
+
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-1',
+        price: 100,
+        name: 'Test Package',
+        durationMinutes: 60,
+      });
+      bookingRepository.create.mockReturnValue(mockBooking);
+      bookingRepository.save.mockResolvedValue(mockBooking);
+
+      await service.create(dto);
+
+      expect(bookingRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          handoverType: 'ماستر',
+        }),
+      );
+    });
+
     it('should reject create when staff conflict exists', async () => {
       const dto: CreateBookingDto = {
         clientId: 'client-1',
@@ -447,6 +473,48 @@ describe('BookingsService', () => {
       expect(event.tenantId).toBe('tenant-1');
     });
 
+    it('passes payment method, reference, and requested transaction date into finance transaction', async () => {
+      const transactionDate = '2026-04-20T09:30:00.000Z';
+      const foundBooking = {
+        ...mockBooking,
+        amountPaid: 0,
+        totalPrice: 1000,
+        depositAmount: 200,
+        client: { email: 'client@example.com', name: 'Client' },
+        derivePaymentStatus: jest.fn().mockReturnValue('PARTIALLY_PAID'),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(foundBooking),
+      });
+
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(foundBooking),
+          update: jest.fn().mockResolvedValue({ affected: 1 }),
+        }),
+      );
+
+      await service.recordPayment('booking-123', {
+        amount: 250,
+        paymentMethod: 'E_PAYMENT',
+        reference: 'ref-1',
+        transactionDate,
+      });
+
+      expect(financeService.createTransactionWithManager).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          paymentMethod: 'E_PAYMENT',
+          reference: 'ref-1',
+          transactionDate: new Date(transactionDate),
+        }),
+      );
+    });
+
     it('should update paymentStatus via derivePaymentStatus after recording payment', async () => {
       const foundBooking = {
         ...mockBooking,
@@ -502,6 +570,7 @@ describe('BookingsService', () => {
         id: 'b-confirmed',
         tenantId: 'tenant-1',
         status: BookingStatus.CONFIRMED as unknown as BookingStatus,
+        startTime: '10:00',
       });
 
       bookingRepository.createQueryBuilder.mockReturnValue({
@@ -554,6 +623,51 @@ describe('BookingsService', () => {
 
       // Verify catalogService was called with the new package
       expect(catalogService.findPackageById).toHaveBeenCalledWith('pkg-2');
+    });
+
+    it('allows non-draft workflow metadata updates for handover type and processing types', async () => {
+      const confirmedBooking = createMockBooking({
+        id: 'b-confirmed',
+        tenantId: 'tenant-1',
+        status: BookingStatus.CONFIRMED as unknown as BookingStatus,
+        startTime: '10:00',
+      });
+      const mockProcessingType = { id: 'pt-1', tenantId: 'tenant-1', name: 'طبع' };
+
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(confirmedBooking),
+      });
+
+      const mockFind = jest.fn().mockResolvedValue([mockProcessingType]);
+      const mockSave = jest.fn().mockImplementation((booking) => booking);
+      dataSource.transaction.mockImplementation((cb) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue({ ...confirmedBooking }),
+          find: mockFind,
+          save: mockSave,
+        }),
+      );
+
+      await service.update('b-confirmed', {
+        handoverType: 'حقيقي',
+        processingTypeIds: ['pt-1'],
+      });
+
+      expect(mockFind).toHaveBeenCalledWith(
+        ProcessingType,
+        expect.objectContaining({
+          where: [{ id: 'pt-1', tenantId: 'tenant-1' }],
+        }),
+      );
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          handoverType: 'حقيقي',
+          processingTypes: [mockProcessingType],
+        }),
+      );
     });
   });
 
@@ -635,7 +749,10 @@ describe('BookingsService', () => {
 
       expect(result).toEqual(mockBooking);
       expect(bookingRepository.createQueryBuilder).toHaveBeenCalledWith('booking');
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith('booking.id = :id', { id: 'booking-123' });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('booking.id = :id AND booking.tenantId = :tenantId', {
+        id: 'booking-123',
+        tenantId: 'tenant-123',
+      });
     });
 
     it('should filter FIELD_STAFF booking visibility using task assignee mapping and legacy assigned user fallback', async () => {

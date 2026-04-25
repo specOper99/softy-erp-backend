@@ -36,6 +36,12 @@ export class CreateBookingDto {
   @SanitizeHtml()
   notes?: string;
 
+  @ApiPropertyOptional({ description: 'How the final deliverables will be handed over', example: 'ماستر' })
+  @IsString()
+  @IsOptional()
+  @SanitizeHtml()
+  handoverType?: string;
+
   @ApiPropertyOptional({ description: 'Start time in HH:mm format', example: '14:30' })
   @Matches(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/, {
     message: 'startTime must be in HH:mm format',
@@ -58,6 +64,15 @@ export class CreateBookingDto {
   @IsOptional()
   @Min(0)
   discountAmount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Venue/hall cost — recorded as an expense against P&L (does not reduce client invoice)',
+    example: 200,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  venueCost?: number;
 
   @ApiPropertyOptional({
     description: 'Deposit percentage (0-100)',
@@ -112,6 +127,12 @@ export class UpdateBookingDto {
   @SanitizeHtml()
   notes?: string;
 
+  @ApiPropertyOptional({ description: 'How the final deliverables will be handed over', example: 'حقيقي' })
+  @IsString()
+  @IsOptional()
+  @SanitizeHtml()
+  handoverType?: string;
+
   @ApiPropertyOptional({
     enum: BookingStatus,
     description:
@@ -138,6 +159,12 @@ export class UpdateBookingDto {
   @IsOptional()
   @Min(0)
   discountAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Venue/hall cost — recorded as expense on P&L (DRAFT only)', example: 200 })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  venueCost?: number;
 
   @ApiPropertyOptional({ description: 'Deposit percentage (0-100) (DRAFT only)', example: 25 })
   @IsNumber()
@@ -237,6 +264,9 @@ export class BookingResponseDto {
   @ApiProperty({ description: 'Fixed discount amount applied' })
   discountAmount: number;
 
+  @ApiProperty({ description: 'Venue/hall cost recorded as expense' })
+  venueCost: number;
+
   @ApiProperty()
   taxRate: number;
 
@@ -248,6 +278,9 @@ export class BookingResponseDto {
 
   @ApiPropertyOptional()
   notes: string;
+
+  @ApiPropertyOptional({ description: 'How the final deliverables will be handed over' })
+  handoverType: string | null;
 
   @ApiPropertyOptional({ description: 'Location map link' })
   locationLink: string | null;

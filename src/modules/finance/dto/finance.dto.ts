@@ -84,6 +84,17 @@ export class CreateTransactionDto {
   @SanitizeHtml()
   description?: string;
 
+  @ApiPropertyOptional({ description: 'Payment method used for this transaction', example: 'E_PAYMENT' })
+  @IsString()
+  @IsOptional()
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ description: 'Receipt, external transaction, or manual payment reference' })
+  @IsString()
+  @IsOptional()
+  @SanitizeHtml()
+  reference?: string;
+
   @ApiProperty({ enum: Currency, default: Currency.USD })
   @IsEnum(Currency)
   @IsOptional()
@@ -118,6 +129,12 @@ export class TransactionResponseDto {
 
   @ApiPropertyOptional()
   description: string;
+
+  @ApiPropertyOptional()
+  paymentMethod: string | null;
+
+  @ApiPropertyOptional()
+  reference: string | null;
 
   @ApiProperty({ enum: Currency })
   currency: Currency;

@@ -131,6 +131,7 @@ export class BookingsService {
       eventDate,
       packageId: dto.packageId,
       notes: dto.notes,
+      handoverType: dto.handoverType ?? null,
       startTime: dto.startTime ?? null,
       durationMinutes: pkg.durationMinutes,
       subTotal: pricing.subTotal,
@@ -143,6 +144,7 @@ export class BookingsService {
       depositAmount: pricing.depositAmount,
       amountPaid: 0,
       refundAmount: 0,
+      venueCost: dto.venueCost ?? 0,
       paymentStatus: PaymentStatus.UNPAID,
       locationLink: dto.locationLink ?? null,
     });
@@ -296,8 +298,9 @@ export class BookingsService {
   }
 
   async findOne(id: string, user?: User): Promise<Booking> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const qb = this.bookingRepository.createQueryBuilder('booking');
-    qb.andWhere('booking.id = :id', { id });
+    qb.andWhere('booking.id = :id AND booking.tenantId = :tenantId', { id, tenantId });
 
     // Apply standard relations
     qb.leftJoinAndSelect('booking.client', 'client')
@@ -373,7 +376,7 @@ export class BookingsService {
 
     // SECURITY: Only allow limited updates on non-draft bookings
     if (existingBooking.status !== BookingStatus.DRAFT) {
-      const allowedUpdates = ['notes'];
+      const allowedUpdates = ['notes', 'handoverType', 'processingTypeIds'];
       const attemptedUpdates = Object.keys(dto).filter((k) => dto[k as keyof UpdateBookingDto] !== undefined);
       const disallowed = attemptedUpdates.filter((k) => !allowedUpdates.includes(k));
       if (disallowed.length > 0) {
@@ -453,7 +456,9 @@ export class BookingsService {
       if (dto.eventDate !== undefined) simpleUpdates.eventDate = parseCanonicalBookingDateInput(dto.eventDate);
       if (dto.startTime !== undefined) simpleUpdates.startTime = dto.startTime;
       if (dto.notes !== undefined) simpleUpdates.notes = dto.notes;
+      if (dto.handoverType !== undefined) simpleUpdates.handoverType = dto.handoverType;
       if (dto.locationLink !== undefined) simpleUpdates.locationLink = dto.locationLink;
+      if (dto.venueCost !== undefined) simpleUpdates.venueCost = dto.venueCost;
 
       Object.assign(booking, simpleUpdates);
 
@@ -484,6 +489,12 @@ export class BookingsService {
     }
     if (dto.notes !== undefined) {
       allowedChanges.notes = dto.notes;
+    }
+    if (dto.handoverType !== undefined) {
+      allowedChanges.handoverType = dto.handoverType;
+    }
+    if (dto.processingTypeIds !== undefined) {
+      allowedChanges.processingTypeIds = dto.processingTypeIds;
     }
     if (dto.startTime !== undefined) {
       allowedChanges.startTime = dto.startTime;
@@ -595,7 +606,9 @@ export class BookingsService {
         description: `Payment for booking ${lockedBooking.client?.name || 'Client'} - ${dto.paymentMethod || 'Manual'}`,
         bookingId: lockedBooking.id,
         category: 'Booking Payment',
-        transactionDate: new Date(),
+        transactionDate: dto.transactionDate ? new Date(dto.transactionDate) : new Date(),
+        paymentMethod: dto.paymentMethod,
+        reference: dto.reference,
       });
 
       // 4. Update the booking's amountPaid and paymentStatus atomically
@@ -665,7 +678,7 @@ export class BookingsService {
         bookingId: lockedBooking.id,
         paymentMethod: dto.paymentMethod,
         description: dto.reason,
-        transactionDate: new Date(),
+        transactionDate: dto.transactionDate ? new Date(dto.transactionDate) : new Date(),
       });
 
       const newAmountPaid = MathUtils.subtract(amountPaid, dto.amount);
@@ -699,6 +712,7 @@ export class BookingsService {
       amount: remaining,
       paymentMethod: dto.paymentMethod,
       reference: dto.reference,
+      transactionDate: dto.transactionDate,
     });
   }
 

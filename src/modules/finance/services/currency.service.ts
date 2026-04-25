@@ -12,6 +12,7 @@ export class CurrencyService {
     [Currency.GBP]: 0.79,
     [Currency.AED]: 3.67,
     [Currency.SAR]: 3.75,
+    [Currency.IQD]: 1310,
   };
 
   /**

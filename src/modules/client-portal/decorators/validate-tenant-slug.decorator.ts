@@ -5,21 +5,19 @@ import {
   Injectable,
   NestMiddleware,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { NextFunction, Request, Response } from 'express';
-import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
-import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
+import { TenantsService } from '../../tenants/tenants.service';
 
 /**
- * Middleware to validate tenant slug from URL params and inject tenant into request
+ * Middleware to validate tenant slug from URL params and inject tenant into request.
+ * Uses TenantsService.ensurePortalTenantAccessible() so that the error contract and
+ * feature-flag behaviour (strictPortalTenantStatus) are identical to those used by
+ * ClientTokenGuard and the controller's resolveTenant() helper.
  */
 @Injectable()
 export class ValidateTenantSlugMiddleware implements NestMiddleware {
-  constructor(
-    @InjectRepository(Tenant)
-    private readonly tenantRepository: Repository<Tenant>,
-  ) {}
+  constructor(private readonly tenantsService: TenantsService) {}
 
   async use(req: Request, _res: Response, next: NextFunction): Promise<void> {
     const slug = req.params.slug as string;
@@ -28,13 +26,12 @@ export class ValidateTenantSlugMiddleware implements NestMiddleware {
       throw new BadRequestException('Tenant slug is required');
     }
 
-    const tenant = await this.tenantRepository.findOne({
-      where: { slug: slug },
-    });
+    const tenant = await this.tenantsService.findBySlug(slug);
 
-    if (!tenant || tenant.status !== TenantStatus.ACTIVE) {
-      throw new BadRequestException('client-portal.tenant_blocked');
-    }
+    this.tenantsService.ensurePortalTenantAccessible(tenant, {
+      guard: 'ValidateTenantSlugMiddleware',
+      tenantSlug: slug,
+    });
 
     // Inject tenant into request for downstream use
     (req as Request & { tenant?: Tenant }).tenant = tenant;

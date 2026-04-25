@@ -4,4 +4,5 @@ export enum Currency {
   GBP = 'GBP',
   AED = 'AED',
   SAR = 'SAR',
+  IQD = 'IQD',
 }

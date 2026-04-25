@@ -52,6 +52,8 @@ export class FinanceService {
       taskId: dto.taskId,
       payoutId: dto.payoutId,
       description: dto.description,
+      paymentMethod: dto.paymentMethod,
+      reference: dto.reference,
       transactionDate: new Date(dto.transactionDate),
     });
 
@@ -82,6 +84,8 @@ export class FinanceService {
       taskId?: string;
       payoutId?: string;
       description?: string;
+      paymentMethod?: string;
+      reference?: string;
       transactionDate: Date;
     },
   ): Promise<{
@@ -94,6 +98,8 @@ export class FinanceService {
     taskId?: string;
     payoutId?: string;
     description?: string;
+    paymentMethod?: string;
+    reference?: string;
     transactionDate: Date;
     tenantId: string;
   }> {
@@ -121,6 +127,8 @@ export class FinanceService {
       taskId: data.taskId,
       payoutId: data.payoutId,
       description: data.description,
+      paymentMethod: data.paymentMethod,
+      reference: data.reference,
       transactionDate: data.transactionDate,
       tenantId,
     };
@@ -191,6 +199,7 @@ export class FinanceService {
       transactionDate: Date;
       revenueAccountCode?: string;
       paymentMethod?: string;
+      reference?: string;
     },
   ): Promise<Transaction> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -203,6 +212,7 @@ export class FinanceService {
       ...preparedData,
       revenueAccountCode: data.revenueAccountCode ?? null,
       paymentMethod: data.paymentMethod ?? null,
+      reference: data.reference ?? null,
     });
     const savedTransaction = await manager.save(transaction);
 

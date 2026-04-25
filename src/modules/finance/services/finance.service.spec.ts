@@ -241,7 +241,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       const dto = {
         type: TransactionType.INCOME,
         amount: 100,
-        currency: 'IQD' as unknown as Currency,
+        currency: 'JPY' as unknown as Currency, // JPY is not in the supported Currency enum
         category: 'Booking Payment',
         transactionDate: '2024-12-31T00:00:00Z',
       };
@@ -379,6 +379,28 @@ describe('FinanceService - Comprehensive Tests', () => {
       });
 
       expect(mockEventBus.publish).toHaveBeenCalled();
+    });
+
+    it('should persist payment method and reference when provided', async () => {
+      const manager = mockQueryRunner.manager as unknown as EntityManager;
+
+      await service.createTransactionWithManager(manager, {
+        type: TransactionType.INCOME,
+        amount: 250,
+        category: 'Booking Payment',
+        bookingId: 'booking-uuid-123',
+        transactionDate: new Date('2026-04-20T09:30:00.000Z'),
+        paymentMethod: 'E_PAYMENT',
+        reference: 'ref-1',
+      });
+
+      expect(mockQueryRunner.manager.create).toHaveBeenCalledWith(
+        Transaction,
+        expect.objectContaining({
+          paymentMethod: 'E_PAYMENT',
+          reference: 'ref-1',
+        }),
+      );
     });
   });
 

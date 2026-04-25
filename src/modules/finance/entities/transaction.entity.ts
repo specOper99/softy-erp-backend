@@ -78,6 +78,9 @@ export class Transaction extends BaseTenantEntity {
   @Column({ name: 'payment_method', type: 'varchar', length: 50, nullable: true })
   paymentMethod: string | null;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  reference: string | null;
+
   @ManyToOne('Booking', { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'booking_id' })
   booking: Booking | null;

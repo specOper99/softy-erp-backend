@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import pLimit from 'p-limit';
-import { Gauge, register } from 'prom-client';
+import { Gauge } from 'prom-client';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
@@ -20,11 +21,11 @@ export class PayoutConsistencyCron {
     private readonly paymentGateway: MockPaymentGatewayService,
     private readonly tenantsService: TenantsService,
     private readonly distributedLockService: DistributedLockService,
+    metricsFactory: MetricsFactory,
   ) {
-    this.stuckPayoutsGauge = new Gauge({
+    this.stuckPayoutsGauge = metricsFactory.getOrCreateGauge({
       name: 'softy_erp_stuck_payouts',
       help: 'Number of payouts stuck in pending state for more than 10 minutes',
-      registers: [register],
     });
   }
 

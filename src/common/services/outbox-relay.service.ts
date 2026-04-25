@@ -47,11 +47,13 @@ export class OutboxRelayService {
     }
   }
 
-  // In a real implementation, this would publish to RabbitMQ/Kafka/SNS
-  private async publishEvent(_event: OutboxEvent): Promise<void> {
-    // Simulate some logic or external call
-    // For now, we just log it as "published"
-    // await this.messageBroker.emit(event.type, event.payload);
-    return new Promise((resolve) => setTimeout(resolve, 50));
+  // TODO: Wire up an external message broker (RabbitMQ/Kafka/SNS) here.
+  // Until implemented, any events written to the outbox table will be marked FAILED
+  // with a clear error, preventing silent data loss.
+  private async publishEvent(event: OutboxEvent): Promise<void> {
+    throw new Error(
+      `No message broker configured. Cannot publish outbox event type=${event.type} id=${event.id}. ` +
+        `Implement this method by wiring a broker client and emitting: broker.emit(event.type, event.payload)`,
+    );
   }
 }

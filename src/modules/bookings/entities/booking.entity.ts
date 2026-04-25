@@ -43,6 +43,9 @@ export class Booking extends BaseTenantEntity {
   @MoneyColumn('discount_amount')
   discountAmount: number;
 
+  @MoneyColumn('venue_cost')
+  venueCost: number;
+
   @PercentColumn('tax_rate')
   taxRate: number;
 
@@ -72,6 +75,9 @@ export class Booking extends BaseTenantEntity {
 
   @Column({ type: 'text', nullable: true })
   notes: string;
+
+  @Column({ name: 'handover_type', type: 'varchar', length: 100, nullable: true })
+  handoverType: string | null;
 
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;

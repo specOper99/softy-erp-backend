@@ -44,6 +44,7 @@ import { VendorsService } from './services/vendors.service';
 import { ExportService } from '../../common/services/export.service';
 
 import { MockPaymentGatewayService } from '../hr/services/payment-gateway.service';
+import { MetricsModule } from '../metrics/metrics.module';
 import { PayoutConsistencyCron } from './cron/payout-consistency.cron';
 import { BookingUpdatedHandler } from './events/handlers/booking-updated.handler';
 import { BookingPriceChangedHandler } from './handlers/booking-price-changed.handler';
@@ -66,6 +67,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     CommonModule,
     TenantsModule,
     AnalyticsModule,
+    MetricsModule,
   ],
   controllers: [
     TransactionsController,
