@@ -3,8 +3,7 @@ import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
-import { Lang } from '../../../common/decorators';
-import { I18nService } from '../../../common/i18n';
+import { I18nLang, I18nService } from '../../../common/i18n';
 import type { Language } from '../../../common/i18n';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
@@ -109,7 +108,11 @@ export class MFAController {
     },
   })
   @ApiResponse({ status: 400, description: 'Invalid MFA code or MFA not set up' })
-  async verifyAndEnableMFA(@Body() dto: VerifyMFADto, @Request() req: AuthenticatedRequest, @Lang() lang: Language) {
+  async verifyAndEnableMFA(
+    @Body() dto: VerifyMFADto,
+    @Request() req: AuthenticatedRequest,
+    @I18nLang() lang: Language,
+  ) {
     const userId: string = req.user.userId;
     const user = await this.mfaService.getUserById(userId);
 
@@ -128,7 +131,7 @@ export class MFAController {
 
     return {
       success: true,
-      message: this.i18nService.translate('security.mfa_enabled', lang),
+      message: this.i18nService.translate('security.mfa_enabled', { lang }),
     };
   }
 
@@ -152,13 +155,13 @@ export class MFAController {
     },
   })
   @ApiResponse({ status: 401, description: 'Invalid password' })
-  async disableMFA(@Body() dto: DisableMFADto, @Request() req: AuthenticatedRequest, @Lang() lang: Language) {
+  async disableMFA(@Body() dto: DisableMFADto, @Request() req: AuthenticatedRequest, @I18nLang() lang: Language) {
     const userId: string = req.user.userId;
     await this.mfaService.disableMfa(userId, dto.password);
 
     return {
       success: true,
-      message: this.i18nService.translate('security.mfa_disabled', lang),
+      message: this.i18nService.translate('security.mfa_disabled', { lang }),
     };
   }
 

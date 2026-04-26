@@ -54,7 +54,6 @@ describe('PrivacyController', () => {
         {
           provide: I18nService,
           useValue: {
-            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
             translate: jest.fn().mockImplementation((key: string) => {
               const translations: Record<string, string> = {
                 'operations.data_export_processed': 'Data export processed successfully',

@@ -64,7 +64,7 @@ export class BookingWorkflowService {
       });
 
       if (!bookingLock) {
-        throw new NotFoundException(`Booking with ID ${id} not found`);
+        throw new NotFoundException('booking.not_found');
       }
 
       // Step 2: Fetch actual data with relations.
@@ -74,7 +74,7 @@ export class BookingWorkflowService {
       });
 
       if (!booking) {
-        throw new NotFoundException(`Booking with ID ${id} not found`);
+        throw new NotFoundException('booking.not_found');
       }
 
       this.stateMachine.validateTransition(booking.status, BookingStatus.CONFIRMED);
@@ -228,7 +228,7 @@ export class BookingWorkflowService {
       });
 
       if (!bookingLock) {
-        throw new NotFoundException(`Booking with ID ${id} not found`);
+        throw new NotFoundException('booking.not_found');
       }
 
       const booking = await manager.findOne(Booking, {
@@ -237,7 +237,7 @@ export class BookingWorkflowService {
       });
 
       if (!booking) {
-        throw new NotFoundException(`Booking with ID ${id} not found`);
+        throw new NotFoundException('booking.not_found');
       }
 
       if (booking.status === BookingStatus.CANCELLED) {
@@ -399,7 +399,7 @@ export class BookingWorkflowService {
       });
 
       if (!booking) {
-        throw new NotFoundException(`Booking with ID ${id} not found`);
+        throw new NotFoundException('booking.not_found');
       }
 
       const oldStatus = booking.status;
@@ -411,11 +411,11 @@ export class BookingWorkflowService {
       });
       if (!tasksArray || tasksArray.length === 0) {
         // Warning: This logic assumes a complete booking SHOULD have tasks.
-        throw new BadRequestException('No tasks found for this booking');
+        throw new BadRequestException('booking.no_tasks_found');
       }
       const pendingTasks = tasksArray.filter((t) => t.status !== TaskStatus.COMPLETED);
       if (pendingTasks.length > 0) {
-        throw new BadRequestException(`Cannot complete booking: ${pendingTasks.length} tasks are still pending`);
+        throw new BadRequestException('booking.pending_tasks_blocking');
       }
 
       booking.status = BookingStatus.COMPLETED;
@@ -456,7 +456,7 @@ export class BookingWorkflowService {
       });
 
       if (!booking) {
-        throw new NotFoundException(`Booking with ID ${id} not found`);
+        throw new NotFoundException('booking.not_found');
       }
 
       if (booking.status !== BookingStatus.CONFIRMED) {
@@ -578,7 +578,7 @@ export class BookingWorkflowService {
     });
 
     if (!booking) {
-      throw new NotFoundException(`Booking with ID ${id} not found`);
+      throw new NotFoundException('booking.not_found');
     }
 
     const newBooking = this.dataSource.manager.create(Booking, {

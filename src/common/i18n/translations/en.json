@@ -35,7 +35,11 @@
         "already_confirmed": "Booking is already confirmed",
         "invalid_status": "Invalid booking status",
         "cannot_update_non_draft": "Cannot update fields on a non-draft booking",
-        "can_only_delete_draft": "Can only delete draft bookings"
+        "can_only_delete_draft": "Can only delete draft bookings",
+        "client_not_found": "Client not found",
+        "review_not_found": "Review not found",
+        "no_tasks_found": "No tasks found for this booking",
+        "pending_tasks_blocking": "Cannot complete booking: {count} tasks are still pending"
     },
     "task": {
         "created": "Task created successfully",
@@ -67,7 +71,15 @@
         "must_be_array": "{field} must be a list",
         "invalid_uuid": "{field} must be a valid UUID",
         "invalid_phone": "Invalid phone number",
-        "invalid_url": "Invalid URL format"
+        "invalid_url": "Invalid URL format",
+        "must_be_positive": "{field} must be a positive number",
+        "must_be_negative": "{field} must be a negative number",
+        "must_be_date": "{field} must be a valid date",
+        "invalid_length": "{field} has an invalid length",
+        "array_min_size": "{field} must have at least {min} items",
+        "array_max_size": "{field} must not exceed {max} items",
+        "must_be_object": "{field} must be an object",
+        "invalid": "{field} is invalid"
     },
     "billing": {
         "tenant_required": "Tenant context required",
@@ -123,13 +135,18 @@
     },
     "security": {
         "mfa_enabled": "MFA enabled successfully",
-        "mfa_disabled": "MFA disabled"
+        "mfa_disabled": "MFA disabled",
+        "metrics_auth_required": "Authorization header required",
+        "metrics_token_invalid": "Invalid metrics token"
     },
     "operations": {
         "logout_success": "Logged out successfully",
         "data_export_processed": "Data export processed successfully",
         "data_deletion_processed": "Data deletion processed successfully",
         "notification_deleted": "Notification deleted successfully",
+        "notification_not_found": "Notification not found",
+        "notification_read_all": "All notifications marked as read",
+        "consent_not_found": "Consent not found",
         "request_processing": "A request with this idempotency key is currently being processed"
     },
     "consent": {
@@ -176,6 +193,26 @@
             "comment": "Comment",
             "approvalPending": "Your review is currently pending approval and will be published once reviewed by our team.",
             "footer": "We appreciate your feedback!"
+        }
+    },
+    "email": {
+        "subjects": {
+            "bookingConfirmed": "Booking Confirmed - {packageName}",
+            "taskAssigned": "New Task Assigned: {taskType}",
+            "bookingRescheduled": "Booking Rescheduled: {bookingId}",
+            "payrollProcessed": "Payroll Processed - Payment Details",
+            "clientPortalLogin": "Login to {companyName} Client Portal",
+            "passwordReset": "Reset Your Password",
+            "emailVerification": "Verify Your Email Address",
+            "newDeviceLogin": "New Login Detected",
+            "suspiciousActivity": "Security Alert: Suspicious Activity Detected"
+        },
+        "content": {
+            "newLoginAlert": "New Login Alert",
+            "newLoginDesc": "We detected a new login on your account.",
+            "securityAlert": "Security Alert",
+            "suspiciousActivityDesc": "Suspicious Activity: {activityType}",
+            "unknownLocation": "Unknown Location"
         }
     }
 }

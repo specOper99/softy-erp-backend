@@ -14,6 +14,7 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
+import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 import { FlagsService } from '../../../common/flags/flags.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -294,7 +295,7 @@ describe('BookingsService', () => {
         clientId: 'client-1',
         packageId: 'pkg-1',
         eventDate: new Date(Date.now() + 86400000).toISOString(),
-        handoverType: 'ماستر',
+        handoverType: PaymentMethod.CASH,
       };
 
       catalogService.findPackageById.mockResolvedValue({
@@ -310,7 +311,7 @@ describe('BookingsService', () => {
 
       expect(bookingRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          handoverType: 'ماستر',
+          handoverType: PaymentMethod.CASH,
         }),
       );
     });
@@ -463,7 +464,11 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'E_PAYMENT', reference: 'ref-1' });
+      await service.recordPayment('booking-123', {
+        amount: 250,
+        paymentMethod: PaymentMethod.E_PAYMENT,
+        reference: 'ref-1',
+      });
 
       expect(eventBus.publish).toHaveBeenCalledTimes(1);
       expect(eventBus.publish).toHaveBeenCalledWith(expect.any(PaymentRecordedEvent));
@@ -500,7 +505,7 @@ describe('BookingsService', () => {
 
       await service.recordPayment('booking-123', {
         amount: 250,
-        paymentMethod: 'E_PAYMENT',
+        paymentMethod: PaymentMethod.E_PAYMENT,
         reference: 'ref-1',
         transactionDate,
       });
@@ -540,7 +545,7 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.recordPayment('booking-123', { amount: 250, paymentMethod: 'E_PAYMENT' });
+      await service.recordPayment('booking-123', { amount: 250, paymentMethod: PaymentMethod.E_PAYMENT });
 
       expect(foundBooking.derivePaymentStatus).toHaveBeenCalled();
       // Verify update was called with paymentStatus
@@ -652,7 +657,7 @@ describe('BookingsService', () => {
       );
 
       await service.update('b-confirmed', {
-        handoverType: 'حقيقي',
+        handoverType: PaymentMethod.E_PAYMENT,
         processingTypeIds: ['pt-1'],
       });
 
@@ -664,7 +669,7 @@ describe('BookingsService', () => {
       );
       expect(mockSave).toHaveBeenCalledWith(
         expect.objectContaining({
-          handoverType: 'حقيقي',
+          handoverType: PaymentMethod.E_PAYMENT,
           processingTypes: [mockProcessingType],
         }),
       );

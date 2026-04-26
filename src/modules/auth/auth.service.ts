@@ -114,8 +114,11 @@ export class AuthService {
   async login(loginDto: LoginDto, context?: RequestContext): Promise<AuthResponseDto> {
     // CRITICAL SECURITY: equalize auth response timing to reduce user enumeration via latency.
     // This applies to both success and failure paths.
+    // 500 ms floor: Argon2id on modern hardware can complete in ~50–150 ms, so 100 ms provided
+    // negligible headroom. 500 ms ensures a meaningful, consistent minimum regardless of whether
+    // the user exists, the password is correct, or the hash algorithm is fast.
     const startedAtMs = Date.now();
-    const minResponseMs = 100;
+    const minResponseMs = 500;
 
     try {
       const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);

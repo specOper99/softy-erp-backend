@@ -2,8 +2,8 @@ import type { ArgumentsHost } from '@nestjs/common';
 import { Catch, ExceptionFilter, HttpException, HttpStatus, Inject, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
+import { I18nContext, I18nService } from 'nestjs-i18n';
 import { getCorrelationId } from '../logger/request-context';
-import { I18nService, Language } from '../i18n';
 
 interface ErrorResponse {
   statusCode: number;
@@ -36,9 +36,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const correlationId = this.resolveCorrelationId(request);
     response.setHeader('X-Correlation-ID', correlationId);
 
-    // Parse language from Accept-Language header
-    const acceptLanguage = request.headers['accept-language'];
-    const lang = this.i18nService.parseAcceptLanguage(acceptLanguage);
+    // Resolve language from nestjs-i18n context (set by AcceptLanguageResolver middleware)
+    const lang = I18nContext.current(host)?.lang ?? 'en';
 
     let status: number;
     let message: string;
@@ -66,7 +65,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       // Translate the generic error message
-      message = this.i18nService.translate('common.internal_error', lang);
+      message = this.i18nService.translate('common.internal_error', { lang });
 
       this.logger.error({
         message: 'Unhandled exception',
@@ -80,7 +79,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       // Translate the generic error message
-      message = this.i18nService.translate('common.internal_error', lang);
+      message = this.i18nService.translate('common.internal_error', { lang });
 
       this.logger.error({
         message: 'Unknown exception type',
@@ -113,7 +112,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
    * Try to translate a message. Returns the translated message if found,
    * or the original message if no translation exists.
    */
-  private tryTranslateMessage(message: string, lang: Language): string {
+  private tryTranslateMessage(message: string, lang: string): string {
     // Map common generic error messages to translation keys
     const messageKeyMap: Record<string, string> = {
       'An unexpected error occurred. Please try again later.': 'common.internal_error',
@@ -123,11 +122,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const translationKey = messageKeyMap[message];
     if (translationKey) {
-      return this.i18nService.translate(translationKey, lang);
+      return this.i18nService.translate(translationKey, { lang });
     }
 
     // Try to translate the message directly (assuming it might be a key)
-    const translated = this.i18nService.translate(message, lang);
+    const translated = this.i18nService.translate(message, { lang }) as string;
     if (translated !== message) {
       return translated;
     }

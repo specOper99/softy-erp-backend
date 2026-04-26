@@ -26,8 +26,8 @@ import {
 } from '@nestjs/swagger';
 import { minutes, SkipThrottle, Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { ApiErrorResponses, CurrentUser, Lang } from '../../common/decorators';
-import { I18nService } from '../../common/i18n';
+import { ApiErrorResponses, CurrentUser } from '../../common/decorators';
+import { I18nLang, I18nService } from '../../common/i18n';
 import type { Language } from '../../common/i18n';
 import { SkipTenant } from '../tenants/decorators/skip-tenant.decorator';
 import { User } from '../users/entities/user.entity';
@@ -387,9 +387,9 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Password reset successful' })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  async resetPassword(@Body() dto: ResetPasswordDto, @Lang() lang: Language): Promise<{ message: string }> {
+  async resetPassword(@Body() dto: ResetPasswordDto, @I18nLang() lang: Language): Promise<{ message: string }> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
-    return { message: this.i18nService.translate('auth.password_reset_success', lang) };
+    return { message: this.i18nService.translate('auth.password_reset_success', { lang }) };
   }
 
   @Post('verify-email')
@@ -397,9 +397,9 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: minutes(5) } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email address' })
-  async verifyEmail(@Body() dto: VerifyEmailDto, @Lang() lang: Language): Promise<{ message: string }> {
+  async verifyEmail(@Body() dto: VerifyEmailDto, @I18nLang() lang: Language): Promise<{ message: string }> {
     await this.authService.verifyEmail(dto.token);
-    return { message: this.i18nService.translate('auth.email_verified_success', lang) };
+    return { message: this.i18nService.translate('auth.email_verified_success', { lang }) };
   }
 
   @Post('resend-verification')

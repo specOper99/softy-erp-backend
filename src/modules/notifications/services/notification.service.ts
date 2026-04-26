@@ -53,7 +53,7 @@ export class NotificationService {
     });
 
     if (!notification) {
-      throw new NotFoundException(`Notification with ID ${notificationId} not found`);
+      throw new NotFoundException('operations.notification_not_found');
     }
 
     if (!notification.read) {
@@ -90,7 +90,7 @@ export class NotificationService {
     });
 
     if (result.affected === 0) {
-      throw new NotFoundException(`Notification with ID ${notificationId} not found`);
+      throw new NotFoundException('operations.notification_not_found');
     }
   }
 
@@ -124,7 +124,7 @@ export class NotificationService {
     });
 
     if (!notification) {
-      throw new NotFoundException(`Notification with ID ${notificationId} not found`);
+      throw new NotFoundException('operations.notification_not_found');
     }
 
     if (!notification.read) {

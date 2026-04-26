@@ -103,7 +103,7 @@ export class ReviewsService {
     });
 
     if (!review) {
-      throw new NotFoundException(`Review with ID ${id} not found`);
+      throw new NotFoundException('booking.review_not_found');
     }
 
     return review;

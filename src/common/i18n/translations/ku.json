@@ -33,7 +33,11 @@
     "already_confirmed": "نۆرە پێشتر پشتڕاستکراوەتەوە",
     "invalid_status": "دۆخی نۆرەی هەڵە",
     "cannot_update_non_draft": "ناتوانرێت خانەکانی نۆرە نوێبکرێتەوە",
-    "can_only_delete_draft": "تەنها دەتوانرێت مسۆڕ بکرێت",
+    "can_only_delete_draft": "تەنها دەتوانرێت مسۆۜ بکرێت",
+    "client_not_found": "کڕیار نەدۆزرایەوە",
+    "review_not_found": "هەڵسەنگاندن نەدۆزرایەوە",
+    "no_tasks_found": "هیچ ئەرکێک بۆ ئەم نۆرەیە نەدۆزرایەوە",
+    "pending_tasks_blocking": "نۆرەکە ناتوانرێت تەواو بکرێت: {count} ئەرک هێشتا چاوەۜێیە"
     "invalid_tax_rate": "رێژەی باج دەبێت لە نێوان 0 و 100 بێت",
     "event_date_must_be_future": "بەرواری ئیڤەنت دەبێت لە داهاتوودا بێت"
   },
@@ -67,18 +71,29 @@
     "must_be_array": "{field} دەبێت لیستە بێت",
     "invalid_uuid": "{field} دەبێت UUID-ی دروست بێت",
     "invalid_phone": "ژمارەی تەلەفۆن هەڵەیە",
-    "invalid_url": "فۆرماتی URL هەڵەیە"
+    "invalid_url": "فۆرماتی URL هەڵەیە",
+    "must_be_positive": "{field} دەبێت ژمارەیەکی ئەرێنی بێت",
+    "must_be_negative": "{field} دەبێت ژمارەیەکی نەرێنی بێت",
+    "must_be_date": "{field} دەبێت بەرواری دروست بێت",
+    "invalid_length": "{field} درێژایی هەڵەیە",
+    "array_min_size": "{field} دەبێت لانیکەم {min} بابەت هەبێت",
+    "array_max_size": "{field} نابێت زیاتر لە {max} بابەت هەبێت",
+    "must_be_object": "{field} دەبێت ئۆبجێکت بێت",
+    "invalid": "{field} هەڵەیە"
   },
   "security": {
     "mfa_enabled": "فلۆتەکڵی دوو لێی تیایدا سەرکەوتوو بوو",
-    "mfa_disabled": "فلۆتەکڵی دوو لێی تیایدا ناچالاک کرا"
+    "mfa_disabled": "فلۆتەکڵی دوو لێی تیایدا ناچالاک کرا",
+    "metrics_auth_required": "سەردێۜی مۆڵەت پێویستە",
+    "metrics_token_invalid": "تۆکنی میتریک هەڵەیە"
   },
   "operations": {
     "logout_success": "چوونەدەرەوە سەرکەوتوو بوو",
     "data_export_processed": "هەناردەی داتا بە سەرکەوتوویی جێبەجێ کرا",
     "data_deletion_processed": "سڕینەوەی داتا بە سەرکەوتوویی جێبەجێ کرا",
-    "notification_deleted": "ئاگادیاری بە سەرکەوتوویی سڕاوەتەوە",
-    "request_processing": "داواکاری بە ئەم کلیدی دووپاتکردنەوەیە هاوکات جێبەجێدەکرێت"
+    "notification_deleted": "ئاگادیاری بە سەرکەوتوویی سڕاوەتەوە",    "notification_not_found": "ئاگادیارکردنەوە نەدۆزرایەوە",
+    "notification_read_all": "هەموو ئاگادیارکردنەوەکان وەک خوێندراوە نیشانەکرا",
+    "consent_not_found": "ۜێگادان نەدۆزرایەوە",    "request_processing": "داواکاری بە ئەم کلیدی دووپاتکردنەوەیە هاوکات جێبەجێدەکرێت"
   },
   "consent": {
     "granted": "ڕێگەدان دراوە",
@@ -126,6 +141,26 @@
       "footer": "سوپاسی ڕەخنە و پێشنیارەکانت!"
     }
   },
+  "email": {
+    "subjects": {
+      "bookingConfirmed": "حجز پشتڕاستکرایەوە - {packageName}",
+      "taskAssigned": "ئەرکی نوێ دابەشکرا: {taskType}",
+      "bookingRescheduled": "حجز دووبارە کاتبەندکرا: {bookingId}",
+      "payrollProcessed": "مووچە پرۆسەسکرا - وردەکاری پارەدان",
+      "clientPortalLogin": "چوونە ژوورەوەی پۆرتاڵی کڕیارانی {companyName}",
+      "passwordReset": "ڕیسێتکردنی وشەی نهینی",
+      "emailVerification": "پشتڕاستکردنەوەی ئیمەیڵ",
+      "newDeviceLogin": "چوونەژوورەوەی نوێ بینرا",
+      "suspiciousActivity": "ئاگادارکردنەوەی ئەمنیەت: چالاکی مەترسیدار بینرا"
+    },
+    "content": {
+      "newLoginAlert": "ئاگادارکردنەوەی چوونەژوورەوەی نوێ",
+      "newLoginDesc": "چوونەژوورەوەیەکی نوێ لە هەژمارەکەتدا بینین.",
+      "securityAlert": "ئاگادارکردنەوەی ئەمنیەت",
+      "suspiciousActivityDesc": "چالاکی مەترسیدار: {activityType}",
+      "unknownLocation": "شوێنی نەناسراو"
+    }
+  },
   "media": {
     "s3_error": "هەڵەی خزمەتگوزاری هەڵدانەوە",
     "task_not_found_in_tenant": "ئەرکەکە لە تێنەنتاتدا نەدۆزرایەوە",
@@ -164,7 +199,7 @@
     "private_ip_denied": "URLی وێب هووک ناتوانرێت بۆ IP-i تایبەتەکانەوە بکات",
     "localhost_denied": "URLی وێب هووک ناتوانرێت بۆ localhost بکات",
     "invalid_protocol": "پرۆتۆکۆلێکی هەڵە",
-    "secret_length": "هەرێمەکەی وێب هووک دەبێت ئە Gunn {min} پیتەوە",
+    "secret_length": "نهێنی وێب هووک دەبێت لانیکەم {min} پیت بێت",
     "invalid_url": "URLی وێب هووکی هەڵە"
   },
   "wallet": {

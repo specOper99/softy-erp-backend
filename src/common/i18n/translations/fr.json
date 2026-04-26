@@ -34,6 +34,10 @@
     "invalid_status": "Statut de réservation invalide",
     "cannot_update_non_draft": "Impossible de modifier les champs d'une réservation non brouillon",
     "can_only_delete_draft": "Impossible de supprimer que les brouillons",
+    "client_not_found": "Client non trouvé",
+    "review_not_found": "Avis non trouvé",
+    "no_tasks_found": "Aucune tâche trouvée pour cette réservation",
+    "pending_tasks_blocking": "Impossible de terminer la réservation : {count} tâche(s) encore en attente",
     "invalid_tax_rate": "Le taux de taxe doit être entre 0 et 100",
     "event_date_must_be_future": "La date de l'événement doit être dans le futur"
   },
@@ -67,17 +71,30 @@
     "must_be_array": "{field} doit être une liste",
     "invalid_uuid": "{field} doit être un UUID valide",
     "invalid_phone": "Numéro de téléphone invalide",
-    "invalid_url": "Format d'URL invalide"
+    "invalid_url": "Format d'URL invalide",
+    "must_be_positive": "{field} doit être un nombre positif",
+    "must_be_negative": "{field} doit être un nombre négatif",
+    "must_be_date": "{field} doit être une date valide",
+    "invalid_length": "{field} a une longueur invalide",
+    "array_min_size": "{field} doit contenir au moins {min} éléments",
+    "array_max_size": "{field} ne doit pas dépasser {max} éléments",
+    "must_be_object": "{field} doit être un objet",
+    "invalid": "{field} est invalide"
   },
   "security": {
     "mfa_enabled": "Authentification MFA activée avec succès",
-    "mfa_disabled": "Authentification MFA désactivée"
+    "mfa_disabled": "Authentification MFA désactivée",
+    "metrics_auth_required": "En-tête d'autorisation requis",
+    "metrics_token_invalid": "Jeton de métriques invalide"
   },
   "operations": {
     "logout_success": "Déconnexion réussie",
     "data_export_processed": "Export des données traité avec succès",
     "data_deletion_processed": "Suppression des données traitée avec succès",
     "notification_deleted": "Notification supprimée avec succès",
+    "notification_not_found": "Notification non trouvée",
+    "notification_read_all": "Toutes les notifications ont été marquées comme lues",
+    "consent_not_found": "Consentement non trouvé",
     "request_processing": "Une demande avec cette clé d'idempotence est actuellement en traitement"
   },
   "consent": {
@@ -126,6 +143,26 @@
       "footer": "Nous apprécions vos commentaires !"
     }
   },
+  "email": {
+    "subjects": {
+      "bookingConfirmed": "Réservation confirmée - {packageName}",
+      "taskAssigned": "Nouvelle tâche assignée : {taskType}",
+      "bookingRescheduled": "Réservation reprogrammée : {bookingId}",
+      "payrollProcessed": "Paie traitée - Détails du paiement",
+      "clientPortalLogin": "Connexion au portail client {companyName}",
+      "passwordReset": "Réinitialiser votre mot de passe",
+      "emailVerification": "Vérifier votre adresse e-mail",
+      "newDeviceLogin": "Nouvelle connexion détectée",
+      "suspiciousActivity": "Alerte de sécurité : activité suspecte détectée"
+    },
+    "content": {
+      "newLoginAlert": "Alerte de nouvelle connexion",
+      "newLoginDesc": "Nous avons détecté une nouvelle connexion sur votre compte.",
+      "securityAlert": "Alerte de sécurité",
+      "suspiciousActivityDesc": "Activité suspecte : {activityType}",
+      "unknownLocation": "Emplacement inconnu"
+    }
+  },
   "media": {
     "s3_error": "Erreur du service de stockage",
     "task_not_found_in_tenant": "Tâche non trouvée dans le locataire",
@@ -140,7 +177,7 @@
     "raw_body_error": "Corps brut non disponible"
   },
   "finance": {
-    "amount_exceeds_maximum": "Le montant exceeds le maximum autorisé",
+    "amount_exceeds_maximum": "Le montant dépasse le maximum autorisé",
     "unsupported_currency": "Devise non supportée préciser",
     "amount_must_be_positive": "Le montant doit être positif"
   },
@@ -148,7 +185,7 @@
     "invalid_checkout_format": "Format d'heure de départ invalide",
     "invalid_date_format": "Format de date invalide",
     "checkout_must_be_after_checkin": "L'heure de départ doit être après l'heure d'arrivée",
-    "record_not_found": "Registro de présence non trouvé",
+    "record_not_found": "Enregistrement de présence non trouvé",
     "invalid_checkin_format": "Format d'heure d'arrivée invalide"
   },
   "health": {

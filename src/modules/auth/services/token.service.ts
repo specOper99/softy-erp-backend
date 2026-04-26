@@ -146,6 +146,10 @@ export class TokenService {
         isRevoked: false,
         expiresAt: MoreThan(new Date()),
       },
+      // Explicitly exclude tokenHash — it is a secret credential and must never
+      // leave the backend, even in its hashed form. userId is also omitted: it's
+      // already known to the caller (it's the where clause).
+      select: ['id', 'ipAddress', 'userAgent', 'createdAt', 'expiresAt', 'lastUsedAt'],
       order: { createdAt: 'DESC' },
       take: 100,
     });

@@ -209,7 +209,11 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     const tenantId = this.getTenantId();
 
     if (Array.isArray(entityOrEntities)) {
-      this.validateTenantOwnerships(entityOrEntities as Array<T & { tenantId: string }>, tenantId);
+      this.validateTenantOwnerships(
+        entityOrEntities as Array<T & { tenantId: string }>,
+        tenantId,
+        action === 'remove' ? TenantMismatchOperation.DELETE : TenantMismatchOperation.UPDATE,
+      );
       if (action === 'remove') {
         return (await this.repository.remove(entityOrEntities as unknown as T[])) as E;
       }
@@ -223,7 +227,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     this.validateTenantOwnership(
       entity,
       tenantId,
-      action === 'remove' ? TenantMismatchOperation.DELETE : TenantMismatchOperation.DELETE,
+      action === 'remove' ? TenantMismatchOperation.DELETE : TenantMismatchOperation.UPDATE,
     );
     if (action === 'remove') {
       return (await this.repository.remove(entity as unknown as T)) as E;
@@ -339,7 +343,10 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
       where: { id, tenantId } as unknown as FindOptionsWhere<T>,
     });
     if (!entity) {
-      throw new NotFoundException(`${this.entityName} with ID ${id} not found`);
+      // Log the entity name and ID server-side for debugging; expose only a
+      // generic message to the client to avoid leaking internal schema details.
+      this.logger.debug(`${this.entityName} with ID ${id} not found for tenant ${tenantId}`);
+      throw new NotFoundException('common.not_found');
     }
     return entity;
   }

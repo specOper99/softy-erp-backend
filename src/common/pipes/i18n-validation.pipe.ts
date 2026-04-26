@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { I18nService, Language } from '../i18n';
+import { I18nService } from 'nestjs-i18n';
 
 /**
  * Custom ValidationPipe that integrates with I18nService to translate
@@ -49,8 +49,8 @@ export class I18nValidationPipe extends BaseValidationPipe {
   async transform(value: unknown, metadata: ArgumentMetadata) {
     // Get language from request context if available
     // Otherwise default to English
-    const i18nMeta = metadata as ArgumentMetadata & { args?: Array<{ i18nLang?: Language } | undefined> };
-    const lang: Language = i18nMeta.args?.[2]?.i18nLang ?? 'en';
+    const i18nMeta = metadata as ArgumentMetadata & { args?: Array<{ i18nLang?: string } | undefined> };
+    const lang: string = i18nMeta.args?.[2]?.i18nLang ?? 'en';
 
     const metatype =
       metadata.type === 'body' || metadata.type === 'query' || metadata.type === 'param' ? metadata.metatype : null;
@@ -85,7 +85,7 @@ export class I18nValidationPipe extends BaseValidationPipe {
   /**
    * Translate validation errors to i18n keys
    */
-  private translateErrors(errors: ValidationError[], lang: Language): Record<string, string> {
+  private translateErrors(errors: ValidationError[], lang: string): Record<string, string> {
     const result: Record<string, string> = {};
 
     for (const error of errors) {
@@ -94,11 +94,14 @@ export class I18nValidationPipe extends BaseValidationPipe {
 
         for (const [constraint] of Object.entries(error.constraints)) {
           const translationKey = this.constraintToTranslationKey(constraint);
-          const translated = this.i18nService.translate(translationKey, lang, {
-            field: this.humanizeField(error.property),
-            value: error.value,
+          const translated = this.i18nService.translate(translationKey, {
+            lang,
+            args: {
+              field: this.humanizeField(error.property),
+              value: error.value,
+            },
           });
-          messages.push(translated);
+          messages.push(translated as string);
         }
 
         result[error.property] = messages.join('; ');

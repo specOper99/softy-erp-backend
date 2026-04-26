@@ -77,7 +77,7 @@ export class ConsentService {
     });
 
     if (!consent) {
-      throw new BadRequestException('Consent not found');
+      throw new BadRequestException('operations.consent_not_found');
     }
 
     consent.revoke();

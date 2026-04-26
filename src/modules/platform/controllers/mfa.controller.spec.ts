@@ -80,7 +80,6 @@ describe('MFAController', () => {
         {
           provide: I18nService,
           useValue: {
-            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
             translate: jest.fn().mockImplementation((key: string) => {
               const translations: Record<string, string> = {
                 'security.mfa_enabled': 'MFA enabled successfully',

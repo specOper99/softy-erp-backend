@@ -36,8 +36,7 @@ import { minutes, Throttle } from '@nestjs/throttler';
 import { plainToInstance } from 'class-transformer';
 import type { Request } from 'express';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import { Lang } from '../../common/decorators';
-import { I18nService } from '../../common/i18n';
+import { I18nLang, I18nService } from '../../common/i18n';
 import type { Language } from '../../common/i18n';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
@@ -129,7 +128,7 @@ export class ClientPortalController {
   async requestMagicLink(
     @Param('slug') slug: string,
     @Body() dto: RequestMagicLinkDto,
-    @Lang() lang: Language,
+    @I18nLang() lang: Language,
   ): Promise<{ message: string }> {
     return this.clientAuthService.requestMagicLink(slug, dto.email, lang);
   }
@@ -158,10 +157,10 @@ export class ClientPortalController {
   @UseGuards(ClientTokenGuard)
   @ApiSecurity('client-token')
   @ApiOkResponse({ type: ClientPortalMessageResponseDto })
-  async logout(@Req() req: Request, @Lang() lang: Language): Promise<{ message: string }> {
+  async logout(@Req() req: Request, @I18nLang() lang: Language): Promise<{ message: string }> {
     const token = req.headers['x-client-token'] as string;
     await this.clientAuthService.logout(token);
-    return { message: this.i18nService.translate('operations.logout_success', lang) };
+    return { message: this.i18nService.translate('operations.logout_success', { lang }) };
   }
 
   @Get('listings')

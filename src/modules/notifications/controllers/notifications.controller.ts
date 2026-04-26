@@ -1,7 +1,7 @@
 import { Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiErrorResponses, CurrentUser, Lang, Roles } from '../../../common/decorators';
-import { I18nService } from '../../../common/i18n';
+import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
+import { I18nLang, I18nService } from '../../../common/i18n';
 import type { Language } from '../../../common/i18n';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -58,9 +58,9 @@ export class NotificationsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Mark all notifications as read' })
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
-  async markAllAsRead(@CurrentUser() user: User) {
+  async markAllAsRead(@CurrentUser() user: User, @I18nLang() lang: Language) {
     await this.notificationService.markAllAsRead(user.id);
-    return { message: 'All notifications marked as read' };
+    return { message: this.i18nService.translate('operations.notification_read_all', { lang }) };
   }
 
   @Delete(':id')
@@ -69,8 +69,12 @@ export class NotificationsController {
   @ApiParam({ name: 'id', description: 'Notification UUID' })
   @ApiResponse({ status: 200, description: 'Notification deleted' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
-  async deleteNotification(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User, @Lang() lang: Language) {
+  async deleteNotification(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+    @I18nLang() lang: Language,
+  ) {
     await this.notificationService.deleteNotification(id, user.id);
-    return { message: this.i18nService.translate('operations.notification_deleted', lang) };
+    return { message: this.i18nService.translate('operations.notification_deleted', { lang }) };
   }
 }

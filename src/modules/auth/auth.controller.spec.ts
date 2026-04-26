@@ -56,7 +56,6 @@ describe('AuthController', () => {
         {
           provide: I18nService,
           useValue: {
-            parseAcceptLanguage: jest.fn().mockReturnValue('en'),
             translate: jest.fn().mockImplementation((key: string) => key),
           },
         },

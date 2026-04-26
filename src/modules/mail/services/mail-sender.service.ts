@@ -14,6 +14,7 @@ import {
   SuspiciousActivityEmailData,
   TaskAssignmentEmailData,
 } from '../mail.types';
+import { I18nService } from '../../../common/i18n';
 import { MailTemplateService } from './mail-template.service';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class MailSenderService {
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly templateService: MailTemplateService,
+    private readonly i18n: I18nService,
     @Inject('CIRCUIT_BREAKER_MAIL')
     private readonly breaker: CircuitBreaker,
   ) {
@@ -107,14 +109,17 @@ export class MailSenderService {
     return { success: true, email: params.to, retried };
   }
 
-  async sendBookingConfirmation(data: BookingEmailData): Promise<EmailResult> {
+  async sendBookingConfirmation(data: BookingEmailData, locale = 'en'): Promise<EmailResult> {
     const templateData = await this.templateService.resolveTemplate('booking-confirmation', 'booking-confirmation', {
       clientName: data.clientName,
     });
 
     return this.sendEmail({
       to: data.clientEmail,
-      subject: `Booking Confirmed - ${data.packageName}`,
+      subject: this.i18n.translate('email.subjects.bookingConfirmed', {
+        lang: locale,
+        args: { packageName: data.packageName },
+      }),
       logLabel: 'Booking confirmation',
       resolutionResult: templateData,
       context: this.templateService.sanitizeContext(
@@ -125,14 +130,15 @@ export class MailSenderService {
           totalPrice: this.templateService.formatCurrency(data.totalPrice),
           bookingId: data.bookingId,
         }),
+        locale,
       ),
     });
   }
 
-  async sendTaskAssignment(data: TaskAssignmentEmailData): Promise<EmailResult> {
+  async sendTaskAssignment(data: TaskAssignmentEmailData, locale = 'en'): Promise<EmailResult> {
     return this.sendEmail({
       to: data.employeeEmail,
-      subject: `New Task Assigned: ${data.taskType}`,
+      subject: this.i18n.translate('email.subjects.taskAssigned', { lang: locale, args: { taskType: data.taskType } }),
       logLabel: 'Task assignment',
       templateName: 'task-assignment',
       context: this.templateService.sanitizeContext(
@@ -143,11 +149,12 @@ export class MailSenderService {
           eventDate: this.templateService.formatDate(data.eventDate),
           commission: this.templateService.formatCurrency(data.commission),
         }),
+        locale,
       ),
     });
   }
 
-  async sendBookingRescheduleNotification(data: BookingRescheduledStaffEmailData): Promise<EmailResult> {
+  async sendBookingRescheduleNotification(data: BookingRescheduledStaffEmailData, locale = 'en'): Promise<EmailResult> {
     const templateData = await this.templateService.resolveTemplate(
       'booking-rescheduled-staff',
       'booking-rescheduled-staff',
@@ -158,7 +165,10 @@ export class MailSenderService {
 
     return this.sendEmail({
       to: data.employeeEmail,
-      subject: `Booking Rescheduled: ${data.bookingId}`,
+      subject: this.i18n.translate('email.subjects.bookingRescheduled', {
+        lang: locale,
+        args: { bookingId: data.bookingId },
+      }),
       logLabel: 'Booking reschedule notification',
       resolutionResult: templateData,
       context: this.templateService.sanitizeContext(
@@ -168,14 +178,15 @@ export class MailSenderService {
           eventDate: this.templateService.formatDate(data.eventDate),
           startTime: data.startTime || 'Not specified',
         }),
+        locale,
       ),
     });
   }
 
-  async sendPayrollNotification(data: PayrollEmailData): Promise<EmailResult> {
+  async sendPayrollNotification(data: PayrollEmailData, locale = 'en'): Promise<EmailResult> {
     return this.sendEmail({
       to: data.employeeEmail,
-      subject: 'Payroll Processed - Payment Details',
+      subject: this.i18n.translate('email.subjects.payrollProcessed', { lang: locale }),
       logLabel: 'Payroll notification',
       templateName: 'payroll-notification',
       context: this.templateService.sanitizeContext(
@@ -186,6 +197,7 @@ export class MailSenderService {
           totalPayout: this.templateService.formatCurrency(data.totalPayout),
           payrollDate: this.templateService.formatDate(data.payrollDate),
         }),
+        locale,
       ),
     });
   }
@@ -198,7 +210,10 @@ export class MailSenderService {
 
     return this.sendEmail({
       to: data.clientEmail,
-      subject: `Login to ${this.templateService.getCompanyName()} Client Portal`,
+      subject: this.i18n.translate('email.subjects.clientPortalLogin', {
+        lang: locale,
+        args: { companyName: this.templateService.getCompanyName() },
+      }),
       logLabel: 'Magic link',
       templateName: 'magic-link',
       context: this.templateService.sanitizeContext(
@@ -212,13 +227,13 @@ export class MailSenderService {
     });
   }
 
-  async sendPasswordReset(data: PasswordResetEmailData): Promise<EmailResult> {
+  async sendPasswordReset(data: PasswordResetEmailData, locale = 'en'): Promise<EmailResult> {
     const appUrl = this.configService.get<string>('FRONTEND_URL', 'https://app.example.com');
     const resetUrl = this.buildAuthLink(appUrl, '/auth/reset-password', data.token);
 
     return this.sendEmail({
       to: data.email,
-      subject: 'Reset Your Password',
+      subject: this.i18n.translate('email.subjects.passwordReset', { lang: locale }),
       logLabel: 'Password reset',
       templateName: 'password-reset',
       context: this.templateService.sanitizeContext(
@@ -227,17 +242,18 @@ export class MailSenderService {
           resetUrl,
           expiresInHours: data.expiresInHours,
         }),
+        locale,
       ),
     });
   }
 
-  async sendEmailVerification(data: EmailVerificationEmailData): Promise<EmailResult> {
+  async sendEmailVerification(data: EmailVerificationEmailData, locale = 'en'): Promise<EmailResult> {
     const appUrl = this.configService.get<string>('FRONTEND_URL', 'https://app.example.com');
     const verificationUrl = this.buildAuthLink(appUrl, '/auth/verify-email', data.token);
 
     return this.sendEmail({
       to: data.email,
-      subject: 'Verify Your Email Address',
+      subject: this.i18n.translate('email.subjects.emailVerification', { lang: locale }),
       logLabel: 'Email verification',
       templateName: 'email-verification',
       context: this.templateService.sanitizeContext(
@@ -245,46 +261,52 @@ export class MailSenderService {
           name: data.name,
           verificationUrl,
         }),
+        locale,
       ),
     });
   }
 
-  async sendNewDeviceLogin(data: NewDeviceLoginEmailData): Promise<EmailResult> {
+  async sendNewDeviceLogin(data: NewDeviceLoginEmailData, locale = 'en'): Promise<EmailResult> {
     return this.sendEmail({
       to: data.email,
-      subject: 'New Login Detected',
+      subject: this.i18n.translate('email.subjects.newDeviceLogin', { lang: locale }),
       logLabel: 'New device login',
       templateName: 'security-alert',
       context: this.templateService.sanitizeContext(
         this.templateService.buildCommonContext({
-          title: 'New Login Alert',
+          title: this.i18n.translate('email.content.newLoginAlert', { lang: locale }),
           name: data.name,
-          alertType: 'We detected a new login on your account.',
+          alertType: this.i18n.translate('email.content.newLoginDesc', { lang: locale }),
           alertDescription: `Device: ${data.device}`,
           ipAddress: data.ipAddress,
-          location: data.location || 'Unknown Location',
+          location: data.location || this.i18n.translate('email.content.unknownLocation', { lang: locale }),
           time: data.time.toLocaleString(),
         }),
+        locale,
       ),
     });
   }
 
-  async sendSuspiciousActivityAlert(data: SuspiciousActivityEmailData): Promise<EmailResult> {
+  async sendSuspiciousActivityAlert(data: SuspiciousActivityEmailData, locale = 'en'): Promise<EmailResult> {
     return this.sendEmail({
       to: data.email,
-      subject: 'Security Alert: Suspicious Activity Detected',
+      subject: this.i18n.translate('email.subjects.suspiciousActivity', { lang: locale }),
       logLabel: 'Suspicious activity alert',
       templateName: 'security-alert',
       context: this.templateService.sanitizeContext(
         this.templateService.buildCommonContext({
-          title: 'Security Alert',
+          title: this.i18n.translate('email.content.securityAlert', { lang: locale }),
           name: data.name,
-          alertType: `Suspicious Activity: ${data.activityType}`,
+          alertType: this.i18n.translate('email.content.suspiciousActivityDesc', {
+            lang: locale,
+            args: { activityType: data.activityType },
+          }),
           alertDescription: data.details,
           ipAddress: data.ipAddress,
-          location: data.location || 'Unknown Location',
+          location: data.location || this.i18n.translate('email.content.unknownLocation', { lang: locale }),
           time: data.time.toLocaleString(),
         }),
+        locale,
       ),
     });
   }

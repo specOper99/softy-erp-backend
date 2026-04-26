@@ -1,4 +1,5 @@
 import { Column, DeleteDateColumn, Entity, Index, JoinColumn, JoinTable, ManyToMany, ManyToOne } from 'typeorm';
+import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { BookingStatus } from '../enums/booking-status.enum';
 
@@ -76,8 +77,14 @@ export class Booking extends BaseTenantEntity {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @Column({ name: 'handover_type', type: 'varchar', length: 100, nullable: true })
-  handoverType: string | null;
+  @Column({
+    name: 'handover_type',
+    type: 'enum',
+    enum: PaymentMethod,
+    enumName: 'booking_handover_type_enum',
+    nullable: true,
+  })
+  handoverType: PaymentMethod | null;
 
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;

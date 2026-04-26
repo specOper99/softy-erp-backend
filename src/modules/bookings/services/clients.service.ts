@@ -91,7 +91,7 @@ export class ClientsService {
       where: { id },
     });
     if (!client) {
-      throw new NotFoundException(`Client with ID ${id} not found`);
+      throw new NotFoundException('booking.client_not_found');
     }
     return client;
   }

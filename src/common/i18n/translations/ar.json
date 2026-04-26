@@ -34,6 +34,10 @@
     "invalid_status": "حالة حجز غير صالحة",
     "cannot_update_non_draft": "لا يمكن تحديث حقول حجز غيرمسودة",
     "can_only_delete_draft": "يمكن فقط حذف مسودات الحجز",
+    "client_not_found": "العميل غير موجود",
+    "review_not_found": "المراجعة غير موجودة",
+    "no_tasks_found": "لم يتم العثور على مهام لهذا الحجز",
+    "pending_tasks_blocking": "لا يمكن إكمال الحجز: {count} مهمة لا تزال معلقة",
     "invalid_tax_rate": "يجب أن تكون ضريبة الحجز بين 0 و 100",
     "event_date_must_be_future": "يجب أن يكون تاريخ الحدث في المستقبل"
   },
@@ -67,17 +71,30 @@
     "must_be_array": "يجب أن يكون {field} قائمة",
     "invalid_uuid": "يجب أن يكون {field} معرف UUID صالح",
     "invalid_phone": "رقم هاتف غير صالح",
-    "invalid_url": "تنسيق URL غير صالح"
+    "invalid_url": "تنسيق URL غير صالح",
+    "must_be_positive": "{field} يجب أن يكون رقماً موجباً",
+    "must_be_negative": "{field} يجب أن يكون رقماً سالباً",
+    "must_be_date": "{field} يجب أن يكون تاريخاً صالحاً",
+    "invalid_length": "{field} طول غير صالح",
+    "array_min_size": "{field} يجب أن يحتوي على {min} عناصر على الأقل",
+    "array_max_size": "{field} يجب ألا يتجاوز {max} عنصر",
+    "must_be_object": "{field} يجب أن يكون كائناً",
+    "invalid": "{field} غير صالح"
   },
   "security": {
     "mfa_enabled": "تم تفعيل المصادقة الثنائية بنجاح",
-    "mfa_disabled": "تم تعطيل المصادقة الثنائية"
+    "mfa_disabled": "تم تعطيل المصادقة الثنائية",
+    "metrics_auth_required": "رأس التفويض مطلوب",
+    "metrics_token_invalid": "رمز المقاييس غير صالح"
   },
   "operations": {
     "logout_success": "تم تسجيل الخروج بنجاح",
     "data_export_processed": "تم معالجة تصدير البيانات بنجاح",
     "data_deletion_processed": "تم معالجة حذف البيانات بنجاح",
     "notification_deleted": "تم حذف الإشعار بنجاح",
+    "notification_not_found": "الإشعار غير موجود",
+    "notification_read_all": "تم تمييز جميع الإشعارات كمقروءة",
+    "consent_not_found": "الموافقة غير موجودة",
     "request_processing": "طلب برمز تكرار هذا قيد المعالجة بالفعل"
   },
   "consent": {
@@ -124,6 +141,26 @@
       "comment": "التعليق",
       "approvalPending": "مراجعتك قيد الموافقة حالياً وسيتم نشرها بعد مراجعتها من قبل فريقنا.",
       "footer": "نقدر ملاحظاتك!"
+    }
+  },
+  "email": {
+    "subjects": {
+      "bookingConfirmed": "تأكيد الحجز - {packageName}",
+      "taskAssigned": "مهمة جديدة مُسندة: {taskType}",
+      "bookingRescheduled": "تم إعادة جدولة الحجز: {bookingId}",
+      "payrollProcessed": "تمت معالجة الراتب - تفاصيل الدفع",
+      "clientPortalLogin": "تسجيل الدخول إلى بوابة {companyName} للعملاء",
+      "passwordReset": "إعادة تعيين كلمة المرور",
+      "emailVerification": "التحقق من عنوان البريد الإلكتروني",
+      "newDeviceLogin": "تم اكتشاف تسجيل دخول جديد",
+      "suspiciousActivity": "تنبيه أمني: تم اكتشاف نشاط مشبوه"
+    },
+    "content": {
+      "newLoginAlert": "تنبيه تسجيل دخول جديد",
+      "newLoginDesc": "اكتشفنا تسجيل دخول جديداً على حسابك.",
+      "securityAlert": "تنبيه أمني",
+      "suspiciousActivityDesc": "نشاط مشبوه: {activityType}",
+      "unknownLocation": "موقع غير معروف"
     }
   },
   "media": {

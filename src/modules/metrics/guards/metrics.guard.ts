@@ -32,12 +32,12 @@ export class MetricsGuard implements CanActivate {
 
     // Validate the bearer token
     if (!authHeader) {
-      throw new UnauthorizedException('Authorization header required');
+      throw new UnauthorizedException('security.metrics_auth_required');
     }
 
     const expectedHeader = `Bearer ${requiredToken}`;
     if (!this.timingSafeEquals(authHeader, expectedHeader)) {
-      throw new UnauthorizedException('Invalid metrics token');
+      throw new UnauthorizedException('security.metrics_token_invalid');
     }
 
     return true;

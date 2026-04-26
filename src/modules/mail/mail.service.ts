@@ -71,40 +71,40 @@ export class MailService {
 
   // ==================== DIRECT SEND METHODS (used by processor) ====================
 
-  async sendBookingConfirmation(data: BookingEmailData): Promise<EmailResult> {
-    return this.senderService.sendBookingConfirmation(data);
+  async sendBookingConfirmation(data: BookingEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendBookingConfirmation(data, locale);
   }
 
-  async sendTaskAssignment(data: TaskAssignmentEmailData): Promise<EmailResult> {
-    return this.senderService.sendTaskAssignment(data);
+  async sendTaskAssignment(data: TaskAssignmentEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendTaskAssignment(data, locale);
   }
 
-  async sendBookingRescheduleNotification(data: BookingRescheduledStaffEmailData): Promise<EmailResult> {
-    return this.senderService.sendBookingRescheduleNotification(data);
+  async sendBookingRescheduleNotification(data: BookingRescheduledStaffEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendBookingRescheduleNotification(data, locale);
   }
 
-  async sendPayrollNotification(data: PayrollEmailData): Promise<EmailResult> {
-    return this.senderService.sendPayrollNotification(data);
+  async sendPayrollNotification(data: PayrollEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendPayrollNotification(data, locale);
   }
 
   async sendMagicLink(data: MagicLinkEmailData, locale = 'en'): Promise<EmailResult> {
     return this.senderService.sendMagicLink(data, locale);
   }
 
-  async sendPasswordReset(data: PasswordResetEmailData): Promise<EmailResult> {
-    return this.senderService.sendPasswordReset(data);
+  async sendPasswordReset(data: PasswordResetEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendPasswordReset(data, locale);
   }
 
-  async sendEmailVerification(data: EmailVerificationEmailData): Promise<EmailResult> {
-    return this.senderService.sendEmailVerification(data);
+  async sendEmailVerification(data: EmailVerificationEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendEmailVerification(data, locale);
   }
 
-  async sendNewDeviceLogin(data: NewDeviceLoginEmailData): Promise<EmailResult> {
-    return this.senderService.sendNewDeviceLogin(data);
+  async sendNewDeviceLogin(data: NewDeviceLoginEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendNewDeviceLogin(data, locale);
   }
 
-  async sendSuspiciousActivityAlert(data: SuspiciousActivityEmailData): Promise<EmailResult> {
-    return this.senderService.sendSuspiciousActivityAlert(data);
+  async sendSuspiciousActivityAlert(data: SuspiciousActivityEmailData, locale = 'en'): Promise<EmailResult> {
+    return this.senderService.sendSuspiciousActivityAlert(data, locale);
   }
 
   // ==================== QUEUE-ONLY METHODS (cancellation, payment receipt) ====================

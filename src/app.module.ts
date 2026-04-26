@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -15,9 +16,8 @@ import { vaultLoader } from './config/vault.loader';
 import { AppCacheModule } from './common/cache/cache.module';
 import { CommonModule } from './common/common.module';
 import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
-import { I18nModule } from './common/i18n';
+import { I18nModule, I18nJsonLoader, AcceptLanguageResolver } from 'nestjs-i18n';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { I18nExceptionFilter } from './common/filters/i18n-exception.filter';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 import { MessagePackInterceptor } from './common/interceptors/message-pack.interceptor';
 import { StructuredLoggingInterceptor } from './common/interceptors/structured-logging.interceptor';
@@ -154,10 +154,20 @@ import { CoreModule } from './modules/core/core.module';
     // Scheduler for Cron jobs
     ScheduleModule.forRoot(),
 
+    // i18n — nestjs-i18n with JSON loader, resolved from Accept-Language header
+    I18nModule.forRoot({
+      fallbackLanguage: 'en',
+      loader: I18nJsonLoader,
+      loaderOptions: {
+        path: join(__dirname, '/common/i18n/translations'),
+        watch: false,
+      },
+      resolvers: [AcceptLanguageResolver],
+    }),
+
     // Feature Modules
     CommonModule,
     CoreModule,
-    I18nModule,
     ResilienceModule.forRoot([
       {
         name: 's3',
@@ -192,9 +202,8 @@ import { CoreModule } from './modules/core/core.module';
     { provide: APP_GUARD, useClass: TenantGuard },
 
     // Global filters (registered via APP_FILTER to allow DI injection)
-    // Order matters: I18nExceptionFilter catches HttpException first,
-    // then AllExceptionsFilter catches remaining exceptions
-    { provide: APP_FILTER, useClass: I18nExceptionFilter },
+    // AllExceptionsFilter catches all exceptions with i18n translation;
+    // I18nValidationExceptionFilter handles class-validator DTO errors.
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
 
     // Global interceptors — registration order is OUTER-to-INNER.

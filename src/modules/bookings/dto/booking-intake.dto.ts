@@ -121,10 +121,14 @@ export class BookingIntakeDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'How the final deliverables will be handed over', example: 'ماستر' })
+  @ApiPropertyOptional({
+    description: 'Payment receipt method for the booking',
+    enum: PaymentMethod,
+    example: PaymentMethod.CASH,
+  })
   @IsOptional()
-  @IsString()
-  handoverType?: string;
+  @IsEnum(PaymentMethod)
+  handoverType?: PaymentMethod;
 
   @ApiPropertyOptional({ description: 'Tax rate percentage (0–50)', example: 15 })
   @IsOptional()
