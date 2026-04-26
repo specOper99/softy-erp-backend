@@ -1,19 +1,19 @@
 import { Body, Controller, Delete, Get, Inject, Ip, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators';
-import { I18nLang, I18nService } from '../../common/i18n';
-import type { Language } from '../../common/i18n';
-import { User } from '../users/entities/user.entity';
-import { CreatePrivacyRequestDto } from './dto/privacy.dto';
-import { GrantConsentDto, RevokeConsentDto, ConsentResponseDto } from './dto/consent.dto';
-import { PrivacyService } from './privacy.service';
-import { ConsentService } from './consent.service';
-import { PrivacyRequest } from './entities/privacy-request.entity';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import type { Language } from '../../common/i18n';
+import { I18nLang, I18nService } from '../../common/i18n';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
+import { ConsentService } from './consent.service';
+import { ConsentResponseDto, GrantConsentDto, RevokeConsentDto } from './dto/consent.dto';
+import { CreatePrivacyRequestDto } from './dto/privacy.dto';
+import { PrivacyRequest } from './entities/privacy-request.entity';
+import { PrivacyService } from './privacy.service';
 
 @ApiTags('privacy')
 @ApiBearerAuth()

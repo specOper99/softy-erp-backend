@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMockArgumentsHost } from '../../../test/helpers/test-setup.utils';
 import { I18nService } from 'nestjs-i18n';
+import { createMockArgumentsHost } from '../../../test/helpers/test-setup.utils';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 describe('AllExceptionsFilter', () => {

@@ -3,10 +3,10 @@ import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
-import { I18nLang, I18nService } from '../../../common/i18n';
-import type { Language } from '../../../common/i18n';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
+import type { Language } from '../../../common/i18n';
+import { I18nLang, I18nService } from '../../../common/i18n';
 import { PlatformJwtAuthGuard } from '../guards/platform-jwt-auth.guard';
 import { MFAService } from '../services/mfa.service';
 

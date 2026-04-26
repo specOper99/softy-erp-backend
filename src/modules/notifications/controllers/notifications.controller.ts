@@ -1,9 +1,9 @@
 import { Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
-import { I18nLang, I18nService } from '../../../common/i18n';
-import type { Language } from '../../../common/i18n';
 import { RolesGuard } from '../../../common/guards';
+import type { Language } from '../../../common/i18n';
+import { I18nLang, I18nService } from '../../../common/i18n';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';

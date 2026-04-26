@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
-  BookingRescheduledStaffEmailData,
   BookingEmailData,
+  BookingRescheduledStaffEmailData,
   CancellationEmailData,
   EmailResult,
   EmailVerificationEmailData,
@@ -17,9 +17,9 @@ import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 
 export type {
-  BookingRescheduledStaffEmailData,
   BookingCancellationJobData,
   BookingEmailData,
+  BookingRescheduledStaffEmailData,
   CancellationEmailData,
   EmailResult,
   EmailVerificationEmailData,

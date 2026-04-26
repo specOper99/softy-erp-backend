@@ -2,9 +2,10 @@ import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as CircuitBreaker from 'opossum';
+import { I18nService } from '../../../common/i18n';
 import {
-  BookingRescheduledStaffEmailData,
   BookingEmailData,
+  BookingRescheduledStaffEmailData,
   EmailResult,
   EmailVerificationEmailData,
   MagicLinkEmailData,
@@ -14,7 +15,6 @@ import {
   SuspiciousActivityEmailData,
   TaskAssignmentEmailData,
 } from '../mail.types';
-import { I18nService } from '../../../common/i18n';
 import { MailTemplateService } from './mail-template.service';
 
 @Injectable()

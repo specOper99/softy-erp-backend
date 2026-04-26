@@ -27,8 +27,8 @@ import {
 import { minutes, SkipThrottle, Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { ApiErrorResponses, CurrentUser } from '../../common/decorators';
-import { I18nLang, I18nService } from '../../common/i18n';
 import type { Language } from '../../common/i18n';
+import { I18nLang, I18nService } from '../../common/i18n';
 import { SkipTenant } from '../tenants/decorators/skip-tenant.decorator';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
@@ -44,10 +44,10 @@ import {
   MfaVerifyTotpDto,
   RecoveryCodesResponseDto,
   RefreshTokenDto,
-  RevokeOtherSessionsDto,
   RegisterDto,
   ResendVerificationDto,
   ResetPasswordDto,
+  RevokeOtherSessionsDto,
   SessionInfoDto,
   TokensDto,
   VerifyEmailDto,

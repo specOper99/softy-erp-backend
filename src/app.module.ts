@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -7,17 +6,18 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { seconds, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
+import { join } from 'node:path';
 import { RESILIENCE_CONSTANTS } from './common/constants';
 import { databaseConfig } from './config';
 import { validate } from './config/env-validation';
 import { vaultLoader } from './config/vault.loader';
 
 // Common imports
+import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import { AppCacheModule } from './common/cache/cache.module';
 import { CommonModule } from './common/common.module';
-import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
-import { I18nModule, I18nJsonLoader, AcceptLanguageResolver } from 'nestjs-i18n';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 import { MessagePackInterceptor } from './common/interceptors/message-pack.interceptor';
 import { StructuredLoggingInterceptor } from './common/interceptors/structured-logging.interceptor';

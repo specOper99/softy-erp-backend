@@ -1,8 +1,8 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import { Catch, ExceptionFilter, HttpException, HttpStatus, Inject, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { randomUUID } from 'node:crypto';
 import { I18nContext, I18nService } from 'nestjs-i18n';
+import { randomUUID } from 'node:crypto';
 import { getCorrelationId } from '../logger/request-context';
 
 interface ErrorResponse {

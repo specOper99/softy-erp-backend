@@ -1,10 +1,10 @@
 import {
+  ArgumentMetadata,
   BadRequestException,
+  ValidationPipe as BaseValidationPipe,
   Injectable,
   Type,
   ValidationError,
-  ValidationPipe as BaseValidationPipe,
-  ArgumentMetadata,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
