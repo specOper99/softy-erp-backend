@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { format } from 'date-fns';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
@@ -30,22 +31,19 @@ export class UpdateMetricsHandler
     // Let's stick to "Date of Action" (Booking Confirmation Date) for Sales Metrics.
     // For Task Completed, it's completion date.
 
+    const today = format(new Date(), 'yyyy-MM-dd');
     let dateStr: string;
 
     if (event instanceof BookingConfirmedEvent) {
-      // If we want "Sales made today", we should use current date.
-      // If we want "Revenue for Event Date", we use event.eventDate.
-      // Let's assume "Performance Dashboard" = "What did we sell today?"
-      dateStr = new Date().toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
+      // "Performance Dashboard" tracks sales made today (action date), not the event date.
+      dateStr = today;
     } else if (event instanceof TaskCompletedEvent) {
-      dateStr = new Date(event.completedAt).toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
+      dateStr = format(new Date(event.completedAt), 'yyyy-MM-dd');
     } else if (event instanceof BookingCancelledEvent) {
-      dateStr = new Date(event.cancelledAt).toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
-    } else if (event instanceof PaymentRecordedEvent) {
-      // Revenue metrics based on collection date (today)
-      dateStr = new Date().toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
+      dateStr = format(new Date(event.cancelledAt), 'yyyy-MM-dd');
     } else {
-      dateStr = new Date().toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
+      // PaymentRecordedEvent and fallback: revenue tracked on collection date.
+      dateStr = today;
     }
 
     await TenantContextService.run(tenantId, async () => {

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.ts",
+    "src/instrument.ts",
+    "src/database/data-source.ts",
+    "src/**/*.spec.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.js",
+    "test/**/*.ts",
+    "load-tests/**/*.js"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "scripts/**/*.{ts,js}",
+    "test/**/*.ts",
+    "load-tests/**/*.js"
+  ],
+  "ignore": [
+    "src/database/migrations/**"
+  ],
+  "ignoreBinaries": ["k6"],
+  "ignoreDependencies": [
+    "file-type",
+    "k6"
+  ],
+  "rules": {
+    "exports": "off",
+    "types": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "enumMembers": "off",
+    "namespaceMembers": "off"
+  }
+}

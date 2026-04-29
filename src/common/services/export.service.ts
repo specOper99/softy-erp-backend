@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { stringify as createCsvStringifier } from 'csv-stringify';
 import { Response } from 'express';
-import { Transform } from 'json2csv';
 import { Readable } from 'stream';
 
 @Injectable()
@@ -34,15 +34,18 @@ export class ExportService {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
 
-    const json2csv = new Transform({ fields }, { objectMode: true });
+    const stringifier = createCsvStringifier({
+      header: true,
+      columns: fields,
+    });
 
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         if (!dataStream.destroyed) {
           dataStream.destroy();
         }
-        if (!json2csv.destroyed) {
-          json2csv.destroy();
+        if (!stringifier.destroyed) {
+          stringifier.destroy();
         }
       };
 
@@ -62,35 +65,35 @@ export class ExportService {
       if (transformFn) {
         dataStream.on('data', (chunk) => {
           const transformed = transformFn(chunk as T);
-          const canContinue = json2csv.write(transformed);
+          const canContinue = stringifier.write(transformed);
           if (!canContinue) {
             dataStream.pause();
-            json2csv.once('drain', () => dataStream.resume());
+            stringifier.once('drain', () => dataStream.resume());
           }
         });
 
         dataStream.on('end', () => {
-          json2csv.end();
+          stringifier.end();
         });
 
         dataStream.on('error', onError);
 
-        json2csv.on('finish', () => {
+        stringifier.on('finish', () => {
           resolve();
         });
 
-        json2csv.on('error', onError);
+        stringifier.on('error', onError);
 
-        json2csv.pipe(res);
+        stringifier.pipe(res);
       } else {
         dataStream.on('error', onError);
-        dataStream.pipe(json2csv).pipe(res);
+        dataStream.pipe(stringifier).pipe(res);
 
-        json2csv.on('finish', () => {
+        stringifier.on('finish', () => {
           resolve();
         });
 
-        json2csv.on('error', onError);
+        stringifier.on('error', onError);
       }
     });
   }

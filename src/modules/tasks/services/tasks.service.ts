@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { parseISO } from 'date-fns';
 import type { Response } from 'express';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -125,13 +126,13 @@ export class TasksService {
 
     if (filter.dueDateStart && filter.dueDateEnd) {
       qb.andWhere('task.dueDate BETWEEN :start AND :end', {
-        start: new Date(filter.dueDateStart),
-        end: new Date(filter.dueDateEnd),
+        start: parseISO(filter.dueDateStart),
+        end: parseISO(filter.dueDateEnd),
       });
     } else if (filter.dueDateStart) {
-      qb.andWhere('task.dueDate >= :start', { start: new Date(filter.dueDateStart) });
+      qb.andWhere('task.dueDate >= :start', { start: parseISO(filter.dueDateStart) });
     } else if (filter.dueDateEnd) {
-      qb.andWhere('task.dueDate <= :end', { end: new Date(filter.dueDateEnd) });
+      qb.andWhere('task.dueDate <= :end', { end: parseISO(filter.dueDateEnd) });
     }
 
     if (filter.search) {

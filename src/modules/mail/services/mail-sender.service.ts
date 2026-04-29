@@ -2,6 +2,7 @@ import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as CircuitBreaker from 'opossum';
+import pRetry from 'p-retry';
 import { I18nService } from '../../../common/i18n';
 import {
   BookingEmailData,
@@ -35,31 +36,6 @@ export class MailSenderService {
     this.isEnabled = !!this.configService.get('MAIL_USER');
   }
 
-  private async withRetry<T>(
-    operation: () => Promise<T>,
-    context: string,
-  ): Promise<{ result?: T; retried: boolean; error?: Error }> {
-    let lastError: Error | undefined;
-    let retried = false;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
-        const result = await operation();
-        return { result, retried };
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        if (attempt < this.maxRetries) {
-          retried = true;
-          const delay = this.retryDelayMs * Math.pow(2, attempt);
-          this.logger.warn(`${context} failed (attempt ${attempt + 1}/${this.maxRetries + 1}), retrying in ${delay}ms`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-    }
-
-    return { retried, error: lastError };
-  }
-
   private async sendEmail(params: {
     to: string;
     subject: string;
@@ -87,25 +63,28 @@ export class MailSenderService {
       Object.assign(mailOptions, params.resolutionResult);
     }
 
-    const { retried, error } = await this.withRetry(
-      () => this.breaker.fire(() => this.mailerService.sendMail(mailOptions)),
-      `${params.logLabel} to ${params.to}`,
-    );
+    let retried = false;
+    const label = `${params.logLabel} to ${params.to}`;
 
-    if (error) {
-      this.logger.error(
-        `Failed to send ${params.logLabel} to ${params.to} after ${this.maxRetries + 1} attempts`,
-        error,
-      );
-      return {
-        success: false,
-        email: params.to,
-        error: error.message,
-        retried,
-      };
+    try {
+      await pRetry(() => this.breaker.fire(() => this.mailerService.sendMail(mailOptions)), {
+        retries: this.maxRetries,
+        factor: 2,
+        minTimeout: this.retryDelayMs,
+        onFailedAttempt: (error) => {
+          retried = true;
+          this.logger.warn(
+            `${label} failed (attempt ${error.attemptNumber}/${error.attemptNumber + error.retriesLeft}), retrying...`,
+          );
+        },
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to send ${label} after ${this.maxRetries + 1} attempts`, err);
+      return { success: false, email: params.to, error: err.message, retried };
     }
 
-    this.logger.log(`${params.logLabel} sent to ${params.to}${retried ? ' (after retry)' : ''}`);
+    this.logger.log(`${label} sent${retried ? ' (after retry)' : ''}`);
     return { success: true, email: params.to, retried };
   }
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { endOfDay, endOfMonth, startOfDay, startOfMonth } from 'date-fns';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MathUtils } from '../../common/utils/math.utils';
@@ -75,9 +76,7 @@ export class DashboardService {
       }
     }
 
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
+    return { start: startOfDay(start), end: endOfDay(end) };
   }
 
   private getContext(query: ReportQueryDto): { tenantId: string; start: Date; end: Date } {
@@ -324,13 +323,12 @@ export class DashboardService {
     const cached = await this.cacheUtils.get<StudioKpisDto>(cacheKey);
     if (cached) return cached;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    const now = new Date();
+    const today = startOfDay(now);
+    const endOfToday = endOfDay(now);
 
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    const firstDayOfMonth = startOfMonth(now);
+    const lastDayOfMonth = endOfMonth(now);
 
     // Parallel execution of all queries
     const [bookingsData, tasksData, staffData, revenueData, notificationsData] = await Promise.all([
@@ -347,7 +345,7 @@ export class DashboardService {
         .setParameter('draft', BookingStatus.DRAFT)
         .setParameter('confirmed', BookingStatus.CONFIRMED)
         .setParameter('today', today)
-        .setParameter('endOfDay', endOfDay)
+        .setParameter('endOfDay', endOfToday)
         .getRawOne<{ total: string; pending: string; confirmed: string; todayBookings: string }>(),
 
       // Tasks data
@@ -360,7 +358,7 @@ export class DashboardService {
         .setParameter('pending', TaskStatus.PENDING)
         .setParameter('inProgress', TaskStatus.IN_PROGRESS)
         .setParameter('today', today)
-        .setParameter('endOfDay', endOfDay)
+        .setParameter('endOfDay', endOfToday)
         .getRawOne<{ total: string; pending: string; inProgress: string; todayTasks: string }>(),
 
       // Staff data

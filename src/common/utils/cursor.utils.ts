@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { isValid } from 'date-fns';
 
 export interface CursorData {
   date: Date;
@@ -13,7 +14,7 @@ export function decodeCursor(cursor: string): CursorData {
       throw new BadRequestException('Invalid cursor format');
     }
     const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
+    if (!isValid(date)) {
       throw new BadRequestException('Invalid cursor date');
     }
     if (id.trim().length === 0) {

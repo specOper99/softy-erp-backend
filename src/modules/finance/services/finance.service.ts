@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { format } from 'date-fns';
 import Decimal from 'decimal.js';
 import type { Response } from 'express';
 import { EntityManager } from 'typeorm';
@@ -368,7 +369,7 @@ export class FinanceService {
       currency: original.currency,
       category: 'REVERSAL',
       description,
-      transactionDate: new Date().toISOString().slice(0, 10),
+      transactionDate: format(new Date(), 'yyyy-MM-dd'),
     });
   }
 

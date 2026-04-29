@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { format } from 'date-fns';
 import pLimit from 'p-limit';
 import { DataSource } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -178,7 +179,7 @@ export class PayrollService {
       await this.auditService.log({
         action: 'PAYROLL_RUN_FAILED',
         entityName: 'Payroll',
-        entityId: `${tenantId}-${new Date().toISOString().slice(0, 7)}`,
+        entityId: `${tenantId}-${format(new Date(), 'yyyy-MM')}`,
         newValues: {
           totalEmployees: totalEmployeesProcessed,
           totalPayout,
@@ -196,7 +197,7 @@ export class PayrollService {
     await this.auditService.log({
       action: 'PAYROLL_RUN',
       entityName: 'Payroll',
-      entityId: `${tenantId}-${new Date().toISOString().slice(0, 7)}`,
+      entityId: `${tenantId}-${format(new Date(), 'yyyy-MM')}`,
       newValues: {
         totalEmployees: totalEmployeesProcessed,
         totalPayout,
@@ -292,7 +293,7 @@ export class PayrollService {
         limit(async () => {
           const baseSalary = Number(profile.baseSalary) || 0;
 
-          const period = payrollPeriod ?? new Date().toISOString().slice(0, 7);
+          const period = payrollPeriod ?? format(new Date(), 'yyyy-MM');
           const referenceId = `${tenantId}-${profile.id}-${period}`;
           const idempotencyKey = `payroll:${tenantId}:${profile.id}:${period}`;
 

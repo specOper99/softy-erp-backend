@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { subDays } from 'date-fns';
 import * as crypto from 'node:crypto';
 import { isIP } from 'node:net';
 import { Repository } from 'typeorm';
@@ -241,7 +242,7 @@ export class PlatformSecurityService {
 
     await this.tenantRepository.save(tenant);
 
-    const cancellationDeadline = new Date(dto.scheduleDate.getTime() - 24 * 60 * 60 * 1000); // 1 day before
+    const cancellationDeadline = subDays(dto.scheduleDate, 1);
 
     await this.auditService.log({
       platformUserId,

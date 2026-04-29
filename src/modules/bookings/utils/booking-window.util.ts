@@ -3,6 +3,8 @@
  * Supports the staff conflict engine (T7).
  */
 
+import { addMinutes } from 'date-fns';
+
 export interface BookingWindow {
   start: Date;
   end: Date;
@@ -57,7 +59,7 @@ export function parseStartDateTime(eventDate: Date, startTime: string): Date {
  */
 export function computeBookingWindow(eventDate: Date, startTime: string, durationMinutes: number): BookingWindow {
   const start = parseStartDateTime(eventDate, startTime);
-  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const end = addMinutes(start, durationMinutes);
 
   return { start, end };
 }

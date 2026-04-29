@@ -79,7 +79,7 @@ describe('MailService', () => {
     it('should delegate to senderService', async () => {
       const data = { clientEmail: 'test@example.com' } as unknown as BookingEmailData;
       await service.sendBookingConfirmation(data);
-      expect(senderService.sendBookingConfirmation).toHaveBeenCalledWith(data);
+      expect(senderService.sendBookingConfirmation).toHaveBeenCalledWith(data, 'en');
     });
   });
 });

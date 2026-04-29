@@ -13,6 +13,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import * as bcrypt from 'bcrypt';
+import { Counter, register } from 'prom-client';
+
+function getOrCreateCounter(name: string, help: string): Counter<string> {
+  const existing = register.getSingleMetric(name);
+  if (existing) return existing as Counter<string>;
+  return new Counter({ name, help });
+}
+
+const bcryptVerifiedCounter = getOrCreateCounter(
+  'softy_password_hash_bcrypt_verified_total',
+  'Number of times a bcrypt-format hash has been verified during login. Goes flat once all users have rotated to Argon2id.',
+);
+
+const bcryptUpgradedCounter = getOrCreateCounter(
+  'softy_password_hash_bcrypt_upgraded_total',
+  'Number of bcrypt hashes successfully verified and upgraded to Argon2id.',
+);
 
 @Injectable()
 export class PasswordHashService {
@@ -110,12 +127,14 @@ export class PasswordHashService {
 
     // Check if it's a bcrypt hash (starts with $2a$, $2b$, or $2y$)
     if (storedHash.startsWith('$2')) {
+      bcryptVerifiedCounter.inc();
       try {
         const valid = await bcrypt.compare(password, storedHash);
 
         if (valid) {
           // Generate new Argon2id hash for automatic upgrade
           const newHash = await this.hash(password);
+          bcryptUpgradedCounter.inc();
           this.logger.log('Password hash upgrade initiated (bcrypt -> Argon2id)');
           return { valid: true, newHash, upgraded: true };
         }

@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
+import { differenceInCalendarDays } from 'date-fns';
 import { DataSource } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
@@ -353,7 +354,7 @@ export class BookingWorkflowService {
         newValues: { status: BookingStatus.CANCELLED },
       });
 
-      const daysBeforeEvent = Math.ceil((booking.eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      const daysBeforeEvent = differenceInCalendarDays(booking.eventDate, new Date());
 
       eventToPublish = new BookingCancelledEvent(
         saved.id,

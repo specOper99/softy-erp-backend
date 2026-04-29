@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import { format } from 'date-fns';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
@@ -21,7 +22,7 @@ export class InvoiceService {
    * Format: INV-YYYYMMDD-XXXXXX (6 hex chars = 16.7M combinations per day)
    */
   private generateInvoiceNumber(): string {
-    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const datePart = format(new Date(), 'yyyyMMdd');
     // Use crypto.randomBytes for secure randomness instead of Math.random()
     const randomPart = randomBytes(3).toString('hex').toUpperCase();
     return `${INVOICE_NUMBER_PREFIX}-${datePart}-${randomPart}`;

@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import * as argon2 from 'argon2';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
 import { getDatabaseConnectionConfig } from './db-config';
@@ -38,7 +38,13 @@ class SeedLogger {
   }
 }
 
-// Validate required environment variables
+// Argon2id options matching PasswordHashService (OWASP 2025)
+const ARGON2_OPTIONS: argon2.Options = {
+  type: argon2.argon2id,
+  memoryCost: 65536, // 64 MB
+  timeCost: 3,
+  parallelism: 4,
+};
 const requiredEnvVars = [
   'SEED_ADMIN_PASSWORD',
   'SEED_STAFF_PASSWORD',
@@ -46,6 +52,7 @@ const requiredEnvVars = [
   'SEED_PLATFORM_ADMIN_PASSWORD',
 ] as const;
 
+// Validate required environment variables
 const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 if (missingEnvVars.length > 0) {
   SeedLogger.error('Missing required environment variables:');
@@ -159,7 +166,7 @@ async function seed() {
 
     let _adminUser: User;
     if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD!, 10);
+      const passwordHash = await argon2.hash(process.env.SEED_ADMIN_PASSWORD!, ARGON2_OPTIONS);
       _adminUser = userRepo.create({
         email: 'admin@erp.soft-y.org',
         passwordHash,
@@ -354,7 +361,7 @@ async function seed() {
     for (const data of staffData) {
       let user = await userRepo.findOne({ where: { email: data.email } });
       if (!user) {
-        const passwordHash = await bcrypt.hash(process.env.SEED_STAFF_PASSWORD!, 10);
+        const passwordHash = await argon2.hash(process.env.SEED_STAFF_PASSWORD!, ARGON2_OPTIONS);
         user = userRepo.create({
           email: data.email,
           passwordHash,
@@ -421,7 +428,7 @@ async function seed() {
       where: { email: 'ops@erp.soft-y.org' },
     });
     if (!existingOps) {
-      const passwordHash = await bcrypt.hash(process.env.SEED_OPS_PASSWORD!, 10);
+      const passwordHash = await argon2.hash(process.env.SEED_OPS_PASSWORD!, ARGON2_OPTIONS);
       const opsUser = userRepo.create({
         email: 'ops@erp.soft-y.org',
         passwordHash,
@@ -468,7 +475,7 @@ async function seed() {
       where: { email: 'admin@erp.soft-y.org' },
     });
     if (!existingPlatformAdmin) {
-      const passwordHash = await bcrypt.hash(process.env.SEED_PLATFORM_ADMIN_PASSWORD!, 10);
+      const passwordHash = await argon2.hash(process.env.SEED_PLATFORM_ADMIN_PASSWORD!, ARGON2_OPTIONS);
       const platformAdmin = platformUserRepo.create({
         email: 'admin@erp.soft-y.org',
         fullName: 'Platform Administrator',

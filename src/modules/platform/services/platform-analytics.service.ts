@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { differenceInCalendarDays } from 'date-fns';
 import { MoreThan, Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
@@ -244,9 +245,7 @@ export class PlatformAnalyticsService {
   }
 
   private calculateActivityScore(tenant: TenantMetricData): number {
-    const daysSinceActivity = tenant.lastActivityAt
-      ? Math.floor((Date.now() - tenant.lastActivityAt.getTime()) / (1000 * 60 * 60 * 24))
-      : 999;
+    const daysSinceActivity = tenant.lastActivityAt ? differenceInCalendarDays(new Date(), tenant.lastActivityAt) : 999;
 
     let score = 100;
     if (daysSinceActivity > 30) score = 20;
@@ -301,9 +300,7 @@ export class PlatformAnalyticsService {
       recommendations.push('High risk score - review security and compliance');
     }
 
-    const daysSinceActivity = tenant.lastActivityAt
-      ? Math.floor((Date.now() - tenant.lastActivityAt.getTime()) / (1000 * 60 * 60 * 24))
-      : 999;
+    const daysSinceActivity = tenant.lastActivityAt ? differenceInCalendarDays(new Date(), tenant.lastActivityAt) : 999;
 
     if (daysSinceActivity > 30) {
       recommendations.push('No activity in 30+ days - possible churn risk');
