@@ -9,8 +9,8 @@ import { FinancialReportController } from './controllers/financial-report.contro
 import { InvoiceController } from './controllers/invoice.controller';
 import { PurchaseInvoicesController } from './controllers/purchase-invoices.controller';
 import { RecurringTransactionController } from './controllers/recurring-transaction.controller';
-import { TransactionsController } from './controllers/transactions.controller';
 import { TransactionCategoriesController } from './controllers/transaction-categories.controller';
+import { TransactionsController } from './controllers/transactions.controller';
 import { VendorsController } from './controllers/vendors.controller';
 import { WalletsController } from './controllers/wallets.controller';
 import {
@@ -37,9 +37,9 @@ import { FinancialReportService } from './services/financial-report.service';
 import { InvoiceService } from './services/invoice.service';
 import { PurchaseInvoicesService } from './services/purchase-invoices.service';
 import { RecurringTransactionService } from './services/recurring-transaction.service';
-import { WalletService } from './services/wallet.service';
 import { TransactionCategoriesService } from './services/transaction-categories.service';
 import { VendorsService } from './services/vendors.service';
+import { WalletService } from './services/wallet.service';
 
 import { ExportService } from '../../common/services/export.service';
 
@@ -47,6 +47,7 @@ import { MockPaymentGatewayService } from '../hr/services/payment-gateway.servic
 import { MetricsModule } from '../metrics/metrics.module';
 import { PayoutConsistencyCron } from './cron/payout-consistency.cron';
 import { BookingUpdatedHandler } from './events/handlers/booking-updated.handler';
+import { ReconciliationFailedHandler } from './events/handlers/financial-failure.handler';
 import { BookingPriceChangedHandler } from './handlers/booking-price-changed.handler';
 import { PayoutRelayService } from './services/payout-relay.service';
 
@@ -102,6 +103,7 @@ import { PayoutRelayService } from './services/payout-relay.service';
     MockPaymentGatewayService,
     PayoutConsistencyCron,
     BookingUpdatedHandler,
+    ReconciliationFailedHandler,
     BookingPriceChangedHandler,
   ],
   exports: [
