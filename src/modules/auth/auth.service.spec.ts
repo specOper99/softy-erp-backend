@@ -532,7 +532,7 @@ describe('AuthService - Comprehensive Tests', () => {
         id: 'rt-1',
         userId: mockUser.id,
         isRevoked: true,
-        lastUsedAt: new Date(now - 1_000),
+        lastUsedAt: new Date(now - 100),
         createdAt,
         expiresAt,
         ipAddress: '1.2.3.4',

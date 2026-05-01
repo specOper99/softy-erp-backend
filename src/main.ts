@@ -1,6 +1,6 @@
 // IMPORTANT: Import instrument.ts FIRST for Sentry to work correctly
-import './instrument';
 import 'reflect-metadata';
+import './instrument';
 
 import {
   BadRequestException,
@@ -19,9 +19,17 @@ import { configureSwagger } from './config/swagger.config';
 initTracing();
 
 import { NestExpressApplication } from '@nestjs/platform-express';
+import express from 'express';
+import { DataSource } from 'typeorm';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+
+  // Enforce explicit payload size limits. Express defaults to 100KB but the rawBody
+  // option is used for Stripe webhook verification; without an explicit cap, any
+  // endpoint can receive arbitrarily large payloads.
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   const isProd = process.env.NODE_ENV === 'production';
   const swaggerEnabled = process.env.ENABLE_SWAGGER === 'true';
@@ -121,9 +129,14 @@ async function bootstrap() {
   // Global interceptors (sanitize inputs, transform outputs)
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  const requiresOrigins = nodeEnv !== 'development' && nodeEnv !== 'test';
+
+  // getCorsOriginAllowlist throws for any non-dev/non-test environment when CORS_ORIGINS
+  // is not configured — this covers staging, preview, and production alike.
   const allowlist = getCorsOriginAllowlist({
     raw: process.env.CORS_ORIGINS,
-    isProd,
+    requiresOrigins,
     devFallback: ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
   });
 
@@ -139,6 +152,30 @@ async function bootstrap() {
   await app.listen(port);
 
   const logger = new Logger('Bootstrap');
+
+  // Check for pending database migrations at startup.
+  // Booting against a stale schema produces confusing DB errors at runtime instead
+  // of a clear startup failure. In production we throw; in other environments we warn.
+  try {
+    const dataSource = app.get(DataSource);
+    const pending = await dataSource.showMigrations();
+    if (pending) {
+      const message =
+        'PENDING DATABASE MIGRATIONS DETECTED. Run migrations before serving traffic to avoid schema mismatch errors.';
+      if (isProd) {
+        throw new Error(message);
+      } else {
+        logger.warn(message);
+      }
+    }
+  } catch (error) {
+    // Re-throw in production; log and continue in other environments.
+    if (isProd) throw error;
+    logger.warn(
+      `Migration check failed (non-fatal in non-prod): ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
   logger.log(`Server running on http://localhost:${port}`);
   logger.log(`API Base: http://localhost:${port}/api/v1`);
   if (swaggerEnabled) {

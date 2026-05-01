@@ -6,6 +6,7 @@ import { createMockRepository, mockTenantContext } from '../../../test/helpers/m
 import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { Webhook } from './entities/webhook.entity';
+import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
 import { WebhookRepository } from './repositories/webhook.repository';
 import { WebhookService } from './webhooks.service';
 import { WebhookConfig, WebhookEvent } from './webhooks.types';
@@ -35,6 +36,7 @@ describe('WebhookService', () => {
 
   let service: WebhookService;
   let webhookRepository: jest.Mocked<WebhookRepository>;
+  let _webhookDeliveryRepository: jest.Mocked<WebhookDeliveryRepository>;
   let qb: { andWhere: jest.Mock; getMany: jest.Mock };
 
   const mockTenantId = 'tenant-1';
@@ -58,12 +60,24 @@ describe('WebhookService', () => {
           provide: WebhookRepository,
           useValue: createMockRepository(),
         },
+        {
+          provide: WebhookDeliveryRepository,
+          useValue: {
+            create: jest.fn().mockReturnValue({
+              recordSuccess: jest.fn(),
+              recordFailure: jest.fn(),
+              requestHeaders: null,
+            }),
+            save: jest.fn().mockResolvedValue(undefined),
+          },
+        },
         { provide: EncryptionService, useValue: mockEncryptionService },
       ],
     }).compile();
 
     service = module.get<WebhookService>(WebhookService);
     webhookRepository = module.get(WebhookRepository);
+    _webhookDeliveryRepository = module.get(WebhookDeliveryRepository);
 
     qb = {
       andWhere: jest.fn().mockReturnThis(),
@@ -77,6 +91,7 @@ describe('WebhookService', () => {
     jest.spyOn(service as unknown as WebhookServiceInternals, 'postPinnedJson').mockResolvedValue({
       statusCode: 200,
       statusMessage: 'OK',
+      responseBody: '',
     });
 
     // Mock getConcurrencyLimit to return a no-op limiter
@@ -272,6 +287,7 @@ describe('WebhookService', () => {
       (service as unknown as WebhookServiceInternals).postPinnedJson.mockResolvedValue({
         statusCode: 500,
         statusMessage: 'Internal Server Error',
+        responseBody: '',
       });
 
       const webhook = createWebhookEntity(config);
@@ -516,6 +532,7 @@ describe('WebhookService', () => {
       (service as unknown as WebhookServiceInternals).postPinnedJson.mockResolvedValue({
         statusCode: 301,
         statusMessage: 'Moved Permanently',
+        responseBody: '',
       });
 
       const webhook = {
@@ -638,6 +655,15 @@ describe('WebhookService', () => {
           WebhookService,
           { provide: ConfigService, useValue: mockConfigService },
           { provide: WebhookRepository, useValue: { createQueryBuilder: jest.fn(), findOne: jest.fn() } }, // minimal repo
+          {
+            provide: WebhookDeliveryRepository,
+            useValue: {
+              create: jest
+                .fn()
+                .mockReturnValue({ recordSuccess: jest.fn(), recordFailure: jest.fn(), requestHeaders: null }),
+              save: jest.fn().mockResolvedValue(undefined),
+            },
+          },
           { provide: EncryptionService, useValue: mockEncryptionService },
           { provide: 'BullQueue_webhook', useValue: mockQueue }, // Correct BullQueue token
         ],
@@ -673,7 +699,7 @@ describe('WebhookService', () => {
       (service as unknown as WebhookServiceInternals).postPinnedJson.mockImplementation(() => {
         callCount++;
         if (callCount < 3) return Promise.reject(new Error('fail'));
-        return Promise.resolve({ statusCode: 200, statusMessage: 'OK' });
+        return Promise.resolve({ statusCode: 200, statusMessage: 'OK', responseBody: '' });
       });
 
       const webhook = {

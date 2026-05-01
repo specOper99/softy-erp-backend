@@ -62,7 +62,7 @@ export const DecimalTransformer: ValueTransformer = {
     // If already a number (some drivers do this), validate and return
     if (typeof value === 'number') {
       if (!Number.isFinite(value)) {
-        return 0;
+        throw new Error(`[DecimalTransformer] Non-finite number read from DB: ${value}`);
       }
       return value;
     }
@@ -72,15 +72,18 @@ export const DecimalTransformer: ValueTransformer = {
       const decimal = new Decimal(value);
       const num = decimal.toNumber();
 
-      // Handle edge cases
       if (!Number.isFinite(num)) {
-        return 0;
+        throw new Error(`[DecimalTransformer] Parsed decimal is non-finite: ${value}`);
       }
 
       return num;
-    } catch {
-      // If parsing fails, return 0 as safe default
-      return 0;
+    } catch (error) {
+      throw new Error(
+        `[DecimalTransformer] Failed to parse decimal value "${String(value)}" from DB: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
     }
   },
 };
@@ -113,15 +116,26 @@ export const PercentTransformer: ValueTransformer = {
     }
 
     if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : 0;
+      if (!Number.isFinite(value)) {
+        throw new Error(`[PercentTransformer] Non-finite number read from DB: ${value}`);
+      }
+      return value;
     }
 
     try {
       const decimal = new Decimal(value);
       const num = decimal.toNumber();
-      return Number.isFinite(num) ? num : 0;
-    } catch {
-      return 0;
+      if (!Number.isFinite(num)) {
+        throw new Error(`[PercentTransformer] Parsed value is non-finite: ${value}`);
+      }
+      return num;
+    } catch (error) {
+      throw new Error(
+        `[PercentTransformer] Failed to parse percent value "${String(value)}" from DB: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
     }
   },
 };
@@ -154,15 +168,26 @@ export const ExchangeRateTransformer: ValueTransformer = {
     }
 
     if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : 1;
+      if (!Number.isFinite(value)) {
+        throw new Error(`[ExchangeRateTransformer] Non-finite number read from DB: ${value}`);
+      }
+      return value;
     }
 
     try {
       const decimal = new Decimal(value);
       const num = decimal.toNumber();
-      return Number.isFinite(num) ? num : 1;
-    } catch {
-      return 1; // Default exchange rate of 1:1
+      if (!Number.isFinite(num)) {
+        throw new Error(`[ExchangeRateTransformer] Parsed value is non-finite: ${value}`);
+      }
+      return num;
+    } catch (error) {
+      throw new Error(
+        `[ExchangeRateTransformer] Failed to parse exchange rate "${String(value)}" from DB: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
     }
   },
 };

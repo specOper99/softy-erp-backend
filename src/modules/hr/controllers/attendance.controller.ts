@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Logger,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -31,6 +32,8 @@ import { AttendanceService } from '../services/attendance.service';
 @Controller('hr/attendance')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AttendanceController {
+  private readonly logger = new Logger(AttendanceController.name);
+
   constructor(private readonly attendanceService: AttendanceService) {}
 
   @Post()
@@ -42,7 +45,10 @@ export class AttendanceController {
     if (user.role === Role.FIELD_STAFF) {
       try {
         resolveRequestedUserIdScope(user, createAttendanceDto.userId);
-      } catch {
+      } catch (error) {
+        this.logger.warn(
+          `Attendance create forbidden for field staff ${user.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
         throw new ForbiddenException('Field staff can only create attendance records for themselves');
       }
     }
@@ -80,7 +86,10 @@ export class AttendanceController {
     if (user.role === Role.FIELD_STAFF) {
       try {
         resolveRequestedUserIdScope(user, attendance.userId);
-      } catch {
+      } catch (error) {
+        this.logger.warn(
+          `Attendance view forbidden for field staff ${user.id} on record ${id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
         throw new ForbiddenException('Field staff can only view their own attendance records');
       }
     }

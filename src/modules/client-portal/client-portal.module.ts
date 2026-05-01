@@ -2,21 +2,22 @@ import {
   CallHandler,
   ExecutionContext,
   Injectable,
-  type NestInterceptor,
   MiddlewareConsumer,
   Module,
   NestModule,
+  type NestInterceptor,
 } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import type { Request } from 'express';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
-import { Observable, Subscription } from 'rxjs';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
+import type { Request } from 'express';
+import { Observable, Subscription } from 'rxjs';
 import { Repository } from 'typeorm';
 import { TENANT_REPO_CLIENT } from '../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { getAllowedJwtAlgorithm } from '../../common/utils/jwt-algorithm.util';
 import { BookingsModule } from '../bookings/bookings.module';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
@@ -72,12 +73,25 @@ class ClientPortalTenantContextInterceptor implements NestInterceptor {
     NotificationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('auth.jwtSecret'),
-        signOptions: {
-          expiresIn: configService.get<number>('auth.clientSessionExpires', 3600),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const algorithm = getAllowedJwtAlgorithm(configService);
+        if (algorithm === 'RS256') {
+          const privateKey = configService.getOrThrow<string>('auth.jwtPrivateKey');
+          return {
+            privateKey,
+            signOptions: {
+              algorithm: 'RS256',
+              expiresIn: configService.get<number>('auth.clientSessionExpires', 3600),
+            },
+          };
+        }
+        return {
+          secret: configService.get<string>('auth.jwtSecret'),
+          signOptions: {
+            expiresIn: configService.get<number>('auth.clientSessionExpires', 3600),
+          },
+        };
+      },
       inject: [ConfigService],
     }),
   ],

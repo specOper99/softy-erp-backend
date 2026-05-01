@@ -51,6 +51,41 @@ export class CacheUtilsService {
   }
 
   /**
+   * Atomically increment a counter key and set its TTL (on first creation).
+   * Uses Redis INCR when available for true atomicity; falls back to a
+   * lock-guarded get/set on other stores.
+   */
+  async increment(key: string, ttlMs: number): Promise<number> {
+    // Attempt to use Redis native INCR for true atomicity.
+    interface RedisClient {
+      incr: (key: string) => Promise<number>;
+      expire: (key: string, seconds: number) => Promise<number>;
+    }
+    interface RedisStore {
+      client?: RedisClient;
+    }
+    const store = (this.cacheManager as { store?: RedisStore }).store;
+    if (store?.client?.incr) {
+      const next = await store.client.incr(key);
+      if (next === 1) {
+        // Key just created — set the expiry once.
+        await store.client.expire(key, Math.ceil(ttlMs / 1000));
+      }
+      return next;
+    }
+
+    // Fallback: serialise with a short-lived lock.
+    const lockKey = `${key}:incr_lock`;
+    let result = 1;
+    await this.withLock(lockKey, Math.min(ttlMs, 5000), async () => {
+      const current = (await this.cacheManager.get<number>(key)) ?? 0;
+      result = current + 1;
+      await this.cacheManager.set(key, result, ttlMs);
+    });
+    return result;
+  }
+
+  /**
    * Delete all cache keys matching a pattern.
    * Note: Pattern matching requires Redis store with keys() support.
    */

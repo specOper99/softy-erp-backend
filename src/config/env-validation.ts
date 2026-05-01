@@ -119,6 +119,10 @@ class EnvironmentVariables {
   @IsOptional()
   JWT_PUBLIC_KEY?: string;
 
+  @IsString()
+  @IsOptional()
+  JWT_PRIVATE_KEY?: string;
+
   // CSP reporting
   @IsString()
   @IsOptional()
@@ -151,6 +155,16 @@ class EnvironmentVariables {
   @IsOptional()
   @MinLength(32, { message: 'CURSOR_SECRET must be at least 32 characters' })
   CURSOR_SECRET?: string;
+
+  /**
+   * HMAC secret for password reset token hashing.
+   * If unset, tokens fall back to plain SHA-256. Set this in all environments.
+   * Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   */
+  @IsString()
+  @IsOptional()
+  @MinLength(32, { message: 'PASSWORD_RESET_TOKEN_SECRET must be at least 32 characters' })
+  PASSWORD_RESET_TOKEN_SECRET?: string;
 
   @IsString()
   @IsOptional()
@@ -373,6 +387,9 @@ export function validate(config: Record<string, unknown>) {
     }
     if (uniqueAlgs[0] === 'RS256' && !validatedConfig.JWT_PUBLIC_KEY) {
       throw new Error('SECURITY: JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
+    }
+    if (uniqueAlgs[0] === 'RS256' && !validatedConfig.JWT_PRIVATE_KEY) {
+      throw new Error('SECURITY: JWT_PRIVATE_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
     }
 
     // JWT_SECRET validation with entropy checking

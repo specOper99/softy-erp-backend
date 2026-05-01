@@ -154,7 +154,10 @@ export class ClientAuthService {
             ? this.configService.getOrThrow<string>('JWT_PUBLIC_KEY')
             : this.configService.getOrThrow<string>('auth.jwtSecret'),
       });
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `verifyMagicLink: JWT verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       this.magicLinkVerifiedCounter.inc({
         tenant_id: 'unknown',
         status: 'invalid_token',

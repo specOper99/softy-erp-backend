@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -75,6 +76,15 @@ describe('PasswordService', () => {
         {
           provide: PasswordHashService,
           useValue: mockPasswordHashService,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'NODE_ENV') return 'test';
+              return undefined;
+            }),
+          },
         },
       ],
     }).compile();

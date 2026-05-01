@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -41,6 +41,7 @@ export interface PlatformLoginResponse {
  */
 @Injectable()
 export class PlatformAuthService {
+  private readonly logger = new Logger(PlatformAuthService.name);
   private readonly SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours
 
   constructor(
@@ -300,7 +301,10 @@ export class PlatformAuthService {
       payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET'),
       });
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `Platform refresh token verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw new UnauthorizedException('Invalid refresh token');
     }
 

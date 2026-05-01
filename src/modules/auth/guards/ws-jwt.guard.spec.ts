@@ -44,7 +44,7 @@ describe('WsJwtGuard', () => {
               if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
               if (key === 'JWT_PUBLIC_KEY') return undefined;
               if (key === 'NODE_ENV') return 'test';
-              if (key === 'WS_ALLOW_QUERY_TOKEN') return undefined;
+              if (key === 'WS_ALLOW_QUERY_TOKEN') return 'true';
               if (key === 'auth.jwtSecret') return 'test-secret';
               return undefined;
             }),
@@ -183,6 +183,29 @@ describe('WsJwtGuard', () => {
         if (key === 'JWT_PUBLIC_KEY') return undefined;
         if (key === 'NODE_ENV') return 'production';
         if (key === 'WS_ALLOW_QUERY_TOKEN') return 'false';
+        if (key === 'auth.jwtSecret') return 'test-secret';
+        return undefined;
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(WsException);
+    });
+
+    it('should reject query token in production even when WS_ALLOW_QUERY_TOKEN=true', async () => {
+      const client = {
+        handshake: {
+          query: { token: 'valid.token' },
+          headers: {},
+        },
+        data: {},
+      };
+      const context = createMockContext(client);
+
+      (configService.get as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'JWT_ALLOWED_ALGORITHMS') return 'HS256';
+        if (key === 'JWT_PUBLIC_KEY') return undefined;
+        if (key === 'NODE_ENV') return 'production';
+        // Even with flag explicitly set to 'true', production should refuse query tokens.
+        if (key === 'WS_ALLOW_QUERY_TOKEN') return 'true';
         if (key === 'auth.jwtSecret') return 'test-secret';
         return undefined;
       });

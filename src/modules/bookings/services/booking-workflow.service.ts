@@ -201,8 +201,14 @@ export class BookingWorkflowService {
     // Step 5: Auto-generate invoice (non-blocking; failure does not roll back confirm)
     try {
       await this.invoiceService.createInvoice(result.booking.id);
-    } catch {
-      // Invoice generation is best-effort; can be retried manually
+    } catch (error) {
+      // Log so the billing gap is visible in monitoring — someone must manually
+      // retry or create the invoice. Silent swallow here is intentional (the
+      // booking is confirmed regardless) but the failure must not be invisible.
+      this.logger.error(
+        `Invoice generation failed for booking ${result.booking.id}: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
     }
 
     // Notify after commit so events and caches never reflect rolled-back data.

@@ -25,7 +25,8 @@ export class TransactionReversalAndRelaxXor20260501000000 implements MigrationIn
     }
 
     // 2. Re-add as "at most one" — zero is now allowed.
-    // TODO: include purchase_invoice_id once that FK lands
+    // NOTE: purchase_invoice_id is excluded from this constraint until its FK column is added.
+    // Track in: https://github.com/your-org/softy-erp/issues/XXXX (add purchase_invoice_id FK)
     await queryRunner.query(
       `ALTER TABLE "transactions" ADD CONSTRAINT "CHK_transactions_at_most_one_parent"` +
         ` CHECK (` +

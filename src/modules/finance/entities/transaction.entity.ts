@@ -11,7 +11,8 @@ import type { TransactionCategory } from './transaction-category.entity';
 @Entity('transactions')
 // At most one of {booking_id, task_id, payout_id} may be set; zero is allowed
 // for manual, recurring, purchase-invoice, and reversal transactions.
-// TODO: include purchase_invoice_id once that FK lands
+// NOTE: purchase_invoice_id is excluded from this check constraint until its FK column is added.
+// Track in: https://github.com/your-org/softy-erp/issues/XXXX (add purchase_invoice_id FK)
 @Check(
   `(CASE WHEN "booking_id" IS NOT NULL THEN 1 ELSE 0 END +` +
     ` CASE WHEN "task_id"    IS NOT NULL THEN 1 ELSE 0 END +` +

@@ -168,6 +168,15 @@ export class TransactionResponseDto {
 
   @ApiProperty()
   createdAt: Date;
+
+  @ApiPropertyOptional({ description: 'ID of the original transaction this row reverses, if any' })
+  reversalOfId: string | null;
+
+  @ApiPropertyOptional({ description: 'Timestamp when this transaction was voided' })
+  voidedAt: Date | null;
+
+  @ApiPropertyOptional({ description: 'User ID of the admin who voided this transaction' })
+  voidedBy: string | null;
 }
 
 // Wallet DTOs

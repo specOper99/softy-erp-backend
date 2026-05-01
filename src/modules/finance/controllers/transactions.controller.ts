@@ -91,6 +91,33 @@ export class TransactionsController {
     return this.financeService.getTransactionSummary();
   }
 
+  // Budget Methods
+  @Post('budgets')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Set or update department budget (Admin only)' })
+  upsertBudget(@Body() dto: CreateBudgetDto) {
+    return this.financialReportService.upsertBudget(dto);
+  }
+
+  @Get('budgets')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get budget compliance report (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Budget compliance report' })
+  @ApiResponse({ status: 400, description: 'Invalid period format' })
+  getBudgets(@Query() query: BudgetReportQueryDto) {
+    return this.financialReportService.getBudgetReport(query.period);
+  }
+
+  @Get('export')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Export transactions to CSV' })
+  @ApiResponse({ status: 200, description: 'CSV file download' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  exportTransactions(@Res() res: Response) {
+    return this.financeService.exportTransactionsToCSV(res);
+  }
+
   @Get(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get transaction by ID' })
@@ -124,32 +151,5 @@ export class TransactionsController {
     @CurrentUser('id') userId: string | null,
   ) {
     return this.financeService.voidTransaction(id, dto.reason, userId);
-  }
-
-  // Budget Methods
-  @Post('budgets')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Set or update department budget (Admin only)' })
-  upsertBudget(@Body() dto: CreateBudgetDto) {
-    return this.financialReportService.upsertBudget(dto);
-  }
-
-  @Get('budgets')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Get budget compliance report (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Budget compliance report' })
-  @ApiResponse({ status: 400, description: 'Invalid period format' })
-  getBudgets(@Query() query: BudgetReportQueryDto) {
-    return this.financialReportService.getBudgetReport(query.period);
-  }
-
-  @Get('export')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Export transactions to CSV' })
-  @ApiResponse({ status: 200, description: 'CSV file download' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  exportTransactions(@Res() res: Response) {
-    return this.financeService.exportTransactionsToCSV(res);
   }
 }

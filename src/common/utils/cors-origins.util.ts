@@ -2,7 +2,8 @@ type CorsOriginCallback = (err: Error | null, allow?: boolean) => void;
 
 export function getCorsOriginAllowlist(params: {
   raw: string | undefined;
-  isProd: boolean;
+  /** Set to true for any non-dev, non-test environment (staging, preview, production). */
+  requiresOrigins: boolean;
   devFallback: string[];
 }): ReadonlySet<string> {
   const raw = params.raw?.trim();
@@ -14,9 +15,14 @@ export function getCorsOriginAllowlist(params: {
           .filter(Boolean)
       : [];
 
-  const inputs = candidates.length > 0 ? candidates : params.isProd ? [] : params.devFallback;
-  if (params.isProd && inputs.length === 0) {
-    throw new Error('SECURITY: CORS_ORIGINS must be configured in production environments.');
+  // Only apply the dev fallback when origins are not required; otherwise leave the
+  // list empty so the missing-origins guard below fires for staging environments too.
+  const inputs = candidates.length > 0 ? candidates : params.requiresOrigins ? [] : params.devFallback;
+  if (params.requiresOrigins && inputs.length === 0) {
+    throw new Error(
+      'SECURITY: CORS_ORIGINS must be configured in staging/production environments. ' +
+        'Set CORS_ORIGINS to a comma-separated list of allowed origins (e.g. https://app.example.com).',
+    );
   }
 
   const normalized: string[] = [];

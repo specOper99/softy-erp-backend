@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
@@ -21,14 +22,42 @@ export class PasswordService {
     private readonly mailService: MailService,
     private readonly tokenService: TokenService,
     private readonly passwordHashService: PasswordHashService,
+    private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Hash a password-reset token using HMAC-SHA256 with a server-side secret.
+   * Throws in production when PASSWORD_RESET_TOKEN_SECRET is not configured —
+   * silent degradation to plain SHA-256 is unacceptable in production because it
+   * removes the ability to rotate the secret and opens offline brute-force against
+   * any leaked hash table. Non-prod environments warn and fall back.
+   */
+  private hashResetToken(token: string): string {
+    const secret = this.configService.get<string>('PASSWORD_RESET_TOKEN_SECRET');
+    if (secret) {
+      return crypto.createHmac('sha256', secret).update(token).digest('hex');
+    }
+    const nodeEnv = this.configService.get<string>('NODE_ENV') ?? 'development';
+    const isRelaxedEnv = nodeEnv === 'development' || nodeEnv === 'test';
+    if (!isRelaxedEnv) {
+      throw new Error(
+        'PASSWORD_RESET_TOKEN_SECRET must be configured in staging/production environments. ' +
+          'Set this to a random 32+ character string to enable HMAC-SHA256 token hashing.',
+      );
+    }
+    this.logger.warn('PASSWORD_RESET_TOKEN_SECRET is not set; falling back to plain SHA-256 for reset token hashing');
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
   async forgotPassword(email: string): Promise<void> {
+    // Normalize email to ensure consistent lookups and lockout key matching.
+    const normalizedEmail = email.toLowerCase().trim();
+
     // Timing Attack Mitigation: Always perform crypto operations
     const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = this.hashResetToken(token);
 
-    const user = await this.usersService.findByEmailGlobal(email);
+    const user = await this.usersService.findByEmailGlobal(normalizedEmail);
 
     if (!user) {
       this.logger.warn({
@@ -37,13 +66,13 @@ export class PasswordService {
       return;
     }
 
-    await this.passwordResetRepository.update({ email, used: false }, { used: true });
+    await this.passwordResetRepository.update({ email: normalizedEmail, used: false }, { used: true });
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1);
 
     await this.passwordResetRepository.save({
-      email,
+      email: normalizedEmail,
       tokenHash,
       expiresAt,
       used: false,
@@ -51,12 +80,12 @@ export class PasswordService {
 
     this.logger.log({
       message: 'Password reset token generated',
-      email,
+      email: normalizedEmail,
       userId: user.id,
     });
 
     await this.mailService.queuePasswordReset({
-      email,
+      email: normalizedEmail,
       name: user.email,
       token,
       expiresInHours: 1,
@@ -68,7 +97,7 @@ export class PasswordService {
     newPassword: string,
     onResetComplete?: (userId: string) => Promise<void>,
   ): Promise<void> {
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = this.hashResetToken(token);
 
     const resetToken = await this.passwordResetRepository.findOne({
       where: { tokenHash },

@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from '../../common/common.module';
 import { GeoIpService } from '../../common/services/geoip.service';
+import { getAllowedJwtAlgorithm } from '../../common/utils/jwt-algorithm.util';
 import { MailModule } from '../mail/mail.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { UsersModule } from '../users/users.module';
@@ -17,8 +18,8 @@ import { MfaRequiredGuard } from './guards/mfa-required.guard';
 import { WsJwtGuard } from './guards/ws-jwt.guard';
 import { UserDeactivatedHandler } from './handlers/user-deactivated.handler';
 import { AccountLockoutService } from './services/account-lockout.service';
-import { MfaService } from './services/mfa.service';
 import { MfaTokenService } from './services/mfa-token.service';
+import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
@@ -37,6 +38,17 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        const algorithm = getAllowedJwtAlgorithm(configService);
+        if (algorithm === 'RS256') {
+          const privateKey = configService.getOrThrow<string>('auth.jwtPrivateKey');
+          return {
+            privateKey,
+            signOptions: {
+              algorithm: 'RS256',
+              expiresIn: configService.get<number>('auth.jwtAccessExpires'),
+            },
+          };
+        }
         return {
           secret: configService.get<string>('auth.jwtSecret'),
           signOptions: {

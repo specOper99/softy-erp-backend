@@ -83,9 +83,22 @@ export class WsJwtGuard implements CanActivate {
     }
 
     const queryToken = client.handshake.query.token;
-    const nodeEnv = this.configService.get<string>('NODE_ENV');
-    const allowQueryToken =
-      this.configService.get<string>('WS_ALLOW_QUERY_TOKEN') === 'true' || nodeEnv !== 'production';
+    // WS_ALLOW_QUERY_TOKEN must be explicitly set to 'true' to allow query-string tokens.
+    // Never default to true based on NODE_ENV — staging/QA environments would log JWTs
+    // to proxy access logs, browser history, and Kubernetes audit logs.
+    //
+    // Query tokens are NEVER allowed in production even when the flag is set: a misconfigured
+    // flag must not silently expose access tokens in server logs in the most critical environment.
+    const nodeEnv = this.configService.get<string>('NODE_ENV') ?? 'development';
+    const isProd = nodeEnv === 'production';
+    const allowQueryToken = !isProd && this.configService.get<string>('WS_ALLOW_QUERY_TOKEN') === 'true';
+
+    if (isProd && this.configService.get<string>('WS_ALLOW_QUERY_TOKEN') === 'true') {
+      this.logger.warn(
+        'WS_ALLOW_QUERY_TOKEN=true is set but ignored in production. ' +
+          'Query-string tokens expose JWTs in server logs. Remove this env var.',
+      );
+    }
 
     if (allowQueryToken && typeof queryToken === 'string' && queryToken.length > 0) {
       return queryToken;

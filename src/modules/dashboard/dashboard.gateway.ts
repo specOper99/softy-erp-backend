@@ -3,16 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
-import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
 import { corsOriginDelegate, getCorsOriginAllowlist } from '../../common/utils/cors-origins.util';
 import { getAllowedJwtAlgorithm } from '../../common/utils/jwt-algorithm.util';
+import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
 
+const _nodeEnv = process.env.NODE_ENV ?? 'development';
 const corsAllowlist = getCorsOriginAllowlist({
   raw: process.env.CORS_ORIGINS,
-  isProd: process.env.NODE_ENV === 'production',
+  requiresOrigins: _nodeEnv !== 'development' && _nodeEnv !== 'test',
   devFallback: ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:5173'],
 });
+
+// Module-level logger used in the @WebSocketGateway decorator callback, which
+// executes outside of class scope and cannot access `this.logger`.
+const gatewayDecoratorLogger = new Logger('DashboardGateway');
 
 interface MetricsUpdateData {
   [key: string]: unknown;
@@ -52,7 +57,10 @@ interface JwtPayload {
       const normalized = new URL(origin).origin;
       const ok = corsAllowlist.has(normalized);
       return callback(ok ? null : 'Origin not allowed', ok);
-    } catch {
+    } catch (error) {
+      gatewayDecoratorLogger.warn(
+        `WebSocket CORS: failed to parse origin "${origin as string}": ${error instanceof Error ? error.message : String(error)}`,
+      );
       return callback('Origin not allowed', false);
     }
   },

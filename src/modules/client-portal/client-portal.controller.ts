@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -106,6 +107,8 @@ import { ClientPortalService } from './services/client-portal.service';
 @Controller('client-portal')
 @SkipTenant()
 export class ClientPortalController {
+  private readonly logger = new Logger(ClientPortalController.name);
+
   constructor(
     private readonly clientAuthService: ClientAuthService,
     private readonly clientPortalService: ClientPortalService,
@@ -772,7 +775,10 @@ export class ClientPortalController {
         contactPhone: parsed.contactPhone,
         notes: parsed.notes,
       };
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `parseBookingNotes: failed to parse JSON notes, falling back to plain string: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return { guests: 1, notes };
     }
   }

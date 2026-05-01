@@ -54,7 +54,10 @@ export class MfaService {
       });
       const delta = totp.validate({ token: code, window: 1 });
       isValid = delta !== null;
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `TOTP validation error during MFA enable for user ${user.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw new UnauthorizedException('Invalid MFA code');
     }
 

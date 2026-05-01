@@ -257,7 +257,10 @@ export class AuthService {
         if (storedToken.isRevoked) {
           const now = Date.now();
           const lastUsedAtMs = storedToken.lastUsedAt?.getTime();
-          const recentRevocationGraceMs = 10_000;
+          // 500 ms is enough to absorb truly concurrent refresh requests (e.g., two
+          // tabs racing). 10 s was a session-hijacking window: an attacker with a
+          // stolen token had 10 full seconds to issue their own refresh after first use.
+          const recentRevocationGraceMs = 500;
 
           const isLikelyConcurrentRefresh =
             typeof lastUsedAtMs === 'number' &&
@@ -462,6 +465,20 @@ export class AuthService {
 
       const isValid = await verifyFn(user, code);
       if (!isValid) {
+        // Track failed attempts on the temp token itself. This targets the specific
+        // attack where an attacker possesses a stolen temp token and enumerates TOTP
+        // codes. IP-based throttling alone is insufficient for IP-rotating attackers.
+        const attempts = await this.mfaTokenService.recordFailedAttempt(tempToken);
+        if (attempts >= MfaTokenService.MAX_TOTP_ATTEMPTS) {
+          // Invalidate the temp token to force the attacker back to the login step.
+          await this.mfaTokenService.consumeTempToken(tempToken);
+          this.logger.warn({
+            message: 'MFA temp token invalidated after repeated failed attempts',
+            userId: user.id,
+            tenantId: user.tenantId,
+            attempts,
+          });
+        }
         await this.lockoutService.recordFailedAttempt(user.email);
         throw new UnauthorizedException(errorMessage);
       }

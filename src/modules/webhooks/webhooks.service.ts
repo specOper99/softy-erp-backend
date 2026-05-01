@@ -8,16 +8,18 @@ import {
   RequestTimeoutException,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import * as ipaddr from 'ipaddr.js';
 import { createHmac, randomInt } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import * as https from 'node:https';
 import { isIP } from 'node:net';
-import * as ipaddr from 'ipaddr.js';
 import { SelectQueryBuilder } from 'typeorm';
 import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { DeliveryStatus, WebhookDelivery } from './entities/webhook-delivery.entity';
 import { Webhook } from './entities/webhook.entity';
+import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
 import { WebhookRepository } from './repositories/webhook.repository';
 import { WEBHOOK_QUEUE, WebhookConfig, WebhookEvent, WebhookJobData } from './webhooks.types';
 
@@ -60,6 +62,7 @@ export class WebhookService {
 
   constructor(
     private readonly webhookRepository: WebhookRepository,
+    private readonly webhookDeliveryRepository: WebhookDeliveryRepository,
     private readonly encryptionService: EncryptionService,
     @Optional()
     @InjectQueue(WEBHOOK_QUEUE)
@@ -207,7 +210,11 @@ export class WebhookService {
 
       const ipv6Address = parsedAddress as ipaddr.IPv6;
       return this.PRIVATE_IPV6_CIDRS.some((cidr) => ipv6Address.match(ipaddr.IPv6.parseCIDR(cidr)));
-    } catch {
+    } catch (error) {
+      // Fail closed: treat unparseable IPs as private to block delivery.
+      this.logger.warn(
+        `isPrivateIp: failed to parse IP "${ip}", treating as private: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return true;
     }
   }
@@ -218,7 +225,7 @@ export class WebhookService {
     body: string,
     headers: Record<string, string>,
     signal: AbortSignal,
-  ): Promise<{ statusCode: number; statusMessage: string }> {
+  ): Promise<{ statusCode: number; statusMessage: string; responseBody: string }> {
     return new Promise((resolve, reject) => {
       const req = https.request(
         {
@@ -235,14 +242,16 @@ export class WebhookService {
           servername: url.hostname,
         },
         (res) => {
-          res.resume();
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
           res.on('end', () => {
             const statusCode = res.statusCode;
             if (typeof statusCode !== 'number') {
               reject(new Error('Missing response status code'));
               return;
             }
-            resolve({ statusCode, statusMessage: res.statusMessage ?? '' });
+            const responseBody = Buffer.concat(chunks).toString('utf8').substring(0, 10000);
+            resolve({ statusCode, statusMessage: res.statusMessage ?? '', responseBody });
           });
         },
       );
@@ -377,7 +386,16 @@ export class WebhookService {
         throw new NotFoundException('webhooks.not_found');
       }
 
-      await this.sendWebhookOnce(fullWebhook, event);
+      const delivery = this.webhookDeliveryRepository.create({
+        webhookId: fullWebhook.id,
+        eventType: event.type,
+        requestBody: event as unknown as Record<string, unknown>,
+        status: DeliveryStatus.PENDING,
+        maxAttempts: 1,
+      });
+      await this.webhookDeliveryRepository.save(delivery);
+
+      await this.sendWebhookOnce(fullWebhook, event, delivery);
     });
   }
 
@@ -385,9 +403,18 @@ export class WebhookService {
    * Send webhook with exponential backoff retry and jitter
    */
   private async sendWebhookWithRetry(webhook: Webhook, event: WebhookEvent): Promise<void> {
+    const delivery = this.webhookDeliveryRepository.create({
+      webhookId: webhook.id,
+      eventType: event.type,
+      requestBody: event as unknown as Record<string, unknown>,
+      status: DeliveryStatus.PENDING,
+      maxAttempts: this.MAX_RETRIES,
+    });
+    await this.webhookDeliveryRepository.save(delivery);
+
     for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
       try {
-        await this.sendWebhookOnce(webhook, event);
+        await this.sendWebhookOnce(webhook, event, delivery);
         return;
       } catch (error) {
         if (attempt === this.MAX_RETRIES - 1) {
@@ -409,7 +436,7 @@ export class WebhookService {
    * SECURITY: Always re-validate DNS to prevent DNS rebinding attacks.
    * Block redirects to prevent SSRF via redirect to private IPs.
    */
-  private async sendWebhookOnce(webhook: Webhook, event: WebhookEvent): Promise<void> {
+  private async sendWebhookOnce(webhook: Webhook, event: WebhookEvent, delivery?: WebhookDelivery): Promise<void> {
     const url = new URL(webhook.url);
     if (url.protocol !== 'https:') {
       throw new BadRequestException('webhooks.invalid_protocol');
@@ -429,22 +456,19 @@ export class WebhookService {
     // Include timestamp in signature to prevent replay attacks
     const signature = this.createSignature(`${timestamp}.${body}`, decryptedSecret);
 
+    const sentHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Webhook-Signature': signature,
+      'X-Webhook-Timestamp': timestamp,
+      'X-Webhook-Event': event.type,
+    };
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.WEBHOOK_TIMEOUT);
+    const startMs = Date.now();
 
     try {
-      const response = await this.postPinnedJson(
-        url,
-        pinnedIp,
-        body,
-        {
-          'Content-Type': 'application/json',
-          'X-Webhook-Signature': signature,
-          'X-Webhook-Timestamp': timestamp,
-          'X-Webhook-Event': event.type,
-        },
-        controller.signal,
-      );
+      const response = await this.postPinnedJson(url, pinnedIp, body, sentHeaders, controller.signal);
 
       // SECURITY: Check for redirect responses - these could lead to private IPs
       if (response.statusCode >= 300 && response.statusCode < 400) {
@@ -455,8 +479,21 @@ export class WebhookService {
         throw new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`);
       }
 
+      const durationMs = Date.now() - startMs;
       this.logger.log(`Webhook delivered to ${webhook.url} for event ${event.type}`);
+
+      if (delivery) {
+        delivery.requestHeaders = sentHeaders;
+        delivery.recordSuccess(response.statusCode, response.responseBody, durationMs);
+        await this.webhookDeliveryRepository.save(delivery);
+      }
     } catch (error) {
+      if (delivery) {
+        const message = error instanceof Error ? error.message : String(error);
+        delivery.requestHeaders = sentHeaders;
+        delivery.recordFailure(message);
+        await this.webhookDeliveryRepository.save(delivery);
+      }
       if (error instanceof Error && error.name === 'AbortError') {
         throw new RequestTimeoutException('webhooks.request_timeout');
       }
