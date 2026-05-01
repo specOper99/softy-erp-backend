@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditPublisher } from '../../audit/audit.publisher';
+import { PayoutRepository } from '../../finance/repositories/payout.repository';
 import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
@@ -110,6 +111,10 @@ describe('PayrollService', () => {
         {
           provide: PayrollRunRepository,
           useValue: mockPayrollRunRepository,
+        },
+        {
+          provide: PayoutRepository,
+          useValue: { findOne: jest.fn().mockResolvedValue(null) },
         },
         {
           provide: getRepositoryToken(Profile),

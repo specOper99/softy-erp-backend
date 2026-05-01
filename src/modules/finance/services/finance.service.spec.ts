@@ -1,8 +1,8 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, EntityManager, FindOneOptions } from 'typeorm';
+import { DataSource, EntityManager, FindOneOptions, QueryFailedError } from 'typeorm';
 import {
   createMockQueryRunner,
   createMockRepository,
@@ -513,6 +513,220 @@ describe('FinanceService - Comprehensive Tests', () => {
       const addIndex = mockWalletService.addPendingCommission.mock.invocationCallOrder[0];
       const subIndex = mockWalletService.subtractPendingCommission.mock.invocationCallOrder[0];
       expect(addIndex!).toBeLessThan(subIndex!);
+    });
+  });
+
+  // ============ VOID TRANSACTION TESTS (F2) ============
+  describe('voidTransaction', () => {
+    const originalId = 'orig-txn-id';
+
+    /** Builds the full Transaction-like object the manager.findOne mock returns. */
+    function buildOriginal(
+      overrides: Partial<{
+        voidedAt: Date | null;
+        reversalOfId: string | null;
+        bookingId: string | null;
+        taskId: string | null;
+        payoutId: string | null;
+        paymentMethod: string | null;
+        reference: string | null;
+        department: string;
+        revenueAccountCode: string | null;
+        categoryId: string | null;
+        currency: string;
+        exchangeRate: number;
+        amount: number;
+      }> = {},
+    ) {
+      return {
+        id: originalId,
+        tenantId: 'tenant-123',
+        type: TransactionType.INCOME,
+        amount: 500,
+        currency: Currency.USD,
+        exchangeRate: 1,
+        category: 'Booking Payment',
+        categoryId: 'cat-1',
+        bookingId: 'booking-uuid-123',
+        taskId: null,
+        payoutId: null,
+        paymentMethod: 'E_PAYMENT',
+        reference: 'ref-abc',
+        department: 'Sales',
+        revenueAccountCode: '4000',
+        description: 'Original description',
+        transactionDate: new Date('2026-01-01'),
+        voidedAt: null,
+        reversalOfId: null,
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      // dataSource.transaction runs the callback immediately with a mock manager
+      mockDataSource.transaction.mockImplementation((cb: (mgr: unknown) => Promise<unknown>) => {
+        const mgr = {
+          findOne: jest.fn().mockResolvedValue(buildOriginal()),
+          create: jest.fn().mockImplementation((_entity: unknown, data: unknown) => data),
+          save: jest
+            .fn()
+            .mockImplementation((data: unknown) =>
+              Promise.resolve({ ...(data as object), id: 'reversal-id', createdAt: new Date() }),
+            ),
+          update: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return cb(mgr);
+      });
+    });
+
+    it('happy path: creates reversal and returns it', async () => {
+      const result = await service.voidTransaction(originalId, 'test reason');
+      expect(result).toHaveProperty('id', 'reversal-id');
+    });
+
+    it('happy path: reversal copies all fields from original', async () => {
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
+        const original = buildOriginal();
+        const mgr = {
+          findOne: jest.fn().mockResolvedValue(original),
+          create: jest.fn().mockImplementation((_entity: unknown, data: unknown) => data),
+          save: jest
+            .fn()
+            .mockImplementation((data: unknown) =>
+              Promise.resolve({ ...(data as object), id: 'reversal-id', createdAt: new Date() }),
+            ),
+          update: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        const result = await cb(mgr);
+        // Verify create was called with correct reversed fields
+        expect(mgr.create).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            amount: -original.amount,
+            category: 'REVERSAL',
+            reversalOfId: originalId,
+            bookingId: original.bookingId,
+            paymentMethod: original.paymentMethod,
+            reference: original.reference,
+            department: original.department,
+            revenueAccountCode: original.revenueAccountCode,
+            currency: original.currency,
+            exchangeRate: original.exchangeRate,
+          }),
+        );
+        return result;
+      });
+      await service.voidTransaction(originalId);
+    });
+
+    it('happy path: marks original as voided via update', async () => {
+      let capturedMgr: { update: jest.Mock } | null = null;
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
+        const mgr = {
+          findOne: jest.fn().mockResolvedValue(buildOriginal()),
+          create: jest.fn().mockImplementation((_entity: unknown, data: unknown) => data),
+          save: jest
+            .fn()
+            .mockImplementation((data: unknown) =>
+              Promise.resolve({ ...(data as object), id: 'reversal-id', createdAt: new Date() }),
+            ),
+          update: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        capturedMgr = mgr;
+        return cb(mgr);
+      });
+      await service.voidTransaction(originalId);
+      expect(capturedMgr!.update).toHaveBeenCalledWith(
+        expect.anything(),
+        { id: originalId },
+        expect.objectContaining({ voidedAt: expect.any(Date) }),
+      );
+    });
+
+    it('happy path: publishes TransactionCreatedEvent with reversalOfId', async () => {
+      await service.voidTransaction(originalId);
+      expect(mockEventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ reversalOfId: originalId }));
+    });
+
+    it('throws ConflictException when original is already voided', async () => {
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
+        const mgr = {
+          findOne: jest.fn().mockResolvedValue(buildOriginal({ voidedAt: new Date() })),
+          create: jest.fn(),
+          save: jest.fn(),
+          update: jest.fn(),
+        };
+        return cb(mgr);
+      });
+      await expect(service.voidTransaction(originalId)).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when trying to void a reversal', async () => {
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
+        const mgr = {
+          findOne: jest.fn().mockResolvedValue(buildOriginal({ reversalOfId: 'some-parent-id' })),
+          create: jest.fn(),
+          save: jest.fn(),
+          update: jest.fn(),
+        };
+        return cb(mgr);
+      });
+      await expect(service.voidTransaction(originalId)).rejects.toThrow(ConflictException);
+    });
+
+    it('throws NotFoundException when original does not exist', async () => {
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
+        const mgr = {
+          findOne: jest.fn().mockResolvedValue(null),
+          create: jest.fn(),
+          save: jest.fn(),
+          update: jest.fn(),
+        };
+        return cb(mgr);
+      });
+      await expect(service.voidTransaction(originalId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('translates unique-violation QueryFailedError into ConflictException (concurrent void race)', async () => {
+      const uniqueError = Object.assign(new QueryFailedError('INSERT', [], new Error('unique violation')), {
+        code: '23505',
+      });
+      mockDataSource.transaction.mockRejectedValueOnce(uniqueError);
+      await expect(service.voidTransaction(originalId)).rejects.toThrow(ConflictException);
+    });
+
+    it('re-throws non-unique QueryFailedError (e.g. FK violation)', async () => {
+      const fkError = Object.assign(new QueryFailedError('INSERT', [], new Error('fk violation')), { code: '23503' });
+      mockDataSource.transaction.mockRejectedValueOnce(fkError);
+      await expect(service.voidTransaction(originalId)).rejects.toThrow(QueryFailedError);
+    });
+  });
+
+  // ============ DEPARTMENT PERSISTENCE TEST (F6) ============
+  describe('createTransaction — department field', () => {
+    it('persists department from DTO', async () => {
+      const dto = {
+        type: TransactionType.EXPENSE,
+        amount: 250,
+        department: 'Engineering',
+        transactionDate: '2026-04-01T00:00:00Z',
+      };
+      await service.createTransaction(dto);
+      expect(mockTransactionRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ department: 'Engineering' }),
+      );
+    });
+
+    it('does not set department when DTO omits it', async () => {
+      const dto = {
+        type: TransactionType.INCOME,
+        amount: 100,
+        transactionDate: '2026-04-01T00:00:00Z',
+      };
+      await service.createTransaction(dto);
+      const callArg = mockTransactionRepository.create.mock.calls[0][0] as Record<string, unknown>;
+      // department should be undefined, not a stale value
+      expect(callArg.department).toBeUndefined();
     });
   });
 });

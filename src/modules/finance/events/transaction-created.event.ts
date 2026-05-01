@@ -25,6 +25,12 @@ export class TransactionCreatedEvent implements IEvent {
     public readonly description: string | undefined,
     public readonly transactionDate: Date,
     public readonly createdAt: Date,
+    /**
+     * When set, this transaction is a reversal of the referenced transaction ID.
+     * Downstream listeners (wallet, report) must skip reversals to avoid
+     * double-counting; check `reversalOfId != null` before processing.
+     */
+    public readonly reversalOfId?: string,
   ) {}
 
   /**

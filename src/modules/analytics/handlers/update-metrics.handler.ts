@@ -22,14 +22,12 @@ export class UpdateMetricsHandler
 
   async handle(event: BookingConfirmedEvent | TaskCompletedEvent | BookingCancelledEvent | PaymentRecordedEvent) {
     const tenantId = event.tenantId;
-    // Use event date or current date for metrics?
-    // Usually metrics are based on when the event happened (eventDate usually refers to the booking event date, not creation date).
-    // For "Daily Metrics", we usually care about "Business Activity on that day".
-    // If a booking is confirmed TODAY for an event NEXT YEAR, does revenue count for TODAY or NEXT YEAR?
-    // Accounting principles usually book revenue when earned (service delivered).
-    // However, for a "Sales Dashboard", we want to see "Sales made today".
-    // Let's stick to "Date of Action" (Booking Confirmation Date) for Sales Metrics.
-    // For Task Completed, it's completion date.
+    // Metrics date policy:
+    //   BookingConfirmed / PaymentRecorded → date the action was taken (today).
+    //   TaskCompleted                      → the actual completion date.
+    //   BookingCancelled                   → the cancellation date.
+    // All sales/revenue metrics reflect the action date so the dashboard shows
+    // "what happened today" rather than "what is the event date".
 
     const today = format(new Date(), 'yyyy-MM-dd');
     let dateStr: string;
@@ -108,15 +106,15 @@ export class UpdateMetricsHandler
         totalRevenue,
       });
     } catch (error: unknown) {
-      const dbError = error as {
-        code?: string;
-        message?: string;
-        driverError?: { code?: string };
-      };
-      const isDuplicate =
-        dbError.code === '23505' ||
-        dbError.message?.includes('UNIQUE constraint failed') ||
-        dbError.driverError?.code === 'SQLITE_CONSTRAINT';
+      const isDuplicate = (() => {
+        if (!error || typeof error !== 'object') return false;
+        const dbError = error as { code?: unknown; message?: unknown; driverError?: { code?: unknown } };
+        return (
+          dbError.code === '23505' ||
+          (typeof dbError.message === 'string' && dbError.message.includes('UNIQUE constraint failed')) ||
+          dbError.driverError?.code === 'SQLITE_CONSTRAINT'
+        );
+      })();
 
       if (isDuplicate) {
         if (bookingsCount > 0)

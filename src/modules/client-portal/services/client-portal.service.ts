@@ -8,8 +8,8 @@ import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
-import { BookingsService } from '../../bookings/services/bookings.service';
 import { BookingWorkflowService } from '../../bookings/services/booking-workflow.service';
+import { BookingsService } from '../../bookings/services/bookings.service';
 import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
 import { PackageFilterDto } from '../../catalog/dto/package-filter.dto';
 import { ServicePackage } from '../../catalog/entities/service-package.entity';
@@ -47,12 +47,17 @@ export class ClientPortalService {
     tenant: Tenant,
     query: ClientPortalListingsQueryDto,
   ): Promise<ClientPortalListingsResponseDto> {
-    const filter = this.buildPackageFilter(query.search, query.page ?? 1, query.pageSize ?? 6);
+    const filter = this.buildPackageFilter(
+      query.search,
+      query.page ?? 1,
+      query.pageSize ?? 6,
+      query.minPrice,
+      query.maxPrice,
+    );
     const paginated = await TenantContextService.run(tenant.id, async () =>
       this.catalogService.findAllPackagesWithFilters(filter),
     );
-    const items = this.filterByTenantAndPrice(paginated.data, tenant.id, query.minPrice, query.maxPrice);
-    const listingItems = await this.mapListingSummariesWithAggregates(items, tenant);
+    const listingItems = await this.mapListingSummariesWithAggregates(paginated.data, tenant);
 
     return {
       items: listingItems,
@@ -79,14 +84,13 @@ export class ClientPortalService {
     page = 1,
     limit = 10,
   ): Promise<{ data: ServicePackage[]; total: number; page: number; limit: number }> {
-    const filter = this.buildPackageFilter(search, page, limit);
+    const filter = this.buildPackageFilter(search, page, limit, priceMin, priceMax);
     const paginated = await TenantContextService.run(tenant.id, async () =>
       this.catalogService.findAllPackagesWithFilters(filter),
     );
-    const data = this.filterByTenantAndPrice(paginated.data, tenant.id, priceMin, priceMax);
 
     return {
-      data,
+      data: paginated.data,
       total: paginated.meta.totalItems,
       page: paginated.meta.page,
       limit: paginated.meta.pageSize,
@@ -112,11 +116,11 @@ export class ClientPortalService {
 
   async getMyBookings(
     clientId: string,
-    _tenantId: string, // Kept for API compatibility; TenantAwareRepository handles scoping
+    tenantId: string,
     query: { getSkip(): number; getTake(): number } = { getSkip: () => 0, getTake: () => 20 },
   ): Promise<Booking[]> {
     return this.bookingRepository.find({
-      where: { clientId },
+      where: { clientId, tenantId },
       relations: ['servicePackage'],
       order: { eventDate: 'DESC' },
       skip: query.getSkip(),
@@ -126,7 +130,7 @@ export class ClientPortalService {
 
   async getMyBookingsPaginated(
     clientId: string,
-    _tenantId: string,
+    tenantId: string,
     page = 1,
     pageSize = 10,
   ): Promise<{ items: Booking[]; total: number; page: number; pageSize: number }> {
@@ -134,6 +138,7 @@ export class ClientPortalService {
       .createQueryBuilder('booking')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
       .andWhere('booking.clientId = :clientId', { clientId })
+      .andWhere('booking.tenantId = :tenantId', { tenantId })
       .orderBy('booking.eventDate', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
@@ -142,13 +147,14 @@ export class ClientPortalService {
     return { items, total, page, pageSize };
   }
 
-  async getBooking(bookingId: string, clientId: string, _tenantId: string): Promise<Booking> {
+  async getBooking(bookingId: string, clientId: string, tenantId: string): Promise<Booking> {
     const booking = await this.bookingRepository
       .createQueryBuilder('booking')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
       .leftJoinAndSelect(Task, 'tasks', 'tasks.bookingId = booking.id AND tasks.tenantId = booking.tenantId')
       .where('booking.id = :bookingId', { bookingId })
       .andWhere('booking.clientId = :clientId', { clientId })
+      .andWhere('booking.tenantId = :tenantId', { tenantId })
       .getOne();
 
     if (!booking) {
@@ -261,31 +267,21 @@ export class ClientPortalService {
     }
   }
 
-  private buildPackageFilter(search: string | undefined, page: number, limit: number): PackageFilterDto {
+  private buildPackageFilter(
+    search: string | undefined,
+    page: number,
+    limit: number,
+    minPrice?: number,
+    maxPrice?: number,
+  ): PackageFilterDto {
     const filter = new PackageFilterDto();
     filter.search = search;
     filter.isActive = true;
     filter.page = page;
     filter.limit = limit;
+    if (minPrice !== undefined) filter.minPrice = minPrice;
+    if (maxPrice !== undefined) filter.maxPrice = maxPrice;
     return filter;
-  }
-
-  private filterByTenantAndPrice(
-    packages: ServicePackage[],
-    tenantId: string,
-    priceMin?: number,
-    priceMax?: number,
-  ): ServicePackage[] {
-    let filtered = packages.filter((pkg) => pkg.tenantId === tenantId && pkg.isActive);
-
-    if (priceMin !== undefined) {
-      filtered = filtered.filter((pkg) => Number(pkg.price) >= Number(priceMin));
-    }
-    if (priceMax !== undefined) {
-      filtered = filtered.filter((pkg) => Number(pkg.price) <= Number(priceMax));
-    }
-
-    return filtered;
   }
 
   private async mapListingSummariesWithAggregates(

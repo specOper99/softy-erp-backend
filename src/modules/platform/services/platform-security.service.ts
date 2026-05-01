@@ -79,7 +79,14 @@ export class PlatformSecurityService {
     await this.refreshTokenRepository.update({ userId: user.id, isRevoked: false }, { isRevoked: true });
 
     if (dto.notifyUser !== false) {
-      await this.passwordService.forgotPassword(user.email);
+      // Guard against corrupted/empty email stored in the DB before triggering a mail send
+      if (!user.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
+        this.logger.warn(
+          `Skipping password-reset notification for user ${user.id}: stored email is invalid ("${user.email ?? ''}")`,
+        );
+      } else {
+        await this.passwordService.forgotPassword(user.email);
+      }
     }
 
     await this.auditService.log({

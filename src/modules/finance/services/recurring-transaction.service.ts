@@ -94,9 +94,13 @@ export class RecurringTransactionService {
         const limit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
         const results = await Promise.allSettled(dueTransactions.map((rt) => limit(() => this.processTransaction(rt))));
 
-        // Log summary
-        const failed = results.filter((r) => r.status === 'rejected').length;
-        const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+        // Derive counts from per-transaction return values so that handled
+        // failures (which save failureCount/lastError then return { ok: false })
+        // are accurately counted rather than being swallowed as "fulfilled".
+        const failed = results.filter(
+          (r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok),
+        ).length;
+        const succeeded = results.filter((r) => r.status === 'fulfilled' && r.value.ok).length;
         this.logger.log(
           `Processed ${dueTransactions.length} recurring transactions: ${succeeded} succeeded, ${failed} failed`,
         );
@@ -114,8 +118,8 @@ export class RecurringTransactionService {
     }
   }
 
-  private async processTransaction(rt: RecurringTransaction) {
-    await TenantContextService.run(rt.tenantId, async () => {
+  private async processTransaction(rt: RecurringTransaction): Promise<{ ok: boolean }> {
+    return TenantContextService.run(rt.tenantId, async () => {
       try {
         await this.financeService.createSystemTransaction(rt.tenantId, {
           type: rt.type,
@@ -138,6 +142,7 @@ export class RecurringTransactionService {
         }
 
         await this.recurringRepo.save(rt);
+        return { ok: true };
       } catch (error) {
         // Track failures to prevent infinite retry loops
         rt.failureCount = (rt.failureCount || 0) + 1;
@@ -151,6 +156,7 @@ export class RecurringTransactionService {
 
         await this.recurringRepo.save(rt);
         this.logger.error(`Failed to process recurring transaction ${rt.id} (attempt ${rt.failureCount})`, error);
+        return { ok: false };
       }
     });
   }

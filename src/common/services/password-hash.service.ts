@@ -43,6 +43,7 @@ export class PasswordHashService {
     return (
       process.env.NODE_ENV === 'test' ||
       process.env.JEST_WORKER_ID !== undefined ||
+      process.env.CI === 'true' ||
       process.argv.includes('--runInBand')
     );
   }

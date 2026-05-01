@@ -2,12 +2,12 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TENANT_REPO_CLIENT } from '../../../common/constants/tenant-repo.tokens';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
+import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
-import { BookingsService } from '../../bookings/services/bookings.service';
 import { BookingWorkflowService } from '../../bookings/services/booking-workflow.service';
+import { BookingsService } from '../../bookings/services/bookings.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { NotificationService } from '../../notifications/services/notification.service';
 import { ReviewsService } from '../../reviews/services/reviews.service';
@@ -134,7 +134,7 @@ describe('ClientPortalService', () => {
       const result = await service.getMyBookings('client-1', 'tenant-1', query);
 
       expect(bookingRepository.find).toHaveBeenCalledWith({
-        where: { clientId: 'client-1' },
+        where: { clientId: 'client-1', tenantId: 'tenant-1' },
         relations: ['servicePackage'],
         order: { eventDate: 'DESC' },
         skip: query.getSkip(),
@@ -241,15 +241,6 @@ describe('ClientPortalService', () => {
       catalogService.findAllPackagesWithFilters.mockResolvedValue({
         data: [
           {
-            id: 'pkg-1',
-            tenantId: 'tenant-1',
-            isActive: true,
-            name: 'Package 1',
-            description: 'Desc 1',
-            price: 100,
-            packageItems: [],
-          },
-          {
             id: 'pkg-2',
             tenantId: 'tenant-1',
             isActive: true,
@@ -259,7 +250,7 @@ describe('ClientPortalService', () => {
             packageItems: [],
           },
         ],
-        meta: { totalItems: 2, page: 1, pageSize: 6 },
+        meta: { totalItems: 1, page: 1, pageSize: 6 },
       });
       reviewsService.getApprovedAggregatesByPackageIds.mockResolvedValue([
         { packageId: 'pkg-2', avgRating: 4.8, reviewCount: 5 },
@@ -271,7 +262,7 @@ describe('ClientPortalService', () => {
       });
 
       expect(catalogService.findAllPackagesWithFilters).toHaveBeenCalledWith(
-        expect.objectContaining({ search: undefined, isActive: true, page: 1, limit: 6 }),
+        expect.objectContaining({ search: undefined, isActive: true, page: 1, limit: 6, minPrice: 150 }),
       );
       expect(reviewsService.getApprovedAggregatesByPackageIds).toHaveBeenCalledWith(['pkg-2']);
       expect(result.items).toEqual([
@@ -284,7 +275,7 @@ describe('ClientPortalService', () => {
           reviewCount: 5,
         }),
       ]);
-      expect(result.total).toBe(2);
+      expect(result.total).toBe(1);
     });
 
     it('builds featured listings from first six active tenant packages', async () => {
@@ -334,22 +325,18 @@ describe('ClientPortalService', () => {
 
     it('returns package list with tenant and price filters from service', async () => {
       catalogService.findAllPackagesWithFilters.mockResolvedValue({
-        data: [
-          { id: 'pkg-1', tenantId: 'tenant-1', isActive: true, name: 'A', price: 100 },
-          { id: 'pkg-2', tenantId: 'tenant-1', isActive: false, name: 'B', price: 110 },
-          { id: 'pkg-3', tenantId: 'tenant-1', isActive: true, name: 'C', price: 300 },
-        ],
-        meta: { totalItems: 3, page: 2, pageSize: 5 },
+        data: [{ id: 'pkg-3', tenantId: 'tenant-1', isActive: true, name: 'C', price: 300 }],
+        meta: { totalItems: 1, page: 2, pageSize: 5 },
       });
 
       const result = await service.getPackagesForTenant(tenant, 'pkg', 150, undefined, 2, 5);
 
       expect(catalogService.findAllPackagesWithFilters).toHaveBeenCalledWith(
-        expect.objectContaining({ search: 'pkg', isActive: true, page: 2, limit: 5 }),
+        expect.objectContaining({ search: 'pkg', isActive: true, page: 2, limit: 5, minPrice: 150 }),
       );
       expect(result).toEqual({
         data: [expect.objectContaining({ id: 'pkg-3' })],
-        total: 3,
+        total: 1,
         page: 2,
         limit: 5,
       });
@@ -378,6 +365,80 @@ describe('ClientPortalService', () => {
       await service.cancelMyBooking('booking-1', 'client-1', 'tenant-1', 'Client request');
 
       expect(bookingWorkflowService.cancelBooking).toHaveBeenCalledWith('booking-1', { reason: 'Client request' });
+    });
+  });
+
+  describe('price filter affects returned rows and total count', () => {
+    const tenant = { id: 'tenant-1', address: 'Baghdad', baseCurrency: 'USD' } as Tenant;
+
+    it('minPrice filter is passed to query and total reflects filtered count for getListingsForTenant', async () => {
+      // Mock returns only packages that pass minPrice=200 (the catalog query handles filtering)
+      catalogService.findAllPackagesWithFilters.mockResolvedValue({
+        data: [
+          {
+            id: 'pkg-high',
+            tenantId: 'tenant-1',
+            isActive: true,
+            name: 'Premium',
+            description: 'High-end',
+            price: 500,
+            packageItems: [],
+          },
+        ],
+        meta: { totalItems: 1, page: 1, pageSize: 6 },
+      });
+      reviewsService.getApprovedAggregatesByPackageIds.mockResolvedValue([]);
+
+      const result = await service.getListingsForTenant(tenant, { minPrice: 200 });
+
+      // minPrice must be passed through to the query filter
+      expect(catalogService.findAllPackagesWithFilters).toHaveBeenCalledWith(
+        expect.objectContaining({ minPrice: 200 }),
+      );
+      // total must reflect the filtered count, not a pre-filter count
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
+    it('maxPrice filter is passed to query and total reflects filtered count for getListingsForTenant', async () => {
+      catalogService.findAllPackagesWithFilters.mockResolvedValue({
+        data: [
+          {
+            id: 'pkg-cheap',
+            tenantId: 'tenant-1',
+            isActive: true,
+            name: 'Budget',
+            description: 'Affordable',
+            price: 50,
+            packageItems: [],
+          },
+        ],
+        meta: { totalItems: 1, page: 1, pageSize: 6 },
+      });
+      reviewsService.getApprovedAggregatesByPackageIds.mockResolvedValue([]);
+
+      const result = await service.getListingsForTenant(tenant, { maxPrice: 100 });
+
+      expect(catalogService.findAllPackagesWithFilters).toHaveBeenCalledWith(
+        expect.objectContaining({ maxPrice: 100 }),
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
+    it('minPrice and maxPrice are both passed to query for getPackagesForTenant', async () => {
+      catalogService.findAllPackagesWithFilters.mockResolvedValue({
+        data: [{ id: 'pkg-mid', tenantId: 'tenant-1', isActive: true, name: 'Mid', price: 150 }],
+        meta: { totalItems: 1, page: 1, pageSize: 10 },
+      });
+
+      const result = await service.getPackagesForTenant(tenant, undefined, 100, 200);
+
+      expect(catalogService.findAllPackagesWithFilters).toHaveBeenCalledWith(
+        expect.objectContaining({ minPrice: 100, maxPrice: 200 }),
+      );
+      expect(result.data).toHaveLength(1);
+      expect(result.total).toBe(1);
     });
   });
 });

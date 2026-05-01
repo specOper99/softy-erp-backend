@@ -42,6 +42,20 @@ class NegativeAmountRefundOrReversalConstraint implements ValidatorConstraintInt
   }
 }
 
+@ValidatorConstraint({ name: 'atMostOneParentId', async: false })
+class AtMostOneParentIdConstraint implements ValidatorConstraintInterface {
+  validate(_value: unknown, args?: ValidationArguments): boolean {
+    const dto = args?.object as CreateTransactionDto | undefined;
+    if (!dto) return true;
+    const set = [dto.bookingId, dto.taskId, dto.payoutId].filter(Boolean).length;
+    return set <= 1;
+  }
+
+  defaultMessage(): string {
+    return 'At most one of bookingId, taskId, payoutId may be provided';
+  }
+}
+
 export class CreateTransactionDto {
   @ApiProperty({ enum: TransactionType })
   @IsEnum(TransactionType)
@@ -63,19 +77,26 @@ export class CreateTransactionDto {
   @IsOptional()
   department?: string;
 
+  // bookingId is the primary / first-validated field for AtMostOneParentIdConstraint.
+  // When more than one parent ID is set the validation error is reported on this field.
+  // If the field order here ever changes, update defaultMessage() accordingly so error
+  // messages stay consistent.
   @ApiPropertyOptional()
   @IsUUID()
   @IsOptional()
+  @Validate(AtMostOneParentIdConstraint)
   bookingId?: string;
 
   @ApiPropertyOptional()
   @IsUUID()
   @IsOptional()
+  @Validate(AtMostOneParentIdConstraint)
   taskId?: string;
 
   @ApiPropertyOptional()
   @IsUUID()
   @IsOptional()
+  @Validate(AtMostOneParentIdConstraint)
   payoutId?: string;
 
   @ApiPropertyOptional()

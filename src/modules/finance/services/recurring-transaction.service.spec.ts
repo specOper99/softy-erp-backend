@@ -9,6 +9,7 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringFrequency, RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
 import { Transaction } from '../entities/transaction.entity';
@@ -222,13 +223,72 @@ describe('RecurringTransactionService', () => {
       expect(recurringRepo.save).toHaveBeenCalled();
     });
 
-    it('should handle errors gracefully', async () => {
+    it('should handle errors gracefully and not throw', async () => {
       const dueTransactions = [{ ...mockRecurringTransaction }];
       rawRecurringQueryBuilder.getMany.mockResolvedValue(dueTransactions);
       financeService.createSystemTransaction.mockRejectedValue(new Error('Failed'));
+      recurringRepo.save.mockResolvedValue({ ...mockRecurringTransaction } as unknown as RecurringTransaction);
 
       // Should not throw
       await expect(service.processDueTransactions()).resolves.not.toThrow();
+    });
+
+    it('failed transaction increments failureCount and lastError, and is counted in cron summary as failed', async () => {
+      const rt = {
+        ...mockRecurringTransaction,
+        failureCount: 0,
+        lastError: undefined as string | undefined,
+        save: jest.fn(),
+      } as unknown as RecurringTransaction;
+      rawRecurringQueryBuilder.getMany.mockResolvedValue([rt]);
+      financeService.createSystemTransaction.mockRejectedValue(new Error('DB timeout'));
+      recurringRepo.save.mockImplementation(async (entity) => entity as RecurringTransaction);
+
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      await service.processDueTransactions();
+
+      // failureCount and lastError should have been updated before saving
+      const savedArg = recurringRepo.save.mock.calls[0][0] as Partial<RecurringTransaction>;
+      expect(savedArg.failureCount).toBe(1);
+      expect(savedArg.lastError).toBe('DB timeout');
+
+      // Cron summary log should report 1 failed, 0 succeeded
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('0 succeeded, 1 failed'));
+    });
+
+    it('uncaught inner rejection is still counted as failed in cron summary', async () => {
+      // This covers the case where processTransaction() itself rejects — e.g. because
+      // TenantContextService.run() throws before the inner try/catch is reached.
+      // Promise.allSettled marks such entries as { status: 'rejected' }, and the
+      // failure-counting logic handles that branch: `r.status === 'rejected'`.
+      const rt = { ...mockRecurringTransaction } as unknown as RecurringTransaction;
+      rawRecurringQueryBuilder.getMany.mockResolvedValue([rt]);
+
+      // Override the TenantContextService.run mock so the outer call rejects
+      // entirely, bypassing the catch block inside processTransaction().
+      jest.spyOn(TenantContextService, 'run').mockRejectedValue(new Error('context setup failed'));
+
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      // processDueTransactions must not throw even when a transaction rejects outright.
+      await expect(service.processDueTransactions()).resolves.not.toThrow();
+
+      // The cron summary must count the rejection as a failure, not a success.
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('0 succeeded, 1 failed'));
+    });
+
+    it('successful transaction is counted as succeeded in cron summary', async () => {
+      const rt = { ...mockRecurringTransaction } as unknown as RecurringTransaction;
+      rawRecurringQueryBuilder.getMany.mockResolvedValue([rt]);
+      financeService.createSystemTransaction.mockResolvedValue({ id: 'tx-ok' } as Transaction);
+      recurringRepo.save.mockImplementation(async (entity) => entity as RecurringTransaction);
+
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      await service.processDueTransactions();
+
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('1 succeeded, 0 failed'));
     });
   });
 });

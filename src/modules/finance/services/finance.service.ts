@@ -1,9 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { format } from 'date-fns';
 import Decimal from 'decimal.js';
 import type { Response } from 'express';
-import { EntityManager } from 'typeorm';
+import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -28,6 +27,7 @@ export class FinanceService {
     private readonly currencyService: CurrencyService,
     private readonly tenantsService: TenantsService,
     private readonly exportService: ExportService,
+    private readonly dataSource: DataSource,
     private readonly walletService: WalletService,
     private readonly financialReportService: FinancialReportService,
     private readonly eventBus: EventBus,
@@ -49,6 +49,7 @@ export class FinanceService {
       amount: dto.amount,
       currency: dto.currency,
       category: dto.category,
+      department: dto.department,
       bookingId: dto.bookingId,
       taskId: dto.taskId,
       payoutId: dto.payoutId,
@@ -81,6 +82,7 @@ export class FinanceService {
       amount: number;
       currency?: Currency;
       category?: string;
+      department?: string;
       bookingId?: string;
       taskId?: string;
       payoutId?: string;
@@ -95,6 +97,7 @@ export class FinanceService {
     currency: Currency;
     exchangeRate: number;
     category?: string;
+    department?: string;
     bookingId?: string;
     taskId?: string;
     payoutId?: string;
@@ -124,6 +127,7 @@ export class FinanceService {
       currency,
       exchangeRate,
       category: data.category,
+      department: data.department,
       bookingId: data.bookingId,
       taskId: data.taskId,
       payoutId: data.payoutId,
@@ -226,7 +230,7 @@ export class FinanceService {
     return savedTransaction;
   }
 
-  private publishTransactionCreatedEvent(tenantId: string, transaction: Transaction): void {
+  private publishTransactionCreatedEvent(tenantId: string, transaction: Transaction, reversalOfId?: string): void {
     this.eventBus.publish(
       new TransactionCreatedEvent(
         transaction.id,
@@ -242,6 +246,7 @@ export class FinanceService {
         transaction.description ?? undefined,
         transaction.transactionDate,
         transaction.createdAt,
+        reversalOfId,
       ),
     );
   }
@@ -361,16 +366,79 @@ export class FinanceService {
   }
 
   async voidTransaction(id: string, reason?: string): Promise<Transaction> {
-    const original = await this.findTransactionById(id);
-    const description = reason ? `Void: ${reason} — reversal of transaction ${id}` : `Reversal of transaction ${id}`;
-    return this.createTransaction({
-      type: TransactionType.INCOME,
-      amount: -original.amount,
-      currency: original.currency,
-      category: 'REVERSAL',
-      description,
-      transactionDate: format(new Date(), 'yyyy-MM-dd'),
-    });
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const currentUserId = TenantContextService.getCurrentUserIdOrNull() ?? null;
+
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        // Lock the original row to prevent concurrent void attempts.
+        const original = await manager.findOne(Transaction, {
+          where: { id },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!original) {
+          throw new NotFoundException(`Transaction with ID ${id} not found`);
+        }
+
+        // Refuse to void an already-voided transaction.
+        if (original.voidedAt !== null) {
+          throw new ConflictException('finance.transaction_already_voided');
+        }
+
+        // Refuse to void a reversal (would create a reversal-of-a-reversal).
+        if (original.reversalOfId !== null) {
+          throw new ConflictException('finance.cannot_void_a_reversal');
+        }
+
+        const description = reason
+          ? `Void: ${reason} — reversal of transaction ${id}`
+          : `Reversal of transaction ${id}`;
+
+        const reversal = manager.create(Transaction, {
+          tenantId,
+          type: original.type,
+          amount: -original.amount,
+          currency: original.currency,
+          exchangeRate: original.exchangeRate,
+          category: 'REVERSAL',
+          categoryId: original.categoryId,
+          bookingId: original.bookingId,
+          taskId: original.taskId,
+          payoutId: original.payoutId,
+          paymentMethod: original.paymentMethod,
+          reference: original.reference,
+          department: original.department,
+          revenueAccountCode: original.revenueAccountCode,
+          description,
+          transactionDate: new Date(),
+          reversalOfId: original.id,
+        });
+
+        const savedReversal = await manager.save(reversal);
+
+        // Mark original as voided.
+        await manager.update(
+          Transaction,
+          { id: original.id },
+          {
+            voidedAt: new Date(),
+            voidedBy: currentUserId,
+          },
+        );
+
+        this.publishTransactionCreatedEvent(tenantId, savedReversal, original.id);
+        await this.financialReportService.invalidateReportCaches(tenantId);
+
+        return savedReversal;
+      });
+    } catch (error) {
+      // Unique partial index violation — concurrent void attempt won the race.
+      if (error instanceof QueryFailedError && (error as QueryFailedError & { code?: string }).code === '23505') {
+        throw new ConflictException('finance.transaction_already_voided');
+      }
+      throw error;
+    }
   }
 
   async exportTransactionsToCSV(res: Response): Promise<void> {

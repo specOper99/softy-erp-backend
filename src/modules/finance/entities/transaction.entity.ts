@@ -9,10 +9,13 @@ import type { Payout } from './payout.entity';
 import type { TransactionCategory } from './transaction-category.entity';
 
 @Entity('transactions')
+// At most one of {booking_id, task_id, payout_id} may be set; zero is allowed
+// for manual, recurring, purchase-invoice, and reversal transactions.
+// TODO: include purchase_invoice_id once that FK lands
 @Check(
-  `("booking_id" IS NOT NULL AND "task_id" IS NULL AND "payout_id" IS NULL) OR ` +
-    `("booking_id" IS NULL AND "task_id" IS NOT NULL AND "payout_id" IS NULL) OR ` +
-    `("booking_id" IS NULL AND "task_id" IS NULL AND "payout_id" IS NOT NULL)`,
+  `(CASE WHEN "booking_id" IS NOT NULL THEN 1 ELSE 0 END +` +
+    ` CASE WHEN "task_id"    IS NOT NULL THEN 1 ELSE 0 END +` +
+    ` CASE WHEN "payout_id"  IS NOT NULL THEN 1 ELSE 0 END) <= 1`,
 )
 @Index(['tenantId', 'id'], { unique: true })
 @Index(['tenantId', 'transactionDate']) // Optimized for "transactions by date within tenant"
@@ -102,4 +105,22 @@ export class Transaction extends BaseTenantEntity {
   })
   @JoinColumn({ name: 'category_id' })
   categoryRelation: TransactionCategory | null;
+
+  // ── Void / reversal support ──────────────────────────────────────────────
+
+  /** ID of the original transaction this row reverses. NULL for non-reversals. */
+  @Column({ name: 'reversal_of_id', type: 'uuid', nullable: true })
+  reversalOfId: string | null;
+
+  /** Timestamp at which the original transaction was voided. */
+  @Column({ name: 'voided_at', type: 'timestamptz', nullable: true })
+  voidedAt: Date | null;
+
+  /** ID of the user who performed the void action. */
+  @Column({ name: 'voided_by', type: 'uuid', nullable: true })
+  voidedBy: string | null;
+
+  @ManyToOne('Transaction', { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'reversal_of_id' })
+  reversalOf: Transaction | null;
 }

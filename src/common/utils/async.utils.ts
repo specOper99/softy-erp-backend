@@ -52,7 +52,7 @@ export async function promiseAllWithConcurrency<T>(
         results[index] = { status: 'fulfilled', value };
       } catch (error) {
         const reason = error instanceof Error ? error : new Error(String(error));
-        results[index] = { status: 'rejected', reason };
+        results[index] = { status: 'rejected', reason, index };
         firstRejection = firstRejection ?? reason;
       }
       completedCount++;
@@ -71,18 +71,30 @@ export async function promiseAllWithConcurrency<T>(
 
 /**
  * Map over an array with bounded concurrency.
+ * Fulfilled results are collected and returned.
+ * Rejected results are logged as warnings and omitted from the output — the
+ * caller receives a shorter array than the input, which it must handle.
+ * Use `promiseAllWithConcurrency` directly if silent omission is unacceptable.
  */
 export async function mapWithConcurrency<T, R>(
   items: T[],
   mapper: (item: T, index: number) => Promise<R>,
-  options: ConcurrencyOptions = {},
+  options: ConcurrencyOptions & { onRejected?: (reason: Error, index: number) => void } = {},
 ): Promise<R[]> {
   const tasks = items.map((item, index) => () => mapper(item, index));
   const results = await promiseAllWithConcurrency(tasks, options);
 
-  return results
-    .filter((result): result is SettledResult<R> & { status: 'fulfilled'; value: R } => result.status === 'fulfilled')
-    .map((result) => result.value);
+  const fulfilled: R[] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value !== undefined) {
+      fulfilled.push(result.value);
+    } else if (result.status === 'rejected') {
+      if (options.onRejected) {
+        options.onRejected(result.reason ?? new Error('Unknown error'), result.index ?? -1);
+      }
+    }
+  }
+  return fulfilled;
 }
 
 /**

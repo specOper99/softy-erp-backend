@@ -391,4 +391,72 @@ describe('CatalogService', () => {
       });
     });
   });
+
+  // ─── Cache invalidation tests (F7) ──────────────────────────────────────────
+
+  describe('cache invalidation', () => {
+    const expectedPackagesCacheKey = `catalog:packages:${mockTenantId}`;
+    const expectedTaskTypesCacheKey = `catalog:task-types:${mockTenantId}`;
+
+    describe('addPackageItems', () => {
+      it('invalidates packages cache after adding items', async () => {
+        jest.spyOn(service, 'findPackageById').mockResolvedValue(mockPackage as unknown as ServicePackage);
+        packageItemRepo.create.mockReturnValue(mockPackageItem as unknown as PackageItem);
+        packageItemRepo.save.mockResolvedValue([mockPackageItem] as unknown as PackageItem);
+
+        await service.addPackageItems('pkg-123', { items: [{ taskTypeId: 'tt-123', quantity: 1 }] });
+
+        expect(cacheUtils.del).toHaveBeenCalledWith(expectedPackagesCacheKey);
+      });
+    });
+
+    describe('removePackageItem', () => {
+      it('invalidates packages cache after removing an item', async () => {
+        packageItemRepo.findOne.mockResolvedValue(mockPackageItem as unknown as PackageItem);
+        packageItemRepo.remove.mockResolvedValue(mockPackageItem as unknown as PackageItem);
+
+        await service.removePackageItem('item-123');
+
+        expect(cacheUtils.del).toHaveBeenCalledWith(expectedPackagesCacheKey);
+      });
+    });
+
+    describe('clonePackage', () => {
+      it('invalidates packages cache after cloning', async () => {
+        const clonedPkg = { ...mockPackage, id: 'cloned-pkg', name: 'Clone', packageItems: [] };
+        jest
+          .spyOn(service, 'findPackageById')
+          .mockResolvedValueOnce({ ...mockPackage, packageItems: [] } as unknown as ServicePackage)
+          .mockResolvedValueOnce(clonedPkg as unknown as ServicePackage);
+        packageRepo.create.mockReturnValue(clonedPkg as unknown as ServicePackage);
+        packageRepo.save.mockResolvedValue(clonedPkg as unknown as ServicePackage);
+
+        await service.clonePackage('pkg-123', { newName: 'Clone' });
+
+        expect(cacheUtils.del).toHaveBeenCalledWith(expectedPackagesCacheKey);
+      });
+    });
+
+    describe('updateTaskType', () => {
+      it('invalidates task-types cache after updating', async () => {
+        taskTypeRepo.findOne.mockResolvedValue(mockTaskType as unknown as TaskType);
+        taskTypeRepo.save.mockResolvedValue({ ...mockTaskType, name: 'Updated' } as unknown as TaskType);
+
+        await service.updateTaskType('tt-123', { name: 'Updated' });
+
+        expect(cacheUtils.del).toHaveBeenCalledWith(expectedTaskTypesCacheKey);
+      });
+    });
+
+    describe('deleteTaskType', () => {
+      it('invalidates task-types cache after deleting', async () => {
+        taskTypeRepo.findOne.mockResolvedValue(mockTaskType as unknown as TaskType);
+        taskTypeRepo.remove.mockResolvedValue(mockTaskType as unknown as TaskType);
+
+        await service.deleteTaskType('tt-123');
+
+        expect(cacheUtils.del).toHaveBeenCalledWith(expectedTaskTypesCacheKey);
+      });
+    });
+  });
 });

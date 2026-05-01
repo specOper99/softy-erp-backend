@@ -170,6 +170,14 @@ export class CatalogService {
     if (filter.search) {
       qb.andWhere('(pkg.name ILIKE :search OR pkg.description ILIKE :search)', { search: `%${filter.search}%` });
     }
+
+    if (filter.minPrice !== undefined) {
+      qb.andWhere('pkg.price >= :minPrice', { minPrice: filter.minPrice });
+    }
+
+    if (filter.maxPrice !== undefined) {
+      qb.andWhere('pkg.price <= :maxPrice', { maxPrice: filter.maxPrice });
+    }
   }
 
   async findAllPackagesCursor(
@@ -298,6 +306,10 @@ export class CatalogService {
       notes: `Added ${dto.items.length} items to package.`,
     });
 
+    // Invalidate cache — package composition changed
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    await this.invalidatePackagesCache(tenantId);
+
     return savedItems;
   }
 
@@ -317,6 +329,10 @@ export class CatalogService {
       oldValues: { removedItemId: itemId },
       notes: `Removed item ${itemId} from package.`,
     });
+
+    // Invalidate cache — package composition changed
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    await this.invalidatePackagesCache(tenantId);
   }
 
   async createTaskType(dto: CreateTaskTypeDto): Promise<TaskType> {
@@ -409,6 +425,10 @@ export class CatalogService {
       });
     }
 
+    // Invalidate cache — task type metadata changed
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    await this.invalidateTaskTypesCache(tenantId);
+
     return savedTaskType;
   }
 
@@ -423,6 +443,10 @@ export class CatalogService {
     });
 
     await this.taskTypeRepository.remove(taskType);
+
+    // Invalidate cache — task type removed
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    await this.invalidateTaskTypesCache(tenantId);
   }
 
   async clonePackage(packageId: string, dto: ClonePackageDto): Promise<ServicePackage> {
@@ -472,6 +496,10 @@ export class CatalogService {
       },
       notes: `Cloned from package "${sourcePackage.name}" (${sourcePackage.id})`,
     });
+
+    // Invalidate cache — new package added via clone
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    await this.invalidatePackagesCache(tenantId);
 
     return this.findPackageById(savedPackage.id);
   }

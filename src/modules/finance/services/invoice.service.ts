@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
+import { Currency } from '../enums/currency.enum';
 
 import { InvoiceRepository } from '../repositories/invoice.repository';
 
@@ -83,7 +84,7 @@ export class InvoiceService {
       totalAmount: booking.totalPrice,
       amountPaid,
       balanceDue,
-      currency: 'USD',
+      currency: Currency.USD,
     });
 
     try {

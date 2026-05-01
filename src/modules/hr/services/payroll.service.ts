@@ -15,6 +15,7 @@ import { Transaction } from '../../finance/entities/transaction.entity';
 import { Currency } from '../../finance/enums/currency.enum';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
+import { PayoutRepository } from '../../finance/repositories/payout.repository';
 import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { MailService } from '../../mail/mail.service';
@@ -34,6 +35,7 @@ export class PayrollService {
   constructor(
     private readonly profileRepository: ProfileRepository,
     private readonly payrollRunRepository: PayrollRunRepository,
+    private readonly payoutRepository: PayoutRepository,
     private readonly financeService: FinanceService,
     private readonly walletService: WalletService,
     private readonly mailService: MailService,
@@ -298,6 +300,16 @@ export class PayrollService {
           const idempotencyKey = `payroll:${tenantId}:${profile.id}:${period}`;
 
           try {
+            // Idempotency guard OUTSIDE the transaction so two concurrent runs
+            // both see any payout committed by the first and skip correctly.
+            const existingPayout = await TenantContextService.run(tenantId, () =>
+              this.payoutRepository.findOne({ where: { idempotencyKey } }),
+            );
+            if (existingPayout) {
+              this.logger.log(`Skipping already existing payout for ${idempotencyKey}`);
+              return null;
+            }
+
             const result = await this.tenantTx.run(async (manager) => {
               const wallet = await this.walletService.getOrCreateWalletWithManager(manager, profile.userId);
 
@@ -305,18 +317,6 @@ export class PayrollService {
               const totalAmount = MathUtils.add(baseSalary, commissionPayable);
 
               if (totalAmount <= 0) {
-                return null; // Skip this employee
-              }
-
-              const existingPayout = await manager.findOne(Payout, {
-                where: {
-                  tenantId,
-                  idempotencyKey,
-                },
-              });
-
-              if (existingPayout) {
-                this.logger.log(`Skipping already existing payout for ${idempotencyKey}`);
                 return null; // Skip this employee
               }
 
@@ -377,9 +377,13 @@ export class PayrollService {
 
     const rejected = settled.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
     if (rejected.length > 0) {
-      const firstReason = rejected[0]?.reason;
-      const reasonMessage = firstReason instanceof Error ? firstReason.message : String(firstReason);
-      throw new Error(`Payroll batch failed for ${rejected.length} employee(s): ${reasonMessage}`);
+      const allReasons = rejected
+        .map((r, i) => {
+          const reason = r.reason;
+          return `[${i + 1}] ${reason instanceof Error ? reason.message : String(reason)}`;
+        })
+        .join('; ');
+      throw new Error(`Payroll batch failed for ${rejected.length} employee(s): ${allReasons}`);
     }
 
     return { transactionIds, totalPayout, employeesProcessed };

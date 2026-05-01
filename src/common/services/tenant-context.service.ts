@@ -7,6 +7,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  */
 export class TenantContextService {
   private static readonly storage = new AsyncLocalStorage<string>();
+  private static readonly userStorage = new AsyncLocalStorage<string>();
 
   static run<T>(tenantId: string, callback: () => T): T {
     return this.storage.run(tenantId, callback);
@@ -26,5 +27,13 @@ export class TenantContextService {
       throw new BadRequestException('Tenant context missing');
     }
     return tenantId;
+  }
+
+  static setCurrentUserId(userId: string): void {
+    this.userStorage.enterWith(userId);
+  }
+
+  static getCurrentUserIdOrNull(): string | null {
+    return this.userStorage.getStore() ?? null;
   }
 }

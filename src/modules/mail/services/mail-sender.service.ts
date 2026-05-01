@@ -41,7 +41,7 @@ export class MailSenderService {
     subject: string;
     logLabel: string;
     templateName?: string;
-    resolutionResult?: { template?: string; html?: string };
+    resolvedTemplate?: { template?: string; html?: string };
     context: Record<string, unknown>;
   }): Promise<EmailResult> {
     if (!this.isEnabled) {
@@ -59,8 +59,8 @@ export class MailSenderService {
       mailOptions.template = params.templateName;
     }
 
-    if (params.resolutionResult) {
-      Object.assign(mailOptions, params.resolutionResult);
+    if (params.resolvedTemplate) {
+      Object.assign(mailOptions, params.resolvedTemplate);
     }
 
     let retried = false;
@@ -100,7 +100,7 @@ export class MailSenderService {
         args: { packageName: data.packageName },
       }),
       logLabel: 'Booking confirmation',
-      resolutionResult: templateData,
+      resolvedTemplate: templateData,
       context: this.templateService.sanitizeContext(
         this.templateService.buildCommonContext({
           clientName: data.clientName,
@@ -149,7 +149,7 @@ export class MailSenderService {
         args: { bookingId: data.bookingId },
       }),
       logLabel: 'Booking reschedule notification',
-      resolutionResult: templateData,
+      resolvedTemplate: templateData,
       context: this.templateService.sanitizeContext(
         this.templateService.buildCommonContext({
           employeeName: data.employeeName,
