@@ -582,7 +582,7 @@ export class BookingsService {
   async recordPayment(id: string, dto: RecordPaymentDto): Promise<void> {
     const booking = await this.findOne(id);
 
-    await this.dataSource.transaction(async (manager) => {
+    const paymentTx = await this.dataSource.transaction(async (manager) => {
       // 1. Record the financial transaction
       // Note: We need a version of createTransaction that accepts a manager
       // or we can use the manager to save directly if we want to bypass the service wrapper,
@@ -600,7 +600,7 @@ export class BookingsService {
       }
 
       // 3. Record the financial transaction
-      await this.financeService.createTransactionWithManager(manager, {
+      const paymentTx = await this.financeService.createTransactionWithManager(manager, {
         type: TransactionType.INCOME,
         amount: dto.amount,
         description: `Payment for booking ${lockedBooking.client?.name || 'Client'} - ${dto.paymentMethod || 'Manual'}`,
@@ -631,7 +631,11 @@ export class BookingsService {
 
       // Update local object for event
       booking.amountPaid = newPaid;
+      return paymentTx;
     });
+
+    // Notify after commit so events and caches never reflect rolled-back data.
+    await this.financeService.notifyTransactionCreated(paymentTx);
 
     this.eventBus.publish(
       new PaymentRecordedEvent(
@@ -656,7 +660,7 @@ export class BookingsService {
       throw new BadRequestException('booking.refund_only_confirmed_or_completed');
     }
 
-    await this.dataSource.transaction(async (manager) => {
+    const refundTx = await this.dataSource.transaction(async (manager) => {
       const lockedBooking = await manager.findOne(Booking, {
         where: { id: booking.id, tenantId: booking.tenantId },
         lock: { mode: 'pessimistic_write' },
@@ -671,7 +675,7 @@ export class BookingsService {
         throw new BadRequestException('booking.refund_exceeds_amount_paid');
       }
 
-      await this.financeService.createTransactionWithManager(manager, {
+      const refundTx = await this.financeService.createTransactionWithManager(manager, {
         type: TransactionType.INCOME,
         amount: -dto.amount,
         category: 'Booking Refund',
@@ -690,7 +694,11 @@ export class BookingsService {
       lockedBooking.paymentStatus = lockedBooking.derivePaymentStatus();
 
       await manager.save(lockedBooking);
+      return refundTx;
     });
+
+    // Notify after commit so events and caches never reflect rolled-back data.
+    await this.financeService.notifyTransactionCreated(refundTx);
   }
 
   async getBookingTransactions(id: string, user?: User): Promise<Transaction[]> {

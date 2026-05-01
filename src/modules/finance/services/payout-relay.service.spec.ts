@@ -43,6 +43,7 @@ describe('PayoutRelayService', () => {
 
   const mockFinanceService = {
     createTransactionWithManager: jest.fn().mockResolvedValue({}),
+    notifyTransactionCreated: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockQueryRunner = {

@@ -9,6 +9,7 @@ import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
 import { FINANCE } from '../constants';
 import { Payout } from '../entities/payout.entity';
+import { Transaction } from '../entities/transaction.entity';
 import { PayoutStatus } from '../enums/payout-status.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from './finance.service';
@@ -142,13 +143,14 @@ export class PayoutRelayService {
 
   private async completePayout(payout: Payout, transactionReference?: string): Promise<void> {
     try {
+      let payoutTx: Transaction | undefined;
       await this.tenantTx.run(async (manager) => {
         payout.status = PayoutStatus.COMPLETED;
         payout.notes = `${payout.notes || ''} | TxnRef: ${transactionReference}`;
         await manager.save(payout);
 
         // Create ERP Transaction
-        await this.financeService.createTransactionWithManager(manager, {
+        payoutTx = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.PAYROLL,
           amount: Number(payout.amount),
           category: 'Monthly Payroll',
@@ -159,6 +161,11 @@ export class PayoutRelayService {
 
         // No need to touch Wallet here, as balance was zeroed in the initial Payroll run.
       });
+
+      // Notify after commit so events and caches never reflect rolled-back data.
+      if (payoutTx) {
+        await this.financeService.notifyTransactionCreated(payoutTx);
+      }
 
       this.logger.log(`Payout ${payout.id} completed successfully`);
     } catch (error) {

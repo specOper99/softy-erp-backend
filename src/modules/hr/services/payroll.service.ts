@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { format } from 'date-fns';
 import pLimit from 'p-limit';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryFailedError } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -367,7 +367,14 @@ export class PayrollService {
               totalPayout = MathUtils.add(totalPayout, result.totalAmount);
               employeesProcessed++;
             }
+            return null;
           } catch (error) {
+            // Unique index violation on idempotency_key: a concurrent run committed
+            // first and won the race. Treat this as a successful skip, not a failure.
+            if (error instanceof QueryFailedError && (error as QueryFailedError & { code?: string }).code === '23505') {
+              this.logger.log(`Concurrent idempotency collision for ${idempotencyKey}, skipping`);
+              return null;
+            }
             this.logger.error(`Payroll processing failed for ${profile.firstName} ${profile.lastName}`, error);
             throw error;
           }

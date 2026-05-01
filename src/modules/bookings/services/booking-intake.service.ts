@@ -5,6 +5,7 @@ import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { CatalogService } from '../../catalog/services/catalog.service';
+import { Transaction } from '../../finance/entities/transaction.entity';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -119,6 +120,7 @@ export class BookingIntakeService {
     let savedBookingCreatedAt!: Date;
 
     let depositTransactionId: string | undefined;
+    let depositTx: Transaction | undefined;
 
     await this.dataSource.transaction(async (manager) => {
       // ── Step 1: resolve or create client ──────────────────────────────
@@ -215,6 +217,7 @@ export class BookingIntakeService {
         });
 
         depositTransactionId = depositTransaction.id;
+        depositTx = depositTransaction;
 
         // Update booking payment state within the same transaction
         const newAmountPaid = MathUtils.add(0, dto.deposit.amount);
@@ -232,6 +235,11 @@ export class BookingIntakeService {
     // ── Fire CQRS events after transaction commits ────────────────────────
     // Events are intentionally never published inside the transaction to keep
     // the write path clean and avoid side-effects on rollback.
+
+    // Notify finance listeners after commit so they never see rolled-back data.
+    if (depositTx) {
+      await this.financeService.notifyTransactionCreated(depositTx);
+    }
 
     if (isNewClient) {
       this.eventBus.publish(

@@ -275,6 +275,17 @@ export class PlatformAuthService {
     return result.affected || 0;
   }
 
+  async getUserById(userId: string): Promise<{ id: string; email: string; fullName: string; role: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'email', 'fullName', 'role'],
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
+  }
+
   /**
    * Exchange a valid refresh token for a new access + refresh token pair.
    * The old refresh token hash is replaced atomically so it cannot be reused.

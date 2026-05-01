@@ -450,6 +450,7 @@ export function createMockFinanceService() {
   return {
     createTransaction: jest.fn().mockResolvedValue({ id: 'txn-1' }),
     createTransactionWithManager: jest.fn().mockResolvedValue({ id: 'txn-1' }),
+    notifyTransactionCreated: jest.fn().mockResolvedValue(undefined),
     findAllTransactions: jest.fn().mockResolvedValue([]),
     findTransactionById: jest.fn(),
     getTransactionSummary: jest.fn().mockResolvedValue({ totalIncome: 0, totalExpenses: 0, netBalance: 0 }),

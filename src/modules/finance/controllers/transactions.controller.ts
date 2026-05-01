@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Roles } from '../../../common/decorators';
+import { CurrentUser, Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { IDEMPOTENCY_HEADER, IdempotencyInterceptor, Idempotent } from '../../../common/interceptors';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
@@ -104,12 +104,26 @@ export class TransactionsController {
 
   @Post(':id/void')
   @Roles(Role.ADMIN)
+  @MfaRequired()
+  @UseInterceptors(IdempotencyInterceptor)
+  @Idempotent({ ttl: 24 * 60 * 60 * 1000 }) // 24 hours
   @HttpCode(201)
   @ApiOperation({ summary: 'Void a transaction by creating a compensating reversal entry' })
+  @ApiHeader({
+    name: IDEMPOTENCY_HEADER,
+    description: 'Unique idempotency key (16-256 chars, alphanumeric with hyphens/underscores)',
+    required: false,
+  })
   @ApiResponse({ status: 201, description: 'Reversal transaction created' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions or MFA missing' })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
-  voidTransaction(@Param('id', ParseUUIDPipe) id: string, @Body() dto: VoidTransactionDto) {
-    return this.financeService.voidTransaction(id, dto.reason);
+  @ApiResponse({ status: 409, description: 'Transaction already voided or idempotency key conflict' })
+  voidTransaction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VoidTransactionDto,
+    @CurrentUser('id') userId: string | null,
+  ) {
+    return this.financeService.voidTransaction(id, dto.reason, userId);
   }
 
   // Budget Methods

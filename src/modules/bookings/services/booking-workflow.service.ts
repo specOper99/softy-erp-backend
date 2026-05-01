@@ -135,9 +135,10 @@ export class BookingWorkflowService {
       // Step 3: Create deposit INCOME transaction (SRS: confirm = deposit paid)
       const depositAmount = Number(booking.depositAmount) || 0;
       let transactionId: string | null = null;
+      let depositTx: Transaction | null = null;
 
       if (depositAmount > 0) {
-        const transaction = await this.financeService.createTransactionWithManager(manager, {
+        depositTx = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.INCOME,
           amount: depositAmount,
           category: 'Booking Deposit',
@@ -146,7 +147,7 @@ export class BookingWorkflowService {
           transactionDate: new Date(),
           revenueAccountCode: booking.servicePackage?.revenueAccountCode,
         });
-        transactionId = transaction.id;
+        transactionId = depositTx.id;
 
         // Step 3b: Update booking payment fields to reflect deposit paid
         booking.amountPaid = depositAmount;
@@ -156,8 +157,9 @@ export class BookingWorkflowService {
 
       // Step 3c: Record venue cost as EXPENSE (hits P&L, does not affect client invoice)
       const venueCost = Number(booking.venueCost) || 0;
+      let venueTx: Transaction | null = null;
       if (venueCost > 0) {
-        await this.financeService.createTransactionWithManager(manager, {
+        venueTx = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.EXPENSE,
           amount: venueCost,
           category: 'Venue Cost',
@@ -191,6 +193,8 @@ export class BookingWorkflowService {
         booking,
         tasksCreated: createdTasks.length,
         transactionId,
+        depositTx,
+        venueTx,
       };
     });
 
@@ -199,6 +203,14 @@ export class BookingWorkflowService {
       await this.invoiceService.createInvoice(result.booking.id);
     } catch {
       // Invoice generation is best-effort; can be retried manually
+    }
+
+    // Notify after commit so events and caches never reflect rolled-back data.
+    if (result.depositTx) {
+      await this.financeService.notifyTransactionCreated(result.depositTx);
+    }
+    if (result.venueTx) {
+      await this.financeService.notifyTransactionCreated(result.venueTx);
     }
 
     if (eventToPublish) {
@@ -242,7 +254,7 @@ export class BookingWorkflowService {
       }
 
       if (booking.status === BookingStatus.CANCELLED) {
-        return booking;
+        return { booking, reversalTx: null };
       }
 
       const bookingTasks = await manager.find(Task, {
@@ -321,8 +333,9 @@ export class BookingWorkflowService {
         return amount < 0 || category.includes('refund') || category.includes('reversal');
       });
 
+      let reversalTx: Transaction | null = null;
       if (reversalAmount > 0 && !hasExistingReversal) {
-        await this.financeService.createTransactionWithManager(manager, {
+        reversalTx = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.INCOME,
           amount: -reversalAmount,
           category: 'Booking Reversal',
@@ -370,16 +383,21 @@ export class BookingWorkflowService {
         0,
       );
 
-      return saved;
+      return { booking: saved, reversalTx };
     });
+
+    // Notify after commit so events and caches never reflect rolled-back data.
+    if (savedBooking.reversalTx) {
+      await this.financeService.notifyTransactionCreated(savedBooking.reversalTx);
+    }
 
     if (eventToPublish) {
       this.eventBus.publish(eventToPublish);
     }
 
-    await this.invalidateAvailabilityCache(savedBooking);
+    await this.invalidateAvailabilityCache(savedBooking.booking);
 
-    return savedBooking;
+    return savedBooking.booking;
   }
 
   /**

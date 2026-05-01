@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class TransactionReversalAndRelaxXor1746316800000 implements MigrationInterface {
-  name = 'TransactionReversalAndRelaxXor1746316800000';
+export class TransactionReversalAndRelaxXor20260501000000 implements MigrationInterface {
+  name = 'TransactionReversalAndRelaxXor20260501000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Drop the strict XOR CHECK constraint that required exactly one of

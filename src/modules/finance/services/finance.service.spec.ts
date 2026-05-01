@@ -368,7 +368,7 @@ describe('FinanceService - Comprehensive Tests', () => {
   });
 
   describe('createTransactionWithManager', () => {
-    it('should publish transaction created event', async () => {
+    it('should save and return the transaction without emitting events (events are deferred to callers)', async () => {
       const manager = mockQueryRunner.manager as unknown as EntityManager;
 
       await service.createTransactionWithManager(manager, {
@@ -378,7 +378,10 @@ describe('FinanceService - Comprehensive Tests', () => {
         transactionDate: new Date('2025-01-01T00:00:00.000Z'),
       });
 
-      expect(mockEventBus.publish).toHaveBeenCalled();
+      // Events must NOT be emitted inside the transaction — callers are
+      // responsible for calling notifyTransactionCreated after commit.
+      expect(mockEventBus.publish).not.toHaveBeenCalled();
+      expect(mockQueryRunner.manager.save).toHaveBeenCalled();
     });
 
     it('should persist payment method and reference when provided', async () => {
@@ -638,7 +641,7 @@ describe('FinanceService - Comprehensive Tests', () => {
       await service.voidTransaction(originalId);
       expect(capturedMgr!.update).toHaveBeenCalledWith(
         expect.anything(),
-        { id: originalId },
+        { id: originalId, tenantId: 'tenant-123' },
         expect.objectContaining({ voidedAt: expect.any(Date) }),
       );
     });

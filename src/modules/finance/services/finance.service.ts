@@ -221,13 +221,22 @@ export class FinanceService {
     });
     const savedTransaction = await manager.save(transaction);
 
-    this.publishTransactionCreatedEvent(tenantId, savedTransaction);
-
-    // Invalidate financial report caches (data has changed)
-    // This ensures reports are recalculated after transaction commits
-    await this.financialReportService.invalidateReportCaches(tenantId);
+    // NOTE: Side effects (event publishing and cache invalidation) are intentionally
+    // omitted here. This method runs inside a caller-supplied transaction that may not
+    // have committed yet. Callers are responsible for invoking
+    // notifyTransactionCreated() after their transaction commits successfully.
 
     return savedTransaction;
+  }
+
+  /**
+   * Publish the TransactionCreatedEvent and invalidate report caches.
+   * MUST be called after the enclosing database transaction has committed.
+   */
+  async notifyTransactionCreated(savedTransaction: Transaction, reversalOfId?: string): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    this.publishTransactionCreatedEvent(tenantId, savedTransaction, reversalOfId);
+    await this.financialReportService.invalidateReportCaches(tenantId);
   }
 
   private publishTransactionCreatedEvent(tenantId: string, transaction: Transaction, reversalOfId?: string): void {
@@ -365,15 +374,16 @@ export class FinanceService {
     return transaction;
   }
 
-  async voidTransaction(id: string, reason?: string): Promise<Transaction> {
+  async voidTransaction(id: string, reason?: string, currentUserId?: string | null): Promise<Transaction> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    const currentUserId = TenantContextService.getCurrentUserIdOrNull() ?? null;
+    const resolvedUserId = currentUserId ?? TenantContextService.getCurrentUserIdOrNull() ?? null;
 
+    let savedReversal: Transaction;
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      savedReversal = await this.dataSource.transaction(async (manager) => {
         // Lock the original row to prevent concurrent void attempts.
         const original = await manager.findOne(Transaction, {
-          where: { id },
+          where: { id, tenantId },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -415,22 +425,19 @@ export class FinanceService {
           reversalOfId: original.id,
         });
 
-        const savedReversal = await manager.save(reversal);
+        const saved = await manager.save(reversal);
 
         // Mark original as voided.
         await manager.update(
           Transaction,
-          { id: original.id },
+          { id: original.id, tenantId },
           {
             voidedAt: new Date(),
-            voidedBy: currentUserId,
+            voidedBy: resolvedUserId,
           },
         );
 
-        this.publishTransactionCreatedEvent(tenantId, savedReversal, original.id);
-        await this.financialReportService.invalidateReportCaches(tenantId);
-
-        return savedReversal;
+        return saved;
       });
     } catch (error) {
       // Unique partial index violation — concurrent void attempt won the race.
@@ -439,6 +446,13 @@ export class FinanceService {
       }
       throw error;
     }
+
+    // Side effects run after the transaction has committed, so downstream
+    // listeners and caches never observe data that may still roll back.
+    this.publishTransactionCreatedEvent(tenantId, savedReversal, id);
+    await this.financialReportService.invalidateReportCaches(tenantId);
+
+    return savedReversal;
   }
 
   async exportTransactionsToCSV(res: Response): Promise<void> {

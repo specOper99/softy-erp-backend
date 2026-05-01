@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Logger, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { createHash } from 'node:crypto';
 import { RequireContext } from '../../../common/decorators/context.decorator';
@@ -107,5 +107,20 @@ export class PlatformAuthController {
     const { userId } = req.user;
     const count = await this.authService.revokeAllSessions(userId, userId, dto.reason);
     return { revokedSessions: count };
+  }
+
+  @Get('me')
+  @UseGuards(PlatformJwtAuthGuard, PlatformContextGuard)
+  @RequireContext(ContextType.PLATFORM)
+  @ApiBearerAuth('platform-auth')
+  @ApiOperation({
+    summary: 'Get current platform user',
+    description:
+      'Returns the non-sensitive profile of the authenticated platform user. Used for session hydration after page reload.',
+  })
+  @ApiResponse({ status: 200, description: 'Current user profile' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async me(@Request() req: PlatformRequest) {
+    return this.authService.getUserById(req.user.userId);
   }
 }

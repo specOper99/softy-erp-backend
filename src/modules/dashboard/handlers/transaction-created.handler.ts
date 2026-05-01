@@ -11,6 +11,10 @@ export class DashboardTransactionCreatedHandler implements IEventHandler<Transac
   constructor(private readonly dashboardGateway: DashboardGateway) {}
 
   async handle(event: TransactionCreatedEvent): Promise<void> {
+    // The TransactionCreatedEvent contract requires listeners to skip reversals
+    // to avoid double-counting. A reversal transaction has a non-null reversalOfId.
+    if (event.reversalOfId != null) return;
+
     await TenantContextService.run(event.tenantId, async () => {
       try {
         this.dashboardGateway.broadcastMetricsUpdate(event.tenantId, 'REVENUE', {

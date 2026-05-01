@@ -4,6 +4,7 @@ import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreatePurchaseInvoiceDto } from '../dto';
 import { PurchaseInvoice, Vendor } from '../entities';
+import { Transaction } from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from './finance.service';
 
@@ -20,6 +21,7 @@ export class PurchaseInvoicesService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     try {
+      let invoiceTx: Transaction;
       const createdInvoice = await this.dataSource.transaction(async (manager) => {
         const vendor = await manager.findOne(Vendor, {
           where: { id: dto.vendorId, tenantId },
@@ -37,6 +39,7 @@ export class PurchaseInvoicesService {
           description: `Purchase invoice ${dto.invoiceNumber} - ${vendor.name}`,
           transactionDate: invoiceDate,
         });
+        invoiceTx = transaction;
 
         const purchaseInvoice = manager.create(PurchaseInvoice, {
           tenantId,
@@ -50,6 +53,9 @@ export class PurchaseInvoicesService {
 
         return manager.save(purchaseInvoice);
       });
+
+      // Notify after commit so events and caches never reflect rolled-back data.
+      await this.financeService.notifyTransactionCreated(invoiceTx!);
 
       return this.findById(createdInvoice.id);
     } catch (error) {

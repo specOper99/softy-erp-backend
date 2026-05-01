@@ -54,6 +54,7 @@ describe('PurchaseInvoicesService', () => {
 
     financeService = {
       createTransactionWithManager: jest.fn().mockResolvedValue({ id: 'txn-1' }),
+      notifyTransactionCreated: jest.fn().mockResolvedValue(undefined),
     };
 
     dataSource = {

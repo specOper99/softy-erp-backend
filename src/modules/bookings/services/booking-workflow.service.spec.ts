@@ -135,6 +135,7 @@ describe('BookingWorkflowService', () => {
           provide: FinanceService,
           useValue: {
             createTransactionWithManager: jest.fn().mockResolvedValue({ id: 'tx-1' }),
+            notifyTransactionCreated: jest.fn().mockResolvedValue(undefined),
             transferPendingCommission: jest.fn().mockResolvedValue(undefined),
           },
         },
