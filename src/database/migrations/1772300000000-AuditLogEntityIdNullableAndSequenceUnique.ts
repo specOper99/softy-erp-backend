@@ -24,10 +24,16 @@ export class AuditLogEntityIdNullableAndSequenceUnique1772300000000 implements M
     // 2. Upgrade the plain index to a UNIQUE PARTIAL index (only where sequence_number IS NOT NULL)
     //    We use a partial index so the uniqueness constraint only applies to rows that carry
     //    a sequence number, leaving system-generated rows (sequence_number IS NULL) unrestricted.
+    //
+    //    NOTE: audit_logs is partitioned by RANGE(created_at). PostgreSQL requires every unique
+    //    index on a partitioned table to include all partition key columns. We include created_at
+    //    so Postgres can enforce uniqueness within each partition. Sequence numbers are
+    //    monotonically increasing per tenant so the same (tenant_id, sequence_number) pair will
+    //    never naturally appear in two different time-range partitions.
     await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_audit_logs_sequence"`);
     await queryRunner.query(`
       CREATE UNIQUE INDEX "IDX_audit_logs_tenant_sequence_uniq"
-        ON "audit_logs" ("tenant_id", "sequence_number")
+        ON "audit_logs" ("tenant_id", "sequence_number", "created_at")
        WHERE "sequence_number" IS NOT NULL
     `);
   }
