@@ -11,7 +11,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Columns covered:
  *   - clients.name, clients.email, clients.phone, clients.phone2
  *   - bookings.notes
- *   - catalog_packages.name, catalog_packages.description
+ *   - service_packages.name, service_packages.description
  *   - task_types.name
  *   - tasks.notes
  */
@@ -46,12 +46,12 @@ export class AddPgTrgmIlikeIndexes20260504000000 implements MigrationInterface {
 
     // catalog packages
     await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_catalog_packages_name_trgm"
-       ON "catalog_packages" USING gin ("name" gin_trgm_ops)`,
+      `CREATE INDEX IF NOT EXISTS "IDX_service_packages_name_trgm"
+       ON "service_packages" USING gin ("name" gin_trgm_ops)`,
     );
     await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_catalog_packages_description_trgm"
-       ON "catalog_packages" USING gin ("description" gin_trgm_ops)`,
+      `CREATE INDEX IF NOT EXISTS "IDX_service_packages_description_trgm"
+       ON "service_packages" USING gin ("description" gin_trgm_ops)`,
     );
 
     // task_types
@@ -70,8 +70,8 @@ export class AddPgTrgmIlikeIndexes20260504000000 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_notes_trgm"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_task_types_name_trgm"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_catalog_packages_description_trgm"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_catalog_packages_name_trgm"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_service_packages_description_trgm"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_service_packages_name_trgm"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_bookings_notes_trgm"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_clients_phone2_trgm"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_clients_phone_trgm"`);
