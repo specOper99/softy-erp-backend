@@ -229,7 +229,10 @@
     "attendance_self_only_create": "Field staff can only create attendance records for themselves",
     "attendance_invalid_user_id": "Invalid userId",
     "attendance_self_only_view": "Field staff can only view their own attendance records",
-    "attendance_duplicate_day": "Attendance record for this user and date already exists"
+    "attendance_duplicate_day": "Attendance record for this user and date already exists",
+    "availability_slot_effective_to_before_from": "Effective to date must not be before effective from date",
+    "availability_slot_not_found": "Availability slot not found",
+    "availability_slot_start_must_be_before_end": "Start time must be before end time"
   },
   "catalog": {
     "price_must_be_positive": "Price must be greater than zero",
