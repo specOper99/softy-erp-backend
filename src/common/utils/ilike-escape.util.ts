@@ -52,7 +52,6 @@ export function applyIlikeSearch(
   const paramKey = `_ilikeSearch${++_ilikeCallCounter}`;
   const escaped = escapeLike(safe);
   const condition = columns.map((col) => `${col} ILIKE :${paramKey} ESCAPE '\\\\'`).join(' OR ');
-  qb.andWhere('(' + condition + ')');
-  qb.setParameter(paramKey, `%${escaped}%`);
+  qb.andWhere(`(${condition})`, { [paramKey]: `%${escaped}%` });
   return true;
 }
