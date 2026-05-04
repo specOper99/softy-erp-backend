@@ -73,6 +73,10 @@ export class DistributedLockService implements OnModuleDestroy {
       maxRetriesPerRequest: 3,
       lazyConnect: true,
       enableReadyCheck: true,
+      // Fail commands quickly when the socket is broken so callers (e.g. cron
+      // jobs) do not stall for seconds waiting for a dead connection.
+      commandTimeout: 3000,
+      connectTimeout: 5000,
     });
 
     this.redis.on('error', (error) => {

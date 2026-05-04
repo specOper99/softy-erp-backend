@@ -23,7 +23,17 @@ export class OutboxRelayService {
   @Cron(CronExpression.EVERY_10_SECONDS)
   async processOutbox() {
     // Prevent duplicate processing across replicas — skip if another instance holds the lock.
-    const lockResult = await this.distributedLockService.acquire('outbox-relay-cron', { ttl: 30000 });
+    let lockResult: Awaited<ReturnType<typeof this.distributedLockService.acquire>>;
+    try {
+      lockResult = await this.distributedLockService.acquire('outbox-relay-cron', { ttl: 30000 });
+    } catch (error: unknown) {
+      // Redis is unavailable — skip this tick rather than blocking the cron thread.
+      this.logger.warn(
+        `outbox-relay: could not acquire distributed lock (Redis unavailable?): ${toErrorMessage(error)}`,
+      );
+      return;
+    }
+
     if (!lockResult.acquired) {
       return;
     }
@@ -32,7 +42,9 @@ export class OutboxRelayService {
       this.logger.debug('Checking for pending outbox events...');
       await this.processBatch();
     } finally {
-      await this.distributedLockService.release('outbox-relay-cron', lockResult.lockToken);
+      await this.distributedLockService.release('outbox-relay-cron', lockResult.lockToken).catch((error: unknown) => {
+        this.logger.warn(`outbox-relay: failed to release lock: ${toErrorMessage(error)}`);
+      });
     }
   }
 
