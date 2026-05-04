@@ -1,1 +1,1 @@
-/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/common/utils/ilike-escape.util.ts:55: qb.andWhere('(' + condition + ')');
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/common/utils/ilike-escape.util.ts:55: qb.andWhere(`(${condition})`, { [paramKey]: `%${escaped}%` });
