@@ -72,14 +72,13 @@ export class AuditService implements AuditPublisher {
         await this.dataSource.transaction(async (manager) => {
           await manager.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [tenantId]);
 
-          const auditRepo = manager.getRepository(AuditLog);
-          const lastLog = await auditRepo.findOne({
+          const lastLog = await manager.findOne(AuditLog, {
             where: { tenantId },
             order: { sequenceNumber: 'DESC' },
             select: ['hash', 'sequenceNumber'],
           });
 
-          const entry = auditRepo.create({
+          const entry = manager.create(AuditLog, {
             ...sanitizedData,
             previousHash: lastLog?.hash ?? undefined,
             sequenceNumber: (lastLog?.sequenceNumber ?? 0) + 1,
@@ -87,7 +86,7 @@ export class AuditService implements AuditPublisher {
           entry.createdAt = new Date();
           entry.hash = entry.calculateHash();
 
-          await auditRepo.save(entry);
+          await manager.save(AuditLog, entry);
         });
         this.logger.debug('Audit log saved synchronously as fallback');
       } catch (dbError) {

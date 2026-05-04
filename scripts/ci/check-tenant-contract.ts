@@ -95,16 +95,6 @@ const FILE_PATH_ALLOWLIST: { path: string; reason: string }[] = [
     path: 'src/modules/users/services/users.service.ts',
     reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
   },
-  {
-    path: 'src/modules/audit/audit.service.ts',
-    reason:
-      'Synchronous fallback uses manager.getRepository(AuditLog) inside a DataSource.transaction() with advisory lock for hash-chain integrity; tenantId is always passed explicitly in this path.',
-  },
-  {
-    path: 'src/modules/billing/services/subscription-reconcile.service.ts',
-    reason:
-      'Cross-tenant CRON reconciliation job; must scan all subscriptions to compare against Stripe state. Operates as infrastructure/background task without a per-request tenant context.',
-  },
 ];
 
 const SKIP_TENANT_EXPLICIT_CONTEXT_ALLOWLIST = new Set([

@@ -9,11 +9,6 @@ const GLOBAL_FILE_ALLOWLIST = [
     file: 'src/common/services/outbox-relay.service.ts',
     reason: 'Outbox relay is intentionally global infrastructure processing.',
   },
-  {
-    file: 'src/modules/billing/services/subscription-reconcile.service.ts',
-    reason:
-      'Cross-tenant CRON reconciliation; scans all subscriptions to compare against Stripe. No per-request tenant context — operates at platform/infrastructure level.',
-  },
 ] as const;
 
 interface Violation {

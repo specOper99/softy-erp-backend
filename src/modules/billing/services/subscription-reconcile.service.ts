@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { Counter } from 'prom-client';
-import { IsNull, Not, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { toErrorMessage } from '../../../common/utils/error.util';
 import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 import { StripeService } from './stripe.service';
@@ -40,8 +41,8 @@ export class SubscriptionReconcileService {
   private readonly cronExpression: string;
 
   constructor(
-    @InjectRepository(Subscription)
-    private readonly subscriptionRepo: Repository<Subscription>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly stripeService: StripeService,
     private readonly configService: ConfigService,
   ) {
@@ -59,39 +60,42 @@ export class SubscriptionReconcileService {
     let checked = 0;
     let mismatches = 0;
 
-    const subscriptions = await this.subscriptionRepo.find({
-      where: { stripeSubscriptionId: Not(IsNull()) },
-    });
+    const subscriptions = await this.dataSource
+      .createQueryBuilder(Subscription, 'sub')
+      .where('sub.stripeSubscriptionId IS NOT NULL')
+      .getMany();
 
     for (const sub of subscriptions) {
-      try {
-        const stripeObj = await this.stripeService.getSubscription(sub.stripeSubscriptionId);
-        const expectedStatus = STRIPE_STATUS_MAP[stripeObj.status];
+      await TenantContextService.run(sub.tenantId, async () => {
+        try {
+          const stripeObj = await this.stripeService.getSubscription(sub.stripeSubscriptionId);
+          const expectedStatus = STRIPE_STATUS_MAP[stripeObj.status];
 
-        checked++;
+          checked++;
 
-        if (!expectedStatus) {
-          this.logger.warn(
-            `Subscription ${sub.id}: unrecognised Stripe status "${stripeObj.status}" — update STRIPE_STATUS_MAP`,
-          );
-          continue;
-        }
+          if (!expectedStatus) {
+            this.logger.warn(
+              `Subscription ${sub.id}: unrecognised Stripe status "${stripeObj.status}" — update STRIPE_STATUS_MAP`,
+            );
+            return;
+          }
 
-        if (expectedStatus !== sub.status) {
-          mismatches++;
-          mismatchCounter.inc({ local_status: sub.status, stripe_status: expectedStatus });
+          if (expectedStatus !== sub.status) {
+            mismatches++;
+            mismatchCounter.inc({ local_status: sub.status, stripe_status: expectedStatus });
+            this.logger.error(
+              `Subscription mismatch — tenantId=${sub.tenantId} subId=${sub.id} ` +
+                `stripeId=${sub.stripeSubscriptionId}: ` +
+                `DB status="${sub.status}" but Stripe reports "${expectedStatus}". ` +
+                'Manual review required before correcting.',
+            );
+          }
+        } catch (error) {
           this.logger.error(
-            `Subscription mismatch — tenantId=${sub.tenantId} subId=${sub.id} ` +
-              `stripeId=${sub.stripeSubscriptionId}: ` +
-              `DB status="${sub.status}" but Stripe reports "${expectedStatus}". ` +
-              'Manual review required before correcting.',
+            `Failed to reconcile subscription ${sub.id} (${sub.stripeSubscriptionId}): ${toErrorMessage(error)}`,
           );
         }
-      } catch (error) {
-        this.logger.error(
-          `Failed to reconcile subscription ${sub.id} (${sub.stripeSubscriptionId}): ${toErrorMessage(error)}`,
-        );
-      }
+      });
     }
 
     this.logger.log(`Reconciliation complete: checked=${checked} mismatches=${mismatches}`);
