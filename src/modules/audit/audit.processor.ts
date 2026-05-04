@@ -73,7 +73,7 @@ export class AuditProcessor extends WorkerHost {
           ...logData,
           tenantId,
           previousHash: lastLog?.hash ?? undefined,
-          sequenceNumber: (lastLog?.sequenceNumber ?? 0) + 1,
+          sequenceNumber: Number(lastLog?.sequenceNumber ?? 0) + 1,
         });
 
         entry.createdAt = new Date();

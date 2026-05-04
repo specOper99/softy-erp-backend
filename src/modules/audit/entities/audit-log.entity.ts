@@ -62,7 +62,15 @@ export class AuditLog {
   @Column({ name: 'previous_hash', length: 64, nullable: true })
   previousHash: string;
 
-  @Column({ name: 'sequence_number', type: 'bigint', nullable: true })
+  @Column({
+    name: 'sequence_number',
+    type: 'bigint',
+    nullable: true,
+    transformer: {
+      to: (value: number | null | undefined) => value,
+      from: (value: string | null) => (value !== null && value !== undefined ? Number(value) : null),
+    },
+  })
   sequenceNumber: number;
 
   @Index()
