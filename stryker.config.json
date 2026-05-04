@@ -26,5 +26,5 @@
     ],
     "tsconfigFile": "tsconfig.json",
     "concurrency": 4,
-    "cleanTempDir": "true"
+    "cleanTempDir": "always"
 }

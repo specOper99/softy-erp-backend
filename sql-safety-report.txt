@@ -1,1 +1,1 @@
-/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/modules/platform/services/platform-security.service.ts:111: .where(`user_id IN (${userIdSubquery})`, { tenantId: dto.tenantId })
+/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/src/common/utils/ilike-escape.util.ts:55: qb.andWhere(`(${condition})`, { [paramKey]: `%${escaped}%` });
