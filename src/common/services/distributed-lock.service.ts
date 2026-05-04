@@ -15,6 +15,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { randomBytes, randomInt } from 'node:crypto';
+import { toErrorMessage } from '../utils/error.util';
 
 export interface LockResult {
   acquired: boolean;
@@ -138,7 +139,16 @@ export class DistributedLockService implements OnModuleDestroy {
   async release(resource: string, lockToken: string): Promise<boolean> {
     const lockKey = `lock:${resource}`;
 
-    const result = await this.redis.eval(this.RELEASE_SCRIPT, 1, lockKey, lockToken);
+    let result: unknown;
+    try {
+      result = await this.redis.eval(this.RELEASE_SCRIPT, 1, lockKey, lockToken);
+    } catch (error: unknown) {
+      // Redis connection may have dropped between acquire and release — the lock
+      // will expire on its own via the TTL. Log and treat as not released.
+      this.logger.warn(`Could not release lock for ${resource} (Redis error): ${toErrorMessage(error)}`);
+      return false;
+    }
+
     const released = result === 1;
 
     if (released) {
@@ -224,6 +234,7 @@ export class DistributedLockService implements OnModuleDestroy {
     try {
       return await fn();
     } finally {
+      // Do not let a Redis release failure propagate — the lock will expire via TTL.
       await this.release(resource, lock.lockToken);
     }
   }
