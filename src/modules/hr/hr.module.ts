@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommonModule } from '../../common/common.module';
-import { TENANT_REPO_ATTENDANCE } from '../../common/constants/tenant-repo.tokens';
+import { TENANT_REPO_ATTENDANCE, TENANT_REPO_STAFF_AVAILABILITY } from '../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { TaskType } from '../catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
@@ -14,8 +14,20 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { User } from '../users/entities/user.entity';
 import { UsersModule } from '../users/users.module';
-import { AttendanceController, HrController, TaskTypeEligibilityController } from './controllers';
-import { Attendance, PayrollRun, PerformanceReview, Profile, TaskTypeEligibility } from './entities';
+import {
+  AttendanceController,
+  HrController,
+  StaffAvailabilitySlotController,
+  TaskTypeEligibilityController,
+} from './controllers';
+import {
+  Attendance,
+  PayrollRun,
+  PerformanceReview,
+  Profile,
+  StaffAvailabilitySlot,
+  TaskTypeEligibility,
+} from './entities';
 import { UserDeletedHandler } from './handlers/user-deleted.handler';
 import { WalletBalanceUpdatedHandler } from './handlers/wallet-balance-updated.handler';
 import { PayrollRunRepository } from './repositories/payroll-run.repository';
@@ -25,6 +37,7 @@ import { HrService } from './services/hr.service';
 import { MockPaymentGatewayService } from './services/payment-gateway.service';
 import { PayrollReconciliationService } from './services/payroll-reconciliation.service';
 import { PayrollService } from './services/payroll.service';
+import { StaffAvailabilitySlotService } from './services/staff-availability-slot.service';
 import { TaskTypeEligibilityService } from './services/task-type-eligibility.service';
 
 @Module({
@@ -36,6 +49,7 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
       Attendance,
       PerformanceReview,
       Payout,
+      StaffAvailabilitySlot,
       TaskTypeEligibility,
       TaskType,
       User,
@@ -48,7 +62,7 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
     TenantsModule,
     UsersModule,
   ],
-  controllers: [HrController, AttendanceController, TaskTypeEligibilityController],
+  controllers: [HrController, AttendanceController, StaffAvailabilitySlotController, TaskTypeEligibilityController],
   providers: [
     ProfileRepository,
     PayrollRunRepository,
@@ -57,6 +71,7 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
     PayrollReconciliationService,
     MockPaymentGatewayService,
     AttendanceService,
+    StaffAvailabilitySlotService,
     TaskTypeEligibilityService,
     UserDeletedHandler,
     WalletBalanceUpdatedHandler,
@@ -64,6 +79,11 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
       provide: TENANT_REPO_ATTENDANCE,
       useFactory: (repo: Repository<Attendance>) => new TenantAwareRepository(repo),
       inject: [getRepositoryToken(Attendance)],
+    },
+    {
+      provide: TENANT_REPO_STAFF_AVAILABILITY,
+      useFactory: (repo: Repository<StaffAvailabilitySlot>) => new TenantAwareRepository(repo),
+      inject: [getRepositoryToken(StaffAvailabilitySlot)],
     },
   ],
   exports: [HrService, PayrollService, AttendanceService, ProfileRepository, PayrollReconciliationService],
