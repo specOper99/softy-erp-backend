@@ -14,8 +14,8 @@ import { Tenant } from '../../src/modules/tenants/entities/tenant.entity';
 import { User } from '../../src/modules/users/entities/user.entity';
 import { Role } from '../../src/modules/users/enums/role.enum';
 
-import { SubscriptionPlan } from '../../src/modules/tenants/enums/subscription-plan.enum';
 import { TaskTypeEligibility } from '../../src/modules/hr/entities/task-type-eligibility.entity';
+import { SubscriptionPlan } from '../../src/modules/tenants/enums/subscription-plan.enum';
 
 export async function seedTestDatabase(dataSource: DataSource) {
   const tenantRepo = dataSource.getRepository(Tenant);
