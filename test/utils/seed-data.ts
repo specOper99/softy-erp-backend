@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { PasswordHashService } from '../../src/common/services/password-hash.service';
+import { toErrorMessage } from '../../src/common/utils/error.util';
 import { Client } from '../../src/modules/bookings/entities/client.entity';
 import { PackageItem } from '../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
@@ -319,7 +320,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
 
     return { tenantId, tenantSlug, admin, staff, pkg, taskType, client };
   } catch (outerError: unknown) {
-    console.error('Seeder error:', outerError instanceof Error ? outerError.message : String(outerError));
+    console.error('Seeder error:', toErrorMessage(outerError));
     throw outerError;
   }
 }

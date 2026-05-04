@@ -5,6 +5,7 @@ import * as Handlebars from 'handlebars';
 import sanitizeHtml from 'sanitize-html';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { EmailTemplate } from '../entities/email-template.entity';
 
 export interface TemplateResolutionResult {
@@ -72,8 +73,7 @@ export class MailTemplateService {
         }
       }
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      this.logger.warn(`Failed to resolve DB template ${dbName}, falling back to file: ${errorMessage}`);
+      this.logger.warn(`Failed to resolve DB template ${dbName}, falling back to file: ${toErrorMessage(e)}`);
     }
 
     return { template: fileTemplate };

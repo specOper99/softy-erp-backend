@@ -5,6 +5,7 @@ import { Gauge } from 'prom-client';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { FINANCE } from '../constants';
@@ -95,8 +96,7 @@ export class PayoutConsistencyCron {
       const gatewayStatus = await this.paymentGateway.checkPayoutStatus(referenceId);
       this.logGatewayStatus(payout, gatewayStatus.status);
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      this.logger.error(`Failed to check status for payout ${payout.id}: ${message}`);
+      this.logger.error(`Failed to check status for payout ${payout.id}: ${toErrorMessage(e)}`);
     }
   }
 
