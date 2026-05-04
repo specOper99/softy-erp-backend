@@ -3,10 +3,10 @@ import { Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
 import { DataSource } from 'typeorm';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
+import { TenantContextService } from '../../common/services/tenant-context.service';
 import { toErrorMessage } from '../../common/utils/error.util';
 import { AuditLog } from './entities/audit-log.entity';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 /**
  * Data structure for audit log queue job payload.

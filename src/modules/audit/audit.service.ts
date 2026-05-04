@@ -4,11 +4,11 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { Counter } from 'prom-client';
 import { DataSource } from 'typeorm';
-import { toErrorMessage } from '../../common/utils/error.util';
 import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
 import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../common/utils/cursor-pagination.helper';
+import { toErrorMessage } from '../../common/utils/error.util';
 import { AuditLogFilterDto } from './dto/audit-log-filter.dto';
 import { AuditLog } from './entities/audit-log.entity';
 
@@ -19,10 +19,10 @@ export interface ChainVerificationResult {
   errorMessage?: string;
 }
 
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 import { AuditPublisher } from './audit.publisher';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
 import { AuditLogRepository } from './repositories/audit-log.repository';
-import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 @Injectable()
 export class AuditService implements AuditPublisher {

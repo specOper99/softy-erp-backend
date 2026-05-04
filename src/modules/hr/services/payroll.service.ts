@@ -8,6 +8,7 @@ import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
@@ -25,7 +26,6 @@ import { PayrollRunResponseDto, RunPayrollDto } from '../dto';
 import { PayrollRun } from '../entities';
 import { PayrollRunRepository } from '../repositories/payroll-run.repository';
 import { ProfileRepository } from '../repositories/profile.repository';
-import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class PayrollService {

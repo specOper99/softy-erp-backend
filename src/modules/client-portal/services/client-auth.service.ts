@@ -10,11 +10,11 @@ import { I18nService } from '../../../common/i18n';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
 import { Client } from '../../bookings/entities/client.entity';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
-import { toErrorMessage } from '../../../common/utils/error.util';
 
 export interface ClientTokenPayload {
   sub: string; // client ID
