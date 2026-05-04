@@ -51,7 +51,8 @@ export function applyIlikeSearch(
   // invocations on the same QueryBuilder without parameter name collisions.
   const paramKey = `_ilikeSearch${++_ilikeCallCounter}`;
   const escaped = escapeLike(safe);
-  const condition = columns.map((col) => `${col} ILIKE :${paramKey} ESCAPE '\\\\'`).join(' OR ');
-  qb.andWhere(`(${condition})`, { [paramKey]: `%${escaped}%` });
+  const parts = columns.map((col) => col + ' ILIKE :' + paramKey + " ESCAPE '\\\\'");
+  const condition = '(' + parts.join(' OR ') + ')';
+  qb.andWhere(condition, { [paramKey]: `%${escaped}%` });
   return true;
 }
