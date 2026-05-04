@@ -16,6 +16,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *   - tasks.notes
  */
 export class AddPgTrgmIlikeIndexes20260504000000 implements MigrationInterface {
+  // CREATE INDEX CONCURRENTLY cannot run inside a transaction block.
+  // Setting transaction = false tells TypeORM to skip its default transaction wrapper.
+  transaction = false;
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Enable the extension (idempotent — safe to run multiple times)
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
