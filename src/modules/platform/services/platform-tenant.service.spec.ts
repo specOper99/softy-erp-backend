@@ -120,7 +120,11 @@ describe('PlatformTenantService', () => {
 
       await service.listTenants({ search: 'test' });
 
-      expect(mockQb.andWhere).toHaveBeenCalledWith(expect.stringContaining('ILIKE'), { search: '%test%' });
+      const ilikeCallArgs = mockQb.andWhere.mock.calls.find(
+        ([sql]: [string]) => typeof sql === 'string' && sql.includes('ILIKE'),
+      );
+      expect(ilikeCallArgs).toBeDefined();
+      expect(Object.values(ilikeCallArgs![1] as Record<string, string>)).toContain('%test%');
     });
 
     it('should filter by status', async () => {

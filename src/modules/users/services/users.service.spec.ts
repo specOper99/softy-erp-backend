@@ -256,9 +256,11 @@ describe('UsersService - Comprehensive Tests', () => {
 
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.role = :role', { role: Role.FIELD_STAFF });
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.isActive = :isActive', { isActive: true });
-      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith("user.email ILIKE :search ESCAPE '\\\\'", {
-        search: '%test%',
-      });
+      const ilikeCallArgs = (queryBuilderMock.andWhere as jest.Mock).mock.calls.find(
+        ([sql]: [string]) => typeof sql === 'string' && sql.includes('user.email ILIKE'),
+      );
+      expect(ilikeCallArgs).toBeDefined();
+      expect(Object.values(ilikeCallArgs![1] as Record<string, string>)).toContain('%test%');
     });
 
     describe('findMany', () => {

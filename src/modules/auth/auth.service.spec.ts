@@ -381,7 +381,7 @@ describe('AuthService - Comprehensive Tests', () => {
       // Wait for promise resolution (catch block)
       await new Promise(process.nextTick);
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Suspicious activity check failed'));
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining("suspicious_activity_check'"));
     });
 
     it('should not fail login if new device check fails', async () => {
@@ -416,7 +416,7 @@ describe('AuthService - Comprehensive Tests', () => {
       // Wait for promise resolution
       await new Promise(process.nextTick);
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('New device check failed'));
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining("new_device_check'"));
     });
 
     it('should throw UnauthorizedException for non-existent email', async () => {

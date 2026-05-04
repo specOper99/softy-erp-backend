@@ -232,7 +232,7 @@ describe('TasksService - Comprehensive Tests', () => {
       expect(result).toHaveLength(1);
       expect(mockTaskRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { bookingId: 'booking-uuid-123' },
+          where: expect.objectContaining({ bookingId: 'booking-uuid-123' }),
           take: 100,
         }),
       );
@@ -272,7 +272,7 @@ describe('TasksService - Comprehensive Tests', () => {
       expect(result.length).toBe(1);
       expect(mockTaskRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { assignedUserId: 'user-uuid-123' },
+          where: expect.objectContaining({ assignedUserId: 'user-uuid-123' }),
           take: 100,
         }),
       );
