@@ -599,7 +599,7 @@ describe('WebhookService', () => {
       await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.dns_lookup_failed');
     });
 
-    it('should allow legacy webhooks without allowlisted IPs (re-resolves on send)', async () => {
+    it('should block legacy webhooks without pinned IPs (fail-closed DNS rebind protection)', async () => {
       (lookup as jest.Mock).mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 
       const webhook = {
@@ -607,19 +607,21 @@ describe('WebhookService', () => {
         url: 'https://legacy.com/webhook',
         secret: TEST_SECRETS.WEBHOOK_SECRET,
         events: ['booking.created'],
-        resolvedIps: undefined, // legacy
+        resolvedIps: undefined, // legacy — no pinned IPs
         tenantId: mockTenantId,
         isActive: true,
       } as unknown as Webhook;
 
-      // We need to use deliverWebhook to reach check logic or rely on sendWebhookOnce being called
-      // emit calls concurrencyLimit -> sendWebhookWithRetry -> sendWebhookOnce
       qb.getMany.mockResolvedValue([webhook]);
 
-      await service.emit({ type: 'booking.created', tenantId: mockTenantId, payload: {}, timestamp: '' });
+      // Security fix (Step 8): emit uses Promise.allSettled so it resolves,
+      // but the delivery is blocked before DNS re-resolution.
+      await expect(
+        service.emit({ type: 'booking.created', tenantId: mockTenantId, payload: {}, timestamp: '' }),
+      ).resolves.toBeUndefined();
 
-      // Should resolve DNS again
-      expect(lookup).toHaveBeenCalledWith('legacy.com', { all: true });
+      // The rebind check fires before lookup — lookup must NOT have been called
+      expect(lookup).not.toHaveBeenCalledWith('legacy.com', expect.anything());
     });
 
     it('should block DNS rebinding (IP changed from allowlist)', async () => {

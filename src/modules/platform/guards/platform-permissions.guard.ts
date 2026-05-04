@@ -78,7 +78,7 @@ export class PlatformPermissionsGuard implements CanActivate {
     const user = request.user;
 
     if (!user?.platformRole) {
-      throw new ForbiddenException('Platform role required');
+      throw new ForbiddenException('platform.role_required');
     }
 
     const userPermissions = ROLE_PERMISSIONS[user.platformRole] ?? [];
@@ -86,7 +86,10 @@ export class PlatformPermissionsGuard implements CanActivate {
     const hasPermission = requiredPermissions.every((permission) => userPermissions.includes(permission));
 
     if (!hasPermission) {
-      throw new ForbiddenException(`Missing required permissions: ${requiredPermissions.join(', ')}`);
+      throw new ForbiddenException({
+        code: 'platform.permissions_missing',
+        args: { permissions: requiredPermissions.join(', ') },
+      });
     }
 
     return true;

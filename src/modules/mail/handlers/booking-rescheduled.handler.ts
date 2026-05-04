@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { BookingRescheduledEvent } from '../../bookings/events/booking-rescheduled.event';
 import { MailService } from '../mail.service';
 
@@ -23,7 +24,7 @@ export class BookingRescheduledHandler implements IEventHandler<BookingReschedul
         });
       } catch (error) {
         this.logger.error(
-          `Failed to send booking rescheduled email for ${event.bookingId} to ${staffEmail}: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to send booking rescheduled email for ${event.bookingId} to ${staffEmail}: ${toErrorMessage(error)}`,
         );
       }
     }

@@ -2,15 +2,10 @@
 import 'reflect-metadata';
 import './instrument';
 
-import {
-  BadRequestException,
-  ClassSerializerInterceptor,
-  Logger,
-  ValidationPipe,
-  VersioningType,
-} from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ApiErrors } from './common/errors/api-errors';
 import { initTracing } from './common/telemetry/tracing';
 import { corsOriginDelegate, getCorsOriginAllowlist } from './common/utils/cors-origins.util';
 import { configureSwagger } from './config/swagger.config';
@@ -21,6 +16,7 @@ initTracing();
 import { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
 import { DataSource } from 'typeorm';
+import { toErrorMessage } from './common/utils/error.util';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
@@ -109,16 +105,18 @@ async function bootstrap() {
           isOptional: 'validation.invalid',
         };
 
-        const messages = errors.flatMap((error) => {
+        const items = errors.flatMap((error) => {
           if (!error.constraints) return [];
           return Object.entries(error.constraints).map(([constraint]) => {
             const i18nKey = keyMap[constraint] ?? 'validation.invalid';
-            return `${error.property}: ${i18nKey}`;
+            return { property: error.property, code: i18nKey };
           });
         });
 
-        // Return all field errors so the client can mark every invalid field at once.
-        throw new BadRequestException(messages.length > 0 ? messages : 'Validation failed');
+        if (items.length > 0) {
+          throw ApiErrors.validation(items);
+        }
+        throw ApiErrors.badRequest('validation.failed');
       },
     }),
   );
@@ -171,9 +169,7 @@ async function bootstrap() {
   } catch (error) {
     // Re-throw in production; log and continue in other environments.
     if (isProd) throw error;
-    logger.warn(
-      `Migration check failed (non-fatal in non-prod): ${error instanceof Error ? error.message : String(error)}`,
-    );
+    logger.warn(`Migration check failed (non-fatal in non-prod): ${toErrorMessage(error)}`);
   }
 
   logger.log(`Server running on http://localhost:${port}`);

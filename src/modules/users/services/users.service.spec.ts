@@ -256,7 +256,9 @@ describe('UsersService - Comprehensive Tests', () => {
 
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.role = :role', { role: Role.FIELD_STAFF });
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.isActive = :isActive', { isActive: true });
-      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('user.email ILIKE :search', { search: '%test%' });
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith("user.email ILIKE :search ESCAPE '\\\\'", {
+        search: '%test%',
+      });
     });
 
     describe('findMany', () => {

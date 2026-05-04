@@ -274,7 +274,10 @@ export class MediaService {
       relations: ['booking', 'task'],
     });
     if (!attachment) {
-      throw new NotFoundException(`Attachment with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'media.attachment_not_found_id',
+        args: { id },
+      });
     }
     return attachment;
   }
@@ -326,7 +329,10 @@ export class MediaService {
       where: { id },
     });
     if (!attachment) {
-      throw new NotFoundException(`Attachment with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'media.attachment_not_found_id',
+        args: { id },
+      });
     }
 
     // Try to delete from storage

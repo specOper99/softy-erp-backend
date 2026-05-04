@@ -20,7 +20,7 @@ export class InvoiceController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get invoice for a booking' })
   @ApiResponse({ status: 200, description: 'Invoice returned (null if not yet generated)' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   async getByBookingId(@Param('bookingId', ParseUUIDPipe) bookingId: string) {
     return this.invoiceService.findByBookingId(bookingId);
@@ -31,9 +31,9 @@ export class InvoiceController {
   @ApiOperation({ summary: 'Generate invoice for a booking' })
   @ApiResponse({ status: 201, description: 'Invoice generated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid booking state or arguments' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Booking not found' })
+  @ApiResponse({ status: 404, description: 'bookings.not_found' })
   async generate(@Param('bookingId', ParseUUIDPipe) bookingId: string) {
     return this.invoiceService.createInvoice(bookingId);
   }
@@ -51,7 +51,7 @@ export class InvoiceController {
   })
   @ApiOperation({ summary: 'Download invoice PDF' })
   @ApiResponse({ status: 200, description: 'PDF file download' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - You can only download your own invoices' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadPdf(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {

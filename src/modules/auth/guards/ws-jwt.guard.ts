@@ -7,6 +7,8 @@ import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util
 import { AuthService } from '../auth.service';
 import { TokenBlacklistService } from '../services/token-blacklist.service';
 import { TokenPayload } from '../services/token.service';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 interface SocketData {
   user?: TokenPayload;
@@ -29,12 +31,12 @@ export class WsJwtGuard implements CanActivate {
       const token = this.extractTokenFromHandshake(client);
 
       if (!token) {
-        throw new WsException('Unauthorized');
+        throw new WsException('common.unauthorized_plain');
       }
 
       const isBlacklisted = await this.tokenBlacklistService.isBlacklisted(token);
       if (isBlacklisted) {
-        throw new WsException('Unauthorized');
+        throw new WsException('common.unauthorized_plain');
       }
 
       const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
@@ -48,10 +50,8 @@ export class WsJwtGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      this.logger.debug(
-        `WS JWT auth denied: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
-      );
-      throw new WsException('Unauthorized');
+      this.logger.debug(`WS JWT auth denied: ${toErrorMessage(error)}`);
+      throw new WsException('common.unauthorized_plain');
     }
   }
 
@@ -65,7 +65,7 @@ export class WsJwtGuard implements CanActivate {
     if (algorithm === 'RS256') {
       const publicKey = this.configService.get<string>('JWT_PUBLIC_KEY');
       if (!publicKey) {
-        throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
+        throw new RuntimeFailure('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
       }
       return publicKey;
     }

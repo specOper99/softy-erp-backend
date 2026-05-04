@@ -8,7 +8,7 @@ import {
   MemoryHealthIndicator,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
-import { minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle, minutes } from '@nestjs/throttler';
 import { timingSafeEqual } from 'node:crypto';
 import { SkipIpRateLimit } from '../../common/decorators/skip-ip-rate-limit.decorator';
 import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';

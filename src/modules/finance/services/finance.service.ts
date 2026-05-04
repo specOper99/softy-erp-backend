@@ -112,7 +112,10 @@ export class FinanceService {
 
     const tenant = await this.tenantsService.findOne(tenantId);
     if (!tenant) {
-      throw new NotFoundException(`Tenant ${tenantId} not found`);
+      throw new NotFoundException({
+        code: 'platform.tenant_not_found',
+        args: { tenantId },
+      });
     }
 
     const currency = data.currency || tenant.baseCurrency;
@@ -313,7 +316,9 @@ export class FinanceService {
   }
 
   async findAllTransactions(filter?: TransactionFilterDto): Promise<Transaction[]> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const queryBuilder = this.transactionRepository.createQueryBuilder('t');
+    queryBuilder.where('t.tenantId = :tenantId', { tenantId });
 
     if (filter?.type) {
       queryBuilder.andWhere('t.type = :type', { type: filter.type });
@@ -336,7 +341,9 @@ export class FinanceService {
   async findAllTransactionsCursor(
     query: TransactionCursorQueryDto,
   ): Promise<{ data: Transaction[]; nextCursor: string | null }> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const qb = this.transactionRepository.createQueryBuilder('t');
+    qb.where('t.tenantId = :tenantId', { tenantId });
 
     if (query.type) {
       qb.andWhere('t.type = :type', { type: query.type });
@@ -369,7 +376,10 @@ export class FinanceService {
       where: { id },
     });
     if (!transaction) {
-      throw new NotFoundException(`Transaction with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'finance.transaction_not_found',
+        args: { id },
+      });
     }
     return transaction;
   }
@@ -388,7 +398,10 @@ export class FinanceService {
         });
 
         if (!original) {
-          throw new NotFoundException(`Transaction with ID ${id} not found`);
+          throw new NotFoundException({
+            code: 'finance.transaction_not_found',
+            args: { id },
+          });
         }
 
         // Refuse to void an already-voided transaction.

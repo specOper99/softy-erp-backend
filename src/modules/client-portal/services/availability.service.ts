@@ -3,9 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Raw, Repository } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
+import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
@@ -48,12 +48,12 @@ export class AvailabilityService {
 
       const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
       if (!tenant) {
-        throw new Error('Tenant not found');
+        throw new Error('tenants.not_found');
       }
 
       const servicePackage = await this.packageRepository.findOne({ where: { id: packageId } });
       if (!servicePackage) {
-        throw new Error('Package not found');
+        throw new Error('client_portal.package_not_found');
       }
 
       const targetDate = parseDateOnlyToUtc(date);

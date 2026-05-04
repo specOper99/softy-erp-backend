@@ -1,7 +1,10 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { Counter } from 'prom-client';
+import { DataSource } from 'typeorm';
+import { toErrorMessage } from '../../common/utils/error.util';
 import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
 import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -19,6 +22,7 @@ export interface ChainVerificationResult {
 import { AuditPublisher } from './audit.publisher';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
 import { AuditLogRepository } from './repositories/audit-log.repository';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 @Injectable()
 export class AuditService implements AuditPublisher {
@@ -28,6 +32,7 @@ export class AuditService implements AuditPublisher {
   constructor(
     private readonly auditRepository: AuditLogRepository,
     private readonly metricsFactory: MetricsFactory,
+    @InjectDataSource() private readonly dataSource: DataSource,
     @Optional() @InjectQueue('audit-queue') private readonly auditQueue?: Queue,
   ) {
     // Best-effort policy: never fail request, but emit a counter for alerting.
@@ -53,28 +58,44 @@ export class AuditService implements AuditPublisher {
     try {
       // Primary path: Async queue processing for performance
       if (!this.auditQueue) {
-        throw new Error('Audit queue not available');
+        throw new RuntimeFailure('Audit queue not available');
       }
       await this.auditQueue.add('log', sanitizedData);
     } catch (queueError) {
       this.auditWriteFailureCounter.inc({ tenant_id: tenantId, stage: 'queue' });
       // Fallback: Synchronous write if queue is unavailable
-      this.logger.warn(
-        `Audit queue unavailable, falling back to synchronous write: ${queueError instanceof Error ? queueError.message : String(queueError)}`,
-      );
+      this.logger.warn(`Audit queue unavailable, falling back to synchronous write: ${toErrorMessage(queueError)}`);
 
       try {
-        // Direct synchronous insert as fallback
-        const auditLog = this.auditRepository.create(sanitizedData);
-        await this.auditRepository.save(auditLog);
+        // Synchronous fallback: must maintain hash chain integrity.
+        // Uses the same advisory lock as the queue processor to prevent races.
+        await this.dataSource.transaction(async (manager) => {
+          await manager.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [tenantId]);
+
+          const auditRepo = manager.getRepository(AuditLog);
+          const lastLog = await auditRepo.findOne({
+            where: { tenantId },
+            order: { sequenceNumber: 'DESC' },
+            select: ['hash', 'sequenceNumber'],
+          });
+
+          const entry = auditRepo.create({
+            ...sanitizedData,
+            previousHash: lastLog?.hash ?? undefined,
+            sequenceNumber: (lastLog?.sequenceNumber ?? 0) + 1,
+          });
+          entry.createdAt = new Date();
+          entry.hash = entry.calculateHash();
+
+          await auditRepo.save(entry);
+        });
         this.logger.debug('Audit log saved synchronously as fallback');
       } catch (dbError) {
         this.auditWriteFailureCounter.inc({ tenant_id: tenantId, stage: 'sync' });
         // Log error but don't throw to avoid breaking main flow
-        this.logger.error(
-          `Failed to save audit log (both queue and sync): ${dbError instanceof Error ? dbError.message : String(dbError)}`,
-          { auditData: sanitizedData },
-        );
+        this.logger.error(`Failed to save audit log (both queue and sync): ${toErrorMessage(dbError)}`, {
+          auditData: sanitizedData,
+        });
       }
     }
   }
@@ -82,11 +103,14 @@ export class AuditService implements AuditPublisher {
   async verifyChainIntegrity(tenantId: string, limit = 1000): Promise<ChainVerificationResult> {
     const MAX_LIMIT = 1000;
     const effectiveLimit = Number.isFinite(limit) ? Math.min(MAX_LIMIT, Math.max(1, Math.trunc(limit))) : 1000;
-    const logs = await this.auditRepository.find({
-      where: { tenantId },
-      order: { sequenceNumber: 'ASC' },
-      take: effectiveLimit,
-    });
+    // Exclude DLQ entries (sequenceNumber IS NULL) — they are not part of the integrity chain.
+    const logs = await this.auditRepository
+      .createQueryBuilder('audit')
+      .where('audit.tenantId = :tenantId', { tenantId })
+      .andWhere('audit.sequenceNumber IS NOT NULL')
+      .orderBy('audit.sequenceNumber', 'ASC')
+      .take(effectiveLimit)
+      .getMany();
 
     if (logs.length === 0) {
       return { valid: true, totalChecked: 0 };

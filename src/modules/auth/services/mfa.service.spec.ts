@@ -111,7 +111,7 @@ describe('MfaService', () => {
         mfaSecret: secret,
       } as User);
 
-      await expect(service.enableMfa(mockUser, '000000')).rejects.toThrow('Invalid MFA code');
+      await expect(service.enableMfa(mockUser, '000000')).rejects.toThrow('auth.invalid_mfa_code');
     });
   });
 

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 export interface SecurityEventEmail {
   to: string;
@@ -80,9 +81,7 @@ export class EmailNotificationService {
 
       this.logger.log(`Security event email sent: ${event.eventType} to ${event.to}`);
     } catch (error) {
-      this.logger.error(
-        `Failed to send security event email: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`Failed to send security event email: ${toErrorMessage(error)}`);
       // Don't throw - email failures shouldn't block security operations
     }
   }

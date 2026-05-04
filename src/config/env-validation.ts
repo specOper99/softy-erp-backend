@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { IsEnum, IsIn, IsNumber, IsOptional, IsString, Matches, MinLength, validateSync } from 'class-validator';
+import { RuntimeFailure } from '../common/errors/runtime-failure';
 
 enum NodeEnv {
   Development = 'development',
@@ -358,20 +359,20 @@ export function validate(config: Record<string, unknown>) {
           return `${e.property}: ${constraints}`;
         })
         .join('; ');
-      throw new Error(`Configuration validation failed: ${errorSummary}`);
+      throw new RuntimeFailure(`Configuration validation failed: ${errorSummary}`);
     }
   }
 
   // DB_SYNCHRONIZE is forbidden in ALL environments — migrations are the only way to change schema.
   if (validatedConfig.DB_SYNCHRONIZE === 'true') {
-    throw new Error('SECURITY: DB_SYNCHRONIZE=true is forbidden in all environments. Use migrations only.');
+    throw new RuntimeFailure('SECURITY: DB_SYNCHRONIZE=true is forbidden in all environments. Use migrations only.');
   }
 
   // Enhanced security enforcement for production
   if (isProd) {
     // Never allow disabling global rate limiting in production.
     if (validatedConfig.DISABLE_RATE_LIMITING === 'true') {
-      throw new Error('SECURITY: DISABLE_RATE_LIMITING is forbidden in production environments.');
+      throw new RuntimeFailure('SECURITY: DISABLE_RATE_LIMITING is forbidden in production environments.');
     }
 
     // JWT algorithm must be a single mode (HS256 OR RS256) to prevent alg confusion.
@@ -381,41 +382,41 @@ export function validate(config: Record<string, unknown>) {
       .filter(Boolean);
     const uniqueAlgs = Array.from(new Set(rawAlgs));
     if (uniqueAlgs.length !== 1 || (uniqueAlgs[0] !== 'HS256' && uniqueAlgs[0] !== 'RS256')) {
-      throw new Error(
+      throw new RuntimeFailure(
         'SECURITY: JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256 (no comma-separated lists).',
       );
     }
     if (uniqueAlgs[0] === 'RS256' && !validatedConfig.JWT_PUBLIC_KEY) {
-      throw new Error('SECURITY: JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
+      throw new RuntimeFailure('SECURITY: JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
     }
     if (uniqueAlgs[0] === 'RS256' && !validatedConfig.JWT_PRIVATE_KEY) {
-      throw new Error('SECURITY: JWT_PRIVATE_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
+      throw new RuntimeFailure('SECURITY: JWT_PRIVATE_KEY is required when JWT_ALLOWED_ALGORITHMS=RS256.');
     }
 
     // JWT_SECRET validation with entropy checking
     if (!validatedConfig.JWT_SECRET) {
-      throw new Error('SECURITY: JWT_SECRET is required in production environments.');
+      throw new RuntimeFailure('SECURITY: JWT_SECRET is required in production environments.');
     }
 
     const jwtSecretError = validateSecretStrength(validatedConfig.JWT_SECRET, 'JWT_SECRET');
     if (jwtSecretError) {
-      throw new Error(jwtSecretError);
+      throw new RuntimeFailure(jwtSecretError);
     }
 
     if (!validatedConfig.PLATFORM_JWT_SECRET) {
-      throw new Error('SECURITY: PLATFORM_JWT_SECRET is required in production environments.');
+      throw new RuntimeFailure('SECURITY: PLATFORM_JWT_SECRET is required in production environments.');
     }
 
     const platformJwtSecretError = validateSecretStrength(validatedConfig.PLATFORM_JWT_SECRET, 'PLATFORM_JWT_SECRET');
     if (platformJwtSecretError) {
-      throw new Error(platformJwtSecretError);
+      throw new RuntimeFailure(platformJwtSecretError);
     }
 
     // CURSOR_SECRET is recommended but optional (falls back to JWT_SECRET)
     if (validatedConfig.CURSOR_SECRET) {
       const cursorSecretError = validateSecretStrength(validatedConfig.CURSOR_SECRET, 'CURSOR_SECRET');
       if (cursorSecretError) {
-        throw new Error(cursorSecretError);
+        throw new RuntimeFailure(cursorSecretError);
       }
     }
 
@@ -428,22 +429,39 @@ export function validate(config: Record<string, unknown>) {
       if (typeof value !== 'string') continue;
       if (!placeholderRe.test(value)) continue;
 
-      throw new Error(`SECURITY: ${key} appears to be a placeholder value and must be set in production.`);
+      throw new RuntimeFailure(`SECURITY: ${key} appears to be a placeholder value and must be set in production.`);
     }
   }
 
   // Allow DISABLE_RATE_LIMITING only in explicit test environment.
   if (!isTestEnv && validatedConfig.DISABLE_RATE_LIMITING === 'true') {
-    throw new Error('SECURITY: DISABLE_RATE_LIMITING may only be used when NODE_ENV=test.');
+    throw new RuntimeFailure('SECURITY: DISABLE_RATE_LIMITING may only be used when NODE_ENV=test.');
+  }
+
+  // In non-prod, warn (not throw) when secrets are present but weak.
+  // Developers may need short secrets locally; staging/CI should notice these warnings.
+  if (!isProd && !isTestEnv) {
+    const nonProdSecretsToCheck: Array<[string | undefined, string]> = [
+      [validatedConfig.JWT_SECRET, 'JWT_SECRET'],
+      [validatedConfig.PLATFORM_JWT_SECRET, 'PLATFORM_JWT_SECRET'],
+      [validatedConfig.CURSOR_SECRET, 'CURSOR_SECRET'],
+    ];
+    for (const [secret, name] of nonProdSecretsToCheck) {
+      if (!secret) continue;
+      const err = validateSecretStrength(secret, name);
+      if (err) {
+        console.warn(`[env-validation] NON-PROD WARNING: ${err}`);
+      }
+    }
   }
 
   // Vault enforcement (opt-in via VAULT_ENABLED=true)
   if (validatedConfig.VAULT_ENABLED === 'true') {
     if (!validatedConfig.VAULT_ADDR) {
-      throw new Error('SECURITY: VAULT_ADDR is required when VAULT_ENABLED=true');
+      throw new RuntimeFailure('SECURITY: VAULT_ADDR is required when VAULT_ENABLED=true');
     }
     if (!validatedConfig.VAULT_SECRET_PATH) {
-      throw new Error('SECURITY: VAULT_SECRET_PATH is required when VAULT_ENABLED=true');
+      throw new RuntimeFailure('SECURITY: VAULT_SECRET_PATH is required when VAULT_ENABLED=true');
     }
 
     const hasToken = !!validatedConfig.VAULT_TOKEN;
@@ -452,12 +470,12 @@ export function validate(config: Record<string, unknown>) {
 
     // Prevent partial AppRole config (one without the other)
     if (hasRoleId !== hasSecretId) {
-      throw new Error('SECURITY: Vault AppRole auth requires both VAULT_ROLE_ID and VAULT_SECRET_ID');
+      throw new RuntimeFailure('SECURITY: Vault AppRole auth requires both VAULT_ROLE_ID and VAULT_SECRET_ID');
     }
 
     const hasAppRole = hasRoleId && hasSecretId;
     if (!hasToken && !hasAppRole) {
-      throw new Error(
+      throw new RuntimeFailure(
         'SECURITY: Vault auth must use VAULT_TOKEN or VAULT_ROLE_ID+VAULT_SECRET_ID when VAULT_ENABLED=true',
       );
     }

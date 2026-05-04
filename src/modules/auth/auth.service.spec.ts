@@ -335,7 +335,7 @@ describe('AuthService - Comprehensive Tests', () => {
         password: TEST_PASSWORD,
         companyName: 'Test Tenant',
       };
-      await expect(service.register(dto)).rejects.toThrow('Tenant with this name or slug already exists');
+      await expect(service.register(dto)).rejects.toThrow('tenants.tenant_exists_name_slug');
     });
   });
 
@@ -721,7 +721,16 @@ describe('AuthService - Comprehensive Tests', () => {
         remainingMs: 5000,
       });
 
-      await expect(service.login({ email: 'a@a.com', password: 'p' })).rejects.toThrow('Account temporarily locked');
+      try {
+        await service.login({ email: 'a@a.com', password: 'p' });
+        fail('expected lockout');
+      } catch (e) {
+        expect(e).toBeInstanceOf(UnauthorizedException);
+        expect((e as UnauthorizedException).getResponse()).toMatchObject({
+          code: 'auth.account_locked_seconds',
+          args: { seconds: 5 },
+        });
+      }
     });
   });
 });

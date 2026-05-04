@@ -5,6 +5,8 @@ import { Webhook } from '../entities/webhook.entity';
 import { WebhookService } from '../webhooks.service';
 import { WEBHOOK_QUEUE, WebhookJobData } from '../webhooks.types';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 /**
  * Webhook processor for handling background webhook delivery.
@@ -25,7 +27,7 @@ export class WebhookProcessor extends WorkerHost {
     const tenantId = webhook.tenantId ?? event.tenantId;
 
     if (!tenantId) {
-      throw new Error(`Webhook job ${job.id} missing tenant context`);
+      throw new RuntimeFailure(`Webhook job ${job.id} missing tenant context`);
     }
 
     await TenantContextService.run(tenantId, async () => {
@@ -43,7 +45,7 @@ export class WebhookProcessor extends WorkerHost {
 
         this.logger.log(`Webhook job ${job.id} completed: ${event.type} to ${webhook.url}`);
       } catch (error) {
-        this.logger.error(`Webhook job ${job.id} failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error(`Webhook job ${job.id} failed: ${toErrorMessage(error)}`);
         throw error; // Re-throw to trigger BullMQ retry
       }
     });

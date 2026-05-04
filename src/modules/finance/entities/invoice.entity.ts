@@ -4,6 +4,7 @@ import { MoneyColumn, PercentColumn } from '../../../common/decorators/column.de
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Client } from '../../bookings/entities/client.entity';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
@@ -116,7 +117,7 @@ export class Invoice extends BaseTenantEntity {
    */
   recordPayment(amount: number): void {
     if (amount <= 0) {
-      throw new Error('Payment amount must be positive');
+      throw new RuntimeFailure('Payment amount must be positive');
     }
 
     const amountDecimal = new Decimal(amount);

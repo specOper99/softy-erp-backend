@@ -54,7 +54,7 @@ export class UsersController {
     description: 'Use /users/cursor for better performance with large datasets.',
   })
   @ApiResponse({ status: 200, description: 'Return all users' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiQuery({ name: 'role', enum: Role, required: false })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
@@ -74,7 +74,7 @@ export class UsersController {
     description: 'Returns users from current tenant only. Supports role, isActive and search filters.',
   })
   @ApiResponse({ status: 200, description: 'Return paginated users' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -88,9 +88,9 @@ export class UsersController {
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User retrieved' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 404, description: 'common.user_not_found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
@@ -101,9 +101,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Update user (Admin only, MFA required)' })
   @ApiResponse({ status: 200, description: 'User updated' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Insufficient permissions or MFA missing' })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 404, description: 'common.user_not_found' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
@@ -113,9 +113,9 @@ export class UsersController {
   @MfaRequired()
   @ApiOperation({ summary: 'Delete user (Admin only, MFA required)' })
   @ApiResponse({ status: 200, description: 'User deleted' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Insufficient permissions or MFA missing' })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 404, description: 'common.user_not_found' })
   remove(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DeleteWithReasonDto) {
     return this.usersService.remove(id, dto.reason);
   }

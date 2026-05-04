@@ -1,4 +1,4 @@
-import { BadRequestException, ExecutionContext } from '@nestjs/common';
+import { BadRequestException, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -68,7 +68,7 @@ describe('SubscriptionGuard', () => {
       jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
       tenantsService.findOne.mockResolvedValue(null as unknown as Tenant);
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow('Tenant not found');
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow('tenants.not_found');
     });
 
     it('should allow when tenant has sufficient plan', async () => {
@@ -105,9 +105,16 @@ describe('SubscriptionGuard', () => {
         subscriptionPlan: SubscriptionPlan.FREE,
       } as unknown as Tenant);
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
-        'Upgrade to ENTERPRISE to access this feature',
-      );
+      try {
+        await guard.canActivate(mockExecutionContext);
+        fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ForbiddenException);
+        expect((e as ForbiddenException).getResponse()).toMatchObject({
+          code: 'tenants.upgrade_required',
+          args: { plan: SubscriptionPlan.ENTERPRISE },
+        });
+      }
     });
   });
 });

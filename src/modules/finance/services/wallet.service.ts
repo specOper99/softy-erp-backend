@@ -318,7 +318,10 @@ export class WalletService {
       if (createIfMissing) {
         return this.getOrCreateWalletWithManager(manager, userId);
       } else {
-        throw new NotFoundException(`Wallet not found for user ${userId}`);
+        throw new NotFoundException({
+          code: 'wallet.not_found_for_user',
+          args: { userId },
+        });
       }
     }
     return wallet;

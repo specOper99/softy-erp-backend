@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { format } from 'date-fns';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { Currency } from '../enums/currency.enum';
@@ -30,28 +31,32 @@ export class InvoiceService {
   }
 
   async findByBookingId(bookingId: string): Promise<Invoice | null> {
-    return this.invoiceRepository.findOne({ where: { bookingId } }) ?? null;
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    return this.invoiceRepository.findOne({ where: { bookingId, tenantId } }) ?? null;
   }
 
   async createInvoice(bookingId: string): Promise<Invoice> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
     const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId },
+      where: { id: bookingId, tenantId },
       relations: ['client', 'servicePackage'],
     });
 
     if (!booking) {
-      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+      throw new NotFoundException({
+        code: 'invoice.booking_not_found',
+        args: { bookingId },
+      });
     }
 
     const existingInvoice = await this.invoiceRepository.findOne({
-      where: { bookingId },
+      where: { bookingId, tenantId },
     });
 
     if (existingInvoice) {
       return existingInvoice;
     }
-
-    const invoiceNumber = this.generateInvoiceNumber();
 
     const items = [
       {
@@ -67,38 +72,52 @@ export class InvoiceService {
     const status =
       balanceDue === 0 ? InvoiceStatus.PAID : amountPaid > 0 ? InvoiceStatus.PARTIALLY_PAID : InvoiceStatus.DRAFT;
 
-    const invoice = this.invoiceRepository.create({
-      bookingId: booking.id,
-      clientId: booking.clientId,
-      booking,
-      client: booking.client,
-      invoiceNumber,
-      status,
-      issueDate: new Date(),
-      dueDate: new Date(booking.eventDate),
-      paidDate: balanceDue === 0 ? new Date() : null,
-      items,
-      subTotal: booking.subTotal,
-      taxRate: booking.taxRate,
-      taxTotal: booking.taxAmount,
-      totalAmount: booking.totalPrice,
-      amountPaid,
-      balanceDue,
-      currency: Currency.USD,
-    });
+    const MAX_INVOICE_NUMBER_RETRIES = 3;
+    let lastError: unknown;
 
-    try {
-      return await this.invoiceRepository.save(invoice);
-    } catch (error) {
-      // Handle unique constraint violation (concurrent duplicate creation)
-      if ((error as { code?: string }).code === '23505') {
-        const existing = await this.invoiceRepository.findOne({
-          where: { bookingId },
-        });
-        if (existing) return existing;
+    for (let attempt = 0; attempt < MAX_INVOICE_NUMBER_RETRIES; attempt++) {
+      const invoiceNumber = this.generateInvoiceNumber();
+
+      const invoice = this.invoiceRepository.create({
+        tenantId,
+        bookingId: booking.id,
+        clientId: booking.clientId,
+        booking,
+        client: booking.client,
+        invoiceNumber,
+        status,
+        issueDate: new Date(),
+        dueDate: new Date(booking.eventDate),
+        paidDate: balanceDue === 0 ? new Date() : null,
+        items,
+        subTotal: booking.subTotal,
+        taxRate: booking.taxRate,
+        taxTotal: booking.taxAmount,
+        totalAmount: booking.totalPrice,
+        amountPaid,
+        balanceDue,
+        currency: Currency.USD,
+      });
+
+      try {
+        return await this.invoiceRepository.save(invoice);
+      } catch (error) {
+        const pgCode = (error as { code?: string }).code;
+        if (pgCode === '23505') {
+          // Concurrent duplicate creation for the same booking → return the winner's record.
+          const existing = await this.invoiceRepository.findOne({
+            where: { bookingId, tenantId },
+          });
+          if (existing) return existing;
+          // 23505 on invoiceNumber uniqueness (different booking, same random number) — retry.
+          lastError = error;
+          continue;
+        }
+        throw error;
       }
-      throw error;
     }
+
+    throw lastError;
   }
 
   async getInvoicePdf(invoiceId: string): Promise<Uint8Array> {
@@ -108,7 +127,10 @@ export class InvoiceService {
     });
 
     if (!invoice) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      throw new NotFoundException({
+        code: 'finance.invoice_not_found',
+        args: { id: invoiceId },
+      });
     }
 
     const pdfDoc = await PDFDocument.create();

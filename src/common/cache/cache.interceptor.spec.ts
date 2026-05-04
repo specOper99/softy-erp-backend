@@ -1,4 +1,5 @@
 import { CallHandler, ExecutionContext } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { firstValueFrom, of } from 'rxjs';
@@ -39,6 +40,10 @@ describe('GlobalCacheInterceptor', () => {
             get: jest.fn(),
             set: jest.fn(),
           },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(undefined) },
         },
       ],
     }).compile();

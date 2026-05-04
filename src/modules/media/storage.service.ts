@@ -151,7 +151,10 @@ export class StorageService implements OnModuleInit {
       };
     } catch (error: unknown) {
       if (this.isS3NotFoundError(error)) {
-        throw new BadRequestException(`File not found in storage: ${key}`);
+        throw new BadRequestException({
+          code: 'storage.file_not_found',
+          args: { key },
+        });
       }
       throw error;
     }

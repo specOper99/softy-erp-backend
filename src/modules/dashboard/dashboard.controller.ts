@@ -49,7 +49,7 @@ export class DashboardController {
   @ApiQuery({ name: 'startDate', required: false })
   @ApiQuery({ name: 'endDate', required: false })
   @ApiResponse({ status: 200, description: 'KPI summary returned', type: DashboardKpiDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getKpis(@Query() query: ReportQueryDto): Promise<DashboardKpiDto> {
     return this.dashboardService.getKpiSummary(query);
@@ -62,7 +62,7 @@ export class DashboardController {
     description: 'Returns all studio metrics in a single call: bookings, tasks, staff, revenue, and notifications',
   })
   @ApiResponse({ status: 200, description: 'Studio KPIs retrieved successfully', type: StudioKpisDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getStudioKpis(): Promise<StudioKpisDto> {
     return this.dashboardService.getStudioKpis();

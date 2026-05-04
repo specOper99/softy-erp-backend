@@ -2,6 +2,10 @@ import { createHash } from 'crypto';
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('audit_logs')
+@Index('UQ_audit_logs_tenant_sequence', ['tenantId', 'sequenceNumber'], {
+  unique: true,
+  where: '"sequence_number" IS NOT NULL',
+})
 export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -21,8 +25,8 @@ export class AuditLog {
   entityName: string;
 
   @Index()
-  @Column({ name: 'entity_id' })
-  entityId: string;
+  @Column({ name: 'entity_id', nullable: true })
+  entityId?: string;
 
   @Column({ type: 'jsonb', name: 'old_values', nullable: true })
   oldValues: Record<string, unknown> | null;
@@ -61,7 +65,8 @@ export class AuditLog {
   @Column({ name: 'sequence_number', type: 'bigint', nullable: true })
   sequenceNumber: number;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz', primary: true })
+  @Index()
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   calculateHash(): string {

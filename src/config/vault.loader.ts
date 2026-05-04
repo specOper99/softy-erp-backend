@@ -1,4 +1,6 @@
 import vault from 'node-vault';
+import { RuntimeFailure } from '../common/errors/runtime-failure';
+import { toErrorMessage } from '../common/utils/error.util';
 
 /**
  * SECURITY: Whitelist of allowed environment variable names from Vault.
@@ -111,7 +113,7 @@ export const vaultLoader = async () => {
   if (!process.env.VAULT_ADDR) {
     const message = 'VAULT_ADDR is required when VAULT_ENABLED=true';
     if (process.env.NODE_ENV === 'production') {
-      throw new Error(message);
+      throw new RuntimeFailure(message);
     }
     VaultLogger.warn(message);
     return {};
@@ -120,7 +122,7 @@ export const vaultLoader = async () => {
   if (!process.env.VAULT_SECRET_PATH) {
     const message = 'VAULT_SECRET_PATH is required when VAULT_ENABLED=true';
     if (process.env.NODE_ENV === 'production') {
-      throw new Error(message);
+      throw new RuntimeFailure(message);
     }
     VaultLogger.warn(message);
     return {};
@@ -141,7 +143,7 @@ export const vaultLoader = async () => {
       });
 
       if (!isVaultLoginResponse(result)) {
-        throw new Error('Invalid Vault login response');
+        throw new RuntimeFailure('Invalid Vault login response');
       }
       client.token = result.auth.client_token;
     }
@@ -149,7 +151,7 @@ export const vaultLoader = async () => {
     const kvStore = await client.read<VaultReadResponse>(process.env.VAULT_SECRET_PATH);
 
     if (!isVaultReadResponse(kvStore)) {
-      throw new Error('Invalid Vault read response');
+      throw new RuntimeFailure('Invalid Vault read response');
     }
     // Support KV Engine v1 and v2
     // v2 returns data in data.data, v1 in data
@@ -157,7 +159,7 @@ export const vaultLoader = async () => {
 
     // Validate if casting was correct using runtime check
     if (typeof secrets !== 'object' || secrets === null) {
-      throw new Error('Invalid secrets format');
+      throw new RuntimeFailure('Invalid secrets format');
     }
 
     // SECURITY: Only assign whitelisted environment variables to prevent process pollution
@@ -189,7 +191,7 @@ export const vaultLoader = async () => {
 
     return filteredSecrets;
   } catch (error) {
-    VaultLogger.error(`Failed to load secrets from Vault: ${error instanceof Error ? error.message : String(error)}`);
+    VaultLogger.error(`Failed to load secrets from Vault: ${toErrorMessage(error)}`);
     // In production, we might want to crash here if vault is critical
     if (process.env.NODE_ENV === 'production') {
       throw error;

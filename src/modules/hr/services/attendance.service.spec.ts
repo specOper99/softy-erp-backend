@@ -82,7 +82,7 @@ describe('AttendanceService', () => {
       // Note: With DI-injected TenantAwareRepository, tenant context errors happen inside
       // the repository when methods are called - this test verifies that propagates correctly
       attendanceRepo.create.mockImplementation(() => {
-        throw new BadRequestException('Tenant context missing');
+        throw new BadRequestException('common.tenant_missing');
       });
 
       const dto: CreateAttendanceDto = { userId: 'user-1', date: '2024-01-15' };
@@ -152,7 +152,7 @@ describe('AttendanceService', () => {
 
     it('should throw BadRequestException when no tenant context', async () => {
       attendanceRepo.find.mockImplementation(() => {
-        throw new BadRequestException('Tenant context missing');
+        throw new BadRequestException('common.tenant_missing');
       });
 
       const query = new PaginationDto();

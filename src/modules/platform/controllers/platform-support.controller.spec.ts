@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { I18nService } from '../../../common/i18n';
 import { ImpersonationService } from '../services/impersonation.service';
 import { PlatformSupportController } from './platform-support.controller';
 
@@ -20,6 +21,12 @@ describe('PlatformSupportController', () => {
             }),
             endImpersonation: jest.fn().mockResolvedValue(void 0),
             getActiveImpersonations: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: I18nService,
+          useValue: {
+            translate: jest.fn((key: string) => key),
           },
         },
       ],

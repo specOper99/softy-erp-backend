@@ -48,6 +48,15 @@ export default tseslint.config(
 
       // Custom security rules
       'local-rules/no-unsafe-tenant-context': 'error',
+
+      // Enforce toErrorMessage() helper instead of verbose instanceof patterns
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ConditionalExpression[test.type="BinaryExpression"][test.operator="instanceof"][test.right.name="Error"][consequent.type="MemberExpression"][consequent.property.name="message"]',
+          message: 'Use toErrorMessage(error) from common/utils/error.util instead of manual instanceof Error checks.',
+        },
+      ],
     },
   },
   // Relaxed rules for test files - mocks commonly use any types

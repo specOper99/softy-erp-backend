@@ -31,7 +31,7 @@ export class VendorsController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create vendor' })
   @ApiResponse({ status: 201, description: 'Vendor created successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   create(@Body() dto: CreateVendorDto) {
     return this.vendorsService.create(dto);
@@ -40,7 +40,7 @@ export class VendorsController {
   @Get()
   @ApiOperation({ summary: 'List vendors' })
   @ApiResponse({ status: 200, description: 'Return tenant vendors' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAll() {
     return this.vendorsService.findAll();
@@ -49,7 +49,7 @@ export class VendorsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get vendor by ID' })
   @ApiResponse({ status: 200, description: 'Vendor details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Vendor not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {

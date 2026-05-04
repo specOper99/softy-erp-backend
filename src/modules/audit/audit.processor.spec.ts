@@ -1,25 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { getDataSourceToken } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
-import { DeepPartial, Repository } from 'typeorm';
+import { DeepPartial } from 'typeorm';
 import { AuditProcessor } from './audit.processor';
 import { AuditLog } from './entities/audit-log.entity';
 
 describe('AuditProcessor', () => {
   let processor: AuditProcessor;
-  let _repository: Repository<AuditLog>;
-
-  const _mockAuditLog = {
-    id: 'log-1',
-    hash: 'hash-1',
-    sequenceNumber: 1,
-    calculateHash: jest.fn().mockReturnValue('new-hash'),
-  } as DeepPartial<AuditLog> as AuditLog;
 
   const mockRepository = {
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    query: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockManager = {
+    query: jest.fn().mockResolvedValue(undefined),
+    getRepository: jest.fn().mockReturnValue(mockRepository),
+  };
+
+  const mockDataSource = {
+    transaction: jest.fn().mockImplementation(async (cb: (manager: typeof mockManager) => Promise<void>) => {
+      await cb(mockManager);
+    }),
   };
 
   beforeEach(async () => {
@@ -27,15 +31,20 @@ describe('AuditProcessor', () => {
       providers: [
         AuditProcessor,
         {
-          provide: getRepositoryToken(AuditLog),
-          useValue: mockRepository,
+          provide: getDataSourceToken(),
+          useValue: mockDataSource,
         },
       ],
     }).compile();
 
     processor = module.get<AuditProcessor>(AuditProcessor);
-    _repository = module.get<Repository<AuditLog>>(getRepositoryToken(AuditLog));
     jest.clearAllMocks();
+    // Re-setup defaults after clearAllMocks
+    mockManager.query.mockResolvedValue(undefined);
+    mockManager.getRepository.mockReturnValue(mockRepository);
+    mockDataSource.transaction.mockImplementation(async (cb: (manager: typeof mockManager) => Promise<void>) => {
+      await cb(mockManager);
+    });
   });
 
   it('should be defined', () => {
@@ -55,25 +64,20 @@ describe('AuditProcessor', () => {
         discard,
       } as unknown as Job;
 
-      // Verify process calls handleLog logic (indirectly via repository calls)
-      const findOneSpy = jest.spyOn(mockRepository, 'findOne').mockResolvedValue(null);
-      const createSpy = jest
-        .spyOn(mockRepository, 'create')
-        .mockReturnValue({ calculateHash: () => 'hash' } as DeepPartial<AuditLog> as AuditLog);
-      const saveSpy = jest.spyOn(mockRepository, 'save').mockResolvedValue({});
+      mockRepository.findOne.mockResolvedValue(null);
+      mockRepository.create.mockReturnValue({ calculateHash: () => 'hash' } as DeepPartial<AuditLog> as AuditLog);
+      mockRepository.save.mockResolvedValue({});
 
       await processor.process(job);
 
-      expect(findOneSpy).toHaveBeenCalled();
-      expect(createSpy).toHaveBeenCalled();
-      expect(saveSpy).toHaveBeenCalled();
+      expect(mockRepository.findOne).toHaveBeenCalled();
+      expect(mockRepository.create).toHaveBeenCalled();
+      expect(mockRepository.save).toHaveBeenCalled();
     });
 
     it('should ignore other jobs', async () => {
       const job = { name: 'unknown', data: {} } as Job;
       await processor.process(job);
-      // handleLog not called - relying on impl detail or side effects,
-      // but here verifying no error thrown.
     });
 
     it('should discard and fail when tenantId is missing', async () => {
@@ -111,8 +115,8 @@ describe('AuditProcessor', () => {
         ...logData,
         calculateHash: jest.fn().mockReturnValue('new-hash'),
       };
-      // We removed sanitize from processor, so it expects raw values
       mockRepository.create.mockReturnValue(mockEntry);
+      mockRepository.save.mockResolvedValue({});
 
       await processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job);
 
@@ -140,6 +144,7 @@ describe('AuditProcessor', () => {
         calculateHash: jest.fn().mockReturnValue('first-hash'),
       };
       mockRepository.create.mockReturnValue(mockEntry);
+      mockRepository.save.mockResolvedValue({});
 
       await processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job);
 
@@ -152,7 +157,7 @@ describe('AuditProcessor', () => {
     });
 
     it('should rethrow errors', async () => {
-      mockRepository.findOne.mockRejectedValue(new Error('DB Error'));
+      mockDataSource.transaction.mockRejectedValueOnce(new Error('DB Error'));
       await expect(
         processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job),
       ).rejects.toThrow('DB Error');

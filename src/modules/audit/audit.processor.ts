@@ -1,10 +1,12 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
-import { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { toErrorMessage } from '../../common/utils/error.util';
 import { AuditLog } from './entities/audit-log.entity';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 /**
  * Data structure for audit log queue job payload.
@@ -31,8 +33,8 @@ export class AuditProcessor extends WorkerHost {
   private readonly logger = new Logger(AuditProcessor.name);
 
   constructor(
-    @InjectRepository(AuditLog)
-    private readonly auditRepository: Repository<AuditLog>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {
     super();
   }
@@ -42,7 +44,7 @@ export class AuditProcessor extends WorkerHost {
       const tenantId = typeof job.data.tenantId === 'string' ? job.data.tenantId.trim() : '';
       if (tenantId === '') {
         job.discard();
-        throw new Error('Invalid audit job payload: tenantId is required');
+        throw new RuntimeFailure('Invalid audit job payload: tenantId is required');
       }
 
       return TenantContextService.run(tenantId, () => this.handleLog(job.data));
@@ -50,34 +52,42 @@ export class AuditProcessor extends WorkerHost {
   }
 
   private async handleLog(data: AuditLogJobData): Promise<void> {
-    try {
-      const { tenantId, ...logData } = data;
+    const { tenantId, ...logData } = data;
 
-      // Find last log for sequence and hash chaining
-      const lastLog = await this.auditRepository.findOne({
-        where: { tenantId },
-        order: { sequenceNumber: 'DESC' },
-        select: ['hash', 'sequenceNumber'],
+    await this.dataSource
+      .transaction(async (manager) => {
+        // Advisory lock scoped to this tenant prevents concurrent workers from
+        // reading the same lastLog and computing duplicate sequenceNumbers.
+        // hashtext() is a stable PostgreSQL function, so the lock is per-tenant.
+        await manager.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [tenantId]);
+
+        const auditRepo = manager.getRepository(AuditLog);
+
+        const lastLog = await auditRepo.findOne({
+          where: { tenantId },
+          order: { sequenceNumber: 'DESC' },
+          select: ['hash', 'sequenceNumber'],
+        });
+
+        const entry = auditRepo.create({
+          ...logData,
+          tenantId,
+          previousHash: lastLog?.hash ?? undefined,
+          sequenceNumber: (lastLog?.sequenceNumber ?? 0) + 1,
+        });
+
+        entry.createdAt = new Date();
+        entry.hash = entry.calculateHash();
+
+        await auditRepo.save(entry);
+      })
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Failed to process audit log job ${data.action}: ${toErrorMessage(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        throw error; // Retry mechanism will kick in
       });
-
-      const entry = this.auditRepository.create({
-        ...logData,
-        tenantId,
-        previousHash: lastLog?.hash ?? undefined,
-        sequenceNumber: (lastLog?.sequenceNumber ?? 0) + 1,
-      });
-
-      entry.createdAt = new Date();
-      entry.hash = entry.calculateHash();
-
-      await this.auditRepository.save(entry);
-    } catch (error) {
-      this.logger.error(
-        `Failed to process audit log job ${data.action}: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw error; // Retry mechanism will kick in
-    }
   }
 
   @OnWorkerEvent('failed')
@@ -94,33 +104,36 @@ export class AuditProcessor extends WorkerHost {
         // or send to an external DLQ like SQS/RabbitMQ
         await this.storeToDLQ(job.data, error);
       } catch (dlqError) {
-        this.logger.error(
-          `Failed to store audit job to DLQ: ${dlqError instanceof Error ? dlqError.message : String(dlqError)}`,
-        );
+        this.logger.error(`Failed to store audit job to DLQ: ${toErrorMessage(dlqError)}`);
       }
     }
   }
 
   /**
    * Store failed audit log to dead letter queue for later processing.
-   * This ensures audit logs are never silently lost.
+   * Writes to a special DLQ action prefix and uses sequenceNumber = null so
+   * verifyChainIntegrity skips these entries — they are not part of the chain.
    */
   private async storeToDLQ(data: AuditLogJobData, error: Error): Promise<void> {
-    // Create a special audit entry marking this as a failed DLQ item
-    const dlqEntry = this.auditRepository.create({
-      tenantId: data.tenantId,
-      action: `DLQ_FAILED:${data.action}`,
-      entityName: data.entityName,
-      entityId: data.entityId,
-      userId: data.userId,
-      notes: `FAILED_JOB: ${error.message}. Original data: ${JSON.stringify(data).slice(0, 1000)}`,
-      sequenceNumber: -1, // Negative sequence indicates DLQ entry
+    await this.dataSource.transaction(async (manager) => {
+      const auditRepo = manager.getRepository(AuditLog);
+
+      const dlqEntry = auditRepo.create({
+        tenantId: data.tenantId,
+        action: `DLQ_FAILED:${data.action}`,
+        entityName: data.entityName ?? 'unknown',
+        entityId: data.entityId ?? undefined,
+        userId: data.userId,
+        notes: `FAILED_JOB: ${error.message}. Original data: ${JSON.stringify(data).slice(0, 1000)}`,
+        // Intentionally no sequenceNumber / previousHash — DLQ entries are NOT part of the integrity chain.
+      });
+
+      dlqEntry.createdAt = new Date();
+      dlqEntry.hash = dlqEntry.calculateHash();
+
+      await auditRepo.save(dlqEntry);
     });
 
-    dlqEntry.createdAt = new Date();
-    dlqEntry.hash = dlqEntry.calculateHash();
-
-    await this.auditRepository.save(dlqEntry);
     this.logger.warn(`Stored failed audit log to DLQ: ${data.action}`);
   }
 }

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import * as CircuitBreaker from 'opossum';
 import pRetry from 'p-retry';
 import { I18nService } from '../../../common/i18n';
+import { redactEmail } from '../../../common/utils/error.util';
 import {
   BookingEmailData,
   BookingRescheduledStaffEmailData,
@@ -45,7 +46,7 @@ export class MailSenderService {
     context: Record<string, unknown>;
   }): Promise<EmailResult> {
     if (!this.isEnabled) {
-      this.logger.log(`[DEV] ${params.logLabel} to ${params.to}`, params.context);
+      this.logger.log(`[DEV] ${params.logLabel} to ${redactEmail(params.to)}`, params.context);
       return { success: true, email: params.to };
     }
 

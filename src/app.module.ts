@@ -201,9 +201,8 @@ import { CoreModule } from './modules/core/core.module';
 
     { provide: APP_GUARD, useClass: TenantGuard },
 
-    // Global filters (registered via APP_FILTER to allow DI injection)
-    // AllExceptionsFilter catches all exceptions with i18n translation;
-    // I18nValidationExceptionFilter handles class-validator DTO errors.
+    // Global filters — AllExceptionsFilter translates structured errors (code + args),
+    // validation batches (validationErrors), and registered string keys.
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
 
     // Global interceptors — registration order is OUTER-to-INNER.

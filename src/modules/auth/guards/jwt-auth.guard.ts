@@ -1,5 +1,6 @@
 import { ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { toErrorMessage } from '../../common/utils/error.util';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -15,9 +16,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     _status?: unknown,
   ): TUser {
     if (err) {
-      const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error';
+      const message = toErrorMessage(err);
       this.logger.warn(`JWT auth error: ${message}`);
-      throw err instanceof Error ? err : new UnauthorizedException('Unauthorized');
+      throw err instanceof Error ? err : new UnauthorizedException('common.unauthorized_plain');
     }
 
     if (!user) {
@@ -26,7 +27,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       if (reason) {
         this.logger.debug(`JWT auth denied: ${reason}`);
       }
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException('common.unauthorized_plain');
     }
 
     return user;

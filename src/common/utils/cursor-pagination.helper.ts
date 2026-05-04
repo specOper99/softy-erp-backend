@@ -1,5 +1,6 @@
 import { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { decodeCursor, encodeCursor } from './cursor.utils';
+import { RuntimeFailure } from '../errors/runtime-failure';
 
 export interface EntityWithTimestamps {
   createdAt: Date;
@@ -21,7 +22,7 @@ export interface CursorPaginationResult<T> {
 export class CursorPaginationHelper {
   private static assertSafeIdentifier(value: string, name: 'alias' | 'dateField'): void {
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
-      throw new Error(`cursor-pagination: unsafe ${name} identifier`);
+      throw new RuntimeFailure(`cursor-pagination: unsafe ${name} identifier`);
     }
   }
 
@@ -80,7 +81,7 @@ export class CursorPaginationHelper {
       if (lastItem) {
         const dateValue = (lastItem as Record<string, unknown>)[dateField];
         if (!(dateValue instanceof Date)) {
-          throw new Error('cursor-pagination: invalid date field value');
+          throw new RuntimeFailure('cursor-pagination: invalid date field value');
         }
         nextCursor = encodeCursor(dateValue, lastItem.id);
       }

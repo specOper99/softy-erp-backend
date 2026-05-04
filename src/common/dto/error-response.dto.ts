@@ -56,6 +56,26 @@ export class ErrorResponseDto {
     description: 'Additional error details (validation errors, etc.)',
   })
   details?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description: 'Stable i18n error code for programmatic handling',
+    example: 'booking.not_found',
+  })
+  code?: string;
+
+  @ApiPropertyOptional({
+    description: 'Per-field validation errors with translated messages',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        field: { type: 'string' },
+        code: { type: 'string' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  errors?: Array<{ field: string; code: string; message: string }>;
 }
 
 /**
@@ -80,8 +100,8 @@ export const ERROR_RESPONSES = {
     type: ErrorResponseDto,
     example: {
       statusCode: 401,
-      message: 'Unauthorized',
-      error: 'Unauthorized',
+      message: 'common.unauthorized_plain',
+      error: 'common.unauthorized_plain',
       timestamp: '2026-02-03T10:30:00.000Z',
     },
   },
@@ -136,7 +156,7 @@ export const ERROR_RESPONSES = {
     type: ErrorResponseDto,
     example: {
       statusCode: 429,
-      message: 'Too many requests',
+      message: 'common.too_many_requests',
       error: 'Too Many Requests',
       timestamp: '2026-02-03T10:30:00.000Z',
     },

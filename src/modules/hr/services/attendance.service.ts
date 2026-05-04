@@ -48,7 +48,7 @@ export class AttendanceService {
       return await this.attendanceRepository.save(attendance);
     } catch (err) {
       if ((err as { code?: string })?.code === '23505') {
-        throw new ConflictException('Attendance record for this user and date already exists');
+        throw new ConflictException('hr.attendance_duplicate_day');
       }
       throw err;
     }

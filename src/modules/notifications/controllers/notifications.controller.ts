@@ -30,7 +30,7 @@ export class NotificationsController {
   @ApiQuery({ name: 'read', required: false, type: Boolean })
   @ApiQuery({ name: 'type', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return user notifications', type: [NotificationResponseDto] })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async getNotifications(@CurrentUser() user: User, @Query() filter: NotificationFilterDto) {
     return this.notificationService.getUserNotifications(user.id, filter);
   }

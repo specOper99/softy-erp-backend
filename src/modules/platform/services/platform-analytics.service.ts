@@ -145,7 +145,10 @@ export class PlatformAnalyticsService {
     });
 
     if (!tenant) {
-      throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
+      throw new NotFoundException({
+        code: 'platform.tenant_not_found',
+        args: { tenantId },
+      });
     }
 
     const activityScore = this.calculateActivityScore(tenant);

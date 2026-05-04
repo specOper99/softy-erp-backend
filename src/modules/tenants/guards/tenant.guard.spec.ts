@@ -98,7 +98,7 @@ describe('TenantGuard', () => {
       jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
 
       expect(() => guard.canActivate(mockExecutionContext)).toThrow(UnauthorizedException);
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow('Tenant context missing');
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow('common.tenant_missing');
     });
 
     it('should check both handler and class for SkipTenant', async () => {

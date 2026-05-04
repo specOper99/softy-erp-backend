@@ -86,8 +86,11 @@ export class StripeService implements OnModuleInit {
     return this.getStripeClientOrThrow().customers.retrieve(customerId);
   }
 
-  async createSubscription(params: StripeSubscriptionCreateParams): Promise<StripeSubscription> {
-    return this.getStripeClientOrThrow().subscriptions.create(params);
+  async createSubscription(
+    params: StripeSubscriptionCreateParams,
+    idempotencyKey?: string,
+  ): Promise<StripeSubscription> {
+    return this.getStripeClientOrThrow().subscriptions.create(params, idempotencyKey ? { idempotencyKey } : undefined);
   }
 
   async updateSubscription(

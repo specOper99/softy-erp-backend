@@ -16,6 +16,7 @@ import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import { Task } from '../../tasks/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/entities/time-entry.entity';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { User } from '../../users/entities/user.entity';
 import { CancelBookingDto, ConfirmBookingResponseDto, RescheduleBookingDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
@@ -206,7 +207,7 @@ export class BookingWorkflowService {
       // retry or create the invoice. Silent swallow here is intentional (the
       // booking is confirmed regardless) but the failure must not be invisible.
       this.logger.error(
-        `Invoice generation failed for booking ${result.booking.id}: ${error instanceof Error ? error.message : String(error)}`,
+        `Invoice generation failed for booking ${result.booking.id}: ${toErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
     }
@@ -698,7 +699,7 @@ export class BookingWorkflowService {
       try {
         await this.availabilityCacheOwner.delAvailability(booking.tenantId, booking.packageId, dateStr);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         this.logger.warn(`Failed to invalidate availability cache: ${message}`);
       }
     }

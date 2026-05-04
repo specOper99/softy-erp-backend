@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { EncryptionService } from '../../../common/services/encryption.service';
 import { Webhook } from '../../webhooks/entities/webhook.entity';
 
@@ -33,16 +34,26 @@ export class KeyRotationService {
     processed: number;
     errors: number;
   }> {
+    // Scope rotation to the calling tenant only — must never touch other tenants' data.
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const BATCH_SIZE = 100;
     let processed = 0;
     let errors = 0;
-    let skip = 0;
+    let lastId: string | undefined;
 
     while (true) {
-      const webhooks = await this.webhookRepository.find({
-        take: BATCH_SIZE,
-        skip,
-      });
+      // Use keyset pagination with ORDER BY to avoid page-shift when rows are mutated.
+      const qb = this.webhookRepository
+        .createQueryBuilder('w')
+        .where('w.tenantId = :tenantId', { tenantId })
+        .orderBy('w.id', 'ASC')
+        .take(BATCH_SIZE);
+
+      if (lastId) {
+        qb.andWhere('w.id > :lastId', { lastId });
+      }
+
+      const webhooks = await qb.getMany();
 
       if (webhooks.length === 0) break;
 
@@ -60,9 +71,8 @@ export class KeyRotationService {
           this.logger.error(`Failed to rotate key for webhook ${webhook.id}`, e);
           errors++;
         }
+        lastId = webhook.id;
       }
-
-      skip += BATCH_SIZE;
 
       if (webhooks.length < BATCH_SIZE) break;
     }

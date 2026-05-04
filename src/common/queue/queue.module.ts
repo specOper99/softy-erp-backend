@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { areBackgroundJobsEnabled } from './background-jobs.runtime';
+import { RuntimeFailure } from '../errors/runtime-failure';
 
 const backgroundJobsEnabled = areBackgroundJobsEnabled();
 
@@ -18,7 +19,7 @@ const backgroundJobsEnabled = areBackgroundJobsEnabled();
           useFactory: (configService: ConfigService) => {
             const redisUrl = configService.get<string>('REDIS_URL');
             if (!redisUrl) {
-              throw new Error(
+              throw new RuntimeFailure(
                 'REDIS_URL is required when ENABLE_BACKGROUND_JOBS is not false. Set ENABLE_BACKGROUND_JOBS=false to boot without queues.',
               );
             }

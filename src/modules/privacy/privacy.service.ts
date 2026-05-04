@@ -20,6 +20,7 @@ import { UserRepository } from '../users/repositories/user.repository';
 import { CreatePrivacyRequestDto } from './dto/privacy.dto';
 import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
 import { PrivacyRequestRepository } from './repositories/privacy-request.repository';
+import { toErrorMessage } from '../../common/utils/error.util';
 
 interface UserDataExport {
   exportedAt: string;
@@ -67,7 +68,10 @@ export class PrivacyService {
     });
 
     if (existingPending) {
-      throw new BadRequestException(`A pending ${dto.type} request already exists`);
+      throw new BadRequestException({
+        code: 'privacy.pending_request_exists',
+        args: { type: dto.type },
+      });
     }
 
     const request = this.privacyRequestRepository.create({
@@ -90,7 +94,7 @@ export class PrivacyService {
     error: unknown,
     operationType: 'export' | 'deletion',
   ): Promise<never> {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = toErrorMessage(error);
     request.fail(errorMessage);
     await this.privacyRequestRepository.save(request);
     this.logger.error(`Data ${operationType} failed for user ${request.userId}`, error);
@@ -116,7 +120,7 @@ export class PrivacyService {
     });
 
     if (!request) {
-      throw new NotFoundException('Privacy request not found');
+      throw new NotFoundException('privacy.request_not_found');
     }
 
     return request;
@@ -126,7 +130,7 @@ export class PrivacyService {
     const request = await this.getRequestById(requestId, userId);
 
     if (request.status !== PrivacyRequestStatus.PENDING) {
-      throw new BadRequestException('Only pending requests can be cancelled');
+      throw new BadRequestException('privacy.cancel_pending_only');
     }
 
     request.cancel();
@@ -161,7 +165,7 @@ export class PrivacyService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('common.user_not_found');
     }
 
     const [profile, tasks] = await Promise.all([
@@ -241,7 +245,7 @@ export class PrivacyService {
     // SECURITY: Sanitize userId to prevent path traversal attacks
     const safeUserId = userId.replace(/[^a-zA-Z0-9-]/g, '');
     if (safeUserId !== userId || safeUserId.length === 0) {
-      throw new BadRequestException('Invalid user ID format');
+      throw new BadRequestException('privacy.invalid_user_id_format');
     }
 
     await fs.mkdir(this.tempDir, { recursive: true });
@@ -254,7 +258,7 @@ export class PrivacyService {
     const resolvedPath = path.resolve(localPath);
     const resolvedBase = path.resolve(this.tempDir);
     if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
-      throw new BadRequestException('Invalid file path');
+      throw new BadRequestException('privacy.invalid_file_path');
     }
 
     const output = createWriteStream(localPath);
@@ -337,7 +341,7 @@ export class PrivacyService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('common.user_not_found');
     }
 
     const anonymizedEmail = `deleted-${userId.slice(0, 8)}@anonymized.local`;
@@ -389,11 +393,11 @@ export class PrivacyService {
     });
 
     if (!request) {
-      throw new NotFoundException('Privacy request not found');
+      throw new NotFoundException('privacy.request_not_found');
     }
 
     if (request.type !== expectedType) {
-      throw new BadRequestException('Invalid request type');
+      throw new BadRequestException('privacy.invalid_request_type');
     }
 
     return request;

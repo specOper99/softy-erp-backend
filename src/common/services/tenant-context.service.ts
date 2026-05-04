@@ -13,8 +13,13 @@ export class TenantContextService {
     return this.storage.run(tenantId, callback);
   }
 
-  static enter(tenantId: string): void {
-    this.storage.enterWith(tenantId);
+  /**
+   * Run a callback with both tenantId and userId in context.
+   * Use this from middleware/guards after verifying the JWT so that
+   * services can call getCurrentUserIdOrNull() to get the acting user.
+   */
+  static runWithUser<T>(tenantId: string, userId: string, callback: () => T): T {
+    return this.storage.run(tenantId, () => this.userStorage.run(userId, callback));
   }
 
   static getTenantId(): string | undefined {
@@ -24,13 +29,9 @@ export class TenantContextService {
   static getTenantIdOrThrow(): string {
     const tenantId = this.getTenantId();
     if (!tenantId) {
-      throw new BadRequestException('Tenant context missing');
+      throw new BadRequestException('common.tenant_missing');
     }
     return tenantId;
-  }
-
-  static setCurrentUserId(userId: string): void {
-    this.userStorage.enterWith(userId);
   }
 
   static getCurrentUserIdOrNull(): string | null {

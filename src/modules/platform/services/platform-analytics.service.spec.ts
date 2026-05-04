@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { FindManyOptions, Repository, SelectQueryBuilder } from 'typeorm';
@@ -215,7 +216,16 @@ describe('PlatformAnalyticsService', () => {
     it('should throw error for non-existent tenant', async () => {
       jest.spyOn(tenantRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.getTenantHealth('non-existent')).rejects.toThrow('Tenant with ID non-existent not found');
+      try {
+        await service.getTenantHealth('non-existent');
+        fail('expected not found');
+      } catch (e) {
+        expect(e).toBeInstanceOf(NotFoundException);
+        expect((e as NotFoundException).getResponse()).toMatchObject({
+          code: 'platform.tenant_not_found',
+          args: { tenantId: 'non-existent' },
+        });
+      }
     });
 
     it('should generate recommendations for inactive tenant', async () => {

@@ -68,7 +68,7 @@ export class BookingsController {
   @ApiBody({ type: CreateBookingDto })
   @ApiResponse({ status: 201, description: 'Booking created successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request - Validation failed' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   create(@Body() dto: CreateBookingDto) {
     return this.bookingsService.create(dto);
@@ -90,7 +90,7 @@ export class BookingsController {
   @ApiQuery({ name: 'packageId', required: false, type: String })
   @ApiQuery({ name: 'clientId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return all bookings' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAll(@Query() query: BookingFilterDto, @CurrentUser() user: User) {
     return this.bookingsService.findAll(query, user);
@@ -111,7 +111,7 @@ export class BookingsController {
   @ApiQuery({ name: 'packageId', required: false, type: String })
   @ApiQuery({ name: 'clientId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return bookings' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAllCursor(@Query() query: BookingCursorFilterDto, @CurrentUser() user: User) {
     return this.bookingsService.findAllCursor(query, user);
@@ -127,7 +127,7 @@ export class BookingsController {
   @ApiQuery({ name: 'packageId', required: false, type: String })
   @ApiQuery({ name: 'clientId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'CSV file download' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   exportBookings(@Query() filters: BookingExportFilterDto, @Res() res: Response) {
     return this.bookingExportService.exportBookingsToCSV(res, filters);
@@ -155,9 +155,9 @@ export class BookingsController {
   @ApiOperation({ summary: 'Get booking by ID' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Booking details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Booking not found' })
+  @ApiResponse({ status: 404, description: 'bookings.not_found' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.bookingsService.findOne(id, user);
   }
@@ -169,9 +169,9 @@ export class BookingsController {
   @ApiBody({ type: UpdateBookingDto })
   @ApiResponse({ status: 200, description: 'Booking updated' })
   @ApiResponse({ status: 400, description: 'Bad Request - Validation Error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Booking not found' })
+  @ApiResponse({ status: 404, description: 'bookings.not_found' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBookingDto) {
     return this.bookingsService.update(id, dto);
   }
@@ -182,9 +182,9 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Booking deleted' })
   @ApiResponse({ status: 400, description: 'Bad Request - Cannot delete non-draft booking' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Booking not found' })
+  @ApiResponse({ status: 404, description: 'bookings.not_found' })
   remove(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DeleteWithReasonDto) {
     return this.bookingsService.remove(id, dto.reason);
   }
@@ -216,7 +216,7 @@ export class BookingsController {
   @ApiOperation({ summary: 'Get tasks for a booking' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Booking tasks returned' })
-  @ApiResponse({ status: 404, description: 'Booking not found' })
+  @ApiResponse({ status: 404, description: 'bookings.not_found' })
   async getBookingTasks(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     await this.bookingsService.findOne(id, user);
     return this.tasksService.findByBooking(id);
@@ -246,11 +246,11 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: CancelBookingDto })
   @ApiResponse({ status: 200, description: 'Booking request rejected' })
-  @ApiResponse({ status: 400, description: 'Only DRAFT bookings can be rejected' })
+  @ApiResponse({ status: 400, description: 'booking.reject_draft_only' })
   async reject(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CancelBookingDto, @CurrentUser() user: User) {
     const booking = await this.bookingsService.findOne(id, user);
     if (booking.status !== BookingStatus.DRAFT) {
-      throw new BadRequestException('Only DRAFT bookings can be rejected');
+      throw new BadRequestException('booking.reject_draft_only');
     }
 
     return this.bookingWorkflowService.cancelBooking(id, dto);
@@ -311,7 +311,7 @@ export class BookingsController {
   @ApiOperation({ summary: 'Get financial transactions for this booking' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Booking transactions returned' })
-  @ApiResponse({ status: 404, description: 'Booking not found' })
+  @ApiResponse({ status: 404, description: 'bookings.not_found' })
   getBookingTransactions(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.bookingsService.getBookingTransactions(id, user);
   }
@@ -321,9 +321,9 @@ export class BookingsController {
   @ApiOperation({ summary: 'Duplicate booking as a new DRAFT' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 201, description: 'Booking duplicated' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Booking not found' })
+  @ApiResponse({ status: 404, description: 'bookings.not_found' })
   duplicate(@Param('id', ParseUUIDPipe) id: string) {
     return this.bookingWorkflowService.duplicateBooking(id);
   }

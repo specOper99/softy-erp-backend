@@ -146,7 +146,7 @@ describe('PrivacyService', () => {
 
     it('should throw BadRequestException when tenant context is missing', async () => {
       jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockImplementation(() => {
-        throw new BadRequestException('Tenant context missing');
+        throw new BadRequestException('common.tenant_missing');
       });
 
       await expect(

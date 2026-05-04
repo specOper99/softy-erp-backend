@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import Stripe from 'stripe';
@@ -53,6 +54,7 @@ describe('SubscriptionService', () => {
           provide: getRepositoryToken(BillingWebhookEvent),
           useValue: {
             create: jest.fn(),
+            findOne: jest.fn(),
             insert: jest.fn(),
           },
         },
@@ -70,6 +72,16 @@ describe('SubscriptionService', () => {
             createSubscription: jest.fn(),
             cancelSubscription: jest.fn(),
             updateSubscription: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'STRIPE_PRICE_PRO') return 'price_pro_123';
+              if (key === 'STRIPE_PRICE_ENTERPRISE') return 'price_enterprise_123';
+              return undefined;
+            }),
           },
         },
       ],
@@ -207,6 +219,7 @@ describe('SubscriptionService', () => {
           items: [{ price: 'price_pro_123' }],
           expand: ['latest_invoice.payment_intent'],
         }),
+        expect.any(String), // idempotency key
       );
 
       expect(subscriptionRepo.create).toHaveBeenCalledWith(
@@ -280,12 +293,16 @@ describe('SubscriptionService', () => {
         provider: 'stripe',
         eventId: mockEvent.id,
       } as unknown as BillingWebhookEvent);
-      webhookEventRepo.insert.mockRejectedValue({ code: '23505' });
+      webhookEventRepo.findOne.mockResolvedValue({
+        provider: 'stripe',
+        eventId: mockEvent.id,
+      } as unknown as BillingWebhookEvent);
 
       await service.handleWebhookEvent(mockEvent);
 
       expect(subscriptionRepo.findOne).not.toHaveBeenCalled();
       expect(subscriptionRepo.save).not.toHaveBeenCalled();
+      expect(webhookEventRepo.insert).not.toHaveBeenCalled();
     });
 
     it('should handle expanded subscription object in invoice', async () => {
@@ -314,6 +331,22 @@ describe('SubscriptionService', () => {
         where: { stripeSubscriptionId: 'sub_123' },
       });
       expect(subscriptionRepo.save).toHaveBeenCalled();
+    });
+
+    it('should not mark a webhook event processed when handling fails', async () => {
+      const mockEvent = {
+        id: 'evt_retry_later',
+        type: 'invoice.payment_failed',
+        data: { object: { subscription: 'sub_123' } },
+      } as unknown as Stripe.Event;
+
+      const mockSubscription = { id: 'sub-db-1', status: SubscriptionStatus.ACTIVE };
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as unknown as Subscription);
+      subscriptionRepo.save.mockRejectedValue(new Error('database unavailable'));
+
+      await expect(service.handleWebhookEvent(mockEvent)).rejects.toThrow('database unavailable');
+
+      expect(webhookEventRepo.insert).not.toHaveBeenCalled();
     });
 
     it('should safely handle missing period dates in subscription update', async () => {

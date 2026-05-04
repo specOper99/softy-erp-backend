@@ -114,8 +114,16 @@ describe('TenantQuotaGuard', () => {
       });
       const context = createMockContext('tenant-123');
 
-      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(context)).rejects.toThrow('Quota exceeded for max_users');
+      try {
+        await guard.canActivate(context);
+        fail('expected quota throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ForbiddenException);
+        expect((e as ForbiddenException).getResponse()).toMatchObject({
+          code: 'tenants.quota_exceeded',
+          args: expect.objectContaining({ resourceType: 'max_users' }),
+        });
+      }
     });
   });
 });

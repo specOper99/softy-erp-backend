@@ -22,6 +22,7 @@ import { Webhook } from './entities/webhook.entity';
 import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
 import { WebhookRepository } from './repositories/webhook.repository';
 import { WEBHOOK_QUEUE, WebhookConfig, WebhookEvent, WebhookJobData } from './webhooks.types';
+import { toErrorMessage } from '../../common/utils/error.util';
 
 type PLimit = typeof import('p-limit').default;
 type ConcurrencyLimit = ReturnType<PLimit>;
@@ -84,9 +85,7 @@ export class WebhookService {
       }
     } catch (error) {
       // Fail closed: invalid URL must not be persisted.
-      this.logger.warn(
-        `Invalid webhook URL for tenant ${tenantId}: ${config.url} (${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'})`,
-      );
+      this.logger.warn(`Invalid webhook URL for tenant ${tenantId}: ${config.url} (${toErrorMessage(error)})`);
       throw new BadRequestException('webhooks.invalid_url');
     }
 
@@ -157,9 +156,7 @@ export class WebhookService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      this.logger.warn(
-        `DNS lookup failed for ${normalizedHostname}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.warn(`DNS lookup failed for ${normalizedHostname}: ${toErrorMessage(error)}`);
       // Fail closed: unresolved hosts are not safe to deliver to.
       throw new BadRequestException('webhooks.dns_lookup_failed');
     }
@@ -172,13 +169,13 @@ export class WebhookService {
 
   private async assertDnsNotRebound(url: URL, allowlistedIps?: string[]): Promise<string> {
     if (!allowlistedIps || allowlistedIps.length === 0) {
-      // No allowlist stored (legacy webhooks): still validate public IPs on each delivery.
-      const ips = await this.resolveAndValidatePublicIps(url);
-      const pinnedIp = ips.at(0);
-      if (!pinnedIp) {
-        throw new BadRequestException('webhooks.dns_lookup_failed');
-      }
-      return pinnedIp;
+      // Legacy webhooks with no stored IPs: fail closed.
+      // Delivering to a webhook whose IP was never pinned defeats DNS-rebinding protection.
+      // Operators must re-register (PATCH) the webhook so its IP is pinned before delivery resumes.
+      this.logger.warn(
+        `DNS-rebind check: webhook for ${url.hostname} has no pinned IPs. Delivery blocked. Re-register the webhook to pin its IP.`,
+      );
+      throw new BadRequestException('webhooks.dns_rebinding_not_pinned');
     }
 
     const currentIps = await this.resolveAndValidatePublicIps(url);
@@ -212,9 +209,7 @@ export class WebhookService {
       return this.PRIVATE_IPV6_CIDRS.some((cidr) => ipv6Address.match(ipaddr.IPv6.parseCIDR(cidr)));
     } catch (error) {
       // Fail closed: treat unparseable IPs as private to block delivery.
-      this.logger.warn(
-        `isPrivateIp: failed to parse IP "${ip}", treating as private: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.warn(`isPrivateIp: failed to parse IP "${ip}", treating as private: ${toErrorMessage(error)}`);
       return true;
     }
   }
@@ -418,7 +413,7 @@ export class WebhookService {
         return;
       } catch (error) {
         if (attempt === this.MAX_RETRIES - 1) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message = toErrorMessage(error);
           this.logger.error(`Webhook delivery failed to ${webhook.url} after ${this.MAX_RETRIES} attempts: ${message}`);
           throw error;
         }
@@ -489,7 +484,7 @@ export class WebhookService {
       }
     } catch (error) {
       if (delivery) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = toErrorMessage(error);
         delivery.requestHeaders = sentHeaders;
         delivery.recordFailure(message);
         await this.webhookDeliveryRepository.save(delivery);

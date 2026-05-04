@@ -57,6 +57,7 @@ import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
 import { WebhookDelivery } from '../modules/webhooks/entities/webhook-delivery.entity';
 import { Webhook } from '../modules/webhooks/entities/webhook.entity';
+import { RuntimeFailure } from '../common/errors/runtime-failure';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -124,7 +125,7 @@ export const dataSourceOptions: DataSourceOptions = {
   // Schema changes must only happen through TypeORM migrations.
   synchronize: (() => {
     if (process.env.DB_SYNCHRONIZE === 'true') {
-      throw new Error(
+      throw new RuntimeFailure(
         'CRITICAL SECURITY VIOLATION: DB_SYNCHRONIZE=true is forbidden in all environments. ' +
           'Schema changes must go through migrations only. ' +
           'Remove DB_SYNCHRONIZE from your environment variables.',

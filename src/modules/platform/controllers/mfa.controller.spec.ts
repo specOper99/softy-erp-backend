@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -127,13 +128,13 @@ describe('MFAController', () => {
     });
 
     it('should throw error if user not found', async () => {
-      (mfaService.getUserById as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
+      (mfaService.getUserById as jest.Mock).mockRejectedValueOnce(new NotFoundException('common.user_not_found'));
 
       const mockRequest = {
         user: { userId: 'non-existent' },
       } as AuthenticatedRequest;
 
-      await expect(controller.setupMFA(mockRequest)).rejects.toThrow('User not found');
+      await expect(controller.setupMFA(mockRequest)).rejects.toThrow('common.user_not_found');
     });
   });
 
@@ -194,7 +195,7 @@ describe('MFAController', () => {
       const dto = new VerifyMFADto();
       dto.code = '000000';
 
-      await expect(controller.verifyAndEnableMFA(dto, mockRequest)).rejects.toThrow('Invalid MFA code');
+      await expect(controller.verifyAndEnableMFA(dto, mockRequest)).rejects.toThrow('auth.invalid_mfa_code');
     });
   });
 
@@ -223,7 +224,7 @@ describe('MFAController', () => {
     });
 
     it('should throw error if user not found', async () => {
-      (mfaService.disableMfa as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
+      (mfaService.disableMfa as jest.Mock).mockRejectedValueOnce(new NotFoundException('common.user_not_found'));
 
       const mockRequest = {
         user: { userId: 'user-123' },
@@ -234,7 +235,7 @@ describe('MFAController', () => {
         reason: 'Device lost',
       };
 
-      await expect(controller.disableMFA(dto, mockRequest)).rejects.toThrow('User not found');
+      await expect(controller.disableMFA(dto, mockRequest)).rejects.toThrow('common.user_not_found');
     });
   });
 
@@ -276,13 +277,13 @@ describe('MFAController', () => {
     });
 
     it('should throw error if user not found', async () => {
-      (mfaService.getUserWithFields as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
+      (mfaService.getUserWithFields as jest.Mock).mockRejectedValueOnce(new NotFoundException('common.user_not_found'));
 
       const mockRequest = {
         user: { userId: 'user-123' },
       } as AuthenticatedRequest;
 
-      await expect(controller.getBackupCodes(mockRequest)).rejects.toThrow('User not found');
+      await expect(controller.getBackupCodes(mockRequest)).rejects.toThrow('common.user_not_found');
     });
   });
 
@@ -305,13 +306,13 @@ describe('MFAController', () => {
     });
 
     it('should throw error if user not found', async () => {
-      (mfaService.getUserById as jest.Mock).mockRejectedValueOnce(new Error('User not found'));
+      (mfaService.getUserById as jest.Mock).mockRejectedValueOnce(new NotFoundException('common.user_not_found'));
 
       const mockRequest = {
         user: { userId: 'user-123' },
       } as AuthenticatedRequest;
 
-      await expect(controller.regenerateBackupCodes(mockRequest)).rejects.toThrow('User not found');
+      await expect(controller.regenerateBackupCodes(mockRequest)).rejects.toThrow('common.user_not_found');
     });
   });
 });

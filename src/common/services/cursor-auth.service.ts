@@ -13,6 +13,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { RuntimeFailure } from '../errors/runtime-failure';
+import { toErrorMessage } from '../utils/error.util';
 
 @Injectable()
 export class CursorAuthService {
@@ -23,7 +25,7 @@ export class CursorAuthService {
     const secretStr = this.configService.get<string>('CURSOR_SECRET') || this.configService.get<string>('JWT_SECRET');
 
     if (!secretStr) {
-      throw new Error('CURSOR_SECRET or JWT_SECRET must be configured');
+      throw new RuntimeFailure('CURSOR_SECRET or JWT_SECRET must be configured');
     }
 
     this.secret = Buffer.from(secretStr, 'utf-8');
@@ -74,17 +76,13 @@ export class CursorAuthService {
         }
       } catch (error) {
         // Length mismatch throws an error
-        this.logger.debug(
-          `Cursor HMAC comparison failed: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
-        );
+        this.logger.debug(`Cursor HMAC comparison failed: ${toErrorMessage(error)}`);
         return null;
       }
 
       return data;
     } catch (error) {
-      this.logger.debug(
-        `Cursor decode failed: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
-      );
+      this.logger.debug(`Cursor decode failed: ${toErrorMessage(error)}`);
       return null;
     }
   }
@@ -100,7 +98,7 @@ export class CursorAuthService {
     const data = this.decode(cursor);
 
     if (data === null) {
-      throw new BadRequestException('Invalid or tampered cursor');
+      throw new BadRequestException('cursor.tampered');
     }
 
     return data;

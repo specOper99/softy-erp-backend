@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { UserDeletedEvent } from '../../users/events/user-deleted.event';
 import { HrService } from '../services/hr.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @EventsHandler(UserDeletedEvent)
 export class UserDeletedHandler implements IEventHandler<UserDeletedEvent> {
@@ -15,9 +16,7 @@ export class UserDeletedHandler implements IEventHandler<UserDeletedEvent> {
     try {
       await this.hrService.softDeleteProfileByUserId(event.userId);
     } catch (error) {
-      this.logger.error(
-        `Failed to delete profile for user ${event.userId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`Failed to delete profile for user ${event.userId}: ${toErrorMessage(error)}`);
     }
   }
 }

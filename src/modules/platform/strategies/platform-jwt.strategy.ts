@@ -6,6 +6,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import { PlatformSession } from '../entities/platform-session.entity';
 import { PlatformUser } from '../entities/platform-user.entity';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 
 export interface PlatformTokenPayload {
   sub: string;
@@ -27,7 +28,7 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jw
   ) {
     const jwtSecret = configService.get<string>('PLATFORM_JWT_SECRET');
     if (!jwtSecret) {
-      throw new Error('PLATFORM_JWT_SECRET is not defined');
+      throw new RuntimeFailure('PLATFORM_JWT_SECRET is not defined');
     }
 
     super({
@@ -41,7 +42,7 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jw
   async validate(payload: PlatformTokenPayload) {
     // Verify this is a platform token
     if (payload.aud !== 'platform') {
-      throw new UnauthorizedException('Invalid token audience');
+      throw new UnauthorizedException('auth.invalid_token_audience');
     }
 
     // Load platform user
@@ -50,7 +51,7 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jw
     });
 
     if (!user || user.status !== 'active') {
-      throw new UnauthorizedException('User not found or inactive');
+      throw new UnauthorizedException('auth.user_not_found_or_inactive');
     }
 
     const session = await this.platformSessionRepository.findOne({
@@ -58,19 +59,19 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jw
     });
 
     if (!session) {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException('auth.invalid_session');
     }
 
     if (session.isRevoked) {
-      throw new UnauthorizedException('Session revoked');
+      throw new UnauthorizedException('auth.session_revoked');
     }
 
     if (session.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Session expired');
+      throw new UnauthorizedException('auth.session_expired');
     }
 
     if (user.mfaEnabled && !session.mfaVerified) {
-      throw new UnauthorizedException('MFA required');
+      throw new UnauthorizedException('auth.mfa_required');
     }
 
     // Return user object with platformRole for guards

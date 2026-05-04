@@ -85,7 +85,7 @@ describe('CursorAuthService', () => {
     });
 
     it('should throw BadRequestException for invalid cursor', () => {
-      expect(() => service.decodeOrThrow('invalid-cursor')).toThrow('Invalid or tampered cursor');
+      expect(() => service.decodeOrThrow('invalid-cursor')).toThrow('cursor.tampered');
     });
   });
 

@@ -3,6 +3,7 @@ import { EventBus } from '@nestjs/cqrs';
 import { Readable } from 'stream';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { AuditService } from '../../audit/audit.service';
 import { CreateClientDto, UpdateClientDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
@@ -66,13 +67,7 @@ export class ClientsService {
     if (query.search) {
       const trimmed = query.search.trim();
       if (trimmed.length >= 1) {
-        const sanitized = trimmed.slice(0, 100).replace(/[%_]/g, '');
-        if (sanitized.length >= 1) {
-          queryBuilder.andWhere(
-            '(client.name ILIKE :search OR client.email ILIKE :search OR client.phone ILIKE :search OR client.phone2 ILIKE :search)',
-            { search: `%${sanitized}%` },
-          );
-        }
+        applyIlikeSearch(queryBuilder, ['client.name', 'client.email', 'client.phone', 'client.phone2'], trimmed);
       }
     }
 

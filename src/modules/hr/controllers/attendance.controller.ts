@@ -24,6 +24,7 @@ import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { CreateAttendanceDto, ListAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
 import { AttendanceService } from '../services/attendance.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @ApiTags('HR Attendance')
 @ApiBearerAuth()
@@ -46,10 +47,8 @@ export class AttendanceController {
       try {
         resolveRequestedUserIdScope(user, createAttendanceDto.userId);
       } catch (error) {
-        this.logger.warn(
-          `Attendance create forbidden for field staff ${user.id}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        throw new ForbiddenException('Field staff can only create attendance records for themselves');
+        this.logger.warn(`Attendance create forbidden for field staff ${user.id}: ${toErrorMessage(error)}`);
+        throw new ForbiddenException('hr.attendance_self_only_create');
       }
     }
 
@@ -71,7 +70,7 @@ export class AttendanceController {
       return this.attendanceService.findAll(query, scopedUserId);
     }
     if (query.userId && !isUUID(query.userId)) {
-      throw new BadRequestException('Invalid userId');
+      throw new BadRequestException('hr.attendance_invalid_user_id');
     }
     return this.attendanceService.findAll(query, query.userId);
   }
@@ -88,9 +87,9 @@ export class AttendanceController {
         resolveRequestedUserIdScope(user, attendance.userId);
       } catch (error) {
         this.logger.warn(
-          `Attendance view forbidden for field staff ${user.id} on record ${id}: ${error instanceof Error ? error.message : String(error)}`,
+          `Attendance view forbidden for field staff ${user.id} on record ${id}: ${toErrorMessage(error)}`,
         );
-        throw new ForbiddenException('Field staff can only view their own attendance records');
+        throw new ForbiddenException('hr.attendance_self_only_view');
       }
     }
 

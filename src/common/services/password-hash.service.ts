@@ -14,6 +14,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import * as bcrypt from 'bcrypt';
 import { Counter, register } from 'prom-client';
+import { toErrorMessage } from '../utils/error.util';
 
 function getOrCreateCounter(name: string, help: string): Counter<string> {
   const existing = register.getSingleMetric(name);
@@ -43,7 +44,6 @@ export class PasswordHashService {
     return (
       process.env.NODE_ENV === 'test' ||
       process.env.JEST_WORKER_ID !== undefined ||
-      process.env.CI === 'true' ||
       process.argv.includes('--runInBand')
     );
   }
@@ -96,9 +96,7 @@ export class PasswordHashService {
       return await argon2.verify(hash, password);
     } catch (error) {
       // Fail closed: treat verification errors as non-match.
-      this.logger.warn(
-        `Password verification error: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
-      );
+      this.logger.warn(`Password verification error: ${toErrorMessage(error)}`);
       return false;
     }
   }

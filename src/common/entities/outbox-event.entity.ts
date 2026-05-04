@@ -30,6 +30,9 @@ export class OutboxEvent {
   @Column({ type: 'text', nullable: true })
   error?: string | null;
 
+  @Column({ type: 'int', default: 0 })
+  retryCount!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 

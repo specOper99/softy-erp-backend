@@ -55,7 +55,7 @@ export class AuditController {
     description: 'Filter by end date (ISO format)',
   })
   @ApiResponse({ status: 200, description: 'Return paginated audit logs' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   findAllCursor(@Query() query: AuditLogFilterDto) {
     return this.auditService.findAllCursor(query);
@@ -64,13 +64,16 @@ export class AuditController {
   @Get(':id')
   @ApiOperation({ summary: 'Get audit log by ID (Admin only)' })
   @ApiResponse({ status: 200, description: 'Audit log details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   @ApiResponse({ status: 404, description: 'Audit log not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     const log = await this.auditService.findOne(id);
     if (!log) {
-      throw new NotFoundException(`Audit log with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'audit.log_not_found',
+        args: { id },
+      });
     }
     return log;
   }

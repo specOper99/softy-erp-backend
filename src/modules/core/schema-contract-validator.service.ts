@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 @Injectable()
 export class SchemaContractValidatorService implements OnModuleInit {
@@ -45,7 +46,7 @@ export class SchemaContractValidatorService implements OnModuleInit {
     }
 
     if (missingContracts.length > 0) {
-      throw new Error(
+      throw new RuntimeFailure(
         `Schema drift detected during startup: missing required contracts: ${missingContracts.join(', ')}`,
       );
     }

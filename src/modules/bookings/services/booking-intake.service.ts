@@ -22,6 +22,7 @@ import { ProcessingTypeRepository } from '../repositories/processing-type.reposi
 import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
 import { StaffConflictService } from './staff-conflict.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class BookingIntakeService {
@@ -294,7 +295,7 @@ export class BookingIntakeService {
       await this.bookingRepository.findOne({ where: { id: savedBookingId } }).catch(() => null);
       this.logger.debug(`[BookingIntake] Booking ${savedBookingId} created for client ${savedClientId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = toErrorMessage(err);
       this.logger.warn(`[BookingIntake] Post-commit cache invalidation failed: ${message}`);
     }
 

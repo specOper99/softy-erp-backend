@@ -111,7 +111,10 @@ export class ConsentService {
   async requireConsent(userId: string, type: ConsentType): Promise<void> {
     const hasConsent = await this.hasConsent(userId, type);
     if (!hasConsent) {
-      throw new BadRequestException(`User must grant ${type} consent to proceed`);
+      throw new BadRequestException({
+        code: 'privacy.consent_grant_required',
+        args: { type },
+      });
     }
   }
 }

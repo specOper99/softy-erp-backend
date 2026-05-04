@@ -19,6 +19,15 @@ describe('AllExceptionsFilter', () => {
               if (key === 'common.internal_error') {
                 return 'An unexpected error occurred. Please try again later.';
               }
+              if (key === 'common.message_unavailable') {
+                return 'Sorry, that message could not be loaded.';
+              }
+              if (key === 'booking.not_found') {
+                return 'Booking missing (translated)';
+              }
+              if (key === 'validation.required') {
+                return 'Field required (translated)';
+              }
               return key;
             }),
           },
@@ -118,6 +127,46 @@ describe('AllExceptionsFilter', () => {
       expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           timestamp: expect.any(String),
+        }),
+      );
+    });
+
+    it('should translate structured API error { code, args } and echo code in JSON', () => {
+      const exception = new HttpException({ code: 'booking.not_found', args: { id: 'b1' } }, HttpStatus.NOT_FOUND);
+
+      filter.catch(exception, mockHost);
+
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Booking missing (translated)',
+          code: 'booking.not_found',
+        }),
+      );
+    });
+
+    it('should translate validation batch with errors array', () => {
+      const exception = new HttpException(
+        {
+          code: 'validation.failed',
+          validationErrors: [{ property: 'email', code: 'validation.required' }],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+
+      filter.catch(exception, mockHost);
+
+      expect(mockHost.mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'validation.failed',
+          message: 'Field required (translated)',
+          errors: [
+            expect.objectContaining({
+              field: 'email',
+              code: 'validation.required',
+              message: 'Field required (translated)',
+            }),
+          ],
         }),
       );
     });

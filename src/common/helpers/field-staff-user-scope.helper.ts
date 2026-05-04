@@ -16,7 +16,7 @@ export function resolveRequestedUserIdScope(user: UserScopePrincipal, requestedU
   }
 
   if (requestedUserId !== user.id) {
-    throw new ForbiddenException('Field staff can only access their own records');
+    throw new ForbiddenException('common.field_staff_own_records');
   }
 
   return requestedUserId;

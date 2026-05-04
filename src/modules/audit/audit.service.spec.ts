@@ -1,5 +1,6 @@
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getDataSourceToken } from '@nestjs/typeorm';
 import { createMockQueue, createMockRepository } from '../../../test/helpers/mock-factories';
 import { MetricsFactory } from '../../common/services/metrics.factory';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -23,6 +24,9 @@ describe('AuditService', () => {
   };
 
   beforeEach(async () => {
+    const mockDataSource = {
+      transaction: jest.fn().mockImplementation(async (cb: (manager: unknown) => unknown) => cb({})),
+    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditService,
@@ -37,6 +41,10 @@ describe('AuditService', () => {
         {
           provide: MetricsFactory,
           useValue: mockMetricsFactory,
+        },
+        {
+          provide: getDataSourceToken(),
+          useValue: mockDataSource,
         },
       ],
     }).compile();

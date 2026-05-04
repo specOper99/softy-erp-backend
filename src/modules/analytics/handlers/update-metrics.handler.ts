@@ -7,6 +7,7 @@ import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.e
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
 import { DailyMetricsRepository } from '../repositories/daily-metrics.repository';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @EventsHandler(BookingConfirmedEvent, TaskCompletedEvent, BookingCancelledEvent, PaymentRecordedEvent)
 export class UpdateMetricsHandler
@@ -65,9 +66,7 @@ export class UpdateMetricsHandler
           });
         }
       } catch (error) {
-        this.logger.error(
-          `Failed to update daily metrics for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        this.logger.error(`Failed to update daily metrics for tenant ${tenantId}: ${toErrorMessage(error)}`);
       }
     });
   }

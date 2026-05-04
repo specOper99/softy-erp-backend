@@ -48,7 +48,7 @@ export class PlatformAuthController {
     status: 200,
     description: 'Login successful or MFA required',
   })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 401, description: 'auth.invalid_credentials' })
   @ApiResponse({ status: 423, description: 'Account locked due to failed attempts' })
   async login(@Body() dto: PlatformLoginDto, @Request() req: PlatformRequest) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
@@ -86,7 +86,7 @@ export class PlatformAuthController {
     description: 'End the current platform session and invalidate the token.',
   })
   @ApiResponse({ status: 204, description: 'Logout successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async logout(@Request() req: PlatformRequest) {
     const { sessionId, userId } = req.user;
     await this.authService.logout(sessionId, userId);
@@ -119,7 +119,7 @@ export class PlatformAuthController {
       'Returns the non-sensitive profile of the authenticated platform user. Used for session hydration after page reload.',
   })
   @ApiResponse({ status: 200, description: 'Current user profile' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async me(@Request() req: PlatformRequest) {
     return this.authService.getUserById(req.user.userId);
   }

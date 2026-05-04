@@ -70,7 +70,7 @@ describe('ConsentService', () => {
 
     it('should throw BadRequestException when tenant context is missing', async () => {
       (TenantContextService.getTenantIdOrThrow as jest.Mock).mockImplementation(() => {
-        throw new BadRequestException('Tenant context missing');
+        throw new BadRequestException('common.tenant_missing');
       });
 
       await expect(service.getConsents(mockUserId)).rejects.toThrow(BadRequestException);
@@ -112,7 +112,7 @@ describe('ConsentService', () => {
 
     it('should throw BadRequestException when tenant context is missing', async () => {
       (TenantContextService.getTenantIdOrThrow as jest.Mock).mockImplementation(() => {
-        throw new BadRequestException('Tenant context missing');
+        throw new BadRequestException('common.tenant_missing');
       });
 
       await expect(service.grantConsent(mockUserId, { type: ConsentType.MARKETING_EMAILS })).rejects.toThrow(
@@ -166,7 +166,7 @@ describe('ConsentService', () => {
 
     it('should throw BadRequestException when tenant context is missing', async () => {
       (TenantContextService.getTenantIdOrThrow as jest.Mock).mockImplementation(() => {
-        throw new BadRequestException('Tenant context missing');
+        throw new BadRequestException('common.tenant_missing');
       });
 
       await expect(service.hasConsent(mockUserId, ConsentType.MARKETING_EMAILS)).rejects.toThrow(BadRequestException);

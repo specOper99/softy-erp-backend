@@ -96,9 +96,7 @@ describe('AttendanceController', () => {
         checkIn: '2024-01-15T09:00:00',
       };
 
-      expect(() => controller.create(dto, mockFieldStaffUser as User)).toThrow(
-        'Field staff can only create attendance records for themselves',
-      );
+      expect(() => controller.create(dto, mockFieldStaffUser as User)).toThrow('hr.attendance_self_only_create');
     });
   });
 
@@ -171,7 +169,7 @@ describe('AttendanceController', () => {
 
       await expect(
         controller.findOne('11111111-1111-4111-8111-111111111111', mockFieldStaffUser as User),
-      ).rejects.toThrow('Field staff can only view their own attendance records');
+      ).rejects.toThrow('hr.attendance_self_only_view');
     });
   });
 

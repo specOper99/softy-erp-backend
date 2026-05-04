@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { areBackgroundJobsEnabled } from '../../common/queue/background-jobs.runtime';
 import { MetricsModule } from '../metrics/metrics.module';
 import { AuditController } from './audit.controller';
+import { AuditProcessor } from './audit.processor';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
 
@@ -37,6 +38,7 @@ const backgroundJobsEnabled = areBackgroundJobsEnabled();
   providers: [
     AuditService,
     AuditLogRepository,
+    ...(backgroundJobsEnabled ? [AuditProcessor] : []),
     {
       provide: AuditPublisher,
       useExisting: AuditService,

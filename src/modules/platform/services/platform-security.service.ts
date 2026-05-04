@@ -65,7 +65,7 @@ export class PlatformSecurityService {
   async forcePasswordReset(dto: ForcePasswordResetDto, platformUserId: string, ipAddress: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: dto.userId, tenantId: dto.tenantId } });
     if (!user) {
-      throw new NotFoundException('User not found in tenant');
+      throw new NotFoundException('hr.user_not_found_in_tenant');
     }
 
     this.logger.log(
@@ -234,7 +234,10 @@ export class PlatformSecurityService {
   private assertValidIpOrCidr(value: string): void {
     if (isIP(value)) return;
     if (!this.isValidCidr(value)) {
-      throw new BadRequestException(`Invalid IP or CIDR format: ${value}`);
+      throw new BadRequestException({
+        code: 'platform.ip_cidr_invalid',
+        args: { value },
+      });
     }
   }
 
@@ -325,7 +328,7 @@ export class PlatformSecurityService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Tenant not found');
+      throw new NotFoundException('tenants.not_found');
     }
     return tenant;
   }

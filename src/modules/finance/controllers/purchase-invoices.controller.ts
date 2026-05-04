@@ -20,7 +20,7 @@ export class PurchaseInvoicesController {
   @MfaRequired()
   @ApiOperation({ summary: 'Create purchase invoice and linked expense transaction' })
   @ApiResponse({ status: 201, description: 'Purchase invoice created successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions or MFA missing' })
   @ApiResponse({ status: 404, description: 'Vendor not found in tenant' })
   @ApiResponse({ status: 409, description: 'Duplicate invoice number' })
@@ -31,7 +31,7 @@ export class PurchaseInvoicesController {
   @Get()
   @ApiOperation({ summary: 'List purchase invoices with vendor and transaction' })
   @ApiResponse({ status: 200, description: 'Return tenant purchase invoices' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAll() {
     return this.purchaseInvoicesService.findAll();
@@ -40,7 +40,7 @@ export class PurchaseInvoicesController {
   @Get(':id')
   @ApiOperation({ summary: 'Get purchase invoice by ID with vendor and transaction' })
   @ApiResponse({ status: 200, description: 'Purchase invoice details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Purchase invoice not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {

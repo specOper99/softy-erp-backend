@@ -15,6 +15,7 @@ describe('EncryptionService', () => {
     }).compile();
 
     service = module.get<EncryptionService>(EncryptionService);
+    await service.onModuleInit();
   });
 
   describe('encrypt and decrypt', () => {
@@ -81,7 +82,7 @@ describe('EncryptionService', () => {
   });
 
   describe('key rotation and multi-key support', () => {
-    it('should decrypt data encrypted with a previous key version', () => {
+    it('should decrypt data encrypted with a previous key version', async () => {
       const v1Key = 'key-version-1-at-least-32-chars-long';
       const v2Key = 'key-version-2-at-least-32-chars-long';
 
@@ -94,6 +95,7 @@ describe('EncryptionService', () => {
         }),
       };
       const v1Service = new EncryptionService(v1Config as unknown as ConfigService);
+      await v1Service.onModuleInit();
       const secret = 'my-v1-secret';
       const encryptedV1 = v1Service.encrypt(secret);
 
@@ -108,6 +110,7 @@ describe('EncryptionService', () => {
         }),
       };
       const v2Service = new EncryptionService(v2Config as unknown as ConfigService);
+      await v2Service.onModuleInit();
 
       // Decrypt v1 data with v2 service
       const decrypted = v2Service.decrypt(encryptedV1);

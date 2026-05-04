@@ -29,7 +29,7 @@ export class RequireReasonGuard implements CanActivate {
     const reason = request.body?.reason ?? request.query?.reason;
 
     if (!reason || typeof reason !== 'string' || reason.trim().length < 10) {
-      throw new BadRequestException('A detailed reason (minimum 10 characters) is required for this operation');
+      throw new BadRequestException('platform.reason_required');
     }
 
     // Attach validated reason to request for use in service layer

@@ -59,7 +59,7 @@ describe('PlatformPermissionsGuard', () => {
       const context = createMockExecutionContext(null);
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow('Platform role required');
+      expect(() => guard.canActivate(context)).toThrow('platform.role_required');
     });
 
     it('should throw ForbiddenException when user has no platformRole', () => {
@@ -67,7 +67,7 @@ describe('PlatformPermissionsGuard', () => {
       const context = createMockExecutionContext({ id: 'user-123' });
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow('Platform role required');
+      expect(() => guard.canActivate(context)).toThrow('platform.role_required');
     });
 
     // SUPER_ADMIN role tests
@@ -113,8 +113,16 @@ describe('PlatformPermissionsGuard', () => {
         jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([PlatformPermission.TENANTS_DELETE]);
         const context = createMockExecutionContext({ platformRole: PlatformRole.SUPPORT_ADMIN });
 
-        expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-        expect(() => guard.canActivate(context)).toThrow(/Missing required permissions/);
+        try {
+          guard.canActivate(context);
+          fail('expected forbidden');
+        } catch (e) {
+          expect(e).toBeInstanceOf(ForbiddenException);
+          expect((e as ForbiddenException).getResponse()).toMatchObject({
+            code: 'platform.permissions_missing',
+            args: { permissions: expect.stringContaining('platform:tenants:delete') },
+          });
+        }
       });
 
       it('should deny access to BILLING_REFUND permission', () => {
@@ -285,8 +293,10 @@ describe('PlatformPermissionsGuard', () => {
           fail('Expected ForbiddenException to be thrown');
         } catch (error) {
           expect(error).toBeInstanceOf(ForbiddenException);
-          expect((error as ForbiddenException).message).toContain(PlatformPermission.TENANTS_DELETE);
-          expect((error as ForbiddenException).message).toContain(PlatformPermission.DATA_DELETE);
+          const body = (error as ForbiddenException).getResponse() as { code: string; args: { permissions: string } };
+          expect(body.code).toBe('platform.permissions_missing');
+          expect(body.args.permissions).toContain(PlatformPermission.TENANTS_DELETE);
+          expect(body.args.permissions).toContain(PlatformPermission.DATA_DELETE);
         }
       });
     });

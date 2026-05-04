@@ -31,18 +31,18 @@ export class PlatformContextGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new UnauthorizedException('Authentication required');
+      throw new UnauthorizedException('common.authentication_required');
     }
 
     // Check if JWT audience matches required context
     const jwtAudience = user.aud ?? 'tenant';
 
     if (requiredContext === ContextType.PLATFORM && jwtAudience !== 'platform') {
-      throw new UnauthorizedException('Platform credentials required for this operation');
+      throw new UnauthorizedException('auth.platform_credentials_required');
     }
 
     if (requiredContext === ContextType.TENANT && jwtAudience === 'platform') {
-      throw new UnauthorizedException('Tenant credentials required for this operation');
+      throw new UnauthorizedException('auth.tenant_credentials_required');
     }
 
     return true;

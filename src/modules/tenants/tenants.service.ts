@@ -50,7 +50,10 @@ export class TenantsService {
   async findOne(id: string): Promise<Tenant> {
     const tenant = await this.tenantRepository.findOne({ where: { id } });
     if (!tenant) {
-      throw new NotFoundException(`Tenant with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'tenants.not_found_by_id',
+        args: { id },
+      });
     }
     return tenant;
   }
@@ -58,7 +61,10 @@ export class TenantsService {
   async findBySlug(slug: string): Promise<Tenant> {
     const tenant = await this.tenantRepository.findOne({ where: { slug } });
     if (!tenant) {
-      throw new NotFoundException(`Tenant with slug ${slug} not found`);
+      throw new NotFoundException({
+        code: 'tenants.not_found_by_slug',
+        args: { slug },
+      });
     }
     return tenant;
   }
@@ -86,7 +92,9 @@ export class TenantsService {
     const tenant = await this.findOne(id);
     const { parentTenantId, ...rest } = updateTenantDto;
 
-    Object.assign(tenant, rest);
+    if (rest.name !== undefined) tenant.name = rest.name;
+    if (rest.slug !== undefined) tenant.slug = rest.slug;
+    if (rest.subscriptionPlan !== undefined) tenant.subscriptionPlan = rest.subscriptionPlan;
 
     if (parentTenantId) {
       // Efficiently set relation by ID without loading the whole entity

@@ -129,9 +129,7 @@ describe('RequireReasonGuard', () => {
           const context = createMockExecutionContext({}, {});
 
           expect(() => guard.canActivate(context)).toThrow(BadRequestException);
-          expect(() => guard.canActivate(context)).toThrow(
-            'A detailed reason (minimum 10 characters) is required for this operation',
-          );
+          expect(() => guard.canActivate(context)).toThrow('platform.reason_required');
         });
 
         it('should throw BadRequestException when reason is null', () => {

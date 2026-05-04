@@ -23,7 +23,7 @@ export class ValidateTenantSlugMiddleware implements NestMiddleware {
     const slug = req.params.slug as string;
 
     if (!slug) {
-      throw new BadRequestException('Tenant slug is required');
+      throw new BadRequestException('client_portal.tenant_slug_required_body');
     }
 
     const tenant = await this.tenantsService.findBySlug(slug);

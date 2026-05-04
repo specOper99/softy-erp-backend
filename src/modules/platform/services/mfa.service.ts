@@ -7,6 +7,7 @@ import * as QRCode from 'qrcode';
 import { Repository } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { PlatformUser } from '../entities/platform-user.entity';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 export interface MFASetupResponse {
   secret: string;
@@ -83,7 +84,7 @@ export class MFAService {
       const delta = totp.validate({ token, window: 1 });
       return delta !== null;
     } catch (error) {
-      this.logger.error(`MFA verification failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(`MFA verification failed: ${toErrorMessage(error)}`);
       return false;
     }
   }
@@ -96,7 +97,7 @@ export class MFAService {
 
     if (!isValid) {
       this.logger.warn(`Invalid MFA code attempt for user ${input.userId}`);
-      throw new UnauthorizedException('Invalid MFA code');
+      throw new UnauthorizedException('auth.invalid_mfa_code');
     }
 
     return true;
@@ -154,7 +155,7 @@ export class MFAService {
   async getUserById(userId: string): Promise<PlatformUser> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('common.user_not_found');
     }
     return user;
   }
@@ -169,7 +170,7 @@ export class MFAService {
       select: selectFields,
     });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('common.user_not_found');
     }
     return user;
   }
@@ -205,7 +206,7 @@ export class MFAService {
     // Verify password before disabling MFA
     const passwordMatches = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatches) {
-      throw new UnauthorizedException('Incorrect password. MFA cannot be disabled.');
+      throw new UnauthorizedException('auth.incorrect_password_mfa_disable');
     }
 
     user.mfaEnabled = false;

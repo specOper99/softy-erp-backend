@@ -63,7 +63,7 @@ export class PackagesController {
   @ApiOperation({ summary: 'Create a new service package' })
   @ApiCreatedResponse({ description: 'Package created successfully', type: ServicePackageSummaryResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   create(@Body() dto: CreateServicePackageDto) {
     return this.catalogService.createPackage(dto);
@@ -83,7 +83,7 @@ export class PackagesController {
     description: 'Return filtered packages with pagination meta',
     schema: { $ref: getSchemaPath(ServicePackagePaginatedResponseDto) },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async findAllWithFilters(@Query() query: PackageFilterDto) {
     return this.catalogService.findAllPackagesWithFilters(query);
   }
@@ -101,7 +101,7 @@ export class PackagesController {
     description: 'Return filtered packages with cursor pagination',
     schema: { $ref: getSchemaPath(ServicePackageCursorResponseDto) },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async findAllWithFiltersCursor(@Query() query: PackageFilterDto) {
     return this.catalogService.findAllPackagesWithFiltersCursor(query);
   }
@@ -112,7 +112,7 @@ export class PackagesController {
     description: 'Return paginated packages',
     schema: { $ref: getSchemaPath(ServicePackageCursorResponseDto) },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   findAllCursor(@Query() query: CursorPaginationDto) {
     return this.catalogService.findAllPackagesCursor(query);
   }
@@ -121,8 +121,8 @@ export class PackagesController {
   @Cacheable()
   @ApiOperation({ summary: 'Get service package by ID' })
   @ApiOkResponse({ description: 'Package details', type: ServicePackageSummaryResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Package not found' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
+  @ApiResponse({ status: 404, description: 'client_portal.package_not_found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.catalogService.findPackageById(id);
   }
@@ -132,9 +132,9 @@ export class PackagesController {
   @ApiOperation({ summary: 'Update service package' })
   @ApiOkResponse({ description: 'Package updated', type: ServicePackageSummaryResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Package not found' })
+  @ApiResponse({ status: 404, description: 'client_portal.package_not_found' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateServicePackageDto) {
     return this.catalogService.updatePackage(id, dto);
   }
@@ -143,9 +143,9 @@ export class PackagesController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete service package (Admin only)' })
   @ApiResponse({ status: 200, description: 'Package deleted' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Package not found' })
+  @ApiResponse({ status: 404, description: 'client_portal.package_not_found' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.catalogService.deletePackage(id);
   }
@@ -155,7 +155,7 @@ export class PackagesController {
   @ApiOperation({ summary: 'Add items to service package' })
   @ApiResponse({ status: 201, description: 'Items added' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Package or Item not found' })
   addItems(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddPackageItemsDto) {
@@ -166,7 +166,7 @@ export class PackagesController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Remove item from package' })
   @ApiResponse({ status: 200, description: 'Item removed' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Item not found' })
   removeItem(@Param('itemId', ParseUUIDPipe) itemId: string) {
@@ -177,7 +177,7 @@ export class PackagesController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Clone a service package (template or regular)' })
   @ApiResponse({ status: 201, description: 'Package cloned successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Source package not found' })
   clonePackage(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ClonePackageDto) {

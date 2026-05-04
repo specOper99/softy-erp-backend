@@ -3,6 +3,7 @@ import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { TransactionCreatedEvent } from '../../finance/events/transaction-created.event';
 import { DashboardGateway } from '../dashboard.gateway';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @EventsHandler(TransactionCreatedEvent)
 export class DashboardTransactionCreatedHandler implements IEventHandler<TransactionCreatedEvent> {
@@ -27,7 +28,7 @@ export class DashboardTransactionCreatedHandler implements IEventHandler<Transac
           payoutId: event.payoutId,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = toErrorMessage(error);
         this.logger.warn(`Failed to broadcast transaction created event: ${message}`);
       }
     });

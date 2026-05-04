@@ -6,6 +6,7 @@ import { PasswordHashService } from '../../../common/services/password-hash.serv
 import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { MfaResponseDto } from '../dto';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class MfaService {
@@ -55,14 +56,12 @@ export class MfaService {
       const delta = totp.validate({ token: code, window: 1 });
       isValid = delta !== null;
     } catch (error) {
-      this.logger.warn(
-        `TOTP validation error during MFA enable for user ${user.id}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      throw new UnauthorizedException('Invalid MFA code');
+      this.logger.warn(`TOTP validation error during MFA enable for user ${user.id}: ${toErrorMessage(error)}`);
+      throw new UnauthorizedException('auth.invalid_mfa_code');
     }
 
     if (!isValid) {
-      throw new UnauthorizedException('Invalid MFA code');
+      throw new UnauthorizedException('auth.invalid_mfa_code');
     }
 
     await this.usersService.updateMfaSecret(user.id, userWithSecret.mfaSecret, true);
@@ -141,7 +140,7 @@ export class MfaService {
       const delta = totp.validate({ token, window: 1 });
       return delta !== null;
     } catch (error) {
-      this.logger.debug(`TOTP verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.debug(`TOTP verification failed: ${toErrorMessage(error)}`);
       return false;
     }
   }

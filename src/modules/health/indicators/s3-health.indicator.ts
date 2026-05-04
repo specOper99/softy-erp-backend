@@ -2,6 +2,7 @@ import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class S3HealthIndicator extends HealthIndicator {
@@ -31,7 +32,7 @@ export class S3HealthIndicator extends HealthIndicator {
       await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
       return this.getStatus(key, true, { bucket: this.bucketName });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'S3 connection failed';
+      const message = toErrorMessage(error);
       throw new HealthCheckError(`${key} check failed`, this.getStatus(key, false, { message }));
     }
   }

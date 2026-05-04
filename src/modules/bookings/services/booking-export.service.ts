@@ -2,6 +2,8 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import type { Response } from 'express';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { ExportService } from '../../../common/services/export.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { Transaction } from '../../finance/entities/transaction.entity';
 import { BookingExportFilterDto } from '../dto/booking-export-filter.dto';
 import { BookingRepository } from '../repositories/booking.repository';
@@ -69,14 +71,10 @@ export class BookingExportService {
       if (filters) {
         if (filters.search) {
           const trimmed = filters.search.trim();
-          if (trimmed.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
-            const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH).replace(/[%_]/g, '');
-            if (sanitized.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
-              qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
-                search: `%${sanitized}%`,
-              });
-            }
-          }
+          applyIlikeSearch(qb, ['client.name', 'client.email', 'booking.notes'], trimmed, {
+            minLength: BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH,
+            maxLength: BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH,
+          });
         }
 
         if (filters.status && filters.status.length > 0) {
@@ -186,7 +184,7 @@ export class BookingExportService {
         transformFn,
       );
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = toErrorMessage(error);
       this.logger.error(`Failed to export bookings CSV: ${message}`);
       throw new InternalServerErrorException('bookings.export_failed');
     }

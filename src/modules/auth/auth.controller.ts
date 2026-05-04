@@ -121,7 +121,7 @@ export class AuthController {
       ],
     },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({
     status: 429,
     description: 'Too Many Requests',
@@ -161,7 +161,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout (revoke refresh token)' })
   @ApiResponse({ status: 204, description: 'Logout successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async logout(@CurrentUser() user: User, @Body() dto: LogoutDto, @Req() req: Request): Promise<void> {
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
     if (dto.allSessions) {
@@ -174,7 +174,7 @@ export class AuthController {
     }
 
     if (!dto.refreshToken) {
-      throw new BadRequestException('refreshToken is required unless allSessions=true');
+      throw new BadRequestException('auth.refresh_token_body_required');
     }
 
     await this.authService.logout(user.id, dto.refreshToken, accessToken);
@@ -202,7 +202,7 @@ export class AuthController {
     type: RecoveryCodesResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid verification code' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async enableMfa(@CurrentUser() user: User, @Body() dto: EnableMfaDto): Promise<RecoveryCodesResponseDto> {
     const codes = await this.authService.enableMfa(user, dto.code);
@@ -272,7 +272,7 @@ export class AuthController {
     description: 'Returns the number of remaining recovery codes and a warning if running low.',
   })
   @ApiResponse({ status: 200, description: 'Recovery codes status' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async getRecoveryCodes(@CurrentUser() user: User): Promise<RecoveryCodesResponseDto> {
     const remaining = await this.authService.getRemainingRecoveryCodes(user);
 
@@ -313,7 +313,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get active sessions for current user' })
   @ApiOkResponse({ description: 'List of active sessions', type: [SessionInfoDto] })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   async getSessions(@CurrentUser() user: User): Promise<SessionInfoDto[]> {
     const sessions = await this.authService.getActiveSessions(user.id);
     return sessions.map((s) => s.toSessionInfo());
@@ -324,8 +324,8 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a specific session' })
-  @ApiResponse({ status: 204, description: 'Session revoked' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 204, description: 'auth.session_revoked' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 404, description: 'Session not found' })
   async revokeSession(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) sessionId: string): Promise<void> {
     await this.authService.revokeSession(user.id, sessionId);
@@ -346,7 +346,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
   @ApiOkResponse({ description: 'Authenticated user information', type: CurrentUserDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   getCurrentUser(@CurrentUser() user: User): CurrentUserDto {
     return {
       id: user.id,
@@ -368,10 +368,10 @@ export class AuthController {
   @ApiBody({ type: ForgotPasswordDto })
   @ApiResponse({ status: 200, description: 'Password reset email sent (masked)' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @I18nLang() lang: Language): Promise<{ message: string }> {
     await this.authService.forgotPassword(dto.email);
     return {
-      message: 'If an account exists, a password reset email has been sent',
+      message: this.i18nService.translate('auth.password_reset_email_sent', { lang }),
     };
   }
 
@@ -385,7 +385,7 @@ export class AuthController {
   })
   @ApiBody({ type: ResetPasswordDto })
   @ApiResponse({ status: 200, description: 'Password reset successful' })
-  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 400, description: 'auth.invalid_or_expired_token' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
   async resetPassword(@Body() dto: ResetPasswordDto, @I18nLang() lang: Language): Promise<{ message: string }> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
@@ -407,10 +407,13 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: minutes(10) } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend verification email' })
-  async resendVerification(@Body() dto: ResendVerificationDto): Promise<{ message: string }> {
+  async resendVerification(
+    @Body() dto: ResendVerificationDto,
+    @I18nLang() lang: Language,
+  ): Promise<{ message: string }> {
     await this.authService.resendVerificationEmail(dto.email);
     return {
-      message: 'If the account exists and is unverified, a verification email has been sent',
+      message: this.i18nService.translate('auth.verification_email_sent', { lang }),
     };
   }
 }

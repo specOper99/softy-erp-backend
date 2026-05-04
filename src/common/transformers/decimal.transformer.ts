@@ -15,6 +15,8 @@
  */
 import Decimal from 'decimal.js';
 import { ValueTransformer } from 'typeorm';
+import { RuntimeFailure } from '../errors/runtime-failure';
+import { toErrorMessage } from '../utils/error.util';
 
 /** Maximum safe financial value ($1 trillion) */
 const MAX_FINANCIAL_VALUE = 1_000_000_000_000;
@@ -38,12 +40,14 @@ export const DecimalTransformer: ValueTransformer = {
 
     // Validate input is a finite number
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error(`Invalid decimal value: ${value}. Expected a finite number.`);
+      throw new RuntimeFailure(`Invalid decimal value: ${value}. Expected a finite number.`);
     }
 
     // Validate within safe bounds
     if (value < MIN_FINANCIAL_VALUE || value > MAX_FINANCIAL_VALUE) {
-      throw new Error(`Decimal value ${value} out of safe range [${MIN_FINANCIAL_VALUE}, ${MAX_FINANCIAL_VALUE}]`);
+      throw new RuntimeFailure(
+        `Decimal value ${value} out of safe range [${MIN_FINANCIAL_VALUE}, ${MAX_FINANCIAL_VALUE}]`,
+      );
     }
 
     // Use Decimal.js for precise string conversion
@@ -62,7 +66,7 @@ export const DecimalTransformer: ValueTransformer = {
     // If already a number (some drivers do this), validate and return
     if (typeof value === 'number') {
       if (!Number.isFinite(value)) {
-        throw new Error(`[DecimalTransformer] Non-finite number read from DB: ${value}`);
+        throw new RuntimeFailure(`[DecimalTransformer] Non-finite number read from DB: ${value}`);
       }
       return value;
     }
@@ -73,15 +77,13 @@ export const DecimalTransformer: ValueTransformer = {
       const num = decimal.toNumber();
 
       if (!Number.isFinite(num)) {
-        throw new Error(`[DecimalTransformer] Parsed decimal is non-finite: ${value}`);
+        throw new RuntimeFailure(`[DecimalTransformer] Parsed decimal is non-finite: ${value}`);
       }
 
       return num;
     } catch (error) {
-      throw new Error(
-        `[DecimalTransformer] Failed to parse decimal value "${String(value)}" from DB: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+      throw new RuntimeFailure(
+        `[DecimalTransformer] Failed to parse decimal value "${String(value)}" from DB: ${toErrorMessage(error)}`,
         { cause: error },
       );
     }
@@ -99,12 +101,12 @@ export const PercentTransformer: ValueTransformer = {
     }
 
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error(`Invalid percentage value: ${value}. Expected a finite number.`);
+      throw new RuntimeFailure(`Invalid percentage value: ${value}. Expected a finite number.`);
     }
 
     // Percentages typically 0-100, but allow some flexibility (e.g., 150% markup)
     if (value < -1000 || value > 1000) {
-      throw new Error(`Percentage value ${value} out of reasonable range [-1000, 1000]`);
+      throw new RuntimeFailure(`Percentage value ${value} out of reasonable range [-1000, 1000]`);
     }
 
     return new Decimal(value).toFixed(2);
@@ -117,7 +119,7 @@ export const PercentTransformer: ValueTransformer = {
 
     if (typeof value === 'number') {
       if (!Number.isFinite(value)) {
-        throw new Error(`[PercentTransformer] Non-finite number read from DB: ${value}`);
+        throw new RuntimeFailure(`[PercentTransformer] Non-finite number read from DB: ${value}`);
       }
       return value;
     }
@@ -126,14 +128,12 @@ export const PercentTransformer: ValueTransformer = {
       const decimal = new Decimal(value);
       const num = decimal.toNumber();
       if (!Number.isFinite(num)) {
-        throw new Error(`[PercentTransformer] Parsed value is non-finite: ${value}`);
+        throw new RuntimeFailure(`[PercentTransformer] Parsed value is non-finite: ${value}`);
       }
       return num;
     } catch (error) {
-      throw new Error(
-        `[PercentTransformer] Failed to parse percent value "${String(value)}" from DB: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+      throw new RuntimeFailure(
+        `[PercentTransformer] Failed to parse percent value "${String(value)}" from DB: ${toErrorMessage(error)}`,
         { cause: error },
       );
     }
@@ -151,12 +151,12 @@ export const ExchangeRateTransformer: ValueTransformer = {
     }
 
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error(`Invalid exchange rate value: ${value}. Expected a finite number.`);
+      throw new RuntimeFailure(`Invalid exchange rate value: ${value}. Expected a finite number.`);
     }
 
     // Exchange rates should be positive (or 0 as edge case)
     if (value < 0 || value > 1_000_000) {
-      throw new Error(`Exchange rate ${value} out of reasonable range [0, 1000000]`);
+      throw new RuntimeFailure(`Exchange rate ${value} out of reasonable range [0, 1000000]`);
     }
 
     return new Decimal(value).toFixed(6);
@@ -169,7 +169,7 @@ export const ExchangeRateTransformer: ValueTransformer = {
 
     if (typeof value === 'number') {
       if (!Number.isFinite(value)) {
-        throw new Error(`[ExchangeRateTransformer] Non-finite number read from DB: ${value}`);
+        throw new RuntimeFailure(`[ExchangeRateTransformer] Non-finite number read from DB: ${value}`);
       }
       return value;
     }
@@ -178,14 +178,12 @@ export const ExchangeRateTransformer: ValueTransformer = {
       const decimal = new Decimal(value);
       const num = decimal.toNumber();
       if (!Number.isFinite(num)) {
-        throw new Error(`[ExchangeRateTransformer] Parsed value is non-finite: ${value}`);
+        throw new RuntimeFailure(`[ExchangeRateTransformer] Parsed value is non-finite: ${value}`);
       }
       return num;
     } catch (error) {
-      throw new Error(
-        `[ExchangeRateTransformer] Failed to parse exchange rate "${String(value)}" from DB: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+      throw new RuntimeFailure(
+        `[ExchangeRateTransformer] Failed to parse exchange rate "${String(value)}" from DB: ${toErrorMessage(error)}`,
         { cause: error },
       );
     }

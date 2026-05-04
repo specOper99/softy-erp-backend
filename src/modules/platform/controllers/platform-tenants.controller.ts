@@ -83,7 +83,7 @@ export class PlatformTenantsController {
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant details' })
-  @ApiResponse({ status: 404, description: 'Tenant not found' })
+  @ApiResponse({ status: 404, description: 'tenants.not_found' })
   async getTenant(@Param('id', ParseUUIDPipe) id: string) {
     return this.tenantService.getTenant(id);
   }

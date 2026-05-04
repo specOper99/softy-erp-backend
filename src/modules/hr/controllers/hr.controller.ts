@@ -62,7 +62,7 @@ export class HrController {
   })
   @ApiResponse({ status: 201, description: 'Staff created successfully', type: CreateStaffResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid role or payload' })
-  @ApiResponse({ status: 409, description: 'User or profile already exists' })
+  @ApiResponse({ status: 409, description: 'hr.user_or_profile_exists' })
   createStaff(@Body() dto: CreateStaffDto): Promise<CreateStaffResponseDto> {
     return this.hrService.createStaff(dto);
   }
@@ -82,7 +82,7 @@ export class HrController {
   @ApiQuery({ name: 'department', required: false, type: String })
   @ApiQuery({ name: 'contractType', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return filtered profiles with pagination meta' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async findAllProfilesWithFilters(@Query() query: ProfileFilterDto) {
     return this.hrService.findAllProfilesWithFilters(query);
@@ -101,7 +101,7 @@ export class HrController {
   @ApiQuery({ name: 'department', required: false, type: String })
   @ApiQuery({ name: 'contractType', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return filtered profiles with cursor pagination' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async findAllProfilesWithFiltersCursor(@Query() query: ProfileFilterDto) {
     return this.hrService.findAllProfilesWithFiltersCursor(query);

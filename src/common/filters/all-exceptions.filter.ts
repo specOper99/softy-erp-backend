@@ -4,6 +4,23 @@ import { Request, Response } from 'express';
 import { I18nContext, I18nService } from 'nestjs-i18n';
 import { randomUUID } from 'node:crypto';
 import { getCorrelationId } from '../logger/request-context';
+import {
+  API_ERROR_ARGS,
+  API_ERROR_CODE,
+  API_VALIDATION_ERRORS,
+  getRegisteredApiErrorKeys,
+  parseLegacyValidationLine,
+  translateApiErrorMessage,
+  translateValidationFieldMessage,
+  type ApiErrorArgs,
+  type ApiValidationErrorItem,
+} from '../i18n/api-error-translation';
+
+interface FieldErrorEntry {
+  field: string;
+  code: string;
+  message: string;
+}
 
 interface ErrorResponse {
   statusCode: number;
@@ -12,6 +29,8 @@ interface ErrorResponse {
   timestamp: string;
   path: string;
   method: string;
+  code?: string;
+  errors?: FieldErrorEntry[];
 }
 
 interface RequestWithCorrelationId extends Request {
@@ -36,36 +55,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const correlationId = this.resolveCorrelationId(request);
     response.setHeader('X-Correlation-ID', correlationId);
 
-    // Resolve language from nestjs-i18n context (set by AcceptLanguageResolver middleware)
     const lang = I18nContext.current(host)?.lang ?? 'en';
 
     let status: number;
     let message: string;
+    let codeOut: string | undefined;
+    let fieldErrors: FieldErrorEntry[] | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
-
-      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-        const responseObj = exceptionResponse as {
-          message?: string | string[];
-          error?: string;
-        };
-        const msg = responseObj.message || exception.message;
-        message = this.formatMessage(msg);
-      } else {
-        message = String(exceptionResponse);
-      }
-
-      // Try to translate the message if it appears to be an error message
-      const translated = this.tryTranslateMessage(message, lang);
-      if (translated !== message) {
-        message = translated;
-      }
+      const resolved = this.resolveHttpException(exception, lang);
+      message = resolved.message;
+      codeOut = resolved.code;
+      fieldErrors = resolved.errors;
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      // Translate the generic error message
-      message = this.i18nService.translate('common.internal_error', { lang });
+      message = translateApiErrorMessage(this.i18nService, 'common.internal_error', undefined, lang, this.logger);
 
       this.logger.error({
         message: 'Unhandled exception',
@@ -78,8 +83,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       });
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      // Translate the generic error message
-      message = this.i18nService.translate('common.internal_error', { lang });
+      message = translateApiErrorMessage(this.i18nService, 'common.internal_error', undefined, lang, this.logger);
 
       this.logger.error({
         message: 'Unknown exception type',
@@ -97,42 +101,102 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
     };
+    if (codeOut) {
+      errorResponse.code = codeOut;
+    }
+    if (fieldErrors && fieldErrors.length > 0) {
+      errorResponse.errors = fieldErrors;
+    }
 
     response.status(status).json(errorResponse);
   }
 
-  private formatMessage(msg: string | string[]): string {
-    if (Array.isArray(msg)) {
-      return msg.join(', ');
+  private resolveHttpException(
+    exception: HttpException,
+    lang: string,
+  ): { message: string; code?: string; errors?: FieldErrorEntry[] } {
+    const raw = exception.getResponse();
+
+    if (typeof raw === 'string') {
+      return { message: this.resolvePlainStringMessage(raw, lang) };
     }
-    return String(msg);
+
+    if (typeof raw !== 'object' || raw === null) {
+      return { message: String(raw) };
+    }
+
+    const o = raw as Record<string, unknown>;
+    const registered = getRegisteredApiErrorKeys();
+
+    const validationRaw = o[API_VALIDATION_ERRORS];
+    if (Array.isArray(validationRaw) && validationRaw.length > 0) {
+      let code = 'validation.failed';
+      if (typeof o[API_ERROR_CODE] === 'string') {
+        code = o[API_ERROR_CODE];
+      } else if (typeof o['code'] === 'string') {
+        code = o['code'];
+      }
+      const errors: FieldErrorEntry[] = validationRaw.map((item) => {
+        const it = item as ApiValidationErrorItem;
+        return {
+          field: it.property,
+          code: it.code,
+          message: translateValidationFieldMessage(this.i18nService, it.property, it.code, lang, this.logger),
+        };
+      });
+      const message = errors.map((e) => e.message).join(', ');
+      return { message, code, errors };
+    }
+
+    const code = typeof o['code'] === 'string' ? o['code'] : undefined;
+    if (code) {
+      const args = o[API_ERROR_ARGS] as ApiErrorArgs | undefined;
+      const message = translateApiErrorMessage(this.i18nService, code, args, lang, this.logger);
+      return { message, code };
+    }
+
+    if (Array.isArray(o['message'])) {
+      const parts = (o['message'] as string[]).map((line) =>
+        this.translateLegacyValidationOrKeyLine(line, lang, registered),
+      );
+      return { message: parts.join(', ') };
+    }
+
+    if (typeof o['message'] === 'string') {
+      return { message: this.resolvePlainStringMessage(o['message'], lang) };
+    }
+
+    return { message: exception.message };
+  }
+
+  private translateLegacyValidationOrKeyLine(line: string, lang: string, registered: Set<string>): string {
+    const parsed = parseLegacyValidationLine(line);
+    if (parsed && registered.has(parsed.code)) {
+      return translateValidationFieldMessage(this.i18nService, parsed.property, parsed.code, lang, this.logger);
+    }
+    return this.resolvePlainStringMessage(line, lang);
   }
 
   /**
-   * Try to translate a message. Returns the translated message if found,
-   * or the original message if no translation exists.
+   * If the string is a registered i18n leaf key, translate it; otherwise return as-is (legacy English).
    */
-  private tryTranslateMessage(message: string, lang: string): string {
-    // Map common generic error messages to translation keys
-    const messageKeyMap: Record<string, string> = {
+  private resolvePlainStringMessage(s: string, lang: string): string {
+    const keyMap: Record<string, string> = {
       'An unexpected error occurred. Please try again later.': 'common.internal_error',
       'Unhandled exception': 'common.internal_error',
       'Unknown exception': 'common.internal_error',
     };
-
-    const translationKey = messageKeyMap[message];
-    if (translationKey) {
-      return this.i18nService.translate(translationKey, { lang });
+    const mapped = keyMap[s];
+    if (mapped) {
+      return translateApiErrorMessage(this.i18nService, mapped, undefined, lang, this.logger);
     }
 
-    // Try to translate the message directly (assuming it might be a key)
-    const translated = this.i18nService.translate(message, { lang }) as string;
-    if (translated !== message) {
-      return translated;
+    const registered = getRegisteredApiErrorKeys();
+    if (registered.has(s)) {
+      return translateApiErrorMessage(this.i18nService, s, undefined, lang, this.logger);
     }
 
-    // Return original message if no translation found
-    return message;
+    return s;
   }
 
   private resolveCorrelationId(request: RequestWithCorrelationId): string {
@@ -156,7 +220,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (!trimmed) return undefined;
     if (trimmed.length > 128) return undefined;
 
-    // Allow a safe subset of characters to prevent log injection / header abuse
     if (!/^[a-zA-Z0-9._:-]+$/.test(trimmed)) return undefined;
 
     return trimmed;

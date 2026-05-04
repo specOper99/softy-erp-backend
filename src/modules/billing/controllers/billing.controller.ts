@@ -16,7 +16,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { createHash } from 'node:crypto';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -30,14 +29,15 @@ import {
   UpdateSubscriptionDto,
 } from '../dto/billing.dto';
 import {
+  StripeService,
   type StripeEvent,
   type StripeInvoiceList,
   type StripePriceList,
   type StripeProductList,
   type StripeUpcomingInvoice,
-  StripeService,
 } from '../services/stripe.service';
 import { SubscriptionService } from '../services/subscription.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @ApiTags('Billing')
 @ApiBearerAuth()
@@ -179,14 +179,10 @@ export class BillingWebhookController {
     try {
       event = this.stripeService.constructWebhookEvent(rawBody, signature, webhookSecret);
     } catch (error) {
-      const bodyHash = createHash('sha256').update(rawBody).digest('hex');
-      const sigParts = signature.split(',').map((p) => p.trim());
-      const t = sigParts.find((p) => p.startsWith('t='))?.slice('t='.length);
-      const v1 = sigParts.find((p) => p.startsWith('v1='))?.slice('v1='.length);
-      const v1Prefix = typeof v1 === 'string' ? v1.slice(0, 12) : undefined;
-
+      // Do NOT log HMAC bytes, partial signatures, or body hashes — even truncated
+      // values aid birthday/length-extension analysis. Log only non-sensitive metadata.
       this.logger.warn(
-        `Stripe webhook signature verification failed (len=${rawBody.length}, sha256=${bodyHash.slice(0, 12)}, sigLen=${signature.length}, t=${t ?? 'n/a'}, v1=${v1Prefix ?? 'n/a'}): ${error instanceof Error ? error.message : String(error)}`,
+        `Stripe webhook signature verification failed (bodyLen=${rawBody.length}, sigLen=${signature.length}): ${toErrorMessage(error)}`,
       );
       throw new BadRequestException('billing.invalid_webhook_signature');
     }

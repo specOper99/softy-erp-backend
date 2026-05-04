@@ -3,6 +3,7 @@ import { EventBus } from '@nestjs/cqrs';
 import { Counter } from 'prom-client';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 
 import { FlagsService } from '../../../common/flags/flags.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
@@ -43,6 +44,7 @@ import { BookingUpdatedEvent } from '../events/booking-updated.event';
 import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { BookingRepository } from '../repositories/booking.repository';
 import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
@@ -153,7 +155,6 @@ export class BookingsService {
 
     // Attach processing types via join table if provided
     if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
-      const tenantId = TenantContextService.getTenantIdOrThrow();
       const types = await this.processingTypeRepository.find({
         where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
       });
@@ -185,12 +186,11 @@ export class BookingsService {
         const dateParts = savedBooking.eventDate.toISOString().split('T');
         const dateStr = dateParts[0] ?? '';
         const pkgId = savedBooking.packageId as string;
-        const tenantIdStr: string = tenantId;
         if (pkgId) {
-          await this.availabilityCacheOwner.delAvailability(tenantIdStr, pkgId, dateStr);
+          await this.availabilityCacheOwner.delAvailability(tenantId, pkgId, dateStr);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         this.logger.warn(`Failed to invalidate availability cache: ${message}`);
       }
     }
@@ -228,25 +228,7 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.andWhere(
-        `(EXISTS (
-          SELECT 1
-          FROM tasks t
-          INNER JOIN task_assignees ta
-            ON ta.task_id = t.id
-            AND ta.tenant_id = t.tenant_id
-          WHERE t.booking_id = booking.id
-            AND t.tenant_id = booking."tenant_id"
-            AND ta.user_id = :userId
-        ) OR EXISTS (
-          SELECT 1
-          FROM tasks t
-          WHERE t.booking_id = booking.id
-            AND t.tenant_id = booking."tenant_id"
-            AND t.assigned_user_id = :userId
-        ))`,
-        { userId: user.id },
-      );
+      this.applyFieldStaffFilter(qb, user.id);
     }
 
     return qb.getMany();
@@ -269,25 +251,7 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.andWhere(
-        `(EXISTS (
-          SELECT 1
-          FROM tasks t
-          INNER JOIN task_assignees ta
-            ON ta.task_id = t.id
-            AND ta.tenant_id = t.tenant_id
-          WHERE t.booking_id = booking.id
-            AND t.tenant_id = booking."tenant_id"
-            AND ta.user_id = :userId
-        ) OR EXISTS (
-          SELECT 1
-          FROM tasks t
-          WHERE t.booking_id = booking.id
-            AND t.tenant_id = booking."tenant_id"
-            AND t.assigned_user_id = :userId
-        ))`,
-        { userId: user.id },
-      );
+      this.applyFieldStaffFilter(qb, user.id);
     }
 
     return CursorPaginationHelper.paginate(qb, {
@@ -319,30 +283,15 @@ export class BookingsService {
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
-      qb.andWhere(
-        `(EXISTS (
-          SELECT 1
-          FROM tasks t
-          INNER JOIN task_assignees ta
-            ON ta.task_id = t.id
-            AND ta.tenant_id = t.tenant_id
-          WHERE t.booking_id = booking.id
-            AND t.tenant_id = booking."tenant_id"
-            AND ta.user_id = :userId
-        ) OR EXISTS (
-          SELECT 1
-          FROM tasks t
-          WHERE t.booking_id = booking.id
-            AND t.tenant_id = booking."tenant_id"
-            AND t.assigned_user_id = :userId
-        ))`,
-        { userId: user.id },
-      );
+      this.applyFieldStaffFilter(qb, user.id);
     }
 
     const booking = await qb.getOne();
     if (!booking) {
-      throw new NotFoundException(`Booking with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'bookings.not_found_by_id',
+        args: { id },
+      });
     }
     return booking;
   }
@@ -351,9 +300,9 @@ export class BookingsService {
   // But wait, the previous `findOne` usage in `update` is fine.
   async update(id: string, inputDto: UpdateBookingDto): Promise<Booking> {
     let dto = { ...inputDto };
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
     if (dto.status !== undefined) {
-      const tenantId = TenantContextService.getTenantIdOrThrow();
       const enforceStrictLifecycle = this.flagsService.isEnabled(
         'strictBookingLifecycle',
         { tenantId, bookingId: id, requestedStatus: dto.status },
@@ -406,7 +355,7 @@ export class BookingsService {
       });
 
       if (!booking) {
-        throw new NotFoundException('Booking not found');
+        throw new NotFoundException('bookings.not_found');
       }
 
       const originalPricing = {
@@ -451,16 +400,13 @@ export class BookingsService {
       }
 
       // Apply remaining simple field updates (excluding price fields already handled)
-      const simpleUpdates: Partial<Booking> = {};
-      if (dto.clientId !== undefined) simpleUpdates.clientId = dto.clientId;
-      if (dto.eventDate !== undefined) simpleUpdates.eventDate = parseCanonicalBookingDateInput(dto.eventDate);
-      if (dto.startTime !== undefined) simpleUpdates.startTime = dto.startTime;
-      if (dto.notes !== undefined) simpleUpdates.notes = dto.notes;
-      if (dto.handoverType !== undefined) simpleUpdates.handoverType = dto.handoverType;
-      if (dto.locationLink !== undefined) simpleUpdates.locationLink = dto.locationLink;
-      if (dto.venueCost !== undefined) simpleUpdates.venueCost = dto.venueCost;
-
-      Object.assign(booking, simpleUpdates);
+      if (dto.clientId !== undefined) booking.clientId = dto.clientId;
+      if (dto.eventDate !== undefined) booking.eventDate = parseCanonicalBookingDateInput(dto.eventDate);
+      if (dto.startTime !== undefined) booking.startTime = dto.startTime;
+      if (dto.notes !== undefined) booking.notes = dto.notes;
+      if (dto.handoverType !== undefined) booking.handoverType = dto.handoverType;
+      if (dto.locationLink !== undefined) booking.locationLink = dto.locationLink;
+      if (dto.venueCost !== undefined) booking.venueCost = dto.venueCost;
 
       // Update processing types if provided
       if (dto.processingTypeIds !== undefined) {
@@ -532,7 +478,7 @@ export class BookingsService {
           await this.availabilityCacheOwner.delAvailability(savedBooking.tenantId, pkgId, dateStr);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         this.logger.warn(`Failed to invalidate availability cache: ${message}`);
       }
     }
@@ -573,7 +519,7 @@ export class BookingsService {
           await this.availabilityCacheOwner.delAvailability(booking.tenantId, pkgId, dateStr);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = toErrorMessage(err);
         this.logger.warn(`Failed to invalidate availability cache: ${message}`);
       }
     }
@@ -761,17 +707,40 @@ export class BookingsService {
    * Apply shared booking filter conditions to a query builder.
    * Used by findAll (offset), findAllCursor, and export methods.
    */
+  /**
+   * Applies an RBAC filter so FIELD_STAFF can only see bookings where they are
+   * explicitly assigned — either via the task_assignees join table or via the
+   * legacy assigned_user_id column.
+   */
+  private applyFieldStaffFilter(qb: SelectQueryBuilder<Booking>, userId: string): void {
+    qb.andWhere(
+      `(EXISTS (
+        SELECT 1
+        FROM tasks t
+        INNER JOIN task_assignees ta
+          ON ta.task_id = t.id
+          AND ta.tenant_id = t.tenant_id
+        WHERE t.booking_id = booking.id
+          AND t.tenant_id = booking."tenant_id"
+          AND ta.user_id = :userId
+      ) OR EXISTS (
+        SELECT 1
+        FROM tasks t
+        WHERE t.booking_id = booking.id
+          AND t.tenant_id = booking."tenant_id"
+          AND t.assigned_user_id = :userId
+      ))`,
+      { userId },
+    );
+  }
+
   private applyBookingFilters(qb: SelectQueryBuilder<Booking>, filters: BookingFilterFields): void {
     if (filters.search) {
       const trimmed = filters.search.trim();
-      if (trimmed.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
-        const sanitized = trimmed.slice(0, BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH).replace(/[%_]/g, '');
-        if (sanitized.length >= BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH) {
-          qb.andWhere('(client.name ILIKE :search OR client.email ILIKE :search OR booking.notes ILIKE :search)', {
-            search: `%${sanitized}%`,
-          });
-        }
-      }
+      applyIlikeSearch(qb, ['client.name', 'client.email', 'booking.notes'], trimmed, {
+        minLength: BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH,
+        maxLength: BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH,
+      });
     }
 
     if (filters.status && filters.status.length > 0) {

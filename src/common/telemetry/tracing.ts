@@ -4,6 +4,7 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor, ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { toErrorMessage } from '../utils/error.util';
 
 const isTracingEnabled = process.env.OTEL_ENABLED === 'true';
 
@@ -19,7 +20,7 @@ class TracingLogger {
   }
 
   static error(message: string, error?: unknown): void {
-    const errorStr = error instanceof Error ? error.message : String(error);
+    const errorStr = toErrorMessage(error);
     process.stderr.write(`${this.formatMessage(message)}: ${errorStr}\n`);
   }
 }

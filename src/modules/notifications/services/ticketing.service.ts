@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { TicketPayload, TicketingProvider } from './ticketing.interface';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 /**
  * Webhook-based ticketing service for creating tickets on reconciliation mismatches.
@@ -38,15 +40,13 @@ export class TicketingService implements TicketingProvider {
     try {
       url = new URL(this.webhookUrl);
     } catch (error) {
-      this.logger.error(
-        `Ticketing webhook URL invalid: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
-      );
+      this.logger.error(`Ticketing webhook URL invalid: ${toErrorMessage(error)}`);
       throw error instanceof Error ? error : new Error('Ticketing webhook URL invalid');
     }
 
     if (url.protocol !== 'https:') {
       this.logger.error('Ticketing webhook protocol must be https');
-      throw new Error('Ticketing webhook protocol must be https');
+      throw new RuntimeFailure('Ticketing webhook protocol must be https');
     }
 
     const controller = new AbortController();
@@ -73,12 +73,12 @@ export class TicketingService implements TicketingProvider {
 
       if (response.status >= 300 && response.status < 400) {
         this.logger.error('Ticketing webhook redirect blocked');
-        throw new Error('Ticketing webhook redirect blocked');
+        throw new RuntimeFailure('Ticketing webhook redirect blocked');
       }
 
       if (!response.ok) {
         this.logger.error(`Failed to create ticket: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to create ticket: ${response.status} ${response.statusText}`);
+        throw new RuntimeFailure(`Failed to create ticket: ${response.status} ${response.statusText}`);
       }
 
       const result = (await response.json()) as { ticketId?: string; id?: string };

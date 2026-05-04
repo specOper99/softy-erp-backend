@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import pLimit from 'p-limit';
 import { DataSource, QueryFailedError } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -24,6 +25,7 @@ import { PayrollRunResponseDto, RunPayrollDto } from '../dto';
 import { PayrollRun } from '../entities';
 import { PayrollRunRepository } from '../repositories/payroll-run.repository';
 import { ProfileRepository } from '../repositories/profile.repository';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class PayrollService {
@@ -98,7 +100,7 @@ export class PayrollService {
         await Promise.all(tenants.map((tenant) => limit(() => processPayrollForTenant(tenant))));
 
         if (failedTenants.length > 0) {
-          throw new Error(`Scheduled payroll failed for tenant(s): ${failedTenants.join(', ')}`);
+          throw new RuntimeFailure(`Scheduled payroll failed for tenant(s): ${failedTenants.join(', ')}`);
         }
 
         this.logger.log('Scheduled payroll run completed for all tenants');
@@ -159,7 +161,7 @@ export class PayrollService {
           `Payroll batch ${batchIndex + 1}/${batchCount} completed: ${batchResult.employeesProcessed} employees, $${batchResult.totalPayout}`,
         );
       } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
+        const reason = toErrorMessage(error);
         failedBatches.push({ batchIndex: batchIndex + 1, reason });
         this.logger.error(`Payroll batch ${batchIndex + 1}/${batchCount} failed for tenant ${tenantId}`, error);
         break;
@@ -192,7 +194,7 @@ export class PayrollService {
         notes: `Payroll failed for tenant ${tenantId} at batch ${failedBatches[0]?.batchIndex}`,
       });
 
-      throw new Error('hr.payroll_failed');
+      throw new RuntimeFailure('hr.payroll_failed');
     }
 
     // Final audit log (outside batch transactions)
@@ -387,10 +389,10 @@ export class PayrollService {
       const allReasons = rejected
         .map((r, i) => {
           const reason = r.reason;
-          return `[${i + 1}] ${reason instanceof Error ? reason.message : String(reason)}`;
+          return `[${i + 1}] ${toErrorMessage(reason)}`;
         })
         .join('; ');
-      throw new Error(`Payroll batch failed for ${rejected.length} employee(s): ${allReasons}`);
+      throw new RuntimeFailure(`Payroll batch failed for ${rejected.length} employee(s): ${allReasons}`);
     }
 
     return { transactionIds, totalPayout, employeesProcessed };

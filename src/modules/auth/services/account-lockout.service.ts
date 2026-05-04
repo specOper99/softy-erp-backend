@@ -67,7 +67,7 @@ export class AccountLockoutService {
 
     if (info.attempts >= this.maxAttempts) {
       info.lockedUntil = Date.now() + this.lockoutDurationMs;
-      this.logger.warn(`Account ${email} locked out for ${this.lockoutDurationMs / 1000}s`);
+      this.logger.warn(`Account locked out for ${this.lockoutDurationMs / 1000}s`);
     }
 
     // Store with TTL matching attempt window (or lockout duration if locked)

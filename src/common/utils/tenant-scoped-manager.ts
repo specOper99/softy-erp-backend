@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, EntityManager, QueryRunner } from 'typeorm';
 import { TenantContextService } from '../services/tenant-context.service';
+import { toErrorMessage } from './error.util';
 
 /**
  * TenantScopedManager
@@ -69,9 +70,7 @@ export class TenantScopedManager {
     } catch (error) {
       if (queryRunner.isTransactionActive) {
         await queryRunner.rollbackTransaction();
-        this.logger.warn(
-          `Transaction rolled back for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        this.logger.warn(`Transaction rolled back for tenant ${tenantId}: ${toErrorMessage(error)}`);
       }
       throw error;
     } finally {
@@ -108,9 +107,7 @@ export class TenantScopedManager {
     } catch (error) {
       if (queryRunner.isTransactionActive) {
         await queryRunner.rollbackTransaction();
-        this.logger.warn(
-          `Transaction rolled back for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        this.logger.warn(`Transaction rolled back for tenant ${tenantId}: ${toErrorMessage(error)}`);
       }
       throw error;
     } finally {

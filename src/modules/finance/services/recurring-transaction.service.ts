@@ -12,6 +12,7 @@ import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '..
 import { RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
 import { FinanceService } from './finance.service';
 
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
 
 @Injectable()
@@ -59,13 +60,26 @@ export class RecurringTransactionService {
 
   async findOne(id: string): Promise<RecurringTransaction> {
     const rt = await this.recurringRepo.findOne({ where: { id } });
-    if (!rt) throw new NotFoundException('Recurring transaction not found');
+    if (!rt) throw new NotFoundException('finance.recurring_not_found');
     return rt;
   }
 
   async update(id: string, dto: UpdateRecurringTransactionDto): Promise<RecurringTransaction> {
     const rt = await this.findOne(id);
-    Object.assign(rt, dto);
+    if (dto.name !== undefined) rt.name = dto.name;
+    if (dto.type !== undefined) rt.type = dto.type;
+    if (dto.amount !== undefined) rt.amount = dto.amount;
+    if (dto.currency !== undefined) rt.currency = dto.currency;
+    if (dto.category !== undefined) rt.category = dto.category;
+    if (dto.department !== undefined) rt.department = dto.department;
+    if (dto.description !== undefined) rt.description = dto.description;
+    if (dto.frequency !== undefined) rt.frequency = dto.frequency;
+    if (dto.interval !== undefined) rt.interval = dto.interval;
+    if (dto.startDate !== undefined) rt.startDate = new Date(dto.startDate);
+    if (dto.endDate !== undefined) rt.endDate = dto.endDate ? new Date(dto.endDate) : null;
+    if (dto.maxOccurrences !== undefined) rt.maxOccurrences = dto.maxOccurrences;
+    if (dto.notifyBeforeDays !== undefined) rt.notifyBeforeDays = dto.notifyBeforeDays;
+    if (dto.status !== undefined) rt.status = dto.status;
     return this.recurringRepo.save(rt);
   }
 
@@ -146,7 +160,7 @@ export class RecurringTransactionService {
       } catch (error) {
         // Track failures to prevent infinite retry loops
         rt.failureCount = (rt.failureCount || 0) + 1;
-        rt.lastError = error instanceof Error ? error.message : String(error);
+        rt.lastError = toErrorMessage(error);
 
         // Mark as FAILED after 3 consecutive failures
         if (rt.failureCount >= 3) {

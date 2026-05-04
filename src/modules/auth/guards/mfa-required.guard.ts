@@ -38,12 +38,12 @@ export class MfaRequiredGuard implements CanActivate {
     const user = (request as Request & { user?: AuthenticatedUser }).user;
 
     if (!user) {
-      throw new ForbiddenException('Authentication required');
+      throw new ForbiddenException('common.authentication_required');
     }
 
     if (this.requiredRoles.includes(user.role)) {
       if (!user.isMfaEnabled) {
-        throw new ForbiddenException('MFA is required for this action. Please enable MFA in your account settings.');
+        throw new ForbiddenException('auth.mfa_required_enable');
       }
     }
 

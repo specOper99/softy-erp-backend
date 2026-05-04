@@ -34,7 +34,7 @@ export class EmailTemplatesService {
     });
 
     if (!template) {
-      throw new NotFoundException('Template not found');
+      throw new NotFoundException('mail.template_not_found');
     }
 
     return template;
@@ -58,7 +58,7 @@ export class EmailTemplatesService {
     const existing = await this.findByName(dto.name);
 
     if (existing) {
-      throw new BadRequestException('Template with this name already exists');
+      throw new BadRequestException('mail.template_name_exists');
     }
 
     const template = this.emailTemplateRepository.create({
@@ -76,7 +76,10 @@ export class EmailTemplatesService {
   async update(id: string, dto: UpdateEmailTemplateDto): Promise<EmailTemplate> {
     const template = await this.findById(id);
 
-    Object.assign(template, dto);
+    if (dto.subject !== undefined) template.subject = dto.subject;
+    if (dto.content !== undefined) template.content = dto.content;
+    if (dto.variables !== undefined) template.variables = dto.variables;
+    if (dto.description !== undefined) template.description = dto.description;
     return this.emailTemplateRepository.save(template);
   }
 
@@ -89,7 +92,7 @@ export class EmailTemplatesService {
     const template = await this.findById(id);
 
     if (template.isSystem) {
-      throw new BadRequestException('Cannot delete system templates');
+      throw new BadRequestException('mail.template_system_delete');
     }
 
     return this.emailTemplateRepository.remove(template);
@@ -106,9 +109,12 @@ export class EmailTemplatesService {
       return { html: rendered };
     } catch (error) {
       if (error instanceof Error) {
-        throw new BadRequestException(`Template compilation failed: ${error.message}`);
+        throw new BadRequestException({
+          code: 'mail.template_compile_failed',
+          args: { detail: error.message },
+        });
       }
-      throw new BadRequestException('Template compilation failed');
+      throw new BadRequestException('mail.template_compilation_failed');
     }
   }
 }

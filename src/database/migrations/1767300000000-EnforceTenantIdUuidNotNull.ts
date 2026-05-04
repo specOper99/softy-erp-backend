@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterface {
   name = 'EnforceTenantIdUuidNotNull1767300000000';
@@ -31,7 +32,7 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
     );
     const count = this.parseCountResult(rowsUnknown);
     if (count > 0) {
-      throw new Error(`Cannot enforce tenant ownership: ${table}.tenant_id has ${count} NULL rows`);
+      throw new RuntimeFailure(`Cannot enforce tenant ownership: ${table}.tenant_id has ${count} NULL rows`);
     }
   }
 
@@ -41,7 +42,7 @@ export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterfa
     );
     const count = this.parseCountResult(rowsUnknown);
     if (count > 0) {
-      throw new Error(`Cannot convert ${table}.tenant_id to uuid: ${count} rows are not valid UUIDs`);
+      throw new RuntimeFailure(`Cannot convert ${table}.tenant_id to uuid: ${count} rows are not valid UUIDs`);
     }
   }
 

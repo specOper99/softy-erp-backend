@@ -20,7 +20,11 @@ export class ProcessingTypeService {
   async findOne(id: string): Promise<ProcessingType> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const entity = await this.repository.findOne({ where: { id, tenantId } });
-    if (!entity) throw new NotFoundException(`ProcessingType ${id} not found`);
+    if (!entity)
+      throw new NotFoundException({
+        code: 'processing_type.not_found',
+        args: { id },
+      });
     return entity;
   }
 

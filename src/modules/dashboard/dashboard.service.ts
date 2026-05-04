@@ -104,7 +104,6 @@ export class DashboardService {
         .createQueryBuilder('m')
         .select('SUM(m.totalRevenue)', 'revenue')
         .addSelect('SUM(m.bookingsCount)', 'bookings')
-        // tenantId handled by repo
         .andWhere('m.date >= :startDate AND m.date <= :endDate', {
           startDate: startDateStr,
           endDate: endDateStr,
@@ -115,7 +114,6 @@ export class DashboardService {
         .createQueryBuilder('t')
         .select('COUNT(t.id)', 'total')
         .addSelect('SUM(CASE WHEN t.status = :completed THEN 1 ELSE 0 END)', 'completed')
-        // tenantId handled by repo
         .andWhere('t.createdAt BETWEEN :start AND :end', { start, end })
         .setParameter('completed', TaskStatus.COMPLETED)
         .getRawOne<{ total: string; completed: string }>(),
@@ -152,7 +150,6 @@ export class DashboardService {
       .addSelect('SUM(CASE WHEN b.status = :confirmed THEN 1 ELSE 0 END)', 'confirmedBookings')
       .addSelect('SUM(CASE WHEN b.status = :completed THEN 1 ELSE 0 END)', 'completedBookings')
       .addSelect('SUM(CASE WHEN b.status = :cancelled THEN 1 ELSE 0 END)', 'cancelledBookings')
-      // tenantId handled by repo
       .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
       .setParameter('confirmed', BookingStatus.CONFIRMED)
       .setParameter('completed', BookingStatus.COMPLETED)
@@ -184,7 +181,6 @@ export class DashboardService {
       .select('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'revenue')
       .addSelect('SUM(CASE WHEN t.type = :expense THEN t.amount ELSE 0 END)', 'expenses')
       .addSelect('SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)', 'payroll')
-      // tenantId handled by repo
       .andWhere('t.transactionDate BETWEEN :start AND :end', { start, end })
       .setParameter('income', TransactionType.INCOME)
       .setParameter('expense', TransactionType.EXPENSE)
@@ -214,7 +210,6 @@ export class DashboardService {
       .select("to_char(t.transactionDate, 'YYYY-MM')", 'month')
       .addSelect('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'revenue')
       .addSelect('SUM(CASE WHEN t.type = :payroll THEN t.amount ELSE 0 END)', 'payouts')
-      // tenantId handled by repo
       .andWhere('t.transactionDate BETWEEN :start AND :end', { start, end })
       .setParameter('income', TransactionType.INCOME)
       .setParameter('payroll', TransactionType.PAYROLL)
@@ -240,7 +235,6 @@ export class DashboardService {
       .addSelect('COUNT(task.id)', 'completedTasks')
       .addSelect('SUM(task.commission_snapshot)', 'totalCommission')
       .leftJoin(Profile, 'profile', 'profile.user_id = user.id')
-      // tenantId handled by repo
       .andWhere('task.status = :status', { status: TaskStatus.COMPLETED })
       .andWhere('task.updatedAt BETWEEN :start AND :end', { start, end })
       .groupBy('profile.first_name')
@@ -269,7 +263,6 @@ export class DashboardService {
       .select('pkg.name', 'packageName')
       .addSelect('COUNT(b.id)', 'bookingCount')
       .addSelect('SUM(b.totalPrice)', 'totalRevenue')
-      // tenantId handled by repo
       .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
       .groupBy('pkg.name')
       .orderBy('COUNT(b.id)', 'DESC')

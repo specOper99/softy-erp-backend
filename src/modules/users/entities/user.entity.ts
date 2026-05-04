@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { Role } from '../enums/role.enum';
 
 @Entity('users')
@@ -65,4 +66,7 @@ export class User {
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date;
+
+  /** Virtual — not persisted to DB. Populated by UsersService.findOne(). */
+  wallet?: EmployeeWallet;
 }

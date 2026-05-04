@@ -5,10 +5,12 @@ import { EntityManager, Repository } from 'typeorm';
 import { CursorAuthService } from '../../../common/services/cursor-auth.service';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { CreateUserDto, UpdateUserDto, UserFilterDto } from '../dto';
 import { User } from '../entities/user.entity';
+import { Role } from '../enums/role.enum';
 import { UserCreatedEvent } from '../events/user-created.event';
 import { UserDeactivatedEvent } from '../events/user-deactivated.event';
 import { UserDeletedEvent } from '../events/user-deleted.event';
@@ -125,7 +127,7 @@ export class UsersService {
     }
 
     if (query.search?.trim()) {
-      qb.andWhere('user.email ILIKE :search', { search: `%${query.search.trim()}%` });
+      applyIlikeSearch(qb, ['user.email'], query.search.trim());
     }
 
     qb.skip(query.getSkip()).take(query.getTake());
@@ -157,7 +159,7 @@ export class UsersService {
     }
 
     if (query.search?.trim()) {
-      qb.andWhere('user.email ILIKE :search', { search: `%${query.search.trim()}%` });
+      applyIlikeSearch(qb, ['user.email'], query.search.trim());
     }
 
     if (query.cursor) {
@@ -194,14 +196,12 @@ export class UsersService {
       throw new NotFoundException('common.user_not_found');
     }
 
-    const walletRepo = this.rawUserRepository.manager?.getRepository?.(EmployeeWallet);
-    if (walletRepo) {
-      const wallet = await walletRepo.findOne({
-        where: { userId: user.id, tenantId: user.tenantId },
-      });
-      if (wallet) {
-        (user as User & { wallet?: EmployeeWallet }).wallet = wallet;
-      }
+    const walletRepo = this.rawUserRepository.manager.getRepository(EmployeeWallet);
+    const wallet = await walletRepo.findOne({
+      where: { userId: user.id, tenantId: user.tenantId },
+    });
+    if (wallet) {
+      user.wallet = wallet;
     }
 
     return user;
@@ -225,6 +225,14 @@ export class UsersService {
     const qb = this.userRepository.createQueryBuilder('user').andWhere('user.id IN (:...ids)', { ids });
 
     return qb.getMany();
+  }
+
+  /** Return all active users whose role is in `roles` within the current tenant context. */
+  async findByRoles(roles: Role[]): Promise<User[]> {
+    if (!roles.length) return [];
+    return this.userRepository.find({
+      where: roles.map((role) => ({ role, isActive: true })),
+    });
   }
 
   async findByEmailWithMfaSecret(email: string, tenantId?: string): Promise<User | null> {

@@ -1,11 +1,13 @@
 import { TargetTenant } from '../../../common/decorators/target-tenant.decorator';
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
 import { PlatformContextGuard } from '../../../common/guards/platform-context.guard';
+import type { Language } from '../../../common/i18n';
+import { I18nLang, I18nService } from '../../../common/i18n';
 import { RequirePlatformPermissions } from '../decorators/platform-permissions.decorator';
 import { EndImpersonationDto, StartImpersonationDto } from '../dto/support.dto';
 import { PlatformPermission } from '../enums/platform-permission.enum';
@@ -31,7 +33,11 @@ interface PlatformSupportRequest {
 @UseGuards(PlatformJwtAuthGuard, PlatformContextGuard, PlatformPermissionsGuard)
 @RequireContext(ContextType.PLATFORM)
 export class PlatformSupportController {
-  constructor(private readonly impersonationService: ImpersonationService) {}
+  constructor(
+    private readonly impersonationService: ImpersonationService,
+    @Inject(I18nService)
+    private readonly i18nService: I18nService,
+  ) {}
 
   @Post('tenants/:tenantId/impersonate')
   @RequirePlatformPermissions(PlatformPermission.SUPPORT_IMPERSONATE)
@@ -124,11 +130,12 @@ export class PlatformSupportController {
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
     @Body() dto: EndImpersonationDto,
     @Req() req: PlatformSupportRequest,
+    @I18nLang() lang: Language,
   ) {
     const session = await this.impersonationService.endImpersonation(sessionId, req.user.userId, req.ip, dto.reason);
 
     return {
-      message: 'Impersonation session ended',
+      message: this.i18nService.translate('platform.impersonation_session_ended_success', { lang }),
       sessionId: session.id,
       duration: session.endedAt ? session.endedAt.getTime() - session.startedAt.getTime() : 0,
       actionsPerformed: session.actionsPerformed.length,

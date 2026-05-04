@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey, TableIndex } from 'typeorm';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 export class AlignTenantScopedPreferences1771500000001 implements MigrationInterface {
   name = 'AlignTenantScopedPreferences1771500000001';
@@ -54,7 +55,7 @@ export class AlignTenantScopedPreferences1771500000001 implements MigrationInter
     const unresolvedCount = Number(nullTenantRows[0]?.count ?? 0);
 
     if (unresolvedCount > 0) {
-      throw new Error(
+      throw new RuntimeFailure(
         `Cannot enforce NOT NULL on user_preferences.tenant_id. ${unresolvedCount} row(s) could not be backfilled from users.`,
       );
     }
@@ -252,7 +253,7 @@ export class AlignTenantScopedPreferences1771500000001 implements MigrationInter
     const unresolvedCount = Number(nullTenantRows[0]?.count ?? 0);
 
     if (unresolvedCount > 0) {
-      throw new Error(
+      throw new RuntimeFailure(
         `Cannot enforce NOT NULL on notification_preferences.tenant_id. ${unresolvedCount} row(s) could not be backfilled from users.`,
       );
     }

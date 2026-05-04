@@ -46,9 +46,9 @@ export class TenantsController {
     summary: 'Create tenant (disabled for studio API)',
     description: 'Tenant creation is platform-managed and not available for studio-side tenant admin users.',
   })
-  @ApiResponse({ status: 403, description: 'Tenant creation is not supported via API' })
+  @ApiResponse({ status: 403, description: 'tenants.creation_not_supported' })
   create(@Body() _createTenantDto: CreateTenantDto) {
-    throw new ForbiddenException('Tenant creation is not supported via API');
+    throw new ForbiddenException('tenants.creation_not_supported');
   }
 
   @Get()
@@ -69,11 +69,11 @@ export class TenantsController {
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant returned', type: Tenant })
-  @ApiResponse({ status: 403, description: 'Cross-tenant access is forbidden' })
+  @ApiResponse({ status: 403, description: 'tenants.cross_tenant_forbidden' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     if (id !== tenantId) {
-      throw new ForbiddenException('Cross-tenant access is forbidden');
+      throw new ForbiddenException('tenants.cross_tenant_forbidden');
     }
     return this.tenantsService.findOne(id);
   }
@@ -86,11 +86,11 @@ export class TenantsController {
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
   @ApiResponse({ status: 200, description: 'Tenant updated', type: Tenant })
-  @ApiResponse({ status: 403, description: 'Cross-tenant access is forbidden' })
+  @ApiResponse({ status: 403, description: 'tenants.cross_tenant_forbidden' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateTenantDto: UpdateTenantDto) {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     if (id !== tenantId) {
-      throw new ForbiddenException('Cross-tenant access is forbidden');
+      throw new ForbiddenException('tenants.cross_tenant_forbidden');
     }
     return this.tenantsService.update(id, updateTenantDto);
   }
@@ -101,9 +101,9 @@ export class TenantsController {
     description: 'Tenant deletion is platform-managed and not available for studio-side tenant admin users.',
   })
   @ApiParam({ name: 'id', description: 'Tenant UUID' })
-  @ApiResponse({ status: 403, description: 'Tenant deletion is not supported via API' })
+  @ApiResponse({ status: 403, description: 'tenants.deletion_not_supported' })
   remove(@Param('id', ParseUUIDPipe) _id: string) {
-    throw new ForbiddenException('Tenant deletion is not supported via API');
+    throw new ForbiddenException('tenants.deletion_not_supported');
   }
 
   // Studio Settings Endpoints
@@ -111,7 +111,7 @@ export class TenantsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get studio settings' })
   @ApiResponse({ status: 200, description: 'Studio settings retrieved', type: StudioSettingsResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getStudioSettings(): Promise<StudioSettingsResponseDto> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -123,7 +123,7 @@ export class TenantsController {
   @ApiOperation({ summary: 'Update studio settings' })
   @ApiResponse({ status: 200, description: 'Studio settings updated', type: StudioSettingsResponseDto })
   @ApiResponse({ status: 400, description: 'Validation failed' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async updateStudioSettings(@Body() dto: UpdateStudioSettingsDto): Promise<StudioSettingsResponseDto> {
     const tenantId = TenantContextService.getTenantIdOrThrow();

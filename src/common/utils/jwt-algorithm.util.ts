@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { RuntimeFailure } from '../errors/runtime-failure';
 
 export type AllowedJwtAlgorithm = 'HS256' | 'RS256';
 
@@ -11,7 +12,7 @@ export function getAllowedJwtAlgorithm(configService: ConfigService): AllowedJwt
 
   const unique = Array.from(new Set(parsed));
   if (unique.length !== 1) {
-    throw new Error('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
+    throw new RuntimeFailure('JWT_ALLOWED_ALGORITHMS must be exactly one of: HS256, RS256');
   }
 
   return unique[0] ?? 'HS256';

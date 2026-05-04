@@ -102,7 +102,7 @@ describe('MfaRequiredGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow('Authentication required');
+      expect(() => guard.canActivate(context)).toThrow('common.authentication_required');
     });
 
     it('should throw ForbiddenException when admin without MFA', () => {
@@ -124,7 +124,7 @@ describe('MfaRequiredGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow('MFA is required');
+      expect(() => guard.canActivate(context)).toThrow('auth.mfa_required_enable');
     });
   });
 });

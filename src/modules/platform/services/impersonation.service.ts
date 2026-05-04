@@ -48,7 +48,10 @@ export class ImpersonationService {
     );
 
     if (!targetUser) {
-      throw new NotFoundException(`User ${dto.userId} not found in tenant ${tenantId}`);
+      throw new NotFoundException({
+        code: 'platform.user_not_found_in_tenant',
+        args: { userId: dto.userId, tenantId },
+      });
     }
 
     // Check if there's already an active session
@@ -62,7 +65,7 @@ export class ImpersonationService {
     });
 
     if (activeSession) {
-      throw new ConflictException('An active impersonation session already exists for this user');
+      throw new ConflictException('platform.impersonation_session_exists');
     }
 
     // Generate session token
@@ -88,7 +91,7 @@ export class ImpersonationService {
       saved = await this.sessionRepository.save(session);
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
-        throw new ConflictException('An active impersonation session already exists for this user');
+        throw new ConflictException('platform.impersonation_session_exists');
       }
       throw error;
     }
@@ -173,15 +176,15 @@ export class ImpersonationService {
     });
 
     if (!session) {
-      throw new NotFoundException('Impersonation session not found');
+      throw new NotFoundException('platform.impersonation_not_found');
     }
 
     if (!session.isActive) {
-      throw new ConflictException('Session is already ended');
+      throw new ConflictException('platform.impersonation_session_ended');
     }
 
     if (session.platformUserId !== platformUserId) {
-      throw new UnauthorizedException('You can only end your own impersonation sessions');
+      throw new UnauthorizedException('platform.impersonation_end_own_only');
     }
 
     session.isActive = false;
@@ -240,22 +243,19 @@ export class ImpersonationService {
    * Log an action performed during impersonation
    */
   async logAction(sessionId: string, action: string, endpoint: string, method: string): Promise<void> {
-    const session = await this.sessionRepository.findOne({
-      where: { id: sessionId },
-    });
+    // Use a parameterised atomic JSONB array append to avoid lost-update races.
+    // Two concurrent logAction calls that both read-modify-write would overwrite each other.
+    const newEntry = JSON.stringify([{ action, timestamp: new Date(), endpoint, method }]);
+    const result = await this.dataSource.query(
+      `UPDATE impersonation_sessions
+         SET actions_performed = actions_performed || $1::jsonb
+       WHERE id = $2`,
+      [newEntry, sessionId],
+    );
 
-    if (!session) {
-      return;
+    if (result[1] === 0) {
+      this.logger.debug(`logAction: session ${sessionId} not found or already ended`);
     }
-
-    session.actionsPerformed.push({
-      action,
-      timestamp: new Date(),
-      endpoint,
-      method,
-    });
-
-    await this.sessionRepository.save(session);
   }
 
   /**

@@ -28,7 +28,7 @@ export class WalletBalanceUpdatedHandler implements IEventHandler<WalletBalanceU
 
         // NOTE: Cache invalidation is not yet implemented. When a CacheManager is wired in,
         // uncomment the lines below to invalidate stale payroll cache entries on wallet changes.
-        // Track in: https://github.com/your-org/softy-erp/issues/XXXX (wallet cache invalidation)
+        // TODO: wire CacheManager and enable wallet cache invalidation.
         // Example:
         // await this.cacheManager.del(`payroll:employee:${event.userId}`);
         // await this.cacheManager.del(`payroll:summary:${event.tenantId}`);

@@ -3,6 +3,7 @@ import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { BookingCreatedEvent } from '../../bookings/events/booking-created.event';
 import { DashboardGateway } from '../dashboard.gateway';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @EventsHandler(BookingCreatedEvent)
 export class DashboardBookingCreatedHandler implements IEventHandler<BookingCreatedEvent> {
@@ -21,7 +22,7 @@ export class DashboardBookingCreatedHandler implements IEventHandler<BookingCrea
           totalPrice: event.totalPrice,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = toErrorMessage(error);
         this.logger.warn(`Failed to broadcast booking created event: ${message}`);
       }
     });

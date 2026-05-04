@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
 import * as net from 'net';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class SmtpHealthIndicator extends HealthIndicator {
@@ -51,7 +52,7 @@ export class SmtpHealthIndicator extends HealthIndicator {
           new HealthCheckError(
             `${key} check failed`,
             this.getStatus(key, false, {
-              message: error instanceof Error ? error.message : String(error),
+              message: toErrorMessage(error),
             }),
           ),
         );

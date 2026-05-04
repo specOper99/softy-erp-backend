@@ -34,7 +34,7 @@ export class TenantGuard implements CanActivate {
 
     const tenantId = TenantContextService.getTenantId();
     if (!tenantId) {
-      throw new UnauthorizedException('Tenant context missing');
+      throw new UnauthorizedException('common.tenant_missing');
     }
 
     return this.assertTenantActiveOrAllowed(tenantId);

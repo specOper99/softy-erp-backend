@@ -1,5 +1,6 @@
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
+import { RuntimeFailure } from '../common/errors/runtime-failure';
 
 const parseReplicaHosts = (hostsStr: string | undefined): string[] => {
   if (!hostsStr) return [];
@@ -19,7 +20,7 @@ export default registerAs('database', () => {
 
   // CRITICAL: synchronize is unconditionally disabled. Schema changes must go through migrations only.
   if (process.env.DB_SYNCHRONIZE === 'true') {
-    throw new Error('SECURITY: DB_SYNCHRONIZE=true is forbidden in all environments. Use migrations only.');
+    throw new RuntimeFailure('SECURITY: DB_SYNCHRONIZE=true is forbidden in all environments. Use migrations only.');
   }
 
   const baseConfig = {

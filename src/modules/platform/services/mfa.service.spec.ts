@@ -143,7 +143,7 @@ describe('MFAService', () => {
       const input = { userId: 'user-123', code: 'wrong' };
       const userSecret = 'USER_SECRET';
 
-      expect(() => service.verifyMFACode(input, userSecret)).toThrow('Invalid MFA code');
+      expect(() => service.verifyMFACode(input, userSecret)).toThrow('auth.invalid_mfa_code');
     });
   });
 

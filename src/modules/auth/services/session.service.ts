@@ -21,7 +21,7 @@ export class SessionService {
   async revokeSession(userId: string, sessionId: string): Promise<void> {
     const affected = await this.tokenService.revokeSession(userId, sessionId);
     if (affected === 0) {
-      throw new NotFoundException('Session not found or already revoked');
+      throw new NotFoundException('auth.session_not_found_or_revoked');
     }
   }
 

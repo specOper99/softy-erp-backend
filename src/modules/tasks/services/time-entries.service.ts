@@ -31,14 +31,14 @@ export class TimeEntriesService {
         .getOne();
 
       if (activeTimer) {
-        throw new BadRequestException('You have an active timer. Please stop it first.');
+        throw new BadRequestException('time_entries.active_timer');
       }
 
       const task = await manager.findOne(Task, {
         where: { id: dto.taskId, tenantId },
       });
       if (!task) {
-        throw new NotFoundException('Task not found');
+        throw new NotFoundException('task.not_found_plain');
       }
 
       const timeEntry = manager.create(TimeEntry, {
@@ -64,11 +64,11 @@ export class TimeEntriesService {
     });
 
     if (!timeEntry) {
-      throw new NotFoundException('Time entry not found');
+      throw new NotFoundException('time_entries.not_found');
     }
 
     if (timeEntry.status !== TimeEntryStatus.RUNNING) {
-      throw new BadRequestException('Timer is not running');
+      throw new BadRequestException('time_entries.timer_not_running');
     }
 
     if (dto?.notes) {
@@ -117,14 +117,17 @@ export class TimeEntriesService {
     });
 
     if (!timeEntry) {
-      throw new NotFoundException('Time entry not found');
+      throw new NotFoundException('time_entries.not_found');
     }
 
     if (!isAdmin && timeEntry.userId !== user.id) {
-      throw new ForbiddenException('Not allowed to update this time entry');
+      throw new ForbiddenException('time_entries.update_forbidden');
     }
 
-    Object.assign(timeEntry, dto);
+    if (dto.startTime !== undefined) timeEntry.startTime = new Date(dto.startTime);
+    if (dto.endTime !== undefined) timeEntry.endTime = new Date(dto.endTime);
+    if (dto.notes !== undefined) timeEntry.notes = dto.notes;
+    if (dto.billable !== undefined) timeEntry.billable = dto.billable;
 
     if (dto.startTime || dto.endTime) {
       if (timeEntry.status === TimeEntryStatus.STOPPED && timeEntry.endTime) {
@@ -141,7 +144,7 @@ export class TimeEntriesService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const result = await this.timeEntryRepository.delete({ id, tenantId });
     if (result.affected === 0) {
-      throw new NotFoundException('Time entry not found');
+      throw new NotFoundException('time_entries.not_found');
     }
   }
 }

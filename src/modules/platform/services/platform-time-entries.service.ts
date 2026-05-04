@@ -23,7 +23,7 @@ export class PlatformTimeEntriesService {
         where: { id: query.taskId, tenantId },
       });
       if (!task) {
-        throw new NotFoundException('Task not found');
+        throw new NotFoundException('task.not_found_plain');
       }
     }
 
@@ -64,7 +64,7 @@ export class PlatformTimeEntriesService {
     });
 
     if (!entry) {
-      throw new NotFoundException('Time entry not found');
+      throw new NotFoundException('time_entries.not_found');
     }
 
     return entry;
@@ -83,7 +83,7 @@ export class PlatformTimeEntriesService {
     });
 
     if (!entry) {
-      throw new NotFoundException('Time entry not found');
+      throw new NotFoundException('time_entries.not_found');
     }
 
     const changesBefore = {
@@ -111,7 +111,7 @@ export class PlatformTimeEntriesService {
     }
 
     if (entry.startTime && entry.endTime && entry.endTime < entry.startTime) {
-      throw new BadRequestException('End time cannot be earlier than start time');
+      throw new BadRequestException('platform.end_time_before_start');
     }
 
     if ((dto.startTime || dto.endTime) && entry.status === TimeEntryStatus.STOPPED && entry.endTime) {

@@ -105,6 +105,13 @@ export function createMockRepository<T extends ObjectLiteral = ObjectLiteral>():
       getCount: jest.fn().mockResolvedValue(0),
       execute: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
     })),
+    manager: {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn().mockResolvedValue(null),
+        find: jest.fn().mockResolvedValue([]),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      }),
+    },
   };
 }
 

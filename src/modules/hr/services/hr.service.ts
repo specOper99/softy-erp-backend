@@ -5,6 +5,7 @@ import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/d
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
@@ -47,7 +48,7 @@ export class HrService {
     const requestedRole = dto.user.role ?? Role.FIELD_STAFF;
 
     if (!allowedRoles.has(requestedRole)) {
-      throw new BadRequestException('Unsupported staff role for studio tenant');
+      throw new BadRequestException('hr.unsupported_studio_role');
     }
 
     try {
@@ -99,7 +100,7 @@ export class HrService {
       });
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
-        throw new ConflictException('User or profile already exists');
+        throw new ConflictException('hr.user_or_profile_exists');
       }
 
       throw error;
@@ -212,7 +213,7 @@ export class HrService {
         // Step 1: Validate user belongs to the same tenant
         const user = await this.usersService.findOne(dto.userId);
         if (!user) {
-          throw new NotFoundException('User not found');
+          throw new NotFoundException('common.user_not_found');
         }
         if (user.tenantId !== tenantId) {
           throw new BadRequestException('hr.user_not_found_in_tenant');
@@ -246,7 +247,10 @@ export class HrService {
     } catch (e) {
       if ((e as { code?: string }).code === '23505') {
         this.logger.warn(`Profile already exists for user ${dto.userId}`);
-        throw new ConflictException(`Profile already exists for user ${dto.userId}`);
+        throw new ConflictException({
+          code: 'hr.profile_exists_for_user',
+          args: { userId: dto.userId },
+        });
       }
       this.logger.error('Failed to create profile', e);
       throw e;
@@ -325,10 +329,7 @@ export class HrService {
     }
 
     if (filter.search) {
-      qb.andWhere(
-        '(profile.firstName ILIKE :search OR profile.lastName ILIKE :search OR profile.employeeId ILIKE :search)',
-        { search: `%${filter.search}%` },
-      );
+      applyIlikeSearch(qb, ['profile.firstName', 'profile.lastName', 'profile.employeeId'], filter.search);
     }
   }
 
@@ -408,10 +409,21 @@ export class HrService {
       contractType: profile.contractType,
     };
 
-    Object.assign(profile, {
-      ...dto,
-      hireDate: dto.hireDate ? new Date(dto.hireDate) : profile.hireDate,
-    });
+    if (dto.firstName !== undefined) profile.firstName = dto.firstName;
+    if (dto.lastName !== undefined) profile.lastName = dto.lastName;
+    if (dto.jobTitle !== undefined) profile.jobTitle = dto.jobTitle;
+    if (dto.baseSalary !== undefined) profile.baseSalary = dto.baseSalary;
+    if (dto.hireDate !== undefined) profile.hireDate = new Date(dto.hireDate);
+    if (dto.bankAccount !== undefined) profile.bankAccount = dto.bankAccount;
+    if (dto.phone !== undefined) profile.phone = dto.phone;
+    if (dto.emergencyContactName !== undefined) profile.emergencyContactName = dto.emergencyContactName;
+    if (dto.emergencyContactPhone !== undefined) profile.emergencyContactPhone = dto.emergencyContactPhone;
+    if (dto.address !== undefined) profile.address = dto.address;
+    if (dto.city !== undefined) profile.city = dto.city;
+    if (dto.country !== undefined) profile.country = dto.country;
+    if (dto.department !== undefined) profile.department = dto.department;
+    if (dto.team !== undefined) profile.team = dto.team;
+    if (dto.contractType !== undefined) profile.contractType = dto.contractType;
     const savedProfile = await this.profileRepository.save(profile);
 
     // Only log if there are meaningful changes

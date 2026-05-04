@@ -4,6 +4,8 @@ import { Job } from 'bullmq';
 import { MailService } from '../mail.service';
 import { EMAIL_QUEUE, EmailJobData } from '../mail.types';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 /**
  * Email processor for handling background email jobs.
@@ -35,7 +37,7 @@ export class EmailProcessor extends WorkerHost {
 
     if (tenantId === '') {
       job.discard();
-      throw new Error('Invalid email job payload: tenantId is required');
+      throw new RuntimeFailure('Invalid email job payload: tenantId is required');
     }
 
     await TenantContextService.run(tenantId, async () => {
@@ -105,7 +107,7 @@ export class EmailProcessor extends WorkerHost {
 
         this.logger.log(`Email job ${job.id} completed successfully`);
       } catch (error) {
-        this.logger.error(`Email job ${job.id} failed: ${error instanceof Error ? error.message : String(error)} `);
+        this.logger.error(`Email job ${job.id} failed: ${toErrorMessage(error)} `);
         throw error; // Re-throw to trigger BullMQ retry
       }
     });

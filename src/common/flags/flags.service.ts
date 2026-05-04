@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Context, initialize, Unleash } from 'unleash-client';
+import { toErrorMessage } from '../utils/error.util';
 
 @Injectable()
 export class FlagsService implements OnModuleInit, OnModuleDestroy {
@@ -32,7 +33,7 @@ export class FlagsService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.unleashInstance.on('error', (err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = toErrorMessage(err);
       this.logger.error(`Unleash client error: ${message}`);
     });
   }

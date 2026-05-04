@@ -31,11 +31,11 @@ export class PlatformJwtAuthGuard extends AuthGuard('platform-jwt') {
     _status?: unknown,
   ): TUser {
     if (err) {
-      throw err instanceof Error ? err : new UnauthorizedException('Invalid platform token');
+      throw err instanceof Error ? err : new UnauthorizedException('auth.invalid_platform_token');
     }
 
     if (!user) {
-      throw new UnauthorizedException('Invalid platform token');
+      throw new UnauthorizedException('auth.invalid_platform_token');
     }
 
     return user;

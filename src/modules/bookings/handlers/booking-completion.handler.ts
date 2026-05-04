@@ -7,6 +7,7 @@ import { Task } from '../../tasks/entities/task.entity';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
 import { Booking } from '../entities/booking.entity';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 /**
  * Handles TaskCompletedEvent to recalculate and update
@@ -52,7 +53,7 @@ export class BookingCompletionHandler implements IEventHandler<TaskCompletedEven
 
       this.logger.log(`Booking ${task.bookingId} completion updated: ${completedCount}/${totalCount} (${percentage}%)`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = toErrorMessage(error);
       this.logger.error(`Failed to update booking completion: ${message}`);
     }
   }

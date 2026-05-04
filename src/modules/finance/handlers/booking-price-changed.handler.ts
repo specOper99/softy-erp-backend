@@ -6,6 +6,7 @@ import { BookingPriceChangedEvent } from '../../bookings/events/booking-price-ch
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinancialReconciliationFailedEvent } from '../events/financial-reconciliation-failed.event';
 import { FinanceService } from '../services/finance.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 /** Category for price adjustment transactions */
 const PRICE_ADJUSTMENT_CATEGORY = 'Booking Price Adjustment';
@@ -59,7 +60,7 @@ export class BookingPriceChangedHandler implements IEventHandler<BookingPriceCha
           );
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = toErrorMessage(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
 
         this.logger.error(

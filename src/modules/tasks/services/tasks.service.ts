@@ -14,6 +14,7 @@ import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/d
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditService } from '../../audit/audit.service';
@@ -136,7 +137,7 @@ export class TasksService {
     }
 
     if (filter.search) {
-      qb.andWhere('(task.notes ILIKE :search OR taskType.name ILIKE :search)', { search: `%${filter.search}%` });
+      applyIlikeSearch(qb, ['task.notes', 'taskType.name'], filter.search);
     }
   }
 
@@ -153,29 +154,35 @@ export class TasksService {
   }
 
   async findOne(id: string): Promise<Task> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const task = await this.taskRepository.findOne({
-      where: { id },
+      where: { id, tenantId },
       relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
     });
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'tasks.not_found_by_id',
+        args: { id },
+      });
     }
     return task;
   }
 
   async findByBooking(bookingId: string, limit = 100): Promise<Task[]> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const take = this.normalizeListLimit(limit);
     return this.taskRepository.find({
-      where: { bookingId },
+      where: { bookingId, tenantId },
       relations: ['taskType', 'assignedUser', 'booking', 'booking.client'],
       take,
     });
   }
 
   async findByUser(userId: string, limit = 100): Promise<Task[]> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const take = this.normalizeListLimit(limit);
     return this.taskRepository.find({
-      where: { assignedUserId: userId },
+      where: { assignedUserId: userId, tenantId },
       relations: ['booking', 'booking.client', 'taskType'],
       order: { dueDate: 'ASC' },
       take,
@@ -198,14 +205,17 @@ export class TasksService {
     // Validate parentId to prevent circular dependencies or self-reference
     if (dto.parentId !== undefined) {
       if (dto.parentId === id) {
-        throw new BadRequestException('A task cannot be its own parent');
+        throw new BadRequestException('tasks.cannot_be_own_parent');
       }
       if (dto.parentId) {
         const parent = await this.taskRepository.findOne({
           where: { id: dto.parentId },
         });
         if (!parent) {
-          throw new NotFoundException(`Parent task with ID ${dto.parentId} not found`);
+          throw new NotFoundException({
+            code: 'tasks.parent_not_found',
+            args: { id: dto.parentId },
+          });
         }
       }
     }
@@ -215,17 +225,16 @@ export class TasksService {
     }
 
     if (dto.assignedUserId !== undefined && dto.assignedUserId !== task.assignedUserId) {
-      throw new BadRequestException('Task reassignment must use the assign endpoint');
+      throw new BadRequestException('tasks.reassignment_use_assign');
     }
 
     // Guard against unauthorized status changes
     if ('status' in dto) {
-      throw new BadRequestException('Status updates must use dedicated endpoints (start/complete)');
+      throw new BadRequestException('tasks.status_use_endpoints');
     }
-    Object.assign(task, {
-      ...dto,
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : task.dueDate,
-    });
+    if (dto.dueDate !== undefined) task.dueDate = new Date(dto.dueDate);
+    if (dto.notes !== undefined) task.notes = dto.notes;
+    if (dto.parentId !== undefined) task.parentId = dto.parentId;
 
     return this.taskRepository.save(task);
   }
@@ -287,7 +296,7 @@ export class TasksService {
 
       const commissionAmount = MathUtils.round(Number(dto.commissionSnapshot ?? task.commissionSnapshot) || 0);
       if (commissionAmount <= 0) {
-        throw new BadRequestException('commissionSnapshot must be greater than 0');
+        throw new BadRequestException('tasks.commission_snapshot_positive');
       }
 
       const role = dto.role ?? TaskAssigneeRole.ASSISTANT;
@@ -341,7 +350,10 @@ export class TasksService {
       });
 
       if (!assignee) {
-        throw new NotFoundException(`Task assignee not found for user ${userId}`);
+        throw new NotFoundException({
+          code: 'tasks.assignee_not_found_for_user',
+          args: { userId },
+        });
       }
 
       if (dto.role === TaskAssigneeRole.LEAD) {
@@ -373,12 +385,15 @@ export class TasksService {
       });
 
       if (!assignee) {
-        throw new NotFoundException(`Task assignee not found for user ${userId}`);
+        throw new NotFoundException({
+          code: 'tasks.assignee_not_found_for_user',
+          args: { userId },
+        });
       }
 
       const commissionAmount = MathUtils.round(Number(assignee.commissionSnapshot) || 0);
       if (commissionAmount <= 0) {
-        throw new BadRequestException('commissionSnapshot must be greater than 0');
+        throw new BadRequestException('tasks.commission_snapshot_positive');
       }
 
       await manager.delete(TaskAssignee, { tenantId, taskId: id, userId });
@@ -392,27 +407,24 @@ export class TasksService {
 
     const task = await this.taskRepository.findOne({ where: { id, tenantId } });
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'tasks.not_found_by_id',
+        args: { id },
+      });
     }
 
-    if (user.role === Role.FIELD_STAFF) {
-      const isAssignee = await this.taskAssigneeRepository
-        .createQueryBuilder('assignee')
-        .where('assignee.tenantId = :tenantId', { tenantId })
-        .andWhere('assignee.taskId = :taskId', { taskId: id })
-        .andWhere('assignee.userId = :userId', { userId: user.id })
-        .getExists();
-
-      if (!isAssignee && task.assignedUserId !== user.id) {
-        throw new ForbiddenException('Not allowed to read this task assignees list');
-      }
-    }
-
-    return this.taskAssigneeRepository.find({
+    // Load assignees once — used for both the FIELD_STAFF access check and the return value.
+    const assignees = await this.taskAssigneeRepository.find({
       where: { tenantId, taskId: id },
       relations: ['user'],
       order: { createdAt: 'ASC' },
     });
+
+    if (user.role === Role.FIELD_STAFF && !this.isFieldStaffAssignedToTask(user.id, task, assignees)) {
+      throw new ForbiddenException('tasks.assignees_forbidden');
+    }
+
+    return assignees;
   }
 
   private async validateUserInTenant(
@@ -425,7 +437,7 @@ export class TasksService {
       where: { id: userId, tenantId },
     });
     if (!user) {
-      throw new BadRequestException('User not found in tenant');
+      throw new BadRequestException('hr.user_not_found_in_tenant');
     }
     return user;
   }
@@ -461,7 +473,10 @@ export class TasksService {
         where: { id: task.booking.clientId, tenantId },
       });
       if (!client) {
-        throw new NotFoundException(`Action Interrupted: Client data is missing for Booking ${task.bookingId}`);
+        throw new NotFoundException({
+          code: 'tasks.client_data_missing',
+          args: { bookingId: task.bookingId },
+        });
       }
       task.booking.client = client;
     }
@@ -490,7 +505,10 @@ export class TasksService {
     this.assertCanUpdateTaskStatus(user, task);
 
     if (task.status !== TaskStatus.PENDING) {
-      throw new BadRequestException(`Cannot start task: current status is ${task.status}`);
+      throw new BadRequestException({
+        code: 'tasks.cannot_start_status',
+        args: { status: task.status },
+      });
     }
 
     task.status = TaskStatus.IN_PROGRESS;
@@ -530,12 +548,10 @@ export class TasksService {
       });
 
       const canFieldStaffComplete =
-        user.role !== Role.FIELD_STAFF ||
-        task.assignedUserId === user.id ||
-        taskAssignees.some((assignee) => assignee.userId === user.id);
+        user.role !== Role.FIELD_STAFF || this.isFieldStaffAssignedToTask(user.id, task, taskAssignees);
 
       if (!canFieldStaffComplete) {
-        throw new ForbiddenException('Not allowed to modify this task');
+        throw new ForbiddenException('tasks.modify_forbidden');
       }
 
       if (user.role !== Role.FIELD_STAFF) {
@@ -543,7 +559,7 @@ export class TasksService {
       }
 
       if (task.status === TaskStatus.COMPLETED) {
-        throw new BadRequestException('Task is already completed');
+        throw new BadRequestException('tasks.already_completed');
       }
 
       // Step 2: Update task status to COMPLETED
@@ -569,7 +585,7 @@ export class TasksService {
         }
       } else {
         if (!task.assignedUserId) {
-          throw new BadRequestException('Cannot complete task: no user assigned');
+          throw new BadRequestException('tasks.complete_no_assignee');
         }
 
         const legacyCommissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
@@ -616,7 +632,7 @@ export class TasksService {
 
   private assertCanUpdateTaskStatus(user: User, task: Task): void {
     if (!user) {
-      throw new ForbiddenException('User context is required');
+      throw new ForbiddenException('common.user_context_required');
     }
 
     if (user.role === Role.ADMIN || user.role === Role.OPS_MANAGER) {
@@ -625,24 +641,33 @@ export class TasksService {
 
     if (user.role === Role.FIELD_STAFF) {
       if (!task.assignedUserId) {
-        throw new ForbiddenException('Task is not assigned');
+        throw new ForbiddenException('tasks.not_assigned');
       }
       if (task.assignedUserId !== user.id) {
-        throw new ForbiddenException('Not allowed to modify this task');
+        throw new ForbiddenException('tasks.modify_forbidden');
       }
       return;
     }
 
-    throw new ForbiddenException('Not allowed');
+    throw new ForbiddenException('common.not_allowed');
+  }
+
+  /**
+   * Returns true if the given user (FIELD_STAFF) is assigned to the task either
+   * via the direct `assignedUserId` field or via the many-to-many `task_assignees` table.
+   * Consolidates the two historically duplicated checks into one place.
+   */
+  private isFieldStaffAssignedToTask(userId: string, task: Task, assignees: TaskAssignee[]): boolean {
+    return task.assignedUserId === userId || assignees.some((a) => a.userId === userId);
   }
 
   private createTaskBaseQuery(tenantId: string) {
     return this.taskRepository
       .createQueryBuilder('task')
-      .leftJoinAndSelect('task.booking', 'booking')
-      .leftJoinAndSelect('booking.client', 'client')
-      .leftJoinAndSelect('task.taskType', 'taskType')
-      .leftJoinAndSelect('task.assignedUser', 'assignedUser')
+      .leftJoinAndSelect('task.booking', 'booking', 'booking.tenantId = :tenantId', { tenantId })
+      .leftJoinAndSelect('booking.client', 'client', 'client.tenantId = :tenantId', { tenantId })
+      .leftJoinAndSelect('task.taskType', 'taskType', 'taskType.tenantId = :tenantId', { tenantId })
+      .leftJoinAndSelect('task.assignedUser', 'assignedUser', 'assignedUser.tenantId = :tenantId', { tenantId })
       .andWhere('task.tenantId = :tenantId', { tenantId });
   }
 
@@ -659,7 +684,10 @@ export class TasksService {
     });
 
     if (!taskLock) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'tasks.not_found_by_id',
+        args: { id },
+      });
     }
 
     // Step 2: Fetch actual data with relations
@@ -669,7 +697,10 @@ export class TasksService {
     });
 
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'tasks.not_found_by_id',
+        args: { id },
+      });
     }
 
     return task;

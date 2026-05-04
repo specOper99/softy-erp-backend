@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { MailService } from '../mail.service';
 
@@ -22,9 +23,7 @@ export class BookingConfirmedMailHandler implements IEventHandler<BookingConfirm
         bookingId: event.bookingId,
       });
     } catch (error) {
-      this.logger.error(
-        `Failed to send booking confirmation email for ${event.bookingId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`Failed to send booking confirmation email for ${event.bookingId}: ${toErrorMessage(error)}`);
     }
   }
 }

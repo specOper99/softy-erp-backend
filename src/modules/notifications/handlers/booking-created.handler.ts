@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { BookingCreatedEvent } from '../../bookings/events/booking-created.event';
 import { Role } from '../../users/enums/role.enum';
 import { UsersService } from '../../users/services/users.service';
@@ -22,9 +23,7 @@ export class BookingCreatedNotificationHandler implements IEventHandler<BookingC
     // Run within tenant context to ensure proper scoping
     await TenantContextService.run(event.tenantId, async () => {
       try {
-        // Notify ADMIN and OPS_MANAGER users about new booking
-        const adminUsers = await this.usersService.findAll();
-        const notifiableUsers = adminUsers.filter((user) => user.role === Role.ADMIN || user.role === Role.OPS_MANAGER);
+        const notifiableUsers = await this.usersService.findByRoles([Role.ADMIN, Role.OPS_MANAGER]);
 
         for (const user of notifiableUsers) {
           await this.notificationService.createNotification({
@@ -44,9 +43,7 @@ export class BookingCreatedNotificationHandler implements IEventHandler<BookingC
 
         this.logger.log(`Created notifications for ${notifiableUsers.length} users for booking ${event.bookingId}`);
       } catch (error) {
-        this.logger.error(
-          `Failed to create notifications for booking ${event.bookingId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        this.logger.error(`Failed to create notifications for booking ${event.bookingId}: ${toErrorMessage(error)}`);
       }
     });
   }

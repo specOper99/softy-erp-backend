@@ -1,29 +1,12 @@
 /**
  * TenantAwareRepository
  *
- * A base repository that automatically scopes all database queries to the current tenant,
- * preventing cross-tenant data access in a multi-tenant SaaS application.
+ * Base repository that scopes all queries to the current tenant. Wraps TypeORM's
+ * Repository<T> and enforces `tenantId` on every read and mutating operation,
+ * throwing TenantMismatchException on cross-tenant access attempts.
  *
- * ## Type Safety Note (L-02)
- *
- * This file intentionally uses type assertions and `as unknown as T` casts in several places:
- *
- * 1. **TypeORM Generic Constraints**: TypeORM's generic types for `save`, `softRemove`,
- *    and `remove` have complex conditional type constraints that don't compose well
- *    with our tenant enforcement wrapper logic.
- *
- * 2. **Interception Pattern**: The casts allow us to intercept all repository operations,
- *    validate tenant ownership, and delegate to the underlying TypeORM repository.
- *
- * 3. **Runtime Safety**: Despite the compile-time casts, runtime safety is ensured by
- *    explicit `tenantId` validation before every mutating operation. Cross-tenant
- *    operations throw `TenantMismatchException`.
- *
- * 4. **Controlled Trust Boundary**: These casts exist at the boundary between our
- *    application code and TypeORM internals - not in business logic.
- *
- * Alternative approaches (separate methods per entity type) would significantly
- * increase code duplication without improving runtime safety.
+ * Type assertions are used at the TypeORM boundary to reconcile complex generic
+ * constraints; runtime safety is provided by explicit tenantId validation.
  */
 
 import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
@@ -270,7 +253,8 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
 
   /**
    * Creates a tenant-scoped query builder for streaming operations.
-   * Use this for exports, reports, and other streaming scenarios.
+   * Use this for exports, reports, and other streaming scenarios where
+   * the caller will call `.stream()` on the result.
    *
    * @example
    * ```typescript
@@ -280,18 +264,19 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
    * ```
    */
   createStreamQueryBuilder(alias: string): SelectQueryBuilder<T> {
-    const tenantId = this.getTenantId();
-    this.logger.debug(`Creating stream query builder for ${this.entityName} with tenant ${tenantId}`);
+    this.logger.debug(`Creating stream query builder for ${this.entityName}`);
+    // createQueryBuilder already scopes by tenantId — no second andWhere needed.
     return this.createQueryBuilder(alias);
   }
 
   /**
-   * Creates a tenant-scoped query builder for aggregation operations.
-   * Includes tenant validation logging for audit purposes.
+   * Creates a tenant-scoped query builder for aggregation operations
+   * (COUNT, SUM, AVG, etc.). The caller should add SELECT expressions and
+   * GROUP BY clauses as needed.
    */
   createAggregateQueryBuilder(alias: string): SelectQueryBuilder<T> {
-    const tenantId = this.getTenantId();
-    this.logger.debug(`Creating aggregate query builder for ${this.entityName} with tenant ${tenantId}`);
+    this.logger.debug(`Creating aggregate query builder for ${this.entityName}`);
+    // createQueryBuilder already scopes by tenantId — no second andWhere needed.
     return this.createQueryBuilder(alias);
   }
 

@@ -18,7 +18,7 @@ export class TransactionCategoriesController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get all transaction categories' })
   @ApiResponse({ status: 200, description: 'List of transaction categories' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAll() {
     return this.categoriesService.findAll();
@@ -28,7 +28,7 @@ export class TransactionCategoriesController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get transaction category by ID' })
   @ApiResponse({ status: 200, description: 'Category details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Category not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
@@ -40,7 +40,7 @@ export class TransactionCategoriesController {
   @ApiOperation({ summary: 'Create a new transaction category (Admin only)' })
   @ApiResponse({ status: 201, description: 'Category created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   @ApiResponse({ status: 409, description: 'Category name already exists' })
   create(@Body() dto: CreateTransactionCategoryDto) {
@@ -52,7 +52,7 @@ export class TransactionCategoriesController {
   @ApiOperation({ summary: 'Update a transaction category (Admin only)' })
   @ApiResponse({ status: 200, description: 'Category updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   @ApiResponse({ status: 404, description: 'Category not found' })
   @ApiResponse({ status: 409, description: 'Category name already exists' })
@@ -64,7 +64,7 @@ export class TransactionCategoriesController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete a transaction category (Admin only)' })
   @ApiResponse({ status: 200, description: 'Category deleted successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   @ApiResponse({ status: 404, description: 'Category not found' })
   @ApiResponse({ status: 409, description: 'Category has children' })

@@ -40,7 +40,9 @@ describe('ValidateTenantSlugMiddleware', () => {
   describe('use()', () => {
     it('throws BadRequestException when slug param is absent', async () => {
       await expect(middleware.use(buildRequest(), mockRes, mockNext)).rejects.toThrow(BadRequestException);
-      await expect(middleware.use(buildRequest(), mockRes, mockNext)).rejects.toThrow('Tenant slug is required');
+      await expect(middleware.use(buildRequest(), mockRes, mockNext)).rejects.toThrow(
+        'client_portal.tenant_slug_required_body',
+      );
       expect(tenantsService.findBySlug).not.toHaveBeenCalled();
     });
 
@@ -88,7 +90,7 @@ describe('ValidateTenantSlugMiddleware', () => {
     });
 
     it('propagates NotFoundException when tenant slug is unknown', async () => {
-      const { NotFoundException } = await import('@nestjs/common');
+      const { NotFoundException } = jest.requireActual<typeof import('@nestjs/common')>('@nestjs/common');
       tenantsService.findBySlug.mockRejectedValue(new NotFoundException());
 
       await expect(middleware.use(buildRequest('unknown-slug'), mockRes, mockNext)).rejects.toThrow(NotFoundException);

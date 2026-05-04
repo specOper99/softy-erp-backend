@@ -103,7 +103,7 @@ export class ClientPortalService {
     });
 
     if (!client || client.tenantId !== tenantId) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException('client_portal.client_not_found');
     }
 
     return {
@@ -158,7 +158,7 @@ export class ClientPortalService {
       .getOne();
 
     if (!booking) {
-      throw new NotFoundException('Booking not found');
+      throw new NotFoundException('bookings.not_found');
     }
 
     return booking;
@@ -167,7 +167,7 @@ export class ClientPortalService {
   async createBooking(client: Client, dto: CreateClientBookingDto): Promise<Booking> {
     const tenant = await this.tenantsService.findOne(client.tenantId);
     if (!tenant) {
-      throw new NotFoundException('Tenant not found');
+      throw new NotFoundException('tenants.not_found');
     }
 
     const eventDate = this.toUtcDate(dto.eventDate);
@@ -175,7 +175,7 @@ export class ClientPortalService {
 
     const servicePackage = await this.catalogService.findPackageById(dto.packageId);
     if (!servicePackage || servicePackage.tenantId !== client.tenantId) {
-      throw new NotFoundException('Package not found');
+      throw new NotFoundException('client_portal.package_not_found');
     }
 
     await this.ensureSlotCapacity(dto.packageId, eventDate, dto.startTime, tenant);
@@ -204,7 +204,7 @@ export class ClientPortalService {
     const booking = await this.getBooking(bookingId, clientId, tenantId);
 
     if (!booking.canBeCancelled()) {
-      throw new BadRequestException('Booking cannot be cancelled in its current status');
+      throw new BadRequestException('client_portal.booking_cancel_status');
     }
 
     const cancelDto: CancelBookingDto = reason ? { reason } : {};
@@ -233,7 +233,7 @@ export class ClientPortalService {
 
     const maxConcurrent = tenant.maxConcurrentBookingsPerSlot ?? 1;
     if (confirmedCount >= maxConcurrent) {
-      throw new ConflictException('Selected time slot is fully booked');
+      throw new ConflictException('client_portal.slot_fully_booked');
     }
   }
 
@@ -241,7 +241,10 @@ export class ClientPortalService {
     const minNoticeHours = tenant.minimumNoticePeriodHours ?? 24;
     const minDate = new Date(Date.now() + minNoticeHours * 60 * 60 * 1000);
     if (eventDate < minDate) {
-      throw new BadRequestException(`Booking requires at least ${minNoticeHours} hours notice`);
+      throw new BadRequestException({
+        code: 'client_portal.min_notice_hours',
+        args: { hours: minNoticeHours },
+      });
     }
   }
 

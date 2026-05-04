@@ -43,6 +43,7 @@ export class AnalyticsService {
     const result = await this.bookingRepository
       .createQueryBuilder('b')
       .leftJoin('b.servicePackage', 'pkg')
+      .andWhere('b.tenantId = :tenantId', { tenantId })
       .andWhere('b.eventDate >= :startDate', { startDate: filter.startDate })
       .andWhere('b.eventDate <= :endDate', { endDate: filter.endDate })
       .andWhere('b.status IN (:...statuses)', {
@@ -68,8 +69,10 @@ export class AnalyticsService {
   }
 
   async getTaxReport(startDate: string, endDate: string) {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
     const result = await this.bookingRepository
       .createQueryBuilder('b')
+      .andWhere('b.tenantId = :tenantId', { tenantId })
       .andWhere('b.eventDate >= :startDate', { startDate })
       .andWhere('b.eventDate <= :endDate', { endDate })
       .andWhere('b.status IN (:...statuses)', {

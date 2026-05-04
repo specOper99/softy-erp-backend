@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { MailService } from '../mail.service';
 
@@ -25,9 +26,7 @@ export class PaymentReceivedHandler implements IEventHandler<PaymentRecordedEven
         amountPaid: event.amountPaid,
       });
     } catch (error) {
-      this.logger.error(
-        `Failed to send payment receipt for ${event.bookingId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`Failed to send payment receipt for ${event.bookingId}: ${toErrorMessage(error)}`);
     }
   }
 }

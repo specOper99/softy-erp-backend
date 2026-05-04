@@ -1,3 +1,4 @@
+import { RuntimeFailure } from '../errors/runtime-failure';
 type CorsOriginCallback = (err: Error | null, allow?: boolean) => void;
 
 export function getCorsOriginAllowlist(params: {
@@ -19,7 +20,7 @@ export function getCorsOriginAllowlist(params: {
   // list empty so the missing-origins guard below fires for staging environments too.
   const inputs = candidates.length > 0 ? candidates : params.requiresOrigins ? [] : params.devFallback;
   if (params.requiresOrigins && inputs.length === 0) {
-    throw new Error(
+    throw new RuntimeFailure(
       'SECURITY: CORS_ORIGINS must be configured in staging/production environments. ' +
         'Set CORS_ORIGINS to a comma-separated list of allowed origins (e.g. https://app.example.com).',
     );
@@ -31,16 +32,16 @@ export function getCorsOriginAllowlist(params: {
     try {
       url = new URL(value);
     } catch {
-      throw new Error(`SECURITY: Invalid CORS origin: ${value}`);
+      throw new RuntimeFailure(`SECURITY: Invalid CORS origin: ${value}`);
     }
 
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      throw new Error(`SECURITY: CORS origin must be http(s): ${value}`);
+      throw new RuntimeFailure(`SECURITY: CORS origin must be http(s): ${value}`);
     }
 
     const hasExtraParts = url.pathname !== '/' || url.search.length > 0 || url.hash.length > 0;
     if (hasExtraParts) {
-      throw new Error(`SECURITY: CORS origin must not include path/query/hash: ${value}`);
+      throw new RuntimeFailure(`SECURITY: CORS origin must not include path/query/hash: ${value}`);
     }
 
     normalized.push(url.origin);

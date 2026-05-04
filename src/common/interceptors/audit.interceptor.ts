@@ -8,6 +8,7 @@ import { AUDIT_KEY, AuditOptions } from '../decorators/audit.decorator';
 import { getCorrelationId } from '../logger/request-context';
 import { TenantContextService } from '../services/tenant-context.service';
 import { getClientIp } from '../utils/client-ip.util';
+import { toErrorMessage } from '../utils/error.util';
 
 interface User {
   sub?: string;
@@ -87,7 +88,7 @@ export class AuditInterceptor implements NestInterceptor {
             Date.now() - startTime,
             httpResponse.statusCode,
             undefined,
-            error instanceof Error ? error.message : String(error),
+            toErrorMessage(error),
           ).catch((e) => {
             this.logger.error('AuditInterceptor logAuditEvent failed', e instanceof Error ? e.stack : String(e));
           });
@@ -129,7 +130,7 @@ export class AuditInterceptor implements NestInterceptor {
     // Log to audit service (database)
     try {
       const paramId = request.params?.id;
-      const entityId = Array.isArray(paramId) ? (paramId[0] ?? 'N/A') : (paramId ?? 'N/A');
+      const entityId = Array.isArray(paramId) ? (paramId[0] ?? undefined) : (paramId ?? undefined);
 
       await this.auditService.log({
         userId: auditData.userId,

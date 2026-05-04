@@ -1,9 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as Sentry from '@sentry/nestjs';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
+import { Counter } from 'prom-client';
 import { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../common/utils/error.util';
 import { TenantScopedManager } from '../../common/utils/tenant-scoped-manager';
 import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
@@ -23,6 +26,17 @@ import { RequestContext, TokenPayload, TokenService } from './services/token.ser
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const REMEMBER_ME_TOKEN_LIFETIME_MARGIN_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Prometheus counter for background job failures in the auth service.
+ * Incremented whenever a fire-and-forget security check rejects.
+ * Alert on this in Grafana: `auth_background_failure_total > 0`.
+ */
+const authBackgroundFailureCounter = new Counter({
+  name: 'auth_background_failure_total',
+  help: 'Number of failures in fire-and-forget auth background jobs',
+  labelNames: ['kind'] as const,
+});
 
 @Injectable()
 export class AuthService {
@@ -84,7 +98,7 @@ export class AuthService {
           });
         } catch (error: unknown) {
           if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
-            throw new ConflictException('Tenant with this name or slug already exists');
+            throw new ConflictException('tenants.tenant_exists_name_slug');
           }
           throw error;
         }
@@ -124,7 +138,10 @@ export class AuthService {
       const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
       if (lockoutStatus.locked) {
         const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
-        throw new UnauthorizedException(`Account temporarily locked. Try again in ${remainingSecs} seconds.`);
+        throw new UnauthorizedException({
+          code: 'auth.account_locked_seconds',
+          args: { seconds: remainingSecs },
+        });
       }
 
       const user = await this.usersService.findByEmailWithMfaSecretGlobal(loginDto.email);
@@ -136,18 +153,18 @@ export class AuthService {
         // This prevents attackers from easily enumerating valid email addresses by measuring response latency.
         // The dummy password hash is generated uniquely at service startup from random bytes.
         await bcrypt.compare(loginDto.password, await this.dummyPasswordHashPromise);
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException('auth.invalid_credentials');
       }
 
       const tenantId = user.tenantId;
       if (!user.isActive) {
-        throw new UnauthorizedException('Account is deactivated');
+        throw new UnauthorizedException('auth.account_deactivated');
       }
 
       const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
       if (!isPasswordValid) {
         await this.lockoutService.recordFailedAttempt(loginDto.email);
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException('auth.invalid_credentials');
       }
 
       if (user.isMfaEnabled) {
@@ -163,10 +180,9 @@ export class AuthService {
       await this.lockoutService.clearAttempts(loginDto.email);
 
       if (context?.ipAddress) {
-        this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress, user.email).catch((error) => {
-          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-          this.logger.error(`Suspicious activity check failed: ${message}`);
-        });
+        this.safeBackground('suspicious_activity_check', () =>
+          this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress!, user.email),
+        );
       }
 
       return this.generateAuthResponse(user, context, loginDto.rememberMe);
@@ -194,7 +210,7 @@ export class AuthService {
         return user;
       },
       (user, c) => this.mfaService.verifyTotp(user.mfaSecret, c),
-      'Invalid MFA code',
+      'auth.invalid_mfa_code',
     );
   }
 
@@ -205,7 +221,7 @@ export class AuthService {
       context,
       (userId) => this.usersService.findByIdWithRecoveryCodesGlobal(userId),
       (user, c) => this.mfaService.verifyRecoveryCode(user, c),
-      'Invalid recovery code',
+      'auth.invalid_recovery_code',
     );
   }
 
@@ -239,7 +255,7 @@ export class AuthService {
       });
 
       if (!storedToken) {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new UnauthorizedException('auth.invalid_refresh_token');
       }
 
       const user =
@@ -248,7 +264,7 @@ export class AuthService {
           where: { id: storedToken.userId },
         }));
       if (!user?.isActive) {
-        throw new UnauthorizedException('User not found or inactive');
+        throw new UnauthorizedException('auth.user_not_found_or_inactive');
       }
 
       const rememberMe = this.isRememberMeRefreshToken(storedToken);
@@ -279,7 +295,7 @@ export class AuthService {
           });
           await manager.update(RefreshToken, { userId: storedToken.userId, isRevoked: false }, { isRevoked: true });
         }
-        throw new UnauthorizedException('Refresh token expired or revoked');
+        throw new UnauthorizedException('auth.refresh_token_expired_or_revoked');
       }
 
       storedToken.isRevoked = true;
@@ -311,11 +327,11 @@ export class AuthService {
   async validateUser(payload: TokenPayload): Promise<User> {
     const user = await this.usersService.findOne(payload.sub);
     if (!user?.isActive) {
-      throw new UnauthorizedException('User not found or inactive');
+      throw new UnauthorizedException('auth.user_not_found_or_inactive');
     }
 
     if (!payload.tenantId || user.tenantId !== payload.tenantId) {
-      throw new UnauthorizedException('Invalid token tenant');
+      throw new UnauthorizedException('auth.invalid_token_tenant');
     }
     return user;
   }
@@ -354,16 +370,16 @@ export class AuthService {
     });
 
     if (!verificationToken) {
-      throw new UnauthorizedException('Invalid verification token');
+      throw new UnauthorizedException('auth.invalid_verification_token');
     }
 
     if (verificationToken.isExpired()) {
-      throw new UnauthorizedException('Verification token has expired');
+      throw new UnauthorizedException('auth.verification_token_expired');
     }
 
     const user = await this.usersService.findByEmailGlobal(verificationToken.email);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('common.user_not_found');
     }
 
     verificationToken.used = true;
@@ -376,12 +392,17 @@ export class AuthService {
 
   async resendVerificationEmail(email: string): Promise<void> {
     const user = await this.usersService.findByEmailGlobal(email);
+
+    // Always return without differentiating — prevent user enumeration and verification-status leakage.
+    // Internal state is logged for ops visibility only.
     if (!user) {
+      this.logger.debug('resendVerification: email not found (not disclosed to caller)');
       return;
     }
 
     if (user.emailVerified) {
-      throw new ConflictException('Email is already verified');
+      this.logger.debug('resendVerification: email already verified (not disclosed to caller)');
+      return;
     }
 
     await this.sendVerificationEmail(user);
@@ -399,10 +420,9 @@ export class AuthService {
 
   private async generateSessionTokens(user: User, context?: RequestContext, rememberMe?: boolean): Promise<TokensDto> {
     return this.tokenService.generateTokens(user, context, rememberMe, (userId, userAgent, ipAddress, userEmail) => {
-      this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail).catch((error) => {
-        const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-        this.logger.error(`New device check failed: ${message}`);
-      });
+      this.safeBackground('new_device_check', () =>
+        this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail),
+      );
     });
   }
 
@@ -450,17 +470,17 @@ export class AuthService {
     context: RequestContext | undefined,
     fetchUser: (userId: string) => Promise<User | null>,
     verifyFn: (user: User, code: string) => Promise<boolean> | boolean,
-    errorMessage: string,
+    invalidCodeKey: string,
   ): Promise<AuthResponseDto> {
     const tempPayload = await this.mfaTokenService.getTempToken(tempToken);
     if (!tempPayload) {
-      throw new UnauthorizedException('MFA session expired or invalid. Please login again.');
+      throw new UnauthorizedException('auth.mfa_session_expired');
     }
 
     return TenantContextService.run(tempPayload.tenantId, async () => {
       const user = await fetchUser(tempPayload.userId);
       if (!user || user.tenantId !== tempPayload.tenantId) {
-        throw new UnauthorizedException('User not found');
+        throw new UnauthorizedException('common.user_not_found');
       }
 
       const isValid = await verifyFn(user, code);
@@ -480,20 +500,31 @@ export class AuthService {
           });
         }
         await this.lockoutService.recordFailedAttempt(user.email);
-        throw new UnauthorizedException(errorMessage);
+        throw new UnauthorizedException(invalidCodeKey);
+      }
+
+      if (context?.ipAddress) {
+        this.safeBackground('suspicious_activity_check', () =>
+          this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress!, user.email),
+        );
       }
 
       await this.mfaTokenService.consumeTempToken(tempToken);
       await this.lockoutService.clearAttempts(user.email);
 
-      if (context?.ipAddress) {
-        this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress, user.email).catch((error) => {
-          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
-          this.logger.error(`Suspicious activity check failed: ${message}`);
-        });
-      }
-
       return this.generateAuthResponse(user, context, tempPayload.rememberMe);
+    });
+  }
+
+  /**
+   * Fire-and-forget wrapper: runs `fn` in the background, catches any rejection,
+   * logs it, increments the auth_background_failure counter, and captures to Sentry.
+   */
+  private safeBackground(kind: string, fn: () => Promise<unknown>): void {
+    fn().catch((error: unknown) => {
+      this.logger.error(`Background job '${kind}' failed: ${toErrorMessage(error)}`);
+      authBackgroundFailureCounter.inc({ kind });
+      Sentry.captureException(error, { tags: { kind } });
     });
   }
 }

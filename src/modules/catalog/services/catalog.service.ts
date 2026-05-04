@@ -6,6 +6,7 @@ import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/d
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import {
   AddPackageItemsDto,
@@ -168,7 +169,7 @@ export class CatalogService {
     }
 
     if (filter.search) {
-      qb.andWhere('(pkg.name ILIKE :search OR pkg.description ILIKE :search)', { search: `%${filter.search}%` });
+      applyIlikeSearch(qb, ['pkg.name', 'pkg.description'], filter.search);
     }
 
     if (filter.minPrice !== undefined) {
@@ -213,7 +214,10 @@ export class CatalogService {
       .where('pkg.id = :id', { id })
       .getOne();
     if (!pkg) {
-      throw new NotFoundException(`ServicePackage with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'catalog.service_package_not_found',
+        args: { id },
+      });
     }
     return pkg;
   }
@@ -230,7 +234,13 @@ export class CatalogService {
       throw new BadRequestException('catalog.price_must_be_positive');
     }
 
-    Object.assign(pkg, dto);
+    if (dto.name !== undefined) pkg.name = dto.name;
+    if (dto.description !== undefined) pkg.description = dto.description;
+    if (dto.price !== undefined) pkg.price = dto.price;
+    if (dto.isActive !== undefined) pkg.isActive = dto.isActive;
+    if (dto.durationMinutes !== undefined) pkg.durationMinutes = dto.durationMinutes;
+    if (dto.requiredStaffCount !== undefined) pkg.requiredStaffCount = dto.requiredStaffCount;
+    if (dto.revenueAccountCode !== undefined) pkg.revenueAccountCode = dto.revenueAccountCode;
     const savedPkg = await this.packageRepository.save(pkg);
 
     // Log price or status changes
@@ -269,7 +279,7 @@ export class CatalogService {
       const errorCode = dbError.code ?? dbError.driverError?.code;
 
       if (errorCode === '23503') {
-        throw new ConflictException('Package is in use and cannot be deleted');
+        throw new ConflictException('catalog.package_in_use');
       }
 
       throw error;
@@ -318,7 +328,10 @@ export class CatalogService {
       where: { id: itemId },
     });
     if (!item) {
-      throw new NotFoundException(`PackageItem with ID ${itemId} not found`);
+      throw new NotFoundException({
+        code: 'catalog.package_item_not_found',
+        args: { id: itemId },
+      });
     }
     await this.packageItemRepository.remove(item);
 
@@ -397,7 +410,10 @@ export class CatalogService {
       where: { id },
     });
     if (!taskType) {
-      throw new NotFoundException(`TaskType with ID ${id} not found`);
+      throw new NotFoundException({
+        code: 'catalog.task_type_not_found',
+        args: { id },
+      });
     }
     return taskType;
   }
@@ -409,7 +425,10 @@ export class CatalogService {
       defaultCommissionAmount: taskType.defaultCommissionAmount,
     };
 
-    Object.assign(taskType, dto);
+    if (dto.name !== undefined) taskType.name = dto.name;
+    if (dto.description !== undefined) taskType.description = dto.description;
+    if (dto.defaultCommissionAmount !== undefined) taskType.defaultCommissionAmount = dto.defaultCommissionAmount;
+    if (dto.isActive !== undefined) taskType.isActive = dto.isActive;
     const savedTaskType = await this.taskTypeRepository.save(taskType);
 
     if (dto.defaultCommissionAmount !== undefined || dto.name !== undefined) {
@@ -454,7 +473,10 @@ export class CatalogService {
     const sourcePackage = await this.findPackageById(packageId);
 
     if (!sourcePackage) {
-      throw new NotFoundException(`ServicePackage with ID ${packageId} not found`);
+      throw new NotFoundException({
+        code: 'catalog.service_package_not_found',
+        args: { id: packageId },
+      });
     }
 
     // Create new package (not a template by default)

@@ -54,7 +54,10 @@ export class TenantQuotaGuard implements CanActivate {
 
     const currentUsage = await this.getCurrentUsage(tenantId, resourceType);
     if (currentUsage >= limit) {
-      throw new ForbiddenException(`Quota exceeded for ${resourceType}. Limit: ${limit}, Current: ${currentUsage}`);
+      throw new ForbiddenException({
+        code: 'tenants.quota_exceeded',
+        args: { resourceType, limit, currentUsage },
+      });
     }
 
     return true;

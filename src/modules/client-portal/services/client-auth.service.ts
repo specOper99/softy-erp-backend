@@ -14,6 +14,7 @@ import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util
 import { Client } from '../../bookings/entities/client.entity';
 import { MailService } from '../../mail/mail.service';
 import { TenantsService } from '../../tenants/tenants.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 export interface ClientTokenPayload {
   sub: string; // client ID
@@ -155,18 +156,16 @@ export class ClientAuthService {
             : this.configService.getOrThrow<string>('auth.jwtSecret'),
       });
     } catch (error) {
-      this.logger.warn(
-        `verifyMagicLink: JWT verification failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.warn(`verifyMagicLink: JWT verification failed: ${toErrorMessage(error)}`);
       this.magicLinkVerifiedCounter.inc({
         tenant_id: 'unknown',
         status: 'invalid_token',
       });
-      throw new UnauthorizedException('Invalid or expired token');
+      throw new UnauthorizedException('auth.invalid_or_expired_token');
     }
 
     if (payload.type !== 'client_magic' || !payload.jti) {
-      throw new UnauthorizedException('Invalid or expired token');
+      throw new UnauthorizedException('auth.invalid_or_expired_token');
     }
 
     return TenantContextService.run(payload.tenantId, async () => {
@@ -183,7 +182,7 @@ export class ClientAuthService {
             tenant_id: tenantId,
             status: 'invalid_token',
           });
-          throw new NotFoundException('Invalid or expired token');
+          throw new NotFoundException('auth.invalid_or_expired_token');
         }
 
         if (!client.isAccessTokenValid()) {
@@ -191,7 +190,7 @@ export class ClientAuthService {
             tenant_id: tenantId,
             status: 'expired',
           });
-          throw new UnauthorizedException('Token has expired');
+          throw new UnauthorizedException('auth.token_expired');
         }
 
         if (!client.accessTokenHash || !this.compareHashes(tokenHash, client.accessTokenHash)) {
@@ -199,7 +198,7 @@ export class ClientAuthService {
             tenant_id: tenantId,
             status: 'hash_mismatch',
           });
-          throw new UnauthorizedException('Invalid token');
+          throw new UnauthorizedException('auth.token_invalid');
         }
 
         client.accessTokenHash = null;
@@ -267,9 +266,7 @@ export class ClientAuthService {
     } catch (error) {
       // Fail closed: if JWT parsing/verification throws, deny access.
       // Do not log token contents.
-      this.logger.warn(
-        `Client token validation failed: ${error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error'}`,
-      );
+      this.logger.warn(`Client token validation failed: ${toErrorMessage(error)}`);
       return null;
     }
   }
@@ -293,13 +290,11 @@ export class ClientAuthService {
           await this.cacheManager.set(`blacklist:${tokenHash}`, 'revoked', ttl * 1000);
         } catch (cacheError) {
           // L-06: Log warning when Redis is unavailable during logout
-          this.logger.warn(
-            `Failed to blacklist token in cache during logout: ${cacheError instanceof Error ? cacheError.message : String(cacheError)}`,
-          );
+          this.logger.warn(`Failed to blacklist token in cache during logout: ${toErrorMessage(cacheError)}`);
         }
       }
     } catch (error) {
-      this.logger.debug(`Logout failed (decode error): ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.debug(`Logout failed (decode error): ${toErrorMessage(error)}`);
     }
   }
 }

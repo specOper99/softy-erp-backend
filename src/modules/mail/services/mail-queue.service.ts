@@ -1,7 +1,9 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { createHash } from 'node:crypto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { redactEmail } from '../../../common/utils/error.util';
 import {
   BookingCancellationJobData,
   BookingConfirmationJobData,
@@ -67,7 +69,7 @@ export class MailQueueService {
       { type: 'booking-confirmation', data: jobData },
       this.defaultJobOptions,
     );
-    this.logger.log(`Queued booking confirmation email for ${data.clientEmail}`);
+    this.logger.log(`Queued booking confirmation email [booking:${data.bookingId}]`);
   }
 
   async queueTaskAssignment(data: TaskAssignmentEmailData): Promise<void> {
@@ -91,7 +93,7 @@ export class MailQueueService {
     }
 
     await this.emailQueue.add('task-assignment', { type: 'task-assignment', data: jobData }, this.defaultJobOptions);
-    this.logger.log(`Queued task assignment email for ${data.employeeEmail}`);
+    this.logger.log(`Queued task assignment email [user:${this.hashId(data.employeeEmail)}]`);
   }
 
   async queuePayrollNotification(data: PayrollEmailData): Promise<void> {
@@ -115,7 +117,7 @@ export class MailQueueService {
     }
 
     await this.emailQueue.add('payroll', { type: 'payroll', data: jobData }, this.defaultJobOptions);
-    this.logger.log(`Queued payroll notification email for ${data.employeeEmail}`);
+    this.logger.log(`Queued payroll notification email [user:${this.hashId(data.employeeEmail)}]`);
   }
 
   async queuePasswordReset(data: PasswordResetEmailData): Promise<void> {
@@ -135,7 +137,7 @@ export class MailQueueService {
       },
       this.defaultJobOptions,
     );
-    this.logger.log(`Queued password reset email for ${data.email}`);
+    this.logger.log(`Queued password reset email [user:${this.hashId(data.email)}]`);
   }
 
   async queueEmailVerification(data: EmailVerificationEmailData): Promise<void> {
@@ -155,7 +157,7 @@ export class MailQueueService {
       },
       this.defaultJobOptions,
     );
-    this.logger.log(`Queued email verification email for ${data.email}`);
+    this.logger.log(`Queued email verification email [user:${this.hashId(data.email)}]`);
   }
 
   async queueNewDeviceLogin(data: NewDeviceLoginEmailData): Promise<void> {
@@ -179,7 +181,7 @@ export class MailQueueService {
     }
 
     await this.emailQueue.add('new-device-login', { type: 'new-device-login', data: jobData }, this.defaultJobOptions);
-    this.logger.log(`Queued new device login alert for ${data.email}`);
+    this.logger.log(`Queued new device login alert [user:${this.hashId(data.email)}]`);
   }
 
   async queueSuspiciousActivity(data: SuspiciousActivityEmailData): Promise<void> {
@@ -208,7 +210,7 @@ export class MailQueueService {
       { type: 'suspicious-activity', data: jobData },
       this.defaultJobOptions,
     );
-    this.logger.log(`Queued suspicious activity alert for ${data.email}`);
+    this.logger.log(`Queued suspicious activity alert [user:${this.hashId(data.email)}]`);
   }
 
   async queueCancellationEmail(data: CancellationEmailData): Promise<void> {
@@ -228,7 +230,7 @@ export class MailQueueService {
     };
 
     if (!this.emailQueue) {
-      this.logger.warn(`Email queue not available. Skipping cancellation email to ${data.to}`);
+      this.logger.warn(`Email queue not available. Skipping cancellation email to ${redactEmail(data.to)}`);
       return;
     }
 
@@ -256,11 +258,17 @@ export class MailQueueService {
     };
 
     if (!this.emailQueue) {
-      this.logger.warn(`Email queue not available. Skipping payment receipt email to ${data.to}`);
+      this.logger.warn(`Email queue not available. Skipping payment receipt email to ${redactEmail(data.to)}`);
       return;
     }
 
     await this.emailQueue.add('payment-receipt', { type: 'payment-receipt', data: jobData }, this.defaultJobOptions);
     this.logger.log(`Queued payment receipt email for ${data.reference}`);
+  }
+
+  /** Produce a short stable pseudonymous identifier — never log raw PII. */
+  private hashId(value: string | undefined): string {
+    if (!value) return '[unknown]';
+    return createHash('sha256').update(value).digest('hex').slice(0, 8);
   }
 }

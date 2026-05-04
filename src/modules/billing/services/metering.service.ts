@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { UsageMetric, UsageRecord } from '../entities/usage-record.entity';
 import { UsageRecordRepository } from '../repositories/usage-record.repository';
 import { StripeService } from './stripe.service';
@@ -40,7 +41,7 @@ export class MeteringService {
     const savedRecord = await this.usageRecordRepo.save(record);
 
     this.syncToStripe(savedRecord).catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = toErrorMessage(err);
       const stack = err instanceof Error ? err.stack : undefined;
       this.logger.error(`Failed to sync usage to Stripe: ${message}`, stack);
     });

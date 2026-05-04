@@ -123,7 +123,7 @@ export class MFAController {
     const isValid = this.mfaService.verifyToken(user.mfaSecret, dto.code);
 
     if (!isValid) {
-      throw new Error('Invalid MFA code');
+      throw new Error('auth.invalid_mfa_code');
     }
 
     // Enable MFA
@@ -216,7 +216,7 @@ export class MFAController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'MFA not enabled' })
+  @ApiResponse({ status: 400, description: 'auth.mfa_not_enabled' })
   async regenerateBackupCodes(@Request() req: AuthenticatedRequest) {
     const userId: string = req.user.userId;
     const user = await this.mfaService.getUserById(userId);

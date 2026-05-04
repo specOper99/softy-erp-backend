@@ -51,6 +51,7 @@ export class TokenService {
 
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.accessTokenExpiresIn,
+      audience: user.tenantId,
     });
 
     const refreshToken = this.generateRefreshToken();

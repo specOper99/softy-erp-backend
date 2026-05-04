@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 export class TransactionReversalAndRelaxXor20260501000000 implements MigrationInterface {
   name = 'TransactionReversalAndRelaxXor20260501000000';
@@ -26,7 +27,7 @@ export class TransactionReversalAndRelaxXor20260501000000 implements MigrationIn
 
     // 2. Re-add as "at most one" — zero is now allowed.
     // NOTE: purchase_invoice_id is excluded from this constraint until its FK column is added.
-    // Track in: https://github.com/your-org/softy-erp/issues/XXXX (add purchase_invoice_id FK)
+    // TODO: extend this constraint once purchase_invoice_id FK migration is applied.
     await queryRunner.query(
       `ALTER TABLE "transactions" ADD CONSTRAINT "CHK_transactions_at_most_one_parent"` +
         ` CHECK (` +
@@ -93,7 +94,7 @@ export class TransactionReversalAndRelaxXor20260501000000 implements MigrationIn
     )) as { cnt: string }[];
     const zeroParentCount = Number(zeroParentRows[0]?.cnt ?? 0);
     if (zeroParentCount > 0) {
-      throw new Error(
+      throw new RuntimeFailure(
         `Cannot roll back migration: ${zeroParentCount} transaction(s) have no parent ` +
           `(booking_id, task_id, and payout_id are all NULL). ` +
           `Re-adding the strict XOR constraint would violate those rows. ` +

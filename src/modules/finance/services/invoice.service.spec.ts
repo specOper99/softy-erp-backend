@@ -97,7 +97,7 @@ describe('InvoiceService', () => {
 
       expect(bookingRepo.findOne).toHaveBeenCalledWith({
         relations: ['client', 'servicePackage'],
-        where: { id: 'booking-123' },
+        where: { id: 'booking-123', tenantId: 'tenant-123' },
       });
       expect(invoiceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({

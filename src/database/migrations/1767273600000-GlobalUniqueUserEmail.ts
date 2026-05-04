@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 export class GlobalUniqueUserEmail1767273600000 implements MigrationInterface {
   name = 'GlobalUniqueUserEmail1767273600000';
@@ -21,7 +22,7 @@ export class GlobalUniqueUserEmail1767273600000 implements MigrationInterface {
         .slice(0, 10)
         .map((d) => `${d.email} (count=${d.cnt})`)
         .join(', ');
-      throw new Error(`Cannot enforce global-unique emails: duplicates exist. Sample: ${sample}`);
+      throw new RuntimeFailure(`Cannot enforce global-unique emails: duplicates exist. Sample: ${sample}`);
     }
 
     // Drop any unique composite indexes on (email, tenant_id)

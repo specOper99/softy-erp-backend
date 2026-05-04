@@ -2,6 +2,7 @@ import { ConflictException, Injectable, Logger, NotFoundException } from '@nestj
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 import {
@@ -67,9 +68,7 @@ export class PlatformTenantService {
     const qb = this.tenantRepository.createQueryBuilder('tenant');
 
     if (dto.search) {
-      qb.andWhere('(tenant.name ILIKE :search OR tenant.slug ILIKE :search OR tenant.billingEmail ILIKE :search)', {
-        search: `%${dto.search}%`,
-      });
+      applyIlikeSearch(qb, ['tenant.name', 'tenant.slug', 'tenant.billingEmail'], dto.search);
     }
 
     if (dto.status) {
@@ -116,7 +115,10 @@ export class PlatformTenantService {
     });
 
     if (!tenant) {
-      throw new NotFoundException(`Tenant ${tenantId} not found`);
+      throw new NotFoundException({
+        code: 'platform.tenant_not_found',
+        args: { tenantId },
+      });
     }
 
     return tenant;
@@ -132,7 +134,10 @@ export class PlatformTenantService {
     });
 
     if (existing) {
-      throw new ConflictException(`Tenant slug '${dto.slug}' is already taken`);
+      throw new ConflictException({
+        code: 'tenants.slug_taken',
+        args: { slug: dto.slug },
+      });
     }
 
     const tenant = this.tenantRepository.create({
@@ -183,10 +188,13 @@ export class PlatformTenantService {
     const tenant = await this.getTenant(tenantId);
     const before = { ...tenant };
 
-    Object.assign(tenant, dto);
+    if (dto.name !== undefined) tenant.name = dto.name;
+    if (dto.subscriptionPlan !== undefined) tenant.subscriptionPlan = dto.subscriptionPlan;
+    if (dto.billingEmail !== undefined) tenant.billingEmail = dto.billingEmail;
+    if (dto.quotas !== undefined) tenant.quotas = dto.quotas;
+    if (dto.metadata !== undefined) tenant.metadata = dto.metadata;
 
     const updated = await this.tenantRepository.save(tenant);
-    await this.invalidateTenantStateCache(updated.id);
     await this.invalidateTenantStateCache(updated.id);
 
     // Log lifecycle event
@@ -226,7 +234,7 @@ export class PlatformTenantService {
     const tenant = await this.getTenant(tenantId);
 
     if (tenant.status === TenantStatus.SUSPENDED) {
-      throw new ConflictException('Tenant is already suspended');
+      throw new ConflictException('tenants.suspended_already');
     }
 
     const before = { status: tenant.status };
@@ -287,7 +295,7 @@ export class PlatformTenantService {
     const tenant = await this.getTenant(tenantId);
 
     if (tenant.status === TenantStatus.ACTIVE) {
-      throw new ConflictException('Tenant is already active');
+      throw new ConflictException('tenants.active_already');
     }
 
     const before = { status: tenant.status };

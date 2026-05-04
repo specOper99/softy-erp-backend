@@ -8,6 +8,7 @@ import { TokenPayload } from '../services/token.service';
 
 import type { Request } from 'express';
 import { TokenBlacklistService } from '../services/token-blacklist.service';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -22,14 +23,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (algorithm === 'RS256') {
         const publicKey = configService.get<string>('JWT_PUBLIC_KEY');
         if (!publicKey) {
-          throw new Error('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
+          throw new RuntimeFailure('JWT_PUBLIC_KEY is required when JWT_ALLOWED_ALGORITHMS includes RS256');
         }
         return publicKey;
       }
 
       const hsSecret = configService.get<string>('auth.jwtSecret');
       if (!hsSecret) {
-        throw new Error('JWT_SECRET is not defined');
+        throw new RuntimeFailure('JWT_SECRET is not defined');
       }
       return hsSecret;
     })();

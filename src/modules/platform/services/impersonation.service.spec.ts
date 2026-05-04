@@ -14,6 +14,7 @@ describe('ImpersonationService', () => {
   let sessionRepository: jest.Mocked<Repository<ImpersonationSession>>;
   let auditService: jest.Mocked<PlatformAuditService>;
   let jwtService: jest.Mocked<JwtService>;
+  let dataSource: jest.Mocked<DataSource>;
 
   const platformUserId = 'platform-user-123';
   const ipAddress = '192.168.1.100';
@@ -72,6 +73,7 @@ describe('ImpersonationService', () => {
           tenantId: targetTenantId,
         }),
       },
+      query: jest.fn().mockResolvedValue([{ id: 'session-1', actions_performed: [] }]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -104,6 +106,7 @@ describe('ImpersonationService', () => {
     sessionRepository = module.get(getRepositoryToken(ImpersonationSession));
     auditService = module.get(PlatformAuditService);
     jwtService = module.get(JwtService);
+    dataSource = module.get(DataSource);
   });
 
   it('should be defined', () => {
@@ -362,31 +365,24 @@ describe('ImpersonationService', () => {
   });
 
   describe('logAction', () => {
-    it('should add action to session log', async () => {
-      const session = {
-        ...mockSession,
-        actionsPerformed: [],
-      } as ImpersonationSession;
-      sessionRepository.findOne.mockResolvedValue(session);
-      sessionRepository.save.mockResolvedValue(session);
+    it('should add action to session log via atomic SQL UPDATE', async () => {
+      // New implementation: raw SQL JSONB append — no findOne/save
+      // dataSource.query returns [rows, rowCount]; rowCount=1 means success
+      (dataSource.query as jest.Mock).mockResolvedValueOnce([[], 1]);
 
       await service.logAction('session-123', 'view_booking', '/bookings/123', 'GET');
 
-      expect(sessionRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          actionsPerformed: expect.arrayContaining([
-            expect.objectContaining({
-              action: 'view_booking',
-              endpoint: '/bookings/123',
-              method: 'GET',
-            }),
-          ]),
-        }),
+      expect(dataSource.query).toHaveBeenCalledWith(
+        expect.stringContaining('actions_performed = actions_performed ||'),
+        expect.arrayContaining([expect.stringContaining('view_booking'), 'session-123']),
       );
+      // No repository save — atomic SQL update only
+      expect(sessionRepository.save).not.toHaveBeenCalled();
     });
 
     it('should silently return if session not found', async () => {
-      sessionRepository.findOne.mockResolvedValue(null);
+      // rowCount=0 means no rows matched
+      (dataSource.query as jest.Mock).mockResolvedValueOnce([[], 0]);
 
       // Should not throw
       await expect(service.logAction('nonexistent', 'action', '/endpoint', 'GET')).resolves.toBeUndefined();

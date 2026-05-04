@@ -82,6 +82,7 @@ import { ClientTokenGuard } from './guards/client-token.guard';
 import { AvailabilityService } from './services/availability.service';
 import { ClientAuthService } from './services/client-auth.service';
 import { ClientPortalService } from './services/client-portal.service';
+import { toErrorMessage } from '../../common/utils/error.util';
 
 @ApiTags('Client Portal')
 @ApiExtraModels(
@@ -211,7 +212,7 @@ export class ClientPortalController {
       this.catalogService.findPackageById(id),
     );
     if (!servicePackage || servicePackage.tenantId !== tenant.id || !servicePackage.isActive) {
-      throw new NotFoundException('Listing not found');
+      throw new NotFoundException('booking.listing_not_found');
     }
 
     const [reviews, reviewCount] = await TenantContextService.run(tenant.id, async () =>
@@ -296,7 +297,7 @@ export class ClientPortalController {
       this.catalogService.findPackageById(id),
     );
     if (!servicePackage || servicePackage.tenantId !== tenant.id || !servicePackage.isActive) {
-      throw new NotFoundException('Package not found');
+      throw new NotFoundException('client_portal.package_not_found');
     }
 
     return servicePackage;
@@ -339,7 +340,7 @@ export class ClientPortalController {
     @Query('findNext') findNext?: string,
   ) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      throw new BadRequestException('Invalid date format. Use YYYY-MM-DD');
+      throw new BadRequestException('client_portal.invalid_date_format_hint');
     }
 
     const availability = await this.availabilityService.checkAvailability(tenant.id, packageId, date);
@@ -457,13 +458,13 @@ export class ClientPortalController {
     const booking = await this.clientPortalService.getBooking(bookingId, client.id, client.tenantId);
 
     if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('Can only review completed bookings');
+      throw new BadRequestException('client_portal.review_completed_only');
     }
 
     const review = await TenantContextService.run(client.tenantId, async () => {
       const duplicate = await this.reviewsService.checkDuplicateReview(client.id, bookingId);
       if (duplicate) {
-        throw new ConflictException('You have already reviewed this booking');
+        throw new ConflictException('client_portal.review_already_submitted');
       }
 
       return this.reviewsService.create(client.id, bookingId, booking.packageId, dto);
@@ -475,8 +476,8 @@ export class ClientPortalController {
         clientId: client.id,
         userId: null,
         type: NotificationType.SYSTEM_ALERT,
-        title: 'Review Submitted',
-        message: 'Your review has been submitted and is pending approval',
+        title: 'notifications.messages.reviewSubmittedTitle',
+        message: 'notifications.messages.reviewSubmittedMessage',
         metadata: { reviewId: review.id },
       });
     }
@@ -623,7 +624,7 @@ export class ClientPortalController {
 
   private async resolveTenant(tenantSlug?: string): Promise<Tenant> {
     if (!tenantSlug) {
-      throw new BadRequestException('tenantSlug is required');
+      throw new BadRequestException('client_portal.tenant_slug_required_param');
     }
     const tenant = await this.tenantsService.findBySlug(tenantSlug);
     this.tenantsService.ensurePortalTenantAccessible(tenant, {
@@ -655,13 +656,13 @@ export class ClientPortalController {
 
   private buildDateRange(from: string, to: string): string[] {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
-      throw new BadRequestException('Date format must be YYYY-MM-DD');
+      throw new BadRequestException('client_portal.date_format_yyyy_mm_dd');
     }
 
     const start = new Date(`${from}T00:00:00.000Z`);
     const end = new Date(`${to}T00:00:00.000Z`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
-      throw new BadRequestException('Invalid availability date range');
+      throw new BadRequestException('client_portal.availability_range_invalid');
     }
 
     const result: string[] = [];
@@ -777,7 +778,7 @@ export class ClientPortalController {
       };
     } catch (error) {
       this.logger.warn(
-        `parseBookingNotes: failed to parse JSON notes, falling back to plain string: ${error instanceof Error ? error.message : String(error)}`,
+        `parseBookingNotes: failed to parse JSON notes, falling back to plain string: ${toErrorMessage(error)}`,
       );
       return { guests: 1, notes };
     }
@@ -786,7 +787,7 @@ export class ClientPortalController {
   private getClientFromRequest(req: Request): Client {
     const client = (req as Request & { client?: Client }).client;
     if (!client) {
-      throw new UnauthorizedException('Invalid or expired token');
+      throw new UnauthorizedException('auth.invalid_or_expired_token');
     }
     return client;
   }

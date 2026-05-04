@@ -7,6 +7,7 @@ import { corsOriginDelegate, getCorsOriginAllowlist } from '../../common/utils/c
 import { getAllowedJwtAlgorithm } from '../../common/utils/jwt-algorithm.util';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
+import { toErrorMessage } from '../../common/utils/error.util';
 
 const _nodeEnv = process.env.NODE_ENV ?? 'development';
 const corsAllowlist = getCorsOriginAllowlist({
@@ -59,7 +60,7 @@ interface JwtPayload {
       return callback(ok ? null : 'Origin not allowed', ok);
     } catch (error) {
       gatewayDecoratorLogger.warn(
-        `WebSocket CORS: failed to parse origin "${origin as string}": ${error instanceof Error ? error.message : String(error)}`,
+        `WebSocket CORS: failed to parse origin "${origin as string}": ${toErrorMessage(error)}`,
       );
       return callback('Origin not allowed', false);
     }
@@ -107,7 +108,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
         void client.join(`tenant:${tenantId}`);
       }
     } catch (error) {
-      this.logger.debug(`Connection rejected: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger.debug(`Connection rejected: ${toErrorMessage(error)}`);
     }
   }
 

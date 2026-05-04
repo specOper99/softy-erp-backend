@@ -93,7 +93,7 @@ export class ResourceOwnershipGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Authentication required');
+      throw new ForbiddenException('common.authentication_required');
     }
 
     // Check if user's role bypasses ownership check
@@ -106,7 +106,7 @@ export class ResourceOwnershipGuard implements CanActivate {
     const resourceId = Array.isArray(resourceIdParam) ? resourceIdParam[0] : resourceIdParam;
     if (!resourceId) {
       this.logger.warn(`Missing route param: ${config.paramName}`);
-      throw new ForbiddenException('Invalid resource identifier');
+      throw new ForbiddenException('common.invalid_resource_id');
     }
 
     // Verify ownership
@@ -129,6 +129,15 @@ export class ResourceOwnershipGuard implements CanActivate {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const userField = config.userField || 'id';
 
+    // Validate ownerField is a safe SQL identifier before interpolating into select.
+    // config is set at compile time via @ResourceOwnership() decorator, but an
+    // adversarial prototype-pollution or deserialization path could inject arbitrary SQL.
+    const safeIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!safeIdentifier.test(config.ownerField)) {
+      this.logger.error(`ResourceOwnershipGuard: unsafe ownerField rejected: "${config.ownerField}"`);
+      return false;
+    }
+
     // Get user's value for comparison
     const userValue = await this.getUserFieldValue(user, userField, tenantId);
     if (!userValue) {
@@ -146,7 +155,10 @@ export class ResourceOwnershipGuard implements CanActivate {
         .getOne();
 
       if (!resource) {
-        throw new NotFoundException(`${config.resourceType} ${resourceId} not found`);
+        throw new NotFoundException({
+          code: 'resource.not_found_typed',
+          args: { resourceType: config.resourceType, resourceId },
+        });
       }
 
       const resourceOwnerValue = (resource as Record<string, unknown>)[config.ownerField];
@@ -188,7 +200,12 @@ export class ResourceOwnershipGuard implements CanActivate {
         return client?.id ?? null;
       }
       default:
-        return (user as unknown as Record<string, string>)[field] || null;
+        // Reject any field not in the explicitly allowed set.
+        // Reading arbitrary user properties would allow an attacker who can
+        // influence the decorator metadata (e.g. via deserialization) to
+        // exfiltrate user fields through ownership comparisons.
+        this.logger.error(`ResourceOwnershipGuard: unknown userField "${field}" rejected`);
+        return null;
     }
   }
 }

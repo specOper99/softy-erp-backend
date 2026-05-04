@@ -29,7 +29,7 @@ export class SubscriptionGuard implements CanActivate {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const tenant = await this.tenantsService.findOne(tenantId);
     if (!tenant) {
-      throw new ForbiddenException('Tenant not found');
+      throw new ForbiddenException('tenants.not_found');
     }
 
     // Tier hierarchy: FREE < PRO < ENTERPRISE
@@ -43,7 +43,10 @@ export class SubscriptionGuard implements CanActivate {
     const requiredTier = tiers[requiredPlan];
 
     if (currentTier < requiredTier) {
-      throw new ForbiddenException(`Upgrade to ${requiredPlan} to access this feature.`);
+      throw new ForbiddenException({
+        code: 'tenants.upgrade_required',
+        args: { plan: requiredPlan },
+      });
     }
 
     return true;

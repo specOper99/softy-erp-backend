@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
@@ -27,6 +28,13 @@ interface StripeInvoiceWithExpandedSubscription extends StripeInvoice {
 @Injectable()
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
+  /**
+   * Explicit price-ID → plan mapping loaded from config.
+   * Using substring matching (priceId.includes('enterprise')) is unsafe —
+   * a price like 'not-enterprise' or a typo in the Stripe dashboard would
+   * silently mis-assign the plan. Instead we require exact price-ID env vars.
+   */
+  private readonly priceToplan: ReadonlyMap<string, SubscriptionPlan>;
 
   constructor(
     @InjectRepository(Subscription)
@@ -40,7 +48,15 @@ export class SubscriptionService {
     @InjectRepository(Tenant)
     private readonly tenantRepo: Repository<Tenant>,
     private readonly stripeService: StripeService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    const map = new Map<string, SubscriptionPlan>();
+    const enterpriseId = this.configService.get<string>('STRIPE_PRICE_ENTERPRISE');
+    const proId = this.configService.get<string>('STRIPE_PRICE_PRO');
+    if (enterpriseId) map.set(enterpriseId, SubscriptionPlan.ENTERPRISE);
+    if (proId) map.set(proId, SubscriptionPlan.PRO);
+    this.priceToplan = map;
+  }
 
   async getOrCreateCustomer(tenantId: string): Promise<BillingCustomer> {
     let customer = await this.customerRepo.findOne({ where: { tenantId } });
@@ -48,7 +64,10 @@ export class SubscriptionService {
 
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     if (!tenant) {
-      throw new NotFoundException(`Tenant ${tenantId} not found`);
+      throw new NotFoundException({
+        code: 'platform.tenant_not_found',
+        args: { tenantId },
+      });
     }
 
     const stripeCustomer = await this.stripeService.createCustomer({
@@ -75,7 +94,7 @@ export class SubscriptionService {
       where: { tenantId },
     });
     if (existingSub?.isActive()) {
-      throw new BadRequestException('Tenant already has an active subscription');
+      throw new BadRequestException('tenants.subscription_active_exists');
     }
 
     const params: StripeSubscriptionCreateParams = {
@@ -88,7 +107,9 @@ export class SubscriptionService {
       params.default_payment_method = paymentMethodId;
     }
 
-    const stripeSubscription = await this.stripeService.createSubscription(params);
+    // Use a tenant-scoped idempotency key so Stripe won't create duplicate subscriptions
+    // if two concurrent requests slip through the isActive() guard above.
+    const stripeSubscription = await this.stripeService.createSubscription(params, `sub-create-${tenantId}`);
 
     const subscription = this.subscriptionRepo.create({
       tenantId,
@@ -109,7 +130,26 @@ export class SubscriptionService {
       quantity: stripeSubscription.items.data[0]?.quantity ?? 1,
     });
 
-    const saved = await this.subscriptionRepo.save(subscription);
+    let saved: Subscription;
+    try {
+      saved = await this.subscriptionRepo.save(subscription);
+    } catch (dbError) {
+      // Stripe subscription was created but DB save failed — attempt to roll back
+      // the Stripe side to avoid a dangling paid subscription with no local record.
+      this.logger.error(
+        `DB save failed after Stripe subscription ${stripeSubscription.id} was created. Attempting Stripe cancellation.`,
+        dbError,
+      );
+      try {
+        await this.stripeService.cancelSubscription(stripeSubscription.id);
+      } catch (cancelError) {
+        this.logger.error(
+          `Failed to cancel dangling Stripe subscription ${stripeSubscription.id}. Manual cleanup required.`,
+          cancelError,
+        );
+      }
+      throw dbError;
+    }
 
     await this.updateTenantPlan(tenantId, priceId);
 
@@ -121,7 +161,7 @@ export class SubscriptionService {
       where: { tenantId },
     });
     if (!subscription) {
-      throw new NotFoundException('No subscription found for tenant');
+      throw new NotFoundException('billing.subscription_none_for_tenant');
     }
 
     if (cancelImmediately) {
@@ -141,8 +181,8 @@ export class SubscriptionService {
   }
 
   async handleWebhookEvent(event: StripeEvent): Promise<void> {
-    const firstSeen = await this.markWebhookEventProcessed('stripe', event.id);
-    if (!firstSeen) {
+    const alreadyProcessed = await this.hasWebhookEventProcessed('stripe', event.id);
+    if (alreadyProcessed) {
       this.logger.warn(`Skipping duplicate webhook event: ${event.id}`);
       return;
     }
@@ -169,6 +209,11 @@ export class SubscriptionService {
 
       default:
         this.logger.debug(`Unhandled webhook event type: ${event.type}`);
+    }
+
+    const markedProcessed = await this.markWebhookEventProcessed('stripe', event.id);
+    if (!markedProcessed) {
+      this.logger.warn(`Webhook event was processed concurrently by another worker: ${event.id}`);
     }
   }
 
@@ -294,9 +339,15 @@ export class SubscriptionService {
   }
 
   private mapPriceToSubscriptionPlan(priceId: string): SubscriptionPlan {
-    if (priceId.includes('enterprise')) return SubscriptionPlan.ENTERPRISE;
-    if (priceId.includes('pro')) return SubscriptionPlan.PRO;
-    return SubscriptionPlan.FREE;
+    return this.priceToplan.get(priceId) ?? SubscriptionPlan.FREE;
+  }
+
+  private async hasWebhookEventProcessed(provider: string, eventId: string): Promise<boolean> {
+    const existing = await this.webhookEventRepo.findOne({
+      where: { provider, eventId },
+      select: ['id'],
+    });
+    return Boolean(existing);
   }
 
   private async markWebhookEventProcessed(provider: string, eventId: string): Promise<boolean> {

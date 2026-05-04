@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, FindOneOptions } from 'typeorm';
@@ -230,7 +230,16 @@ describe('HrService - Comprehensive Tests', () => {
       baseSalary: 2000,
     };
     mockQueryRunner.manager.save.mockRejectedValueOnce({ code: '23505' });
-    await expect(service.createProfile(dto)).rejects.toThrow('Profile already exists');
+    try {
+      await service.createProfile(dto);
+      fail('expected conflict');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ConflictException);
+      expect((e as ConflictException).getResponse()).toMatchObject({
+        code: 'hr.profile_exists_for_user',
+        args: { userId: dto.userId },
+      });
+    }
   });
 
   it('should throw generic error on failure', async () => {

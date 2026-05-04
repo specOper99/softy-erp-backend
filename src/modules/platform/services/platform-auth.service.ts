@@ -11,6 +11,7 @@ import { PlatformAction } from '../enums/platform-action.enum';
 import { MFAService } from './mfa.service';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformMfaTokenService } from './platform-mfa-token.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 export interface PlatformLoginInput {
   email: string;
@@ -75,20 +76,23 @@ export class PlatformAuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('auth.invalid_credentials');
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      throw new UnauthorizedException(`Account locked until ${user.lockedUntil.toISOString()}`);
+      throw new UnauthorizedException({
+        code: 'auth.account_locked_until',
+        args: { until: user.lockedUntil.toISOString() },
+      });
     }
 
     if (user.status !== 'active') {
-      throw new UnauthorizedException('Account suspended');
+      throw new UnauthorizedException('auth.account_suspended');
     }
 
     if (user.ipAllowlist && user.ipAllowlist.length > 0) {
       if (!user.ipAllowlist.includes(ipAddress)) {
-        throw new UnauthorizedException('IP not allowed');
+        throw new UnauthorizedException('auth.ip_not_allowed');
       }
     }
 
@@ -96,7 +100,7 @@ export class PlatformAuthService {
 
     if (!passwordCheck.valid) {
       await this.handleFailedLogin(user);
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('auth.invalid_credentials');
     }
 
     // Backward-compat: upgrade legacy hashes (eg bcrypt) to Argon2id.
@@ -179,14 +183,14 @@ export class PlatformAuthService {
   ): Promise<PlatformLoginResponse> {
     const payload = await this.platformMfaTokenService.consume(tempToken);
     if (!payload) {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException('auth.invalid_session');
     }
 
     if (payload.ipHash !== PlatformMfaTokenService.hashIp(ipAddress)) {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException('auth.invalid_session');
     }
     if (payload.userAgentHash !== PlatformMfaTokenService.hashUserAgent(userAgent)) {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException('auth.invalid_session');
     }
 
     const session = await this.sessionRepository.findOne({
@@ -194,7 +198,7 @@ export class PlatformAuthService {
     });
 
     if (!session || session.isRevoked || session.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException('auth.invalid_session');
     }
 
     const user = await this.userRepository.findOne({
@@ -203,11 +207,11 @@ export class PlatformAuthService {
     });
 
     if (!user || user.status !== 'active') {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException('auth.invalid_session');
     }
 
     if (!user.mfaEnabled) {
-      throw new UnauthorizedException('MFA not enabled');
+      throw new UnauthorizedException('auth.mfa_not_enabled');
     }
 
     const isTotpValid = this.mfaService.verifyToken(user.mfaSecret || '', code);
@@ -216,7 +220,7 @@ export class PlatformAuthService {
     if (!isTotpValid) {
       const isBackupValid = await this.mfaService.verifyBackupCode(code, user.mfaRecoveryCodes || []);
       if (!isBackupValid) {
-        throw new UnauthorizedException('Invalid MFA code');
+        throw new UnauthorizedException('auth.invalid_mfa_code');
       }
 
       user.mfaRecoveryCodes = await this.mfaService.removeUsedBackupCode(code, user.mfaRecoveryCodes || []);
@@ -282,7 +286,7 @@ export class PlatformAuthService {
       select: ['id', 'email', 'fullName', 'role'],
     });
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('common.user_not_found');
     }
     return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
   }
@@ -302,14 +306,12 @@ export class PlatformAuthService {
         secret: this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET'),
       });
     } catch (error) {
-      this.logger.warn(
-        `Platform refresh token verification failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      throw new UnauthorizedException('Invalid refresh token');
+      this.logger.warn(`Platform refresh token verification failed: ${toErrorMessage(error)}`);
+      throw new UnauthorizedException('auth.invalid_refresh_token');
     }
 
     if (payload.type !== 'refresh' || payload.aud !== 'platform') {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('auth.invalid_refresh_token');
     }
 
     const session = await this.sessionRepository.findOne({
@@ -317,7 +319,7 @@ export class PlatformAuthService {
     });
 
     if (!session || session.isRevoked || session.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Session expired or revoked');
+      throw new UnauthorizedException('auth.session_expired_or_revoked');
     }
 
     // Validate the refresh token hash matches what's stored
@@ -328,7 +330,7 @@ export class PlatformAuthService {
       session.revokedAt = new Date();
       session.revokedReason = 'Refresh token mismatch (possible replay)';
       await this.sessionRepository.save(session);
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('auth.invalid_refresh_token');
     }
 
     const user = await this.userRepository.findOne({
@@ -337,7 +339,7 @@ export class PlatformAuthService {
     });
 
     if (!user || user.status !== 'active') {
-      throw new UnauthorizedException('User inactive');
+      throw new UnauthorizedException('auth.user_inactive');
     }
 
     // Generate new token pair and rotate the refresh token

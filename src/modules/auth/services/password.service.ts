@@ -38,7 +38,7 @@ export class PasswordService {
       return crypto.createHmac('sha256', secret).update(token).digest('hex');
     }
     const nodeEnv = this.configService.get<string>('NODE_ENV') ?? 'development';
-    const isRelaxedEnv = nodeEnv === 'development' || nodeEnv === 'test';
+    const isRelaxedEnv = nodeEnv === 'test';
     if (!isRelaxedEnv) {
       throw new Error(
         'PASSWORD_RESET_TOKEN_SECRET must be configured in staging/production environments. ' +
@@ -80,7 +80,6 @@ export class PasswordService {
 
     this.logger.log({
       message: 'Password reset token generated',
-      email: normalizedEmail,
       userId: user.id,
     });
 
@@ -104,12 +103,12 @@ export class PasswordService {
     });
 
     if (!resetToken?.isValid()) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException('auth.invalid_reset_token');
     }
 
     const user = await this.usersService.findByEmailGlobal(resetToken.email);
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException('common.user_not_found');
     }
 
     // Use Argon2id instead of deprecated bcrypt
@@ -126,7 +125,6 @@ export class PasswordService {
     this.logger.log({
       message: 'Password reset completed',
       userId: user.id,
-      email: user.email,
     });
   }
 }

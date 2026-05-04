@@ -150,7 +150,7 @@ describe('WsJwtGuard', () => {
       const context = createMockContext(client);
 
       await expect(guard.canActivate(context)).rejects.toThrow(WsException);
-      await expect(guard.canActivate(context)).rejects.toThrow('Unauthorized');
+      await expect(guard.canActivate(context)).rejects.toThrow('common.unauthorized_plain');
     });
 
     it('should throw WsException when token verification fails', async () => {

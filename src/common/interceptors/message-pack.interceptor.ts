@@ -11,6 +11,7 @@ import { Request, Response } from 'express';
 import { Packr } from 'msgpackr';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { toErrorMessage } from '../utils/error.util';
 
 @Injectable()
 export class MessagePackInterceptor implements NestInterceptor {
@@ -46,7 +47,7 @@ export class MessagePackInterceptor implements NestInterceptor {
         try {
           return new StreamableFile(Buffer.from(this.packr.pack(data)));
         } catch (error) {
-          const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+          const message = toErrorMessage(error);
           // Do not log the response body; only log request context.
           const path = request.originalUrl || request.url || 'unknown';
           const method = request.method || 'unknown';
