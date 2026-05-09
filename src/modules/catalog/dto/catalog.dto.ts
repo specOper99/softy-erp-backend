@@ -101,17 +101,17 @@ export class CreateServicePackageDto extends OmitType(BaseServicePackageDto, ['n
   @ApiProperty({ example: 120, description: 'Package duration in minutes' })
   @IsInt()
   @Min(1)
-  durationMinutes: number;
+  override durationMinutes: number;
 
   @ApiProperty({ example: 2, description: 'Minimum staff required for delivery' })
   @IsInt()
   @Min(1)
-  requiredStaffCount: number;
+  override requiredStaffCount: number;
 
   @ApiProperty({ example: 'REV-SERVICES' })
   @IsString()
   @IsNotEmpty()
-  revenueAccountCode: string;
+  override revenueAccountCode: string;
 }
 
 export class UpdateServicePackageDto extends PartialType(BaseServicePackageDto) {}
@@ -170,13 +170,13 @@ export class ServicePackageResponseDto extends OmitType(BaseServicePackageDto, [
   isActive: boolean;
 
   @ApiProperty()
-  durationMinutes: number;
+  override durationMinutes: number;
 
   @ApiProperty()
-  requiredStaffCount: number;
+  override requiredStaffCount: number;
 
   @ApiProperty()
-  revenueAccountCode: string;
+  override revenueAccountCode: string;
 
   @ApiProperty()
   createdAt: Date;

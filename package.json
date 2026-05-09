@@ -18,7 +18,9 @@
   "scripts": {
     "build": "nest build",
     "openapi:export": "ts-node -r tsconfig-paths/register scripts/export-openapi.ts",
+    "openapi:commit": "ts-node -r tsconfig-paths/register scripts/ci/export-openapi-on-commit.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",

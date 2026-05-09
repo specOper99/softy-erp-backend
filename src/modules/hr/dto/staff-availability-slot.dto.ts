@@ -46,7 +46,7 @@ export class UpdateStaffAvailabilitySlotDto extends PartialType(CreateStaffAvail
   @IsInt()
   @Min(0)
   @Max(6)
-  dayOfWeek?: number;
+  override dayOfWeek?: number;
 }
 
 export class ListStaffAvailabilitySlotsDto {

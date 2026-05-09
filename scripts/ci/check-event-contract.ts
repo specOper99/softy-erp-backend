@@ -178,6 +178,11 @@ function hasPublishSite(content: string, eventName: string): boolean {
     return true;
   }
 
+  const outboxTypePattern = new RegExp(`type\\s*:\\s*['"]${escapeRegex(eventName)}['"]`, 'm');
+  if (outboxTypePattern.test(content)) {
+    return true;
+  }
+
   const assignmentPattern = new RegExp(`([A-Za-z_$][A-Za-z0-9_$]*)\\s*=\\s*new\\s+${escapeRegex(eventName)}\\b`, 'g');
   const variableNames = new Set<string>();
   for (const match of content.matchAll(assignmentPattern)) {
@@ -231,7 +236,7 @@ function checkCanonicalEvents(contract: EventContract): {
           eventName: event.name,
           kind: 'missing-publish-site',
           expected: publisherPath,
-          details: 'Expected publish(new EventName) pattern not found',
+          details: 'Expected eventBus.publish(new EventName) or outbox type: EventName pattern not found',
         });
       }
     }
@@ -279,7 +284,7 @@ function checkNotPublishedEvents(contract: EventContract, srcFiles: string[]): M
           eventName,
           kind: 'unexpected-publisher',
           expected: file.relativePath,
-          details: 'Event is documented as not published but publish(new EventName) exists',
+          details: 'Event is documented as not published but a publish/outbox site exists',
         });
       }
     }

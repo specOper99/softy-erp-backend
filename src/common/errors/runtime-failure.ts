@@ -9,7 +9,7 @@
  */
 export class RuntimeFailure extends Error {
   /** Optional underlying cause (e.g., caught error) */
-  public readonly cause?: unknown;
+  public override readonly cause?: unknown;
 
   /**
    * Create a new RuntimeFailure.

@@ -20,10 +20,7 @@
     "src/database/migrations/**"
   ],
   "ignoreBinaries": ["k6"],
-  "ignoreDependencies": [
-    "file-type",
-    "k6"
-  ],
+  "ignoreDependencies": ["k6"],
   "rules": {
     "exports": "off",
     "types": "off",

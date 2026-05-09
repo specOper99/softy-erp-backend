@@ -1,1 +1,2 @@
+npm run openapi:commit
 npx lint-staged

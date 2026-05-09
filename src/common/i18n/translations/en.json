@@ -75,7 +75,9 @@
     "password_reset_email_sent": "If an account exists, a password reset email has been sent.",
     "password_reset_token_secret_required": "PASSWORD_RESET_TOKEN_SECRET must be configured in staging or production environments. Use a random string of at least 32 characters for HMAC-SHA256 hashing of reset tokens.",
     "recovery_codes_regenerated": "Recovery codes regenerated",
-    "verification_email_sent": "If the account exists and is not verified, a verification email has been sent."
+    "verification_email_sent": "If the account exists and is not verified, a verification email has been sent.",
+    "email_action_rate_limited": "Too many email requests. Please try again later.",
+    "magic_link_rate_limited": "Too many magic link requests. Please try again later."
   },
   "booking": {
     "created": "Booking created successfully",
@@ -173,7 +175,8 @@
     "missing_stripe_signature": "Missing Stripe signature",
     "invalid_webhook_signature": "Invalid webhook signature",
     "subscription_none_for_tenant": "No subscription found for tenant",
-    "stripe_not_configured": "Stripe is not configured. Set STRIPE_SECRET_KEY to enable billing."
+    "stripe_not_configured": "Stripe is not configured. Set STRIPE_SECRET_KEY to enable billing.",
+    "stripe_unavailable": "Billing service is temporarily unavailable. Please try again later."
   },
   "finance": {
     "amount_must_be_positive": "Transaction amount must be positive",

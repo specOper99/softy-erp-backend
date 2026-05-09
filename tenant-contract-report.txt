@@ -1,9 +1,9 @@
 Tenant Contract Report
-Generated: 2026-05-04T23:05:13.446Z
-Scanned files: 607
+Generated: 2026-05-09T19:06:32.396Z
+Scanned files: 613
 Tenant-owned entities detected: 37
 Violations (fail): 0
-Warnings (no fail): 0
+Warnings (no fail): 4
 
 Violations (fail):
 TENANT_ID_FROM_REQUEST (0)
@@ -21,7 +21,15 @@ RAW_REPOSITORY_IN_TENANT_MODULE (0)
 
 SKIP_TENANT_EXPLICIT_CONTEXT (0)
 
-SKIP_TENANT_USAGE (0)
+SKIP_TENANT_USAGE (4)
+- src/modules/client-portal/controllers/client-portal-auth.controller.ts:15 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/client-portal/controllers/client-portal-bookings.controller.ts:44 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/client-portal/controllers/client-portal-discovery.controller.ts:26 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
+- src/modules/client-portal/controllers/client-portal-profile.controller.ts:35 Controller uses @SkipTenant(); endpoint must be explicitly reviewed and classified.
+  @SkipTenant()
 
 Allowlist (explicit and conservative):
 - entity:Tenant -> Tenant table is global metadata and must be resolved outside tenant-scoped repositories.

@@ -8,7 +8,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   // Provide consistent, sanitized auth errors and logging.
   // Note: do NOT log token contents.
-  handleRequest<TUser = unknown>(
+  override handleRequest<TUser = unknown>(
     err: unknown,
     user: TUser | false,
     info: unknown,

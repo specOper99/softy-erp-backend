@@ -17,13 +17,13 @@ export class PlatformJwtAuthGuard extends AuthGuard('platform-jwt') {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
+  override canActivate(context: ExecutionContext) {
     const isPublic = this.reflector.get<boolean>('isPublic', context.getHandler());
     if (isPublic) return true;
     return super.canActivate(context);
   }
 
-  handleRequest<TUser extends PlatformJwtUser = PlatformJwtUser>(
+  override handleRequest<TUser extends PlatformJwtUser = PlatformJwtUser>(
     err: unknown,
     user: TUser | false,
     _info?: unknown,

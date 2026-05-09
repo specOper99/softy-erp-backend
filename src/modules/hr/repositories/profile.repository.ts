@@ -11,7 +11,7 @@ export class ProfileRepository extends TenantAwareRepository<Profile> {
     super(repository);
   }
 
-  createQueryBuilder(alias: string) {
+  override createQueryBuilder(alias: string) {
     return super.createQueryBuilder(alias);
   }
 }

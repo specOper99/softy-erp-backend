@@ -83,7 +83,7 @@ Each entry lists the exact class name, publisher(s), and consumer(s) present in 
 `PaymentRecordedEvent`
 
 - Published by:
-  - `src/modules/bookings/services/bookings.service.ts` (`recordPayment()`)
+  - `src/modules/bookings/services/bookings-payments.service.ts` (`recordPayment()` enqueues via transactional outbox)
 - Consumed by:
   - `src/modules/analytics/handlers/update-metrics.handler.ts`
   - `src/modules/mail/handlers/payment-received.handler.ts`
@@ -93,7 +93,7 @@ Each entry lists the exact class name, publisher(s), and consumer(s) present in 
 `TaskAssignedEvent`
 
 - Published by:
-  - `src/modules/tasks/services/tasks.service.ts` (`assignTask()` publishes after `TenantScopedManager.run(...)` completes)
+  - `src/modules/tasks/services/task-assignee.service.ts` (`assignTask()` publishes after `TenantScopedManager.run(...)` completes)
 - Consumed by:
   - `src/modules/mail/handlers/task-assigned.handler.ts`
 

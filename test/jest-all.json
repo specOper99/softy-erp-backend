@@ -16,6 +16,11 @@
     "transformIgnorePatterns": [
         "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
     ],
+    "moduleNameMapper": {
+        "^p-queue$": "<rootDir>/test/__mocks__/p-queue.ts",
+        "^p-retry$": "<rootDir>/test/__mocks__/p-retry.ts",
+        "^file-type$": "<rootDir>/test/__mocks__/file-type.ts"
+    },
     "moduleDirectories": [
         "node_modules",
         "<rootDir>"
@@ -47,7 +52,8 @@
         "<rootDir>/test/jest-setup.ts"
     ],
     "testPathIgnorePatterns": [
-        "<rootDir>/.worktrees/"
+        "<rootDir>/.worktrees/",
+        ".integration.spec.ts$"
     ],
     "modulePathIgnorePatterns": [
         "<rootDir>/.worktrees/"
