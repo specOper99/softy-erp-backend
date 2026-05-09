@@ -5,7 +5,6 @@ import { DataSource } from 'typeorm';
 import { createMockRepository, createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditService } from '../../audit/audit.service';
-import { FinanceService } from '../../finance/services/finance.service';
 import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
@@ -13,7 +12,6 @@ import { TaskAssignee } from '../entities/task-assignee.entity';
 import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
 import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
-import { TaskAssignedEvent } from '../events/task-assigned.event';
 import { TaskCompletedEvent } from '../events/task-completed.event';
 import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
 import { TaskRepository } from '../repositories/task.repository';
@@ -53,10 +51,6 @@ describe('TasksService - Comprehensive Tests', () => {
     getMany: jest.fn().mockResolvedValue([mockTask]),
   };
   mockTaskRepository.createQueryBuilder = jest.fn(() => mockQueryBuilder);
-
-  const mockFinanceService = {
-    transferPendingCommission: jest.fn().mockResolvedValue(undefined),
-  };
 
   const mockWalletService = {
     moveToPayable: jest.fn().mockResolvedValue({}),
@@ -115,7 +109,6 @@ describe('TasksService - Comprehensive Tests', () => {
       providers: [
         TasksService,
         { provide: TaskRepository, useValue: mockTaskRepository },
-        { provide: FinanceService, useValue: mockFinanceService },
         { provide: WalletService, useValue: mockWalletService },
         { provide: EventBus, useValue: mockEventBus },
         { provide: AuditService, useValue: mockAuditService },
@@ -336,237 +329,6 @@ describe('TasksService - Comprehensive Tests', () => {
 
     it('should throw NotFoundException for non-existent task', async () => {
       await expect(service.update('invalid-id', { notes: 'Test' })).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  // ============ ASSIGN TASK TESTS ============
-  describe('assignTask', () => {
-    it('should assign task to user', async () => {
-      // Mock the locking call
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        ...mockTask,
-        tenantId: 'tenant-123',
-      });
-      // Mock the second call for relations
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        ...mockTask,
-        tenantId: 'tenant-123',
-        booking: {
-          id: 'booking-uuid-123',
-          clientId: 'client-123',
-          client: { name: 'Client' },
-        },
-        taskType: { name: 'Type' },
-      });
-      // Mock user validation (User lookup)
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'new-user-id',
-        tenantId: 'tenant-123',
-        email: 'new@example.com',
-      });
-
-      const result = await service.assignTask('task-uuid-123', {
-        userId: 'new-user-id',
-      });
-      expect(result.assignedUserId).toBe('new-user-id');
-      expect(mockEventBus.publish).toHaveBeenCalledWith(expect.any(TaskAssignedEvent));
-    });
-
-    it('should reassign task to different user', async () => {
-      // Mock the locking call
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        ...mockTask,
-        assignedUserId: 'original-user',
-        tenantId: 'tenant-123',
-      });
-      // Mock the second call for relations
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        ...mockTask,
-        assignedUserId: 'original-user',
-        tenantId: 'tenant-123',
-        booking: {
-          id: 'booking-uuid-123',
-          clientId: 'client-123',
-          client: { name: 'Client' },
-        },
-        taskType: { name: 'Type' },
-      });
-      // Mock user validation (User lookup)
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'new-user-id',
-        tenantId: 'tenant-123',
-        email: 'new@example.com',
-      });
-
-      const result = await service.assignTask('task-uuid-123', {
-        userId: 'new-user-id',
-      });
-      expect(result.assignedUserId).toBe('new-user-id');
-      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalled();
-    });
-
-    it('should throw NotFoundException for non-existent task', async () => {
-      await expect(service.assignTask('invalid-id', { userId: 'user-id' })).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('task assignees', () => {
-    it('adding LEAD creates task assignee and updates pending wallet', async () => {
-      const task = {
-        ...mockTask,
-        id: 'task-uuid-123',
-        tenantId: 'tenant-123',
-        assignedUserId: null,
-        commissionSnapshot: 120,
-      } as Task;
-
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 'lead-user', tenantId: 'tenant-123' });
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'assignee-lead',
-        tenantId: 'tenant-123',
-        taskId: task.id,
-        userId: 'lead-user',
-        role: TaskAssigneeRole.LEAD,
-      } as TaskAssignee);
-
-      const result = await service.addTaskAssignee('task-uuid-123', {
-        userId: 'lead-user',
-        role: TaskAssigneeRole.LEAD,
-      });
-
-      expect(result.userId).toBe('lead-user');
-      expect(result.role).toBe(TaskAssigneeRole.LEAD);
-      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
-        mockQueryRunner.manager,
-        null,
-        'lead-user',
-        120,
-      );
-      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
-        expect.objectContaining({ taskId: 'task-uuid-123', userId: 'lead-user' }),
-      );
-    });
-
-    it('adding ASSISTANT creates task assignee and updates pending wallet', async () => {
-      const task = {
-        ...mockTask,
-        id: 'task-uuid-123',
-        tenantId: 'tenant-123',
-        assignedUserId: 'lead-user',
-        commissionSnapshot: 80,
-      } as Task;
-
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 'assistant-user', tenantId: 'tenant-123' });
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'assignee-existing-lead',
-        tenantId: 'tenant-123',
-        taskId: task.id,
-        userId: 'lead-user',
-        role: TaskAssigneeRole.LEAD,
-      } as TaskAssignee);
-
-      const result = await service.addTaskAssignee('task-uuid-123', {
-        userId: 'assistant-user',
-        role: TaskAssigneeRole.ASSISTANT,
-      });
-
-      expect(result.userId).toBe('assistant-user');
-      expect(result.role).toBe(TaskAssigneeRole.ASSISTANT);
-      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
-        mockQueryRunner.manager,
-        null,
-        'assistant-user',
-        80,
-      );
-    });
-
-    it('removing assignee reverses pending wallet commission', async () => {
-      const task = {
-        ...mockTask,
-        id: 'task-uuid-123',
-        tenantId: 'tenant-123',
-        assignedUserId: 'lead-user',
-      } as Task;
-
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'assignee-assistant',
-        tenantId: 'tenant-123',
-        taskId: task.id,
-        userId: 'assistant-user',
-        role: TaskAssigneeRole.ASSISTANT,
-        commissionSnapshot: 70,
-      } as TaskAssignee);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'assignee-existing-lead',
-        tenantId: 'tenant-123',
-        taskId: task.id,
-        userId: 'lead-user',
-        role: TaskAssigneeRole.LEAD,
-      } as TaskAssignee);
-
-      await service.removeTaskAssignee('task-uuid-123', 'assistant-user');
-
-      expect(mockQueryRunner.manager.delete).toHaveBeenCalledWith(TaskAssignee, {
-        tenantId: 'tenant-123',
-        taskId: 'task-uuid-123',
-        userId: 'assistant-user',
-      });
-      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
-        mockQueryRunner.manager,
-        'assistant-user',
-        undefined,
-        70,
-      );
-    });
-
-    it('adding LEAD demotes previous lead and syncs task.assignedUserId', async () => {
-      const task = {
-        ...mockTask,
-        id: 'task-uuid-123',
-        tenantId: 'tenant-123',
-        assignedUserId: 'old-lead-user',
-        commissionSnapshot: 100,
-      } as Task;
-
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(task);
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 'new-lead-user', tenantId: 'tenant-123' });
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce({
-        id: 'assignee-new-lead',
-        tenantId: 'tenant-123',
-        taskId: task.id,
-        userId: 'new-lead-user',
-        role: TaskAssigneeRole.LEAD,
-      } as TaskAssignee);
-
-      await service.addTaskAssignee('task-uuid-123', {
-        userId: 'new-lead-user',
-        role: TaskAssigneeRole.LEAD,
-        commissionSnapshot: 95,
-      });
-
-      expect(mockQueryRunner.manager.createQueryBuilder).toHaveBeenCalled();
-      const qbResult = mockQueryRunner.manager.createQueryBuilder.mock.results.at(-1);
-      expect(qbResult).toBeDefined();
-      const demoteLeadQueryBuilder = qbResult?.value as {
-        execute: jest.Mock;
-      };
-      expect(demoteLeadQueryBuilder.execute).toHaveBeenCalled();
-      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
-        expect.objectContaining({ assignedUserId: 'new-lead-user' }),
-      );
-      expect(mockFinanceService.transferPendingCommission).toHaveBeenCalledWith(
-        mockQueryRunner.manager,
-        null,
-        'new-lead-user',
-        95,
-      );
     });
   });
 

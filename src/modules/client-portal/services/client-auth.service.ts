@@ -1,5 +1,13 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Cache } from 'cache-manager';
@@ -36,6 +44,10 @@ export class ClientAuthService {
   private readonly logger = new Logger(ClientAuthService.name);
   private readonly TOKEN_EXPIRY_HOURS = 24;
   private readonly SESSION_EXPIRY_SECONDS: number;
+  private readonly MAGIC_LINK_HOURLY_LIMIT = 3;
+  private readonly MAGIC_LINK_DAILY_LIMIT = 10;
+  private readonly HOUR_MS = 60 * 60 * 1000;
+  private readonly DAY_MS = 24 * 60 * 60 * 1000;
 
   // Metrics
   private readonly magicLinkRequestedCounter: Counter<string>;
@@ -94,6 +106,7 @@ export class ClientAuthService {
   }
 
   async requestMagicLink(slug: string, email: string, lang = 'en'): Promise<{ message: string }> {
+    await this.checkEmailRateLimit(email);
     const tenant = await this.tenantsService.findBySlug(slug);
     const tenantId = tenant.id;
 
@@ -296,5 +309,30 @@ export class ClientAuthService {
     } catch (error) {
       this.logger.debug(`Logout failed (decode error): ${toErrorMessage(error)}`);
     }
+  }
+
+  private async checkEmailRateLimit(email: string): Promise<void> {
+    const hourKey = `magic_link_hour:${email}`;
+    const dayKey = `magic_link_day:${email}`;
+
+    const [hourCount, dayCount] = await Promise.all([
+      this.cacheManager.get<number>(hourKey),
+      this.cacheManager.get<number>(dayKey),
+    ]);
+
+    if ((hourCount ?? 0) >= this.MAGIC_LINK_HOURLY_LIMIT) {
+      throw new HttpException('auth.magic_link_rate_limited', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    if ((dayCount ?? 0) >= this.MAGIC_LINK_DAILY_LIMIT) {
+      throw new HttpException('auth.magic_link_rate_limited', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    const newHourCount = (hourCount ?? 0) + 1;
+    const newDayCount = (dayCount ?? 0) + 1;
+
+    await Promise.all([
+      this.cacheManager.set(hourKey, newHourCount, this.HOUR_MS),
+      this.cacheManager.set(dayKey, newDayCount, this.DAY_MS),
+    ]);
   }
 }

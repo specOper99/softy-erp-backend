@@ -1,10 +1,19 @@
-import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as Sentry from '@sentry/nestjs';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { Counter } from 'prom-client';
 import { DataSource, Repository } from 'typeorm';
+import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { toErrorMessage } from '../../common/utils/error.util';
 import { TenantScopedManager } from '../../common/utils/tenant-scoped-manager';
@@ -41,6 +50,10 @@ const authBackgroundFailureCounter = new Counter({
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly EMAIL_ACTION_HOURLY_LIMIT = 3;
+  private readonly EMAIL_ACTION_DAILY_LIMIT = 10;
+  private readonly HOUR_MS = 60 * 60 * 1000;
+  private readonly DAY_MS = 24 * 60 * 60 * 1000;
 
   /**
    * Timing attack mitigation:
@@ -65,6 +78,7 @@ export class AuthService {
     private readonly lockoutService: AccountLockoutService,
     private readonly mailService: MailService,
     private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly cacheUtils: CacheUtilsService,
   ) {
     // Initialize TenantScopedManager
     this.tenantTx = new TenantScopedManager(dataSource);
@@ -353,6 +367,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
+    await this.checkEmailActionRateLimit(email);
     return this.passwordService.forgotPassword(email);
   }
 
@@ -391,6 +406,7 @@ export class AuthService {
   }
 
   async resendVerificationEmail(email: string): Promise<void> {
+    await this.checkEmailActionRateLimit(email);
     const user = await this.usersService.findByEmailGlobal(email);
 
     // Always return without differentiating — prevent user enumeration and verification-status leakage.
@@ -526,5 +542,28 @@ export class AuthService {
       authBackgroundFailureCounter.inc({ kind });
       Sentry.captureException(error, { tags: { kind } });
     });
+  }
+
+  private async checkEmailActionRateLimit(email: string): Promise<void> {
+    const normalized = email.toLowerCase();
+    const hourKey = `email_action_hour:${normalized}`;
+    const dayKey = `email_action_day:${normalized}`;
+
+    const [hourCount, dayCount] = await Promise.all([
+      this.cacheUtils.get<number>(hourKey),
+      this.cacheUtils.get<number>(dayKey),
+    ]);
+
+    if ((hourCount ?? 0) >= this.EMAIL_ACTION_HOURLY_LIMIT) {
+      throw new HttpException('auth.email_action_rate_limited', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    if ((dayCount ?? 0) >= this.EMAIL_ACTION_DAILY_LIMIT) {
+      throw new HttpException('auth.email_action_rate_limited', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    await Promise.all([
+      this.cacheUtils.set(hourKey, (hourCount ?? 0) + 1, this.HOUR_MS),
+      this.cacheUtils.set(dayKey, (dayCount ?? 0) + 1, this.DAY_MS),
+    ]);
   }
 }

@@ -1,6 +1,6 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EventBus } from '@nestjs/cqrs';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import {
@@ -8,12 +8,11 @@ import {
   createMockBooking,
   createMockCatalogService,
   createMockDataSource,
-  createMockEventBus,
-  createMockFinanceService,
   createMockRepository,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 import { FlagsService } from '../../../common/flags/flags.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
@@ -21,18 +20,15 @@ import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
-import { FinanceService } from '../../finance/services/finance.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { CreateBookingDto } from '../dto';
 import { ProcessingType } from '../entities/processing-type.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
-import { BookingCreatedEvent } from '../events/booking-created.event';
-import { BookingPriceChangedEvent } from '../events/booking-price-changed.event';
-import { BookingUpdatedEvent } from '../events/booking-updated.event';
-import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 import { BookingRepository } from '../repositories/booking.repository';
 import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
+import { BookingsPaymentsService } from './bookings-payments.service';
+import { BookingsPricingService } from './bookings-pricing.service';
 import { BookingsService } from './bookings.service';
 import { StaffConflictService } from './staff-conflict.service';
 
@@ -40,10 +36,9 @@ describe('BookingsService', () => {
   let service: BookingsService;
   let bookingRepository: ReturnType<typeof createMockRepository>;
   let catalogService: ReturnType<typeof createMockCatalogService>;
-  let financeService: ReturnType<typeof createMockFinanceService>;
   let auditService: ReturnType<typeof createMockAuditService>;
   let dataSource: ReturnType<typeof createMockDataSource>;
-  let eventBus: ReturnType<typeof createMockEventBus>;
+  let outboxRepository: { save: jest.Mock };
   let staffConflictService: { checkPackageStaffAvailability: jest.Mock };
   let flagsService: { isEnabled: jest.Mock };
   let processingTypeRepository: ReturnType<typeof createMockRepository>;
@@ -56,6 +51,8 @@ describe('BookingsService', () => {
     clientId: 'client-1',
     packageId: 'pkg-1',
   });
+
+  const mockAdminUser = { id: 'admin-1', role: Role.ADMIN } as User;
 
   const expectFieldStaffRbacWithBackwardCompatibility = (queryBuilder: { andWhere: jest.Mock }): void => {
     const rbacCall = queryBuilder.andWhere.mock.calls.find(
@@ -71,10 +68,9 @@ describe('BookingsService', () => {
 
     bookingRepository = createMockRepository();
     catalogService = createMockCatalogService();
-    financeService = createMockFinanceService();
     auditService = createMockAuditService();
     dataSource = createMockDataSource();
-    eventBus = createMockEventBus();
+    outboxRepository = { save: jest.fn().mockResolvedValue({}) };
     staffConflictService = {
       checkPackageStaffAvailability: jest.fn().mockResolvedValue({
         ok: true,
@@ -101,6 +97,16 @@ describe('BookingsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BookingsService,
+        BookingsPricingService,
+        {
+          provide: BookingsPaymentsService,
+          useValue: {
+            recordPayment: jest.fn(),
+            recordRefund: jest.fn(),
+            markAsPaid: jest.fn(),
+            getBookingTransactions: jest.fn(),
+          },
+        },
         {
           provide: BookingRepository,
           useValue: bookingRepository,
@@ -108,10 +114,6 @@ describe('BookingsService', () => {
         {
           provide: CatalogService,
           useValue: catalogService,
-        },
-        {
-          provide: FinanceService,
-          useValue: financeService,
         },
         {
           provide: AuditService,
@@ -126,8 +128,8 @@ describe('BookingsService', () => {
           useValue: { get: jest.fn() },
         },
         {
-          provide: EventBus,
-          useValue: eventBus,
+          provide: getRepositoryToken(OutboxEvent),
+          useValue: outboxRepository,
         },
         {
           provide: AvailabilityCacheOwnerService,
@@ -202,8 +204,9 @@ describe('BookingsService', () => {
       const createCallArg = bookingRepository.create.mock.calls[0][0];
       expect(createCallArg.tenantId).toBeUndefined();
 
-      expect(eventBus.publish).toHaveBeenCalledTimes(1);
-      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingCreatedEvent));
+      expect(outboxRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'BookingCreatedEvent', aggregateId: mockBooking.id }),
+      );
     });
 
     it('should snapshot durationMinutes from selected package', async () => {
@@ -375,16 +378,19 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.update('booking-123', { notes: 'updated notes' });
+      await service.update('booking-123', { notes: 'updated notes' }, mockAdminUser);
 
-      expect(eventBus.publish).toHaveBeenCalledTimes(2);
-      expect(eventBus.publish).toHaveBeenNthCalledWith(1, expect.any(BookingUpdatedEvent));
-      expect(eventBus.publish).toHaveBeenNthCalledWith(2, expect.any(BookingPriceChangedEvent));
+      expect(outboxRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'BookingUpdatedEvent', aggregateId: mockBooking.id }),
+      );
+      expect(outboxRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'BookingPriceChangedEvent', aggregateId: mockBooking.id }),
+      );
     });
 
     it('rejects lifecycle status updates via generic update endpoint', async () => {
       flagsService.isEnabled.mockReturnValue(true);
-      await expect(service.update('booking-123', { status: BookingStatus.CONFIRMED })).rejects.toThrow(
+      await expect(service.update('booking-123', { status: BookingStatus.CONFIRMED }, mockAdminUser)).rejects.toThrow(
         'booking.lifecycle_status_requires_workflow',
       );
       expect(dataSource.transaction).not.toHaveBeenCalled();
@@ -405,7 +411,11 @@ describe('BookingsService', () => {
         }),
       );
 
-      const result = await service.update('booking-123', { status: BookingStatus.CONFIRMED, notes: 'noop status' });
+      const result = await service.update(
+        'booking-123',
+        { status: BookingStatus.CONFIRMED, notes: 'noop status' },
+        mockAdminUser,
+      );
 
       expect(result.status).toBe(BookingStatus.DRAFT);
       expect(result.notes).toBe('noop status');
@@ -432,130 +442,10 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.update('booking-123', { notes: 'updated notes' });
+      await service.update('booking-123', { notes: 'updated notes' }, mockAdminUser);
 
-      expect(eventBus.publish).toHaveBeenCalledTimes(1);
-      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(BookingUpdatedEvent));
-    });
-  });
-
-  describe('recordPayment', () => {
-    it('publishes PaymentRecordedEvent once after successful payment write', async () => {
-      const foundBooking = {
-        ...mockBooking,
-        amountPaid: 0,
-        totalPrice: 1000,
-        depositAmount: 200,
-        client: { email: 'client@example.com', name: 'Client' },
-        derivePaymentStatus: jest.fn().mockReturnValue('PARTIALLY_PAID'),
-      };
-
-      bookingRepository.createQueryBuilder.mockReturnValue({
-        andWhere: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        leftJoinAndMapMany: jest.fn().mockReturnThis(),
-        getOne: jest.fn().mockResolvedValue(foundBooking),
-      });
-
-      dataSource.transaction.mockImplementation((cb) =>
-        cb({
-          findOne: jest.fn().mockResolvedValue(foundBooking),
-          update: jest.fn().mockResolvedValue({ affected: 1 }),
-        }),
-      );
-
-      await service.recordPayment('booking-123', {
-        amount: 250,
-        paymentMethod: PaymentMethod.E_PAYMENT,
-        reference: 'ref-1',
-      });
-
-      expect(eventBus.publish).toHaveBeenCalledTimes(1);
-      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(PaymentRecordedEvent));
-      const event = (eventBus.publish as jest.Mock).mock.calls[0][0] as PaymentRecordedEvent;
-      expect(event.bookingId).toBe('booking-123');
-      expect(event.amount).toBe(250);
-      expect(event.tenantId).toBe('tenant-1');
-    });
-
-    it('passes payment method, reference, and requested transaction date into finance transaction', async () => {
-      const transactionDate = '2026-04-20T09:30:00.000Z';
-      const foundBooking = {
-        ...mockBooking,
-        amountPaid: 0,
-        totalPrice: 1000,
-        depositAmount: 200,
-        client: { email: 'client@example.com', name: 'Client' },
-        derivePaymentStatus: jest.fn().mockReturnValue('PARTIALLY_PAID'),
-      };
-
-      bookingRepository.createQueryBuilder.mockReturnValue({
-        andWhere: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        leftJoinAndMapMany: jest.fn().mockReturnThis(),
-        getOne: jest.fn().mockResolvedValue(foundBooking),
-      });
-
-      dataSource.transaction.mockImplementation((cb) =>
-        cb({
-          findOne: jest.fn().mockResolvedValue(foundBooking),
-          update: jest.fn().mockResolvedValue({ affected: 1 }),
-        }),
-      );
-
-      await service.recordPayment('booking-123', {
-        amount: 250,
-        paymentMethod: PaymentMethod.E_PAYMENT,
-        reference: 'ref-1',
-        transactionDate,
-      });
-
-      expect(financeService.createTransactionWithManager).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          paymentMethod: 'E_PAYMENT',
-          reference: 'ref-1',
-          transactionDate: new Date(transactionDate),
-        }),
-      );
-    });
-
-    it('should update paymentStatus via derivePaymentStatus after recording payment', async () => {
-      const foundBooking = {
-        ...mockBooking,
-        amountPaid: 0,
-        totalPrice: 1000,
-        depositAmount: 200,
-        client: { email: 'a@b.com', name: 'C' },
-        derivePaymentStatus: jest.fn().mockReturnValue('DEPOSIT_PAID'),
-      };
-
-      bookingRepository.createQueryBuilder.mockReturnValue({
-        andWhere: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        leftJoinAndMapMany: jest.fn().mockReturnThis(),
-        getOne: jest.fn().mockResolvedValue(foundBooking),
-      });
-
-      const mockUpdate = jest.fn().mockResolvedValue({ affected: 1 });
-      dataSource.transaction.mockImplementation((cb) =>
-        cb({
-          findOne: jest.fn().mockResolvedValue(foundBooking),
-          update: mockUpdate,
-        }),
-      );
-
-      await service.recordPayment('booking-123', { amount: 250, paymentMethod: PaymentMethod.E_PAYMENT });
-
-      expect(foundBooking.derivePaymentStatus).toHaveBeenCalled();
-      // Verify update was called with paymentStatus
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.anything(), // Booking class
-        expect.objectContaining({ id: 'booking-123' }),
-        expect.objectContaining({
-          amountPaid: 250,
-          paymentStatus: 'DEPOSIT_PAID',
-        }),
+      expect(outboxRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'BookingUpdatedEvent', aggregateId: mockBooking.id }),
       );
     });
   });
@@ -585,7 +475,7 @@ describe('BookingsService', () => {
         getOne: jest.fn().mockResolvedValue(confirmedBooking),
       });
 
-      await expect(service.update('b-confirmed', { taxRate: 15 })).rejects.toThrow(BadRequestException);
+      await expect(service.update('b-confirmed', { taxRate: 15 }, mockAdminUser)).rejects.toThrow(BadRequestException);
     });
 
     it('should recalculate pricing when draft and price fields change', async () => {
@@ -624,7 +514,7 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.update('b-draft', { packageId: 'pkg-2', taxRate: 5 });
+      await service.update('b-draft', { packageId: 'pkg-2', taxRate: 5 }, mockAdminUser);
 
       // Verify catalogService was called with the new package
       expect(catalogService.findPackageById).toHaveBeenCalledWith('pkg-2');
@@ -656,10 +546,14 @@ describe('BookingsService', () => {
         }),
       );
 
-      await service.update('b-confirmed', {
-        handoverType: PaymentMethod.E_PAYMENT,
-        processingTypeIds: ['pt-1'],
-      });
+      await service.update(
+        'b-confirmed',
+        {
+          handoverType: PaymentMethod.E_PAYMENT,
+          processingTypeIds: ['pt-1'],
+        },
+        mockAdminUser,
+      );
 
       expect(mockFind).toHaveBeenCalledWith(
         ProcessingType,
@@ -774,6 +668,59 @@ describe('BookingsService', () => {
       await service.findOne('booking-123', { id: 'user-1', role: Role.FIELD_STAFF } as User);
 
       expectFieldStaffRbacWithBackwardCompatibility(queryBuilder);
+    });
+  });
+
+  describe('remove', () => {
+    it('writes an audit log entry with the reason on successful deletion', async () => {
+      const draftBooking = createMockBooking({
+        id: 'booking-del',
+        tenantId: 'tenant-1',
+        status: BookingStatus.DRAFT,
+        eventDate: new Date(Date.now() + 86400000),
+        packageId: 'pkg-1',
+      });
+
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(draftBooking),
+      });
+      bookingRepository.softRemove.mockResolvedValue(draftBooking);
+
+      await service.remove('booking-del', 'duplicate booking', mockAdminUser);
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'booking.delete',
+          entityName: 'Booking',
+          entityId: 'booking-del',
+          userId: mockAdminUser.id,
+          notes: 'duplicate booking',
+        }),
+      );
+    });
+  });
+
+  describe('FIELD_STAFF scoping on mutations', () => {
+    const fieldStaffUser = { id: 'staff-1', role: Role.FIELD_STAFF } as User;
+
+    beforeEach(() => {
+      bookingRepository.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      });
+    });
+
+    it('update throws NotFoundException for FIELD_STAFF with no assigned task', async () => {
+      await expect(service.update('booking-123', { notes: 'x' }, fieldStaffUser)).rejects.toThrow(NotFoundException);
+    });
+
+    it('remove throws NotFoundException for FIELD_STAFF with no assigned task', async () => {
+      await expect(service.remove('booking-123', undefined, fieldStaffUser)).rejects.toThrow(NotFoundException);
     });
   });
 

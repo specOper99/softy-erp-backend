@@ -13,6 +13,7 @@ import {
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
 import { BookingWorkflowService } from '../services/booking-workflow.service';
+import { BookingsPaymentsService } from '../services/bookings-payments.service';
 import { BookingsService } from '../services/bookings.service';
 import { BookingsController } from './bookings.controller';
 import { TasksService } from '../../tasks/services/tasks.service';
@@ -63,6 +64,15 @@ describe('BookingsController', () => {
           provide: TasksService,
           useValue: {
             findByBooking: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: BookingsPaymentsService,
+          useValue: {
+            recordPayment: jest.fn().mockResolvedValue(mockBooking),
+            recordRefund: jest.fn().mockResolvedValue(mockBooking),
+            getBookingTransactions: jest.fn().mockResolvedValue([]),
+            markAsPaid: jest.fn().mockResolvedValue(mockBooking),
           },
         },
       ],
@@ -116,16 +126,16 @@ describe('BookingsController', () => {
   describe('update', () => {
     it('should call service.update', async () => {
       const dto = { status: BookingStatus.CONFIRMED } as UpdateBookingDto;
-      await controller.update('uuid', dto);
-      expect(service.update).toHaveBeenCalledWith('uuid', dto);
+      await controller.update('uuid', dto, mockUser);
+      expect(service.update).toHaveBeenCalledWith('uuid', dto, mockUser);
     });
   });
 
   describe('remove', () => {
     it('should call service.remove', async () => {
       const dto = { reason: 'duplicate booking' };
-      await controller.remove('uuid', dto);
-      expect(service.remove).toHaveBeenCalledWith('uuid', dto.reason);
+      await controller.remove('uuid', dto, mockUser);
+      expect(service.remove).toHaveBeenCalledWith('uuid', dto.reason, mockUser);
     });
   });
 

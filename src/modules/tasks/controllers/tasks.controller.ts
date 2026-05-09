@@ -22,6 +22,7 @@ import { Role } from '../../users/enums/role.enum';
 import { AddTaskAssigneeDto, AssignTaskDto, TaskFilterDto, UpdateTaskAssigneeDto, UpdateTaskDto } from '../dto';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TasksService } from '../services/tasks.service';
+import { TaskAssigneeService } from '../services/task-assignee.service';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -29,7 +30,10 @@ import { TasksService } from '../services/tasks.service';
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly taskAssigneeService: TaskAssigneeService,
+  ) {}
 
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
@@ -150,7 +154,7 @@ export class TasksController {
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'task.not_found_plain' })
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTaskDto) {
-    return this.tasksService.assignTask(id, dto);
+    return this.taskAssigneeService.assignTask(id, dto);
   }
 
   @Post(':id/assignees')
@@ -162,7 +166,7 @@ export class TasksController {
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Task or user not found' })
   addAssignee(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddTaskAssigneeDto) {
-    return this.tasksService.addTaskAssignee(id, dto);
+    return this.taskAssigneeService.addTaskAssignee(id, dto);
   }
 
   @Get(':id/assignees')
@@ -173,7 +177,7 @@ export class TasksController {
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'task.not_found_plain' })
   listAssignees(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    return this.tasksService.listTaskAssignees(id, user);
+    return this.taskAssigneeService.listTaskAssignees(id, user);
   }
 
   @Patch(':id/assignees/:userId')
@@ -189,7 +193,7 @@ export class TasksController {
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UpdateTaskAssigneeDto,
   ) {
-    return this.tasksService.updateTaskAssignee(id, userId, dto);
+    return this.taskAssigneeService.updateTaskAssignee(id, userId, dto);
   }
 
   @Delete(':id/assignees/:userId')
@@ -200,7 +204,7 @@ export class TasksController {
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Task assignee not found' })
   removeAssignee(@Param('id', ParseUUIDPipe) id: string, @Param('userId', ParseUUIDPipe) userId: string) {
-    return this.tasksService.removeTaskAssignee(id, userId);
+    return this.taskAssigneeService.removeTaskAssignee(id, userId);
   }
 
   @Patch(':id/start')

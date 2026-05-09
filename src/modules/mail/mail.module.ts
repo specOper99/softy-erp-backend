@@ -31,7 +31,7 @@ const backgroundJobsEnabled = areBackgroundJobsEnabled();
 export const createMailerOptions = (configService: ConfigService): MailerOptions => ({
   transport: {
     host: configService.get('MAIL_HOST', 'smtp.gmail.com'),
-    port: parseInt(configService.get('MAIL_PORT', '587')),
+    port: parseInt(configService.get('MAIL_PORT', '587'), 10) || 587,
     secure: false,
     auth: {
       user: configService.get('MAIL_USER'),

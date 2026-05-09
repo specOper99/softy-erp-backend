@@ -21,10 +21,16 @@ let cachedRegisteredKeys: Set<string> | undefined;
  */
 export function getRegisteredApiErrorKeys(): Set<string> {
   if (!cachedRegisteredKeys) {
-    const enPath = path.join(__dirname, 'translations', 'en.json');
-    const raw = fs.readFileSync(enPath, 'utf-8');
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    cachedRegisteredKeys = flattenLeafKeys(parsed);
+    try {
+      const enPath = path.join(__dirname, 'translations', 'en.json');
+      const raw = fs.readFileSync(enPath, 'utf-8');
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      cachedRegisteredKeys = flattenLeafKeys(parsed);
+    } catch {
+      // Translation file missing or malformed — return empty set so individual
+      // requests degrade gracefully rather than cascading into repeated failures.
+      cachedRegisteredKeys = new Set<string>();
+    }
   }
   return cachedRegisteredKeys;
 }

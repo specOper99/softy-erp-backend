@@ -1,5 +1,5 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { HttpException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -136,6 +136,11 @@ describe('ClientAuthService', () => {
   });
 
   describe('requestMagicLink', () => {
+    beforeEach(() => {
+      mockCacheManager.get.mockResolvedValue(null);
+      mockCacheManager.set.mockResolvedValue(undefined);
+    });
+
     it('should return message when client exists', async () => {
       mockClientRepository.findOne.mockResolvedValue(createMockClient());
       mockJwtService.sign.mockReturnValueOnce('magic-jwt');
@@ -202,6 +207,20 @@ describe('ClientAuthService', () => {
           expiresInHours: 24,
         }),
       );
+    });
+
+    it('should throw 429 when hourly email rate limit is reached', async () => {
+      mockCacheManager.get.mockResolvedValue(3);
+
+      await expect(service.requestMagicLink('acme', 'test@example.com')).rejects.toThrow(HttpException);
+
+      expect(mockClientRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should throw 429 when daily email rate limit is reached', async () => {
+      mockCacheManager.get.mockResolvedValueOnce(0).mockResolvedValueOnce(10);
+
+      await expect(service.requestMagicLink('acme', 'test@example.com')).rejects.toThrow(HttpException);
     });
   });
 

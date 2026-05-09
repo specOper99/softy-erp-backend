@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -70,13 +76,19 @@ export class SubscriptionService {
       });
     }
 
-    const stripeCustomer = await this.stripeService.createCustomer({
-      name: tenant.name,
-      metadata: {
-        tenantId: tenant.id,
-        tenantSlug: tenant.slug,
-      },
-    });
+    let stripeCustomer: Awaited<ReturnType<StripeService['createCustomer']>>;
+    try {
+      stripeCustomer = await this.stripeService.createCustomer({
+        name: tenant.name,
+        metadata: {
+          tenantId: tenant.id,
+          tenantSlug: tenant.slug,
+        },
+      });
+    } catch (stripeError) {
+      this.logger.error(`Failed to create Stripe customer for tenant ${tenantId}`, stripeError);
+      throw new ServiceUnavailableException('billing.stripe_unavailable');
+    }
 
     customer = this.customerRepo.create({
       tenantId,
@@ -164,13 +176,21 @@ export class SubscriptionService {
       throw new NotFoundException('billing.subscription_none_for_tenant');
     }
 
-    if (cancelImmediately) {
-      await this.stripeService.cancelSubscription(subscription.stripeSubscriptionId);
-      subscription.status = SubscriptionStatus.CANCELED;
-      subscription.canceledAt = new Date();
-    } else {
-      await this.stripeService.updateSubscription(subscription.stripeSubscriptionId, { cancel_at_period_end: true });
-      subscription.cancelAtPeriodEnd = true;
+    try {
+      if (cancelImmediately) {
+        await this.stripeService.cancelSubscription(subscription.stripeSubscriptionId);
+        subscription.status = SubscriptionStatus.CANCELED;
+        subscription.canceledAt = new Date();
+      } else {
+        await this.stripeService.updateSubscription(subscription.stripeSubscriptionId, { cancel_at_period_end: true });
+        subscription.cancelAtPeriodEnd = true;
+      }
+    } catch (stripeError) {
+      this.logger.error(
+        `Failed to cancel Stripe subscription ${subscription.stripeSubscriptionId} for tenant ${tenantId}`,
+        stripeError,
+      );
+      throw new ServiceUnavailableException('billing.stripe_unavailable');
     }
 
     return this.subscriptionRepo.save(subscription);

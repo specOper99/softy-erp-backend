@@ -2,12 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
+import pLimit from 'p-limit';
 import { Counter } from 'prom-client';
 import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { toErrorMessage } from '../../../common/utils/error.util';
 import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 import { StripeService } from './stripe.service';
+
+const RECONCILE_BATCH_SIZE = 100;
+const RECONCILE_CONCURRENCY = 5;
 
 const mismatchCounter = new Counter({
   name: 'billing_reconcile_mismatch_total',
@@ -59,43 +63,61 @@ export class SubscriptionReconcileService {
     this.logger.log('Starting daily Stripe reconciliation...');
     let checked = 0;
     let mismatches = 0;
+    let offset = 0;
 
-    const subscriptions = await this.dataSource
-      .createQueryBuilder(Subscription, 'sub')
-      .where('sub.stripeSubscriptionId IS NOT NULL')
-      .getMany();
+    const limit = pLimit(RECONCILE_CONCURRENCY);
 
-    for (const sub of subscriptions) {
-      await TenantContextService.run(sub.tenantId, async () => {
-        try {
-          const stripeObj = await this.stripeService.getSubscription(sub.stripeSubscriptionId);
-          const expectedStatus = STRIPE_STATUS_MAP[stripeObj.status];
+    // Process in pages to avoid loading the entire subscriptions table into memory.
+    while (true) {
+      const batch = await this.dataSource
+        .createQueryBuilder(Subscription, 'sub')
+        .where('sub.stripeSubscriptionId IS NOT NULL')
+        .orderBy('sub.id', 'ASC')
+        .skip(offset)
+        .take(RECONCILE_BATCH_SIZE)
+        .getMany();
 
-          checked++;
+      if (batch.length === 0) break;
 
-          if (!expectedStatus) {
-            this.logger.warn(
-              `Subscription ${sub.id}: unrecognised Stripe status "${stripeObj.status}" — update STRIPE_STATUS_MAP`,
-            );
-            return;
-          }
+      await Promise.allSettled(
+        batch.map((sub) =>
+          limit(() =>
+            TenantContextService.run(sub.tenantId, async () => {
+              try {
+                const stripeObj = await this.stripeService.getSubscription(sub.stripeSubscriptionId);
+                const expectedStatus = STRIPE_STATUS_MAP[stripeObj.status];
 
-          if (expectedStatus !== sub.status) {
-            mismatches++;
-            mismatchCounter.inc({ local_status: sub.status, stripe_status: expectedStatus });
-            this.logger.error(
-              `Subscription mismatch — tenantId=${sub.tenantId} subId=${sub.id} ` +
-                `stripeId=${sub.stripeSubscriptionId}: ` +
-                `DB status="${sub.status}" but Stripe reports "${expectedStatus}". ` +
-                'Manual review required before correcting.',
-            );
-          }
-        } catch (error) {
-          this.logger.error(
-            `Failed to reconcile subscription ${sub.id} (${sub.stripeSubscriptionId}): ${toErrorMessage(error)}`,
-          );
-        }
-      });
+                checked++;
+
+                if (!expectedStatus) {
+                  this.logger.warn(
+                    `Subscription ${sub.id}: unrecognised Stripe status "${stripeObj.status}" — update STRIPE_STATUS_MAP`,
+                  );
+                  return;
+                }
+
+                if (expectedStatus !== sub.status) {
+                  mismatches++;
+                  mismatchCounter.inc({ local_status: sub.status, stripe_status: expectedStatus });
+                  this.logger.error(
+                    `Subscription mismatch — tenantId=${sub.tenantId} subId=${sub.id} ` +
+                      `stripeId=${sub.stripeSubscriptionId}: ` +
+                      `DB status="${sub.status}" but Stripe reports "${expectedStatus}". ` +
+                      'Manual review required before correcting.',
+                  );
+                }
+              } catch (error) {
+                this.logger.error(
+                  `Failed to reconcile subscription ${sub.id} (${sub.stripeSubscriptionId}): ${toErrorMessage(error)}`,
+                );
+              }
+            }),
+          ),
+        ),
+      );
+
+      offset += batch.length;
+      if (batch.length < RECONCILE_BATCH_SIZE) break;
     }
 
     this.logger.log(`Reconciliation complete: checked=${checked} mismatches=${mismatches}`);

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 
 export class AuditLogFilterDto extends CursorPaginationDto {
@@ -22,13 +22,13 @@ export class AuditLogFilterDto extends CursorPaginationDto {
   @IsUUID()
   userId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by start date (ISO format)' })
+  @ApiPropertyOptional({ description: 'Filter by start date (ISO 8601 format)' })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   startDate?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by end date (ISO format)' })
+  @ApiPropertyOptional({ description: 'Filter by end date (ISO 8601 format)' })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   endDate?: string;
 }

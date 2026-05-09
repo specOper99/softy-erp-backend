@@ -3,6 +3,7 @@ export enum TransactionType {
   INCOME = 'INCOME',
   EXPENSE = 'EXPENSE',
   PAYROLL = 'PAYROLL',
+  REFUND = 'REFUND',
 }
 
 export enum ReferenceType {

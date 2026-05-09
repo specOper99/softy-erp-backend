@@ -1,7 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { EventBus } from '@nestjs/cqrs';
 import { Counter } from 'prom-client';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
+import { BookingsPricingService } from './bookings-pricing.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 
@@ -9,13 +11,9 @@ import { FlagsService } from '../../../common/flags/flags.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
-import { MathUtils } from '../../../common/utils/math.utils';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
-import { Transaction } from '../../finance/entities/transaction.entity';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
-import { TransactionType } from '../../finance/enums/transaction-type.enum';
-import { FinanceService } from '../../finance/services/finance.service';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { User } from '../../users/entities/user.entity';
@@ -28,9 +26,6 @@ import {
   BookingFilterDto,
   BookingSortBy,
   CreateBookingDto,
-  MarkBookingPaidDto,
-  RecordPaymentDto,
-  RefundBookingDto,
   SortOrder,
   UpdateBookingDto,
 } from '../dto';
@@ -38,17 +33,13 @@ import { Booking } from '../entities/booking.entity';
 import { ProcessingType } from '../entities/processing-type.entity';
 
 import { BookingStatus } from '../enums/booking-status.enum';
-import { BookingCreatedEvent } from '../events/booking-created.event';
-import { BookingPriceChangedEvent } from '../events/booking-price-changed.event';
-import { BookingUpdatedEvent } from '../events/booking-updated.event';
-import { PaymentRecordedEvent } from '../events/payment-recorded.event';
 
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { toErrorMessage } from '../../../common/utils/error.util';
+import { AuditService } from '../../audit/audit.service';
 import { BookingRepository } from '../repositories/booking.repository';
 import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
-import { BookingPriceCalculator } from '../utils/booking-price.calculator';
 import { StaffConflictService } from './staff-conflict.service';
 
 /** Shared filter fields used by both offset and cursor pagination. */
@@ -71,20 +62,33 @@ export class BookingsService {
   constructor(
     private readonly bookingRepository: BookingRepository,
     private readonly catalogService: CatalogService,
-    private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
-    private readonly eventBus: EventBus,
+    @InjectRepository(OutboxEvent)
+    private readonly outboxRepository: Repository<OutboxEvent>,
     private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
     private readonly staffConflictService: StaffConflictService,
     private readonly flagsService: FlagsService,
     metricsFactory: MetricsFactory,
     private readonly processingTypeRepository: ProcessingTypeRepository,
+    private readonly auditService: AuditService,
+    private readonly pricingService: BookingsPricingService,
   ) {
     this.lifecycleStatusRejectedCounter = metricsFactory.getOrCreateCounter({
       name: 'booking_lifecycle_status_update_rejected_total',
       help: 'Total generic booking update status transition attempts rejected',
       labelNames: ['tenantId', 'enforced'],
     });
+  }
+
+  private async invalidateAvailability(booking: Booking): Promise<void> {
+    if (!booking.eventDate || !booking.packageId) return;
+    try {
+      const dateStr = booking.eventDate.toISOString().split('T')[0] ?? '';
+      await this.availabilityCacheOwner.delAvailability(booking.tenantId, booking.packageId, dateStr);
+    } catch (err) {
+      const message = toErrorMessage(err);
+      this.logger.warn(`Failed to invalidate availability cache: ${message}`);
+    }
   }
 
   async create(dto: CreateBookingDto): Promise<Booking> {
@@ -99,12 +103,6 @@ export class BookingsService {
       throw new BadRequestException('booking.event_date_must_be_future');
     }
 
-    // Validate tax rate bounds (max 50% per business rule)
-    const taxRate = dto.taxRate ?? 0;
-    if (taxRate < 0 || taxRate > BUSINESS_CONSTANTS.BOOKING.MAX_TAX_RATE_PERCENT) {
-      throw new BadRequestException('booking.invalid_tax_rate');
-    }
-
     const priceInput = {
       packagePrice: Number(pkg.price),
       taxRate: dto.taxRate ?? 0,
@@ -112,12 +110,8 @@ export class BookingsService {
       discountAmount: dto.discountAmount ?? 0,
     };
 
-    // Validate deposit percentage bounds
-    if (priceInput.depositPercentage < 0 || priceInput.depositPercentage > 100) {
-      throw new BadRequestException('booking.invalid_deposit_percentage');
-    }
-
-    const pricing = BookingPriceCalculator.calculate(priceInput);
+    this.pricingService.validate(priceInput.taxRate, priceInput.depositPercentage);
+    const pricing = this.pricingService.calculate(priceInput);
 
     if (dto.startTime && pkg.durationMinutes > 0) {
       await this.ensureNoStaffConflict({
@@ -164,36 +158,26 @@ export class BookingsService {
       savedBooking.processingTypes = [];
     }
 
-    // Publish domain event for cross-module reactions
-    this.eventBus.publish(
-      new BookingCreatedEvent(
-        savedBooking.id,
+    // Enqueue domain event via transactional outbox for reliable cross-module delivery
+    await this.outboxRepository.save({
+      aggregateId: savedBooking.id,
+      type: 'BookingCreatedEvent',
+      payload: {
+        bookingId: savedBooking.id,
         tenantId,
-        savedBooking.clientId,
-        '', // clientEmail - will be populated by handler if needed
-        '', // clientName - will be populated by handler if needed
-        savedBooking.packageId,
-        pkg.name,
-        savedBooking.totalPrice,
-        null, // assignedUserId - no assignment at creation
-        savedBooking.eventDate,
-        savedBooking.createdAt,
-      ),
-    );
+        clientId: savedBooking.clientId,
+        clientEmail: '',
+        clientName: '',
+        packageId: savedBooking.packageId,
+        packageName: pkg.name,
+        totalPrice: savedBooking.totalPrice,
+        assignedUserId: null,
+        eventDate: savedBooking.eventDate,
+        createdAt: savedBooking.createdAt,
+      },
+    });
 
-    if (savedBooking.eventDate && savedBooking.packageId) {
-      try {
-        const dateParts = savedBooking.eventDate.toISOString().split('T');
-        const dateStr = dateParts[0] ?? '';
-        const pkgId = savedBooking.packageId as string;
-        if (pkgId) {
-          await this.availabilityCacheOwner.delAvailability(tenantId, pkgId, dateStr);
-        }
-      } catch (err) {
-        const message = toErrorMessage(err);
-        this.logger.warn(`Failed to invalidate availability cache: ${message}`);
-      }
-    }
+    await this.invalidateAvailability(savedBooking);
 
     return savedBooking;
   }
@@ -296,10 +280,8 @@ export class BookingsService {
     return booking;
   }
 
-  // No changes needed for update method logic itself as it uses findOne which is now scoped.
-  // But wait, the previous `findOne` usage in `update` is fine.
-  async update(id: string, inputDto: UpdateBookingDto): Promise<Booking> {
-    let dto = { ...inputDto };
+  async update(id: string, inputDto: UpdateBookingDto, user: User): Promise<Booking> {
+    const dto = { ...inputDto };
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     if (dto.status !== undefined) {
@@ -315,13 +297,11 @@ export class BookingsService {
         throw new BadRequestException('booking.lifecycle_status_requires_workflow');
       }
 
-      const { status, ...safeDto } = dto;
-      void status;
-      dto = safeDto;
+      delete dto.status;
     }
 
     // Initial fetch for validation (outside transaction)
-    const existingBooking = await this.findOne(id);
+    const existingBooking = await this.findOne(id, user);
 
     // SECURITY: Only allow limited updates on non-draft bookings
     if (existingBooking.status !== BookingStatus.DRAFT) {
@@ -379,7 +359,7 @@ export class BookingsService {
         const pkgId = dto.packageId ?? booking.packageId;
         const pkg = await this.catalogService.findPackageById(pkgId);
 
-        const pricing = BookingPriceCalculator.calculate({
+        const pricing = this.pricingService.calculate({
           packagePrice: Number(pkg.price),
           taxRate: dto.taxRate ?? Number(booking.taxRate),
           depositPercentage: dto.depositPercentage ?? Number(booking.depositPercentage),
@@ -445,7 +425,16 @@ export class BookingsService {
     if (dto.startTime !== undefined) {
       allowedChanges.startTime = dto.startTime;
     }
-    this.eventBus.publish(new BookingUpdatedEvent(savedBooking.id, savedBooking.tenantId, allowedChanges, new Date()));
+    await this.outboxRepository.save({
+      aggregateId: savedBooking.id,
+      type: 'BookingUpdatedEvent',
+      payload: {
+        bookingId: savedBooking.id,
+        tenantId: savedBooking.tenantId,
+        changes: allowedChanges,
+        updatedAt: new Date(),
+      },
+    });
 
     const oldSubTotal = previousPricing.subTotal;
     const oldTaxAmount = previousPricing.taxAmount;
@@ -455,40 +444,31 @@ export class BookingsService {
     const newTotalPrice = Number(savedBooking.totalPrice || 0);
 
     if (oldSubTotal !== newSubTotal || oldTaxAmount !== newTaxAmount || oldTotalPrice !== newTotalPrice) {
-      this.eventBus.publish(
-        new BookingPriceChangedEvent(
-          savedBooking.id,
-          savedBooking.tenantId,
+      await this.outboxRepository.save({
+        aggregateId: savedBooking.id,
+        type: 'BookingPriceChangedEvent',
+        payload: {
+          bookingId: savedBooking.id,
+          tenantId: savedBooking.tenantId,
           oldSubTotal,
           newSubTotal,
           oldTaxAmount,
           newTaxAmount,
           oldTotalPrice,
           newTotalPrice,
-        ),
-      );
+        },
+      });
     }
 
-    if ((dto.eventDate || dto.startTime) && savedBooking.packageId) {
-      try {
-        const dateParts = savedBooking.eventDate.toISOString().split('T');
-        const dateStr = dateParts[0] ?? '';
-        const pkgId = savedBooking.packageId as string;
-        if (pkgId) {
-          await this.availabilityCacheOwner.delAvailability(savedBooking.tenantId, pkgId, dateStr);
-        }
-      } catch (err) {
-        const message = toErrorMessage(err);
-        this.logger.warn(`Failed to invalidate availability cache: ${message}`);
-      }
+    if (dto.eventDate || dto.startTime) {
+      await this.invalidateAvailability(savedBooking);
     }
 
     return savedBooking;
   }
 
-  async remove(id: string, reason?: string): Promise<void> {
-    const booking = await this.findOne(id);
-    void reason; // reserved for audit logging
+  async remove(id: string, reason: string | undefined, user: User): Promise<void> {
+    const booking = await this.findOne(id, user);
 
     // SRS rule: block deletion only when tasks have started (IN_PROGRESS or COMPLETED)
     if (booking.status === BookingStatus.COMPLETED || booking.status === BookingStatus.CANCELLED) {
@@ -509,165 +489,15 @@ export class BookingsService {
     }
 
     await this.bookingRepository.softRemove(booking);
-
-    if (booking.eventDate && booking.packageId) {
-      try {
-        const dateParts = booking.eventDate.toISOString().split('T');
-        const dateStr = dateParts[0] ?? '';
-        const pkgId = booking.packageId as string;
-        if (pkgId) {
-          await this.availabilityCacheOwner.delAvailability(booking.tenantId, pkgId, dateStr);
-        }
-      } catch (err) {
-        const message = toErrorMessage(err);
-        this.logger.warn(`Failed to invalidate availability cache: ${message}`);
-      }
-    }
-  }
-
-  async recordPayment(id: string, dto: RecordPaymentDto): Promise<void> {
-    const booking = await this.findOne(id);
-
-    const paymentTx = await this.dataSource.transaction(async (manager) => {
-      // 1. Record the financial transaction
-      // Note: We need a version of createTransaction that accepts a manager
-      // or we can use the manager to save directly if we want to bypass the service wrapper,
-      // but better to expose a 'withManager' method in FinanceService if possible.
-      // For now, let's look at FinanceService. It has createTransactionWithManager.
-
-      // 2. Double check the booking inside transaction with lock to prevent race conditions
-      const lockedBooking = await manager.findOne(Booking, {
-        where: { id: booking.id, tenantId: booking.tenantId },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!lockedBooking) {
-        throw new NotFoundException('bookings.not_found');
-      }
-
-      // 3. Record the financial transaction
-      const paymentTx = await this.financeService.createTransactionWithManager(manager, {
-        type: TransactionType.INCOME,
-        amount: dto.amount,
-        description: `Payment for booking ${lockedBooking.client?.name || 'Client'} - ${dto.paymentMethod || 'Manual'}`,
-        bookingId: lockedBooking.id,
-        category: 'Booking Payment',
-        transactionDate: dto.transactionDate ? new Date(dto.transactionDate) : new Date(),
-        paymentMethod: dto.paymentMethod,
-        reference: dto.reference,
-      });
-
-      // 4. Update the booking's amountPaid and paymentStatus atomically
-      const currentPaid = Number(lockedBooking.amountPaid || 0);
-      const newPaid = MathUtils.add(currentPaid, dto.amount);
-
-      // Derive payment status (Gap 2: keep paymentStatus in sync)
-      lockedBooking.amountPaid = newPaid;
-      const newPaymentStatus = lockedBooking.derivePaymentStatus();
-
-      await manager.update(
-        Booking,
-        { id: lockedBooking.id, tenantId: lockedBooking.tenantId },
-        {
-          amountPaid: newPaid,
-          paymentStatus: newPaymentStatus,
-          updatedAt: new Date(),
-        },
-      );
-
-      // Update local object for event
-      booking.amountPaid = newPaid;
-      return paymentTx;
+    await this.auditService.log({
+      action: 'booking.delete',
+      entityName: 'Booking',
+      entityId: id,
+      userId: user.id,
+      notes: reason,
     });
 
-    // Notify after commit so events and caches never reflect rolled-back data.
-    await this.financeService.notifyTransactionCreated(paymentTx);
-
-    this.eventBus.publish(
-      new PaymentRecordedEvent(
-        booking.id,
-        booking.tenantId,
-        booking.client?.email || '',
-        booking.client?.name || '',
-        booking.eventDate,
-        dto.amount,
-        dto.paymentMethod || 'Manual',
-        dto.reference || '',
-        Number(booking.totalPrice),
-        Number(booking.amountPaid),
-      ),
-    );
-  }
-
-  async recordRefund(id: string, dto: RefundBookingDto): Promise<void> {
-    const booking = await this.findOne(id);
-
-    if (booking.status !== BookingStatus.CONFIRMED && booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('booking.refund_only_confirmed_or_completed');
-    }
-
-    const refundTx = await this.dataSource.transaction(async (manager) => {
-      const lockedBooking = await manager.findOne(Booking, {
-        where: { id: booking.id, tenantId: booking.tenantId },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!lockedBooking) {
-        throw new NotFoundException('bookings.not_found');
-      }
-
-      const amountPaid = Number(lockedBooking.amountPaid || 0);
-      if (dto.amount > amountPaid) {
-        throw new BadRequestException('booking.refund_exceeds_amount_paid');
-      }
-
-      const refundTx = await this.financeService.createTransactionWithManager(manager, {
-        type: TransactionType.INCOME,
-        amount: -dto.amount,
-        category: 'Booking Refund',
-        bookingId: lockedBooking.id,
-        paymentMethod: dto.paymentMethod,
-        description: dto.reason,
-        transactionDate: dto.transactionDate ? new Date(dto.transactionDate) : new Date(),
-      });
-
-      const newAmountPaid = MathUtils.subtract(amountPaid, dto.amount);
-      const currentRefund = Number(lockedBooking.refundAmount || 0);
-      const newRefundAmount = MathUtils.add(currentRefund, dto.amount);
-
-      lockedBooking.amountPaid = newAmountPaid;
-      lockedBooking.refundAmount = newRefundAmount;
-      lockedBooking.paymentStatus = lockedBooking.derivePaymentStatus();
-
-      await manager.save(lockedBooking);
-      return refundTx;
-    });
-
-    // Notify after commit so events and caches never reflect rolled-back data.
-    await this.financeService.notifyTransactionCreated(refundTx);
-  }
-
-  async getBookingTransactions(id: string, user?: User): Promise<Transaction[]> {
-    const booking = await this.findOne(id, user);
-    return this.financeService.findTransactionsByBookingId(booking.id, booking.tenantId);
-  }
-
-  async markAsPaid(id: string, dto: MarkBookingPaidDto = {}): Promise<void> {
-    const booking = await this.findOne(id);
-    const total = Number(booking.totalPrice || 0);
-    const paid = Number(booking.amountPaid || 0);
-    const remaining = MathUtils.subtract(total, paid);
-
-    if (remaining <= 0) {
-      throw new BadRequestException('booking.already_fully_paid');
-    }
-
-    return this.recordPayment(id, {
-      amount: remaining,
-      paymentMethod: dto.paymentMethod,
-      reference: dto.reference,
-      transactionDate: dto.transactionDate,
-    });
+    await this.invalidateAvailability(booking);
   }
 
   async checkAvailability(query: BookingAvailabilityQueryDto): Promise<BookingAvailabilityResponseDto> {

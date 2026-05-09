@@ -37,6 +37,7 @@ import {
 } from '../dto';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingExportService } from '../services/booking-export.service';
+import { BookingsPaymentsService } from '../services/bookings-payments.service';
 import { BookingsService } from '../services/bookings.service';
 
 import { BookingWorkflowService } from '../services/booking-workflow.service';
@@ -57,6 +58,7 @@ import { BookingWorkflowService } from '../services/booking-workflow.service';
 export class BookingsController {
   constructor(
     private readonly bookingsService: BookingsService,
+    private readonly bookingsPaymentsService: BookingsPaymentsService,
     private readonly bookingWorkflowService: BookingWorkflowService,
     private readonly bookingExportService: BookingExportService,
     private readonly tasksService: TasksService,
@@ -172,8 +174,8 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'bookings.not_found' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBookingDto) {
-    return this.bookingsService.update(id, dto);
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBookingDto, @CurrentUser() user: User) {
+    return this.bookingsService.update(id, dto, user);
   }
 
   @Delete(':id')
@@ -185,8 +187,8 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'bookings.not_found' })
-  remove(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DeleteWithReasonDto) {
-    return this.bookingsService.remove(id, dto.reason);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DeleteWithReasonDto, @CurrentUser() user: User) {
+    return this.bookingsService.remove(id, dto.reason, user);
   }
 
   @Patch(':id/confirm')
@@ -270,8 +272,8 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: RecordPaymentDto })
   @ApiResponse({ status: 201, description: 'Payment recorded' })
-  recordPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordPaymentDto) {
-    return this.bookingsService.recordPayment(id, dto);
+  recordPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordPaymentDto, @CurrentUser() user: User) {
+    return this.bookingsPaymentsService.recordPayment(id, dto, user);
   }
 
   @Post(':id/submit-payment')
@@ -280,8 +282,8 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: RecordPaymentDto })
   @ApiResponse({ status: 201, description: 'Payment submitted' })
-  submitPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordPaymentDto) {
-    return this.bookingsService.recordPayment(id, dto);
+  submitPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RecordPaymentDto, @CurrentUser() user: User) {
+    return this.bookingsPaymentsService.recordPayment(id, dto, user);
   }
 
   @Patch(':id/mark-paid')
@@ -291,8 +293,8 @@ export class BookingsController {
   @ApiBody({ type: MarkBookingPaidDto, required: false })
   @ApiResponse({ status: 200, description: 'Booking marked as paid' })
   @ApiResponse({ status: 400, description: 'Booking is already fully paid' })
-  markPaid(@Param('id', ParseUUIDPipe) id: string, @Body() dto: MarkBookingPaidDto = {}) {
-    return this.bookingsService.markAsPaid(id, dto);
+  markPaid(@Param('id', ParseUUIDPipe) id: string, @Body() dto: MarkBookingPaidDto = {}, @CurrentUser() user: User) {
+    return this.bookingsPaymentsService.markAsPaid(id, dto, user);
   }
 
   @Post(':id/refunds')
@@ -302,8 +304,8 @@ export class BookingsController {
   @ApiBody({ type: RefundBookingDto })
   @ApiResponse({ status: 201, description: 'Refund recorded' })
   @ApiResponse({ status: 400, description: 'Refund exceeds amount paid or invalid booking status' })
-  recordRefund(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RefundBookingDto) {
-    return this.bookingsService.recordRefund(id, dto);
+  recordRefund(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RefundBookingDto, @CurrentUser() user: User) {
+    return this.bookingsPaymentsService.recordRefund(id, dto, user);
   }
 
   @Get(':id/transactions')
@@ -313,7 +315,7 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'Booking transactions returned' })
   @ApiResponse({ status: 404, description: 'bookings.not_found' })
   getBookingTransactions(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    return this.bookingsService.getBookingTransactions(id, user);
+    return this.bookingsPaymentsService.getBookingTransactions(id, user);
   }
 
   @Post(':id/duplicate')

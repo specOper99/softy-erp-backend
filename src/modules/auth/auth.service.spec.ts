@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { createMockUser } from '../../../test/helpers/mock-factories';
+import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { GeoIpService } from '../../common/services/geoip.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
@@ -232,6 +233,13 @@ describe('AuthService - Comprehensive Tests', () => {
           useValue: {
             blacklistToken: jest.fn().mockResolvedValue(undefined),
             isBlacklisted: jest.fn().mockResolvedValue(false),
+          },
+        },
+        {
+          provide: CacheUtilsService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

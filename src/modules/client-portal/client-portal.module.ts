@@ -29,7 +29,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ReviewsModule } from '../reviews/reviews.module';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { TenantsModule } from '../tenants/tenants.module';
-import { ClientPortalController } from './client-portal.controller';
+import { ClientPortalAuthController } from './controllers/client-portal-auth.controller';
+import { ClientPortalBookingsController } from './controllers/client-portal-bookings.controller';
+import { ClientPortalDiscoveryController } from './controllers/client-portal-discovery.controller';
+import { ClientPortalProfileController } from './controllers/client-portal-profile.controller';
 import { ValidateTenantSlugMiddleware } from './decorators/validate-tenant-slug.decorator';
 import { ClientTokenGuard } from './guards/client-token.guard';
 import { AvailabilityService } from './services/availability.service';
@@ -95,7 +98,12 @@ class ClientPortalTenantContextInterceptor implements NestInterceptor {
       inject: [ConfigService],
     }),
   ],
-  controllers: [ClientPortalController],
+  controllers: [
+    ClientPortalAuthController,
+    ClientPortalDiscoveryController,
+    ClientPortalBookingsController,
+    ClientPortalProfileController,
+  ],
   providers: [
     ClientAuthService,
     ClientPortalService,

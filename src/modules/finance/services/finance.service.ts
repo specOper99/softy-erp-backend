@@ -564,6 +564,9 @@ export class FinanceService {
         case TransactionType.INCOME:
           summary.totalIncome = amount;
           break;
+        case TransactionType.REFUND:
+          summary.totalExpenses = MathUtils.add(summary.totalExpenses, amount);
+          break;
         case TransactionType.EXPENSE:
           summary.totalExpenses = amount;
           break;

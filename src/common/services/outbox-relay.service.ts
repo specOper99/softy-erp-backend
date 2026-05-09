@@ -41,6 +41,8 @@ export class OutboxRelayService {
     try {
       this.logger.debug('Checking for pending outbox events...');
       await this.processBatch();
+    } catch (error: unknown) {
+      this.logger.error(`outbox-relay: processBatch failed unexpectedly: ${toErrorMessage(error)}`);
     } finally {
       await this.distributedLockService.release('outbox-relay-cron', lockResult.lockToken).catch((error: unknown) => {
         this.logger.warn(`outbox-relay: failed to release lock: ${toErrorMessage(error)}`);

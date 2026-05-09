@@ -270,9 +270,6 @@ export class HrService {
     return profiles;
   }
 
-  /**
-   * @deprecated Use findAllProfilesWithFiltersCursor for better performance with large datasets
-   */
   async findAllProfilesWithFilters(filter: ProfileFilterDto): Promise<PaginatedResponseDto<Profile>> {
     const qb = this.profileRepository.createQueryBuilder('profile');
 

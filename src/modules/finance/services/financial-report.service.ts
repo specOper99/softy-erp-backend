@@ -333,7 +333,7 @@ export class FinancialReportService {
       .andWhere('t.transaction_date >= :startDate', { startDate: query.startDate })
       .andWhere('t.transaction_date <= :endDate', { endDate: query.endDate })
       .andWhere('t.type IN (:...types)', {
-        types: [TransactionType.INCOME, TransactionType.EXPENSE],
+        types: [TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.REFUND],
       })
       .orderBy('t.transaction_date', 'ASC')
       .addOrderBy('t.created_at', 'ASC')
@@ -429,6 +429,8 @@ export class FinancialReportService {
     for (const line of lines) {
       if (line.type === TransactionType.INCOME) {
         totals.income += line.amount;
+      } else if (line.type === TransactionType.REFUND) {
+        totals.income -= line.amount;
       } else if (line.type === TransactionType.EXPENSE) {
         totals.expense += line.amount;
       } else if (line.type === TransactionType.PAYROLL) {

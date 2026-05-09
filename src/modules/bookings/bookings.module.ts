@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from '../../common/common.module';
+import { OutboxEvent } from '../../common/entities/outbox-event.entity';
 import { CatalogModule } from '../catalog/catalog.module';
 import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
@@ -34,6 +35,8 @@ import { BookingExportService } from './services/booking-export.service';
 import { BookingIntakeService } from './services/booking-intake.service';
 import { BookingStateMachineService } from './services/booking-state-machine.service';
 import { BookingWorkflowService } from './services/booking-workflow.service';
+import { BookingsPaymentsService } from './services/bookings-payments.service';
+import { BookingsPricingService } from './services/bookings-pricing.service';
 import { BookingsService } from './services/bookings.service';
 import { ClientsService } from './services/clients.service';
 import { ProcessingTypeService } from './services/processing-type.service';
@@ -51,6 +54,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
       TaskAssignee,
       Task,
       ProcessingType,
+      OutboxEvent,
     ]),
     CommonModule,
     FinanceModule,
@@ -64,6 +68,8 @@ import { StaffConflictService } from './services/staff-conflict.service';
   controllers: [BookingsController, BookingIntakeController, ClientsController, ProcessingTypesController],
   providers: [
     BookingsService,
+    BookingsPaymentsService,
+    BookingsPricingService,
     BookingWorkflowService,
     BookingStateMachineService,
     ClientsService,
@@ -82,6 +88,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
   ],
   exports: [
     BookingsService,
+    BookingsPaymentsService,
     BookingWorkflowService,
     BookingStateMachineService,
     ClientsService,

@@ -11,9 +11,6 @@ export class NotificationPreferencesService {
   async getUserPreferences(userId: string): Promise<NotificationPreference[]> {
     const preferences = await this.preferenceRepo.find({ where: { userId }, take: 100 });
 
-    // If user has no preferences for some types, return defaults (or create them lazily)
-    // For now, let's just return what's in DB. The UI/Logic can handle defaults.
-    // Alternatively, we can ensure all types are present here.
     return preferences;
   }
 

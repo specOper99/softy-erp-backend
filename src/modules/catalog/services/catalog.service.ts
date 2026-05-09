@@ -110,9 +110,6 @@ export class CatalogService {
     return packages;
   }
 
-  /**
-   * @deprecated Use findAllPackagesWithFiltersCursor for better performance with large datasets
-   */
   async findAllPackagesWithFilters(filter: PackageFilterDto): Promise<PaginatedResponseDto<ServicePackage>> {
     const qb = this.packageRepository
       .createQueryBuilder('pkg')
