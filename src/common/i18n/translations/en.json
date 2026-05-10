@@ -235,10 +235,14 @@
     "attendance_duplicate_day": "Attendance record for this user and date already exists",
     "availability_slot_effective_to_before_from": "Effective to date must not be before effective from date",
     "availability_slot_not_found": "Availability slot not found",
-    "availability_slot_start_must_be_before_end": "Start time must be before end time"
+    "availability_slot_start_must_be_before_end": "Start time must be before end time",
+    "invalid_date_format": "Date must be in YYYY-MM-DD format",
+    "invalid_time_format": "Time must be in HH:mm format",
+    "availability_slot_overlap": "This availability slot overlaps with an existing slot"
   },
   "catalog": {
     "price_must_be_positive": "Price must be greater than zero",
+    "required_staff_count_must_be_at_least_one": "Required staff count must be at least one",
     "package_not_found_in_tenant": "Package not found in this organization",
     "package_in_use": "Package is in use and cannot be deleted",
     "service_package_not_found": "Service package with ID {id} was not found",

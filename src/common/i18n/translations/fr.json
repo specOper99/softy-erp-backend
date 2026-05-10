@@ -303,6 +303,7 @@
     },
     "catalog": {
         "price_must_be_positive": "Le prix doit être supérieur à zéro",
+        "required_staff_count_must_be_at_least_one": "Le nombre de membres du personnel requis doit être d'au moins un",
         "package_not_found_in_tenant": "Forfait non trouvé dans cette organisation",
         "package_in_use": "Le forfait est utilisé et ne peut pas être supprimé",
         "service_package_not_found": "Forfait de service avec l'ID {id} non trouvé",
@@ -348,6 +349,9 @@
         "attendance_duplicate_day": "Un enregistrement de présence pour cet utilisateur et cette date existe déjà",
         "availability_slot_effective_to_before_from": "La date de fin ne doit pas être antérieure à la date de début",
         "availability_slot_not_found": "Créneau de disponibilité introuvable",
+        "invalid_date_format": "La date doit être au format YYYY-MM-DD",
+        "invalid_time_format": "L'heure doit être au format HH:mm",
+        "availability_slot_overlap": "Ce créneau de disponibilité chevauche un créneau existant",
         "availability_slot_start_must_be_before_end": "L'heure de début doit être antérieure à l'heure de fin"
     },
     "tenants": {

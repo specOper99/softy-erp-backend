@@ -303,6 +303,7 @@
     },
     "catalog": {
         "price_must_be_positive": "نرخ دەبێت گەورەتر بێت لە سیفر",
+        "required_staff_count_must_be_at_least_one": "ژمارەی ئەندامانی ستافی پێویست دەبێت لانیکەم یەک بێت",
         "package_not_found_in_tenant": "پاکێج لەم ڕێکخراوەدا نەدۆزرایەوە",
         "package_in_use": "پاکێج بەکاردێت و ناتوانرێت بسڕێتەوە",
         "service_package_not_found": "پاکێجی خزمەتگوزاری بە ناسنامەی {id} نەدۆزرایەوە",
@@ -348,6 +349,9 @@
         "attendance_duplicate_day": "تۆماری ئامادەبوون بۆ ئەم بەکارهێنەر و بەروارە پێشتر هەیە",
         "availability_slot_effective_to_before_from": "Dîroka bidawîbûnê divê berî dîroka destpêkirinê nebe",
         "availability_slot_not_found": "Cihê berdestiyê nayê dîtin",
+        "invalid_date_format": "ڕێکەوت دەبێت بە شێوازی YYYY-MM-DD بێت",
+        "invalid_time_format": "کات دەبێت بە شێوازی HH:mm بێت",
+        "availability_slot_overlap": "ئەم خانەی دەستپێکردنی کاتی دابینکردن لەگەڵ خانەیەکی هەبوو کێشە دەکات",
         "availability_slot_start_must_be_before_end": "Saeta destpêkirinê divê berî saeta dawîbûnê be"
     },
     "tenants": {

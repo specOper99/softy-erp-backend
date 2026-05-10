@@ -303,6 +303,7 @@
     },
     "catalog": {
         "price_must_be_positive": "السعر يجب أن يكون أكبر من الصفر",
+        "required_staff_count_must_be_at_least_one": "يجب أن يكون عدد الموظفين المطلوب على الأقل واحداً",
         "package_not_found_in_tenant": "الباقة غير موجودة في هذه المنظمة",
         "package_in_use": "الباقة قيد الاستخدام ولا يمكن حذفها",
         "service_package_not_found": "باقة الخدمة ذات المعرف {id} غير موجودة",
@@ -348,7 +349,10 @@
         "attendance_duplicate_day": "سجل الحضور لهذا المستخدم والتاريخ موجود بالفعل",
         "availability_slot_effective_to_before_from": "يجب أن لا يكون تاريخ الانتهاء قبل تاريخ البدء",
         "availability_slot_not_found": "فترة التوفر غير موجودة",
-        "availability_slot_start_must_be_before_end": "يجب أن يكون وقت البدء قبل وقت الانتهاء"
+        "availability_slot_start_must_be_before_end": "يجب أن يكون وقت البدء قبل وقت الانتهاء",
+        "invalid_date_format": "يجب أن يكون التاريخ بصيغة YYYY-MM-DD",
+        "invalid_time_format": "يجب أن يكون الوقت بصيغة HH:mm",
+        "availability_slot_overlap": "تتداخل فترة التوفر هذه مع فترة موجودة"
     },
     "tenants": {
         "tenant_id_required": "معرف المستأجر في العنوان مطلوب",
