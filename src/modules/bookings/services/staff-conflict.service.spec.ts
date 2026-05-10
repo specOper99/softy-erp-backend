@@ -6,7 +6,9 @@ import type { PackageItem } from '../../catalog/entities/package-item.entity';
 import type { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
+import type { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
 import type { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
+import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
 import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import type { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import type { Task } from '../../tasks/entities/task.entity';
@@ -42,6 +44,7 @@ describe('StaffConflictService', () => {
   let userRepo: MockRepository<User>;
   let taskAssigneeRepo: MockRepository<TaskAssignee>;
   let taskRepo: MockRepository<Task>;
+  let availabilitySlotRepo: MockRepository<StaffAvailabilitySlot>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -71,6 +74,10 @@ describe('StaffConflictService', () => {
           provide: TaskRepository,
           useValue: createMockRepository<Task>(),
         },
+        {
+          provide: StaffAvailabilitySlotRepository,
+          useValue: createMockRepository<StaffAvailabilitySlot>(),
+        },
       ],
     }).compile();
 
@@ -81,6 +88,9 @@ describe('StaffConflictService', () => {
     userRepo = module.get(UserRepository);
     taskAssigneeRepo = module.get(TaskAssigneeRepository);
     taskRepo = module.get(TaskRepository);
+    availabilitySlotRepo = module.get(StaffAvailabilitySlotRepository);
+    // Default: no slots configured → falls back to schedule-unaware behaviour
+    availabilitySlotRepo.find.mockResolvedValue([]);
 
     mockTenantContext('tenant-123');
   });

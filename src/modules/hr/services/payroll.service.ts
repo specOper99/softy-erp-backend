@@ -164,19 +164,21 @@ export class PayrollService {
         const reason = toErrorMessage(error);
         failedBatches.push({ batchIndex: batchIndex + 1, reason });
         this.logger.error(`Payroll batch ${batchIndex + 1}/${batchCount} failed for tenant ${tenantId}`, error);
-        break;
+        // Continue processing remaining batches so no employees are silently skipped
       }
     }
 
     if (failedBatches.length > 0) {
+      const runStatus = totalEmployeesProcessed > 0 ? 'PARTIAL' : 'FAILED';
+      const failedSummary = failedBatches.map((b) => `batch ${b.batchIndex}: ${b.reason}`).join('; ');
       const failedRun = this.payrollRunRepository.create({
         totalEmployees: totalEmployeesProcessed,
         totalPayout,
         transactionIds: allTransactionIds,
         processedAt: new Date(),
-        status: 'FAILED',
+        status: runStatus,
         tenantId,
-        notes: `Payroll failed. Processed ${totalEmployeesProcessed}/${totalCount} employees. Failed batch ${failedBatches[0]?.batchIndex}: ${failedBatches[0]?.reason}`,
+        notes: `Payroll ${runStatus.toLowerCase()}. Processed ${totalEmployeesProcessed}/${totalCount} employees. Failed batches: ${failedSummary}`,
       });
       await this.payrollRunRepository.save(failedRun);
 
@@ -191,7 +193,7 @@ export class PayrollService {
           batchCount,
           failedBatches,
         },
-        notes: `Payroll failed for tenant ${tenantId} at batch ${failedBatches[0]?.batchIndex}`,
+        notes: `Payroll ${runStatus.toLowerCase()} for tenant ${tenantId}. ${failedBatches.length} batch(es) failed.`,
       });
 
       throw new RuntimeFailure('hr.payroll_failed');

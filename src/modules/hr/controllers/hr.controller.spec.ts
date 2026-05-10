@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
+import { StaffConflictService } from '../../bookings/services/staff-conflict.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
@@ -52,6 +53,12 @@ describe('HrController', () => {
           provide: TenantsService,
           useValue: {
             findOne: jest.fn().mockResolvedValue({ subscriptionPlan: 'PRO' }),
+          },
+        },
+        {
+          provide: StaffConflictService,
+          useValue: {
+            checkPackageStaffAvailability: jest.fn().mockResolvedValue({ available: true, conflicts: [] }),
           },
         },
         Reflector,

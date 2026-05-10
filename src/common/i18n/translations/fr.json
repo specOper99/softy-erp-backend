@@ -423,6 +423,7 @@
         "client_data_missing": "Données client manquantes pour la réservation {bookingId}",
         "cannot_start_status": "Impossible de démarrer la tâche : statut actuel {status}",
         "already_completed": "La tâche est déjà terminée",
+        "booking_cancelled": "Impossible de terminer la tâche : la réservation associée a été annulée",
         "complete_no_assignee": "Impossible de terminer la tâche : aucun utilisateur affecté",
         "not_assigned": "La tâche n'est pas affectée",
         "modify_forbidden": "Modification de cette tâche non autorisée"

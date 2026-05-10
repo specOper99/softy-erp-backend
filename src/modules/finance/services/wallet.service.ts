@@ -245,6 +245,34 @@ export class WalletService {
   }
 
   /**
+   * Directly add commission to payable balance without requiring a pending balance.
+   * Use for legacy task assignments where commission was not tracked through pending.
+   * @requires MUST be called within an active transaction context
+   */
+  async addToPayableBalance(manager: EntityManager, userId: string, amount: number): Promise<EmployeeWallet> {
+    if (amount <= 0) {
+      throw new BadRequestException('wallet.transfer_must_be_positive');
+    }
+    const wallet = await this.getWalletWithLock(manager, userId, 'addToPayableBalance', true);
+    const oldPayable = Number(wallet.payableBalance);
+    wallet.payableBalance = MathUtils.add(oldPayable, amount);
+    const savedWallet = await manager.save(wallet);
+
+    this.eventBus.publish(
+      new WalletBalanceUpdatedEvent(
+        userId,
+        wallet.tenantId,
+        oldPayable,
+        Number(savedWallet.payableBalance),
+        'paid',
+        'Commission accrued (legacy task)',
+      ),
+    );
+
+    return savedWallet;
+  }
+
+  /**
    * Reset payable balance to zero after payout.
    * @requires MUST be called within an active transaction context
    * @throws Error if called outside transaction

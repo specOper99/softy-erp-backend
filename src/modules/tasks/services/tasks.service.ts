@@ -12,6 +12,7 @@ import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditService } from '../../audit/audit.service';
+import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { WalletService } from '../../finance/services/wallet.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
@@ -281,6 +282,10 @@ export class TasksService {
         throw new BadRequestException('tasks.already_completed');
       }
 
+      if (task.booking?.status === BookingStatus.CANCELLED) {
+        throw new BadRequestException('tasks.booking_cancelled');
+      }
+
       // Step 2: Update task status to COMPLETED
       const oldStatus = task.status;
       task.status = TaskStatus.COMPLETED;
@@ -309,7 +314,8 @@ export class TasksService {
 
         const legacyCommissionAmount = MathUtils.round(Number(task.commissionSnapshot) || 0);
         if (legacyCommissionAmount > 0) {
-          await this.walletService.moveToPayable(manager, task.assignedUserId, legacyCommissionAmount);
+          // Legacy path: commission was never added to pendingBalance, so add directly to payable
+          await this.walletService.addToPayableBalance(manager, task.assignedUserId, legacyCommissionAmount);
           commissionAmount = legacyCommissionAmount;
           walletUpdated = true;
         }

@@ -180,7 +180,11 @@ export class Booking extends BaseTenantEntity {
     const total = MathUtils.round(Number(this.totalPrice) || 0);
     const deposit = MathUtils.round(Number(this.depositAmount) || 0);
 
-    if (paid >= total && total > 0) {
+    // A free (zero-total) booking has no outstanding balance — treat as fully paid
+    if (total === 0) {
+      return PaymentStatus.FULLY_PAID;
+    }
+    if (paid >= total) {
       return PaymentStatus.FULLY_PAID;
     }
     if (deposit > 0 && paid >= deposit) {

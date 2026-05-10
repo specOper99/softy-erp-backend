@@ -301,6 +301,7 @@
     "client_data_missing": "Client data is missing for booking {bookingId}",
     "cannot_start_status": "Cannot start task: current status is {status}",
     "already_completed": "Task is already completed",
+    "booking_cancelled": "Cannot complete task: the associated booking has been cancelled",
     "complete_no_assignee": "Cannot complete task: no user assigned",
     "not_assigned": "Task is not assigned",
     "modify_forbidden": "Not allowed to modify this task"

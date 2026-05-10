@@ -9,6 +9,7 @@ import {
   createMockTaskType,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import type { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AuditPublisher } from '../../audit/audit.publisher';
@@ -81,6 +82,15 @@ describe('CatalogService', () => {
             get: jest.fn(),
             set: jest.fn(),
             del: jest.fn(),
+          },
+        },
+        {
+          provide: AvailabilityCacheOwnerService,
+          useValue: {
+            getAvailability: jest.fn().mockResolvedValue(undefined),
+            setAvailability: jest.fn().mockResolvedValue(undefined),
+            delAvailability: jest.fn().mockResolvedValue(undefined),
+            delAvailabilityForPackage: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

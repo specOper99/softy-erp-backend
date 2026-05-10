@@ -423,6 +423,7 @@
         "client_data_missing": "بيانات العميل مفقودة للحجز {bookingId}",
         "cannot_start_status": "لا يمكن بدء المهمة: الحالة الحالية {status}",
         "already_completed": "المهمة مكتملة بالفعل",
+        "booking_cancelled": "لا يمكن إكمال المهمة: تم إلغاء الحجز المرتبط بها",
         "complete_no_assignee": "لا يمكن إكمال المهمة: لا يوجد مستخدم معين",
         "not_assigned": "المهمة غير معينة",
         "modify_forbidden": "غير مسموح بتعديل هذه المهمة"
