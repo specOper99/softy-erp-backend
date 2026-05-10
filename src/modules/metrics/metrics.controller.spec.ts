@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
 import { MetricsController } from './metrics.controller';
 import { MetricsService } from './metrics.service';
 

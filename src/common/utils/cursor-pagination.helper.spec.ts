@@ -1,4 +1,4 @@
-import { SelectQueryBuilder } from 'typeorm';
+import type { SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationHelper } from './cursor-pagination.helper';
 
 describe('CursorPaginationHelper', () => {

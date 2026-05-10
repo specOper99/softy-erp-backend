@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddMissingIndexes1767800000004 implements MigrationInterface {
   name = 'AddMissingIndexes1767800000004';

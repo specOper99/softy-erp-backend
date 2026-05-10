@@ -1,7 +1,8 @@
-import { DataSource, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
 import { AvailabilityCacheOwnerService } from '../../../src/common/cache/availability-cache-owner.service';
-import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
+import type { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 import { AvailabilityService } from '../../../src/modules/client-portal/services/availability.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';

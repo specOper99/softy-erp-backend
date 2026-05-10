@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -19,7 +20,7 @@ jest.mock('node:dns/promises', () => ({
 }));
 import { Webhook } from '../../../src/modules/webhooks/entities/webhook.entity';
 import { WebhookService } from '../../../src/modules/webhooks/webhooks.service';
-import { WebhookEvent } from '../../../src/modules/webhooks/webhooks.types';
+import type { WebhookEvent } from '../../../src/modules/webhooks/webhooks.types';
 
 // Mock ConfigService
 const mockConfigService = {

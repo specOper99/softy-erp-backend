@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { PlatformPermission } from '../enums/platform-permission.enum';
+import type { PlatformPermission } from '../enums/platform-permission.enum';
 
 export const PLATFORM_PERMISSIONS_KEY = 'platform_permissions';
 

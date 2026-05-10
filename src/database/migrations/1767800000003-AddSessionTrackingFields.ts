@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddSessionTrackingFields1767800000003 implements MigrationInterface {
   name = 'AddSessionTrackingFields1767800000003';

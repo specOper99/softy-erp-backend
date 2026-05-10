@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { UserDeactivatedEvent } from '../../users/events/user-deactivated.event';
 import { TokenService } from '../services/token.service';
 import { UserDeactivatedHandler } from './user-deactivated.handler';

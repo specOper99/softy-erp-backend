@@ -1,7 +1,9 @@
 import { CreateBucketCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { StartedTestContainer } from 'testcontainers';
+import { GenericContainer } from 'testcontainers';
 import { StorageService } from '../../../src/modules/media/storage.service';
 
 describe('MinIO Storage Integration Tests', () => {

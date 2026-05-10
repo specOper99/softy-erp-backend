@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 export class GlobalUniqueUserEmail1770200000000 implements MigrationInterface {

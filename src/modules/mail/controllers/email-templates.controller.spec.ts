@@ -1,9 +1,14 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { CreateEmailTemplateDto, PreviewEmailTemplateDto, UpdateEmailTemplateDto } from '../dto/email-template.dto';
-import { EmailTemplate } from '../entities/email-template.entity';
+import type {
+  CreateEmailTemplateDto,
+  PreviewEmailTemplateDto,
+  UpdateEmailTemplateDto,
+} from '../dto/email-template.dto';
+import type { EmailTemplate } from '../entities/email-template.entity';
 import { EmailTemplatesService } from '../services/email-templates.service';
 import { EmailTemplatesController } from './email-templates.controller';
 

@@ -1,8 +1,10 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DeleteResult } from 'typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import type { DeleteResult } from 'typeorm';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { TaskType } from '../../catalog/entities/task-type.entity';
 import { User } from '../../users/entities/user.entity';
 import { Profile, TaskTypeEligibility } from '../entities';

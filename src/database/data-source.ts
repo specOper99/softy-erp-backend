@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import { DataSource, DataSourceOptions } from 'typeorm';
+import type { DataSourceOptions } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { getDatabaseConnectionConfig } from './db-config';
 // Import all entities
 import { OutboxEvent } from '../common/entities/outbox-event.entity';

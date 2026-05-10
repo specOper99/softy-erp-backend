@@ -1,16 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { PackageItem } from '../../catalog/entities/package-item.entity';
-import { ServicePackage } from '../../catalog/entities/service-package.entity';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import type { PackageItem } from '../../catalog/entities/package-item.entity';
+import type { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
-import { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
+import type { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
 import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
-import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
-import { Task } from '../../tasks/entities/task.entity';
+import type { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
+import type { Task } from '../../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
 import { TaskRepository } from '../../tasks/repositories/task.repository';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 import { UserRepository } from '../../users/repositories/user.repository';
 import { StaffConflictService } from './staff-conflict.service';
 

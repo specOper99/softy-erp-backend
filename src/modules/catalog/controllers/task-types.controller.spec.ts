@@ -1,12 +1,13 @@
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Role } from '../../users/enums/role.enum';
-import { CreateTaskTypeDto, UpdateTaskTypeDto } from '../dto/catalog.dto';
+import type { CreateTaskTypeDto, UpdateTaskTypeDto } from '../dto/catalog.dto';
 import { CatalogService } from '../services/catalog.service';
 import { TaskTypesController } from './task-types.controller';
 

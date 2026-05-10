@@ -1,4 +1,5 @@
-import { Transform, TransformFnParams } from 'class-transformer';
+import type { TransformFnParams } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import sanitizeHtml from 'sanitize-html';
 
 export interface SanitizeHtmlOptions {

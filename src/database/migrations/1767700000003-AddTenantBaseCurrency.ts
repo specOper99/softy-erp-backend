@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn } from 'typeorm';
 
 export class AddTenantBaseCurrency1767700000003 implements MigrationInterface {
   name = 'AddTenantBaseCurrency1767700000003';

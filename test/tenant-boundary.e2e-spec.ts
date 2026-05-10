@@ -1,9 +1,11 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
-import { Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { Client } from '../src/modules/bookings/entities/client.entity';

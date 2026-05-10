@@ -1,8 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { BookingRepository } from '../../../src/modules/bookings/repositories/booking.repository';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 import { FlagsService } from '../../../src/common/flags/flags.service';

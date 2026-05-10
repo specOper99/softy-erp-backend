@@ -1,7 +1,8 @@
-import { Logger } from '@nestjs/common';
+import type { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import Stripe from 'stripe';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type Stripe from 'stripe';
 import { StripeService } from './stripe.service';
 
 describe('StripeService', () => {

@@ -1,6 +1,8 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import type { ExecutionContext } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { PlatformPermission } from '../enums/platform-permission.enum';
 import { PlatformRole } from '../enums/platform-role.enum';
 import { PlatformPermissionsGuard } from './platform-permissions.guard';

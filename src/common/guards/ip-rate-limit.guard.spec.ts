@@ -1,7 +1,9 @@
-import { ExecutionContext, HttpException } from '@nestjs/common';
+import type { ExecutionContext } from '@nestjs/common';
+import { HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { CacheUtilsService } from '../cache/cache-utils.service';
 import { IpRateLimitGuard } from './ip-rate-limit.guard';
 

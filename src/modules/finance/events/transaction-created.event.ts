@@ -1,6 +1,6 @@
-import { IEvent } from '@nestjs/cqrs';
-import { Currency } from '../enums/currency.enum';
-import { TransactionType } from '../enums/transaction-type.enum';
+import type { IEvent } from '@nestjs/cqrs';
+import type { Currency } from '../enums/currency.enum';
+import type { TransactionType } from '../enums/transaction-type.enum';
 
 /**
  * Event fired when a new transaction is created.

@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as QRCode from 'qrcode';
 import { PasswordHashService } from '../../../common/services/password-hash.service';

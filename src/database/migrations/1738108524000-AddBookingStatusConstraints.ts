@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddBookingStatusConstraints1738108524000 implements MigrationInterface {
   name = 'AddBookingStatusConstraints1738108524000';

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 export class EnforceTenantIdUuidNotNull1767300000000 implements MigrationInterface {

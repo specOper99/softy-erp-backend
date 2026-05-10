@@ -1,7 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import {
   createMockDataSource,
   createMockRepository,
@@ -10,10 +12,10 @@ import {
   createMockUser,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
-import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
+import type { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
 import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
 import { TimeEntriesService } from './time-entries.service';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 
 describe('TimeEntriesService', () => {
   let service: TimeEntriesService;

@@ -21,6 +21,13 @@
  * ```
  */
 import { registerAs } from '@nestjs/config';
+import { parseEnvInt } from '../common/utils/env-int.util';
+
+const parseEnvFloat = (value: string | undefined, defaultValue: number): number => {
+  if (value === undefined || value === '') return defaultValue;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : defaultValue;
+};
 
 /**
  * Supported exchange rate providers
@@ -132,43 +139,43 @@ export default registerAs('finance', (): FinanceConfig => {
       provider: parseProvider(process.env.EXCHANGE_RATE_PROVIDER),
       apiKey: process.env.EXCHANGE_RATE_API_KEY || '',
       baseUrl: process.env.EXCHANGE_RATE_BASE_URL || 'https://api.exchangeratesapi.io/v1',
-      cacheTtlMs: parseInt(process.env.EXCHANGE_RATE_CACHE_TTL_MS || '3600000', 10), // 1 hour
-      fallbackRate: parseFloat(process.env.EXCHANGE_RATE_FALLBACK || '1.0'),
+      cacheTtlMs: parseEnvInt(process.env.EXCHANGE_RATE_CACHE_TTL_MS, 3600000), // 1 hour
+      fallbackRate: parseEnvFloat(process.env.EXCHANGE_RATE_FALLBACK, 1.0),
       useCacheOnFailure: process.env.EXCHANGE_RATE_USE_CACHE_ON_FAILURE !== 'false',
     },
 
     processing: {
-      maxBatchSize: parseInt(process.env.FINANCE_MAX_BATCH_SIZE || (isProd ? '100' : '50'), 10),
-      concurrencyLimit: parseInt(process.env.FINANCE_CONCURRENCY_LIMIT || '10', 10),
-      batchTimeoutMs: parseInt(process.env.FINANCE_BATCH_TIMEOUT_MS || '300000', 10), // 5 minutes
+      maxBatchSize: parseEnvInt(process.env.FINANCE_MAX_BATCH_SIZE, isProd ? 100 : 50),
+      concurrencyLimit: parseEnvInt(process.env.FINANCE_CONCURRENCY_LIMIT, 10),
+      batchTimeoutMs: parseEnvInt(process.env.FINANCE_BATCH_TIMEOUT_MS, 300000), // 5 minutes
     },
 
     retry: {
-      maxAttempts: parseInt(process.env.FINANCE_RETRY_MAX_ATTEMPTS || '3', 10),
-      initialDelayMs: parseInt(process.env.FINANCE_RETRY_INITIAL_DELAY_MS || '1000', 10),
-      maxDelayMs: parseInt(process.env.FINANCE_RETRY_MAX_DELAY_MS || '30000', 10),
-      backoffMultiplier: parseFloat(process.env.FINANCE_RETRY_BACKOFF_MULTIPLIER || '2'),
+      maxAttempts: parseEnvInt(process.env.FINANCE_RETRY_MAX_ATTEMPTS, 3),
+      initialDelayMs: parseEnvInt(process.env.FINANCE_RETRY_INITIAL_DELAY_MS, 1000),
+      maxDelayMs: parseEnvInt(process.env.FINANCE_RETRY_MAX_DELAY_MS, 30000),
+      backoffMultiplier: parseEnvFloat(process.env.FINANCE_RETRY_BACKOFF_MULTIPLIER, 2),
     },
 
     currency: {
       defaultCode: process.env.DEFAULT_CURRENCY || 'SAR',
-      moneyPrecision: parseInt(process.env.MONEY_PRECISION || '2', 10),
-      exchangeRatePrecision: parseInt(process.env.EXCHANGE_RATE_PRECISION || '6', 10),
-      percentPrecision: parseInt(process.env.PERCENT_PRECISION || '4', 10),
+      moneyPrecision: parseEnvInt(process.env.MONEY_PRECISION, 2),
+      exchangeRatePrecision: parseEnvInt(process.env.EXCHANGE_RATE_PRECISION, 6),
+      percentPrecision: parseEnvInt(process.env.PERCENT_PRECISION, 4),
       roundingMode: parseRoundingMode(process.env.MONEY_ROUNDING_MODE),
     },
 
     reconciliation: {
-      maxDiscrepancyThreshold: parseInt(process.env.RECONCILIATION_MAX_DISCREPANCY || '100', 10), // 1.00 in currency
+      maxDiscrepancyThreshold: parseEnvInt(process.env.RECONCILIATION_MAX_DISCREPANCY, 100), // 1.00 in currency
       autoCorrectMinorDiscrepancies: process.env.RECONCILIATION_AUTO_CORRECT !== 'false',
-      autoCorrectThreshold: parseInt(process.env.RECONCILIATION_AUTO_CORRECT_THRESHOLD || '10', 10), // 0.10
+      autoCorrectThreshold: parseEnvInt(process.env.RECONCILIATION_AUTO_CORRECT_THRESHOLD, 10), // 0.10
     },
 
     payout: {
-      minimumAmount: parseFloat(process.env.PAYOUT_MINIMUM_AMOUNT || '10'),
-      maximumAmount: parseFloat(process.env.PAYOUT_MAXIMUM_AMOUNT || '100000'),
-      defaultCommissionPercent: parseFloat(process.env.PAYOUT_DEFAULT_COMMISSION_PERCENT || '2.5'),
-      commissionCap: parseFloat(process.env.PAYOUT_COMMISSION_CAP || '500'),
+      minimumAmount: parseEnvFloat(process.env.PAYOUT_MINIMUM_AMOUNT, 10),
+      maximumAmount: parseEnvFloat(process.env.PAYOUT_MAXIMUM_AMOUNT, 100000),
+      defaultCommissionPercent: parseEnvFloat(process.env.PAYOUT_DEFAULT_COMMISSION_PERCENT, 2.5),
+      commissionCap: parseEnvFloat(process.env.PAYOUT_COMMISSION_CAP, 500),
     },
   };
 });

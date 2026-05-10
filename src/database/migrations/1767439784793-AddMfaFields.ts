@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddMfaFields1767439784793 implements MigrationInterface {
   name = 'AddMfaFields1767439784793';

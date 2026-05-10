@@ -1,6 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
 import { RuntimeFailure } from '../common/errors/runtime-failure';
+import { parseEnvInt } from '../common/utils/env-int.util';
 
 const parseReplicaHosts = (hostsStr: string | undefined): string[] => {
   if (!hostsStr) return [];
@@ -32,17 +33,20 @@ export default registerAs('database', () => {
     migrations: [join(__dirname, '..', 'database', 'migrations', '*.js')],
     migrationsTableName: 'migrations',
     migrationsRun: process.env.DB_MIGRATIONS_RUN !== 'false',
-    retryAttempts: parseInt(process.env.DB_RETRY_ATTEMPTS || '10', 10),
-    retryDelay: parseInt(process.env.DB_RETRY_DELAY_MS || '3000', 10),
+    retryAttempts: parseEnvInt(process.env.DB_RETRY_ATTEMPTS, 10),
+    retryDelay: parseEnvInt(process.env.DB_RETRY_DELAY_MS, 3000),
     // Warn and log slow queries. Default 1000ms; lower in production via DB_MAX_QUERY_MS.
-    maxQueryExecutionTime: parseInt(process.env.DB_MAX_QUERY_MS || '1000', 10),
+    maxQueryExecutionTime: parseEnvInt(process.env.DB_MAX_QUERY_MS, 1000),
     extra: {
-      max: parseInt(process.env.DB_POOL_SIZE || defaultPoolSize.toString(), 10),
-      connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000', 10),
-      idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '600000', 10),
-      statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT || '60000', 10),
+      max: parseEnvInt(process.env.DB_POOL_SIZE, defaultPoolSize),
+      connectionTimeoutMillis: parseEnvInt(process.env.DB_CONNECTION_TIMEOUT, 30000),
+      idleTimeoutMillis: parseEnvInt(process.env.DB_IDLE_TIMEOUT, 600000),
+      statement_timeout: parseEnvInt(process.env.DB_STATEMENT_TIMEOUT, 60000),
     },
   };
+
+  const masterPort = parseEnvInt(process.env.DB_PORT, 5432);
+  const replicaPort = parseEnvInt(process.env.DB_REPLICA_PORT, masterPort);
 
   if (hasReplicas) {
     return {
@@ -50,14 +54,14 @@ export default registerAs('database', () => {
       replication: {
         master: {
           host: process.env.DB_HOST,
-          port: parseInt(process.env.DB_PORT || '5432', 10),
+          port: masterPort,
           username: process.env.DB_USERNAME,
           password: process.env.DB_PASSWORD,
           database: process.env.DB_DATABASE,
         },
         slaves: replicaHosts.map((host) => ({
           host,
-          port: parseInt(process.env.DB_REPLICA_PORT || process.env.DB_PORT || '5432', 10),
+          port: replicaPort,
           username: process.env.DB_REPLICA_USERNAME || process.env.DB_USERNAME,
           password: process.env.DB_REPLICA_PASSWORD || process.env.DB_PASSWORD,
           database: process.env.DB_DATABASE,
@@ -69,7 +73,7 @@ export default registerAs('database', () => {
   return {
     ...baseConfig,
     host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '5432', 10),
+    port: masterPort,
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,

@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import { SchemaContractValidatorService } from './schema-contract-validator.service';
 
 describe('SchemaContractValidatorService', () => {

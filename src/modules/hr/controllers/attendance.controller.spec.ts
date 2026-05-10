@@ -1,10 +1,11 @@
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
-import { Attendance } from '../entities/attendance.entity';
+import type { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
+import type { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from '../services/attendance.service';
 import { AttendanceController } from './attendance.controller';
 

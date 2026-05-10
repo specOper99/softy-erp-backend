@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { AuditService } from '../audit/audit.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { AdminController } from './admin.controller';

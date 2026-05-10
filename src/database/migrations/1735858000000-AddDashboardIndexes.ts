@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddDashboardIndexes1735858000000 implements MigrationInterface {
   name = 'AddDashboardIndexes1735858000000';

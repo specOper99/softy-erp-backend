@@ -1,4 +1,4 @@
-import { ConfigService } from '@nestjs/config';
+import type { ConfigService } from '@nestjs/config';
 import { RuntimeFailure } from '../errors/runtime-failure';
 
 export type AllowedJwtAlgorithm = 'HS256' | 'RS256';

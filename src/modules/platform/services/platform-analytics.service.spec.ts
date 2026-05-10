@@ -1,7 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { FindManyOptions, Repository, SelectQueryBuilder } from 'typeorm';
+import type { FindManyOptions, Repository, SelectQueryBuilder } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../enums/tenant-status.enum';
 import { PlatformAnalyticsService } from './platform-analytics.service';

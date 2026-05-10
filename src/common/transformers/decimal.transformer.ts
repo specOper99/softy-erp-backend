@@ -14,7 +14,7 @@
  * @see https://typeorm.io/entities#column-options - transformer option
  */
 import Decimal from 'decimal.js';
-import { ValueTransformer } from 'typeorm';
+import type { ValueTransformer } from 'typeorm';
 import { RuntimeFailure } from '../errors/runtime-failure';
 import { toErrorMessage } from '../utils/error.util';
 

@@ -1,7 +1,8 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Profile } from '../entities/profile.entity';
 import { ProfileRepository } from './profile.repository';

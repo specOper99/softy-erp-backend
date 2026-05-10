@@ -1,7 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { PasswordService } from '../../auth/services/password.service';

@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { MailService } from '../mail.service';
 import { PaymentReceivedHandler } from './payment-received.handler';
 

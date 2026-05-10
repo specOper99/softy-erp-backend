@@ -1,5 +1,6 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import type { ExecutionContext } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
 import { MetricsGuard } from './metrics.guard';
 
 describe('MetricsGuard', () => {

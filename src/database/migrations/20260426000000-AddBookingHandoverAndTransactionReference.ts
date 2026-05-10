@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn } from 'typeorm';
 
 export class AddBookingHandoverAndTransactionReference20260426000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

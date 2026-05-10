@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { MfaService } from './mfa.service';
 

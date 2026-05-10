@@ -1,4 +1,4 @@
-import { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
+import type { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { decodeCursor, encodeCursor } from './cursor.utils';
 import { RuntimeFailure } from '../errors/runtime-failure';
 

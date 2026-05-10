@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddSrsGapColumns1740088800000 implements MigrationInterface {
   name = 'AddSrsGapColumns1740088800000';

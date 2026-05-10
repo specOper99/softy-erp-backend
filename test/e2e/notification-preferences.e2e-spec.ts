@@ -1,11 +1,13 @@
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { TransformInterceptor } from '../../src/common/interceptors';
 import { MailService } from '../../src/modules/mail/mail.service';
-import { UpdateNotificationPreferenceDto } from '../../src/modules/notifications/dto/notification-preference.dto';
+import type { UpdateNotificationPreferenceDto } from '../../src/modules/notifications/dto/notification-preference.dto';
 import { NotificationFrequency, NotificationType } from '../../src/modules/notifications/enums/notification.enum';
 import { seedTestDatabase } from '../utils/seed-data';
 

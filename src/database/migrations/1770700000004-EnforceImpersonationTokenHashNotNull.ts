@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class EnforceImpersonationTokenHashNotNull1770700000004 implements MigrationInterface {
   name = 'EnforceImpersonationTokenHashNotNull1770700000004';

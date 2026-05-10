@@ -1,10 +1,12 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as crypto from 'node:crypto';
-import { LessThan, Not, Repository } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import type { Repository } from 'typeorm';
+import { LessThan, Not } from 'typeorm';
+import type { User } from '../../users/entities/user.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { TokenService } from './token.service';
 

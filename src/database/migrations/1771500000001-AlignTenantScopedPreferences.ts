@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey, TableIndex } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn, TableForeignKey, TableIndex } from 'typeorm';
 import { RuntimeFailure } from '../../common/errors/runtime-failure';
 
 export class AlignTenantScopedPreferences1771500000001 implements MigrationInterface {

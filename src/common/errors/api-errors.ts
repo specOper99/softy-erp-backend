@@ -1,8 +1,8 @@
+import type { HttpException } from '@nestjs/common';
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  HttpException,
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,

@@ -1,8 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { createMockMetricsFactory } from '../../../../test/helpers/mock-factories';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
-import { Payout } from '../../finance/entities/payout.entity';
+import type { Payout } from '../../finance/entities/payout.entity';
 import { PayoutStatus } from '../../finance/enums/payout-status.enum';
 import { PayoutRepository } from '../../finance/repositories/payout.repository';
 import { TicketingService } from '../../notifications/services/ticketing.service';

@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 import * as path from 'node:path';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import { normalizeMigrationNamesForTypeOrm } from './utils/typeorm-migration-name.util';
 
 function readExistingDbConfig() {

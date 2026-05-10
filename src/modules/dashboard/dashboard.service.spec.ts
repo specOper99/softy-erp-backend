@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { DailyMetricsRepository } from '../analytics/repositories/daily-metrics.repository';

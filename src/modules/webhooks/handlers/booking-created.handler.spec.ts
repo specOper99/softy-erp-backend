@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { BookingCreatedEvent } from '../../bookings/events/booking-created.event';
 import { WebhookService } from '../webhooks.service';
 import { BookingCreatedWebhookHandler } from './booking-created.handler';

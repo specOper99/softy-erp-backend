@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { SelectQueryBuilder } from 'typeorm';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { SelectQueryBuilder } from 'typeorm';
 import {
   createMockPackageItem,
   createMockRepository,
@@ -9,12 +10,12 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+import type { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { CreateServicePackageDto, CreateTaskTypeDto, UpdateServicePackageDto } from '../dto';
-import { PackageItem } from '../entities/package-item.entity';
-import { ServicePackage } from '../entities/service-package.entity';
-import { TaskType } from '../entities/task-type.entity';
+import type { CreateServicePackageDto, CreateTaskTypeDto, UpdateServicePackageDto } from '../dto';
+import type { PackageItem } from '../entities/package-item.entity';
+import type { ServicePackage } from '../entities/service-package.entity';
+import type { TaskType } from '../entities/task-type.entity';
 import { PackageItemRepository } from '../repositories/package-item.repository';
 import { ServicePackageRepository } from '../repositories/service-package.repository';
 import { TaskTypeRepository } from '../repositories/task-type.repository';

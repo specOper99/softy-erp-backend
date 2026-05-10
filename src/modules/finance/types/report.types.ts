@@ -1,4 +1,4 @@
-import { TransactionType } from '../enums/transaction-type.enum';
+import type { TransactionType } from '../enums/transaction-type.enum';
 
 export interface TaxReportRaw {
   totalTax: string | null;

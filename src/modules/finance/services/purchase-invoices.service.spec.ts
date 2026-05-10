@@ -1,10 +1,13 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { CreatePurchaseInvoiceDto } from '../dto';
-import { PurchaseInvoice, Vendor } from '../entities';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import type { CreatePurchaseInvoiceDto } from '../dto';
+import type { Vendor } from '../entities';
+import { PurchaseInvoice } from '../entities';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from './finance.service';
 import { PurchaseInvoicesService } from './purchase-invoices.service';

@@ -1,5 +1,5 @@
 import { ForbiddenException, InternalServerErrorException } from '@nestjs/common';
-import { DeepPartial, FindManyOptions, FindOneOptions, FindOptionsWhere, Repository } from 'typeorm';
+import type { DeepPartial, FindManyOptions, FindOneOptions, FindOptionsWhere, Repository } from 'typeorm';
 import { TenantContextService } from '../services/tenant-context.service';
 import { TenantAwareRepository } from './tenant-aware.repository';
 

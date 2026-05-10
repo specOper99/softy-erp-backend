@@ -1,9 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
-import { Job } from 'bullmq';
-import { DeepPartial } from 'typeorm';
+import type { Job } from 'bullmq';
+import type { DeepPartial } from 'typeorm';
 import { AuditProcessor } from './audit.processor';
-import { AuditLog } from './entities/audit-log.entity';
+import type { AuditLog } from './entities/audit-log.entity';
 
 describe('AuditProcessor', () => {
   let processor: AuditProcessor;

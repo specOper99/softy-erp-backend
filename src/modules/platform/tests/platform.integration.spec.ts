@@ -1,6 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { PlatformAnalyticsService } from '../services/platform-analytics.service';
 import { PlatformAuditService } from '../services/platform-audit.service';
 import { PlatformAuthService } from '../services/platform-auth.service';

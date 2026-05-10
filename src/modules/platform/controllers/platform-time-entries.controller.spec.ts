@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { PlatformTimeEntryQueryDto } from '../dto/platform-time-entries.dto';
+import type { PlatformTimeEntryQueryDto } from '../dto/platform-time-entries.dto';
 import { PlatformTimeEntriesService } from '../services/platform-time-entries.service';
 import { PlatformTimeEntriesController } from './platform-time-entries.controller';
 

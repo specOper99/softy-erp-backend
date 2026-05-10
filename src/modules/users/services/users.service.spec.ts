@@ -1,8 +1,9 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { EntityManager, FindOneOptions, SelectQueryBuilder } from 'typeorm';
+import type { EntityManager, FindOneOptions, SelectQueryBuilder } from 'typeorm';
 import {
   createMockQueryRunner,
   createMockRepository,

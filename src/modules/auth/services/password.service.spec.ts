@@ -1,7 +1,9 @@
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { MailService } from '../../mail/mail.service';
 import { UsersService } from '../../users/services/users.service';

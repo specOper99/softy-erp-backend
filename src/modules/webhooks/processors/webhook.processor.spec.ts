@@ -1,7 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Job } from 'bullmq';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Job } from 'bullmq';
 import { WebhookService } from '../webhooks.service';
-import { WebhookEvent } from '../webhooks.types';
+import type { WebhookEvent } from '../webhooks.types';
 import { WebhookProcessor } from './webhook.processor';
 
 describe('WebhookProcessor', () => {

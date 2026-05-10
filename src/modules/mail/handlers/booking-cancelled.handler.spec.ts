@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { MailService } from '../mail.service';
 import { BookingCancelledHandler } from './booking-cancelled.handler';
 

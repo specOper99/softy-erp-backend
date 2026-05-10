@@ -1,8 +1,12 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import request, { Response as SupertestResponse } from 'supertest';
-import { DataSource, Repository } from 'typeorm';
+import type { Response as SupertestResponse } from 'supertest';
+import request from 'supertest';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { IpRateLimitGuard } from '../src/common/guards/ip-rate-limit.guard';
 import { TransformInterceptor } from '../src/common/interceptors';

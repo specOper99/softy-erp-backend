@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { Repository } from 'typeorm';
 import { areBackgroundJobsEnabled } from '../../common/queue/background-jobs.runtime';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
+import { parseEnvInt } from '../../common/utils/env-int.util';
 import { EmailTemplatesController } from './controllers/email-templates.controller';
 import { EmailTemplate } from './entities/email-template.entity';
 import { BookingCancelledHandler } from './handlers/booking-cancelled.handler';
@@ -31,7 +32,7 @@ const backgroundJobsEnabled = areBackgroundJobsEnabled();
 export const createMailerOptions = (configService: ConfigService): MailerOptions => ({
   transport: {
     host: configService.get('MAIL_HOST', 'smtp.gmail.com'),
-    port: parseInt(configService.get('MAIL_PORT', '587'), 10) || 587,
+    port: parseEnvInt(configService.get<string>('MAIL_PORT'), 587),
     secure: false,
     auth: {
       user: configService.get('MAIL_USER'),

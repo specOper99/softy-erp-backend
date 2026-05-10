@@ -1,11 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Request } from 'express';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Request } from 'express';
 import { I18nService } from '../../common/i18n';
-import { User } from '../users/entities/user.entity';
+import type { User } from '../users/entities/user.entity';
 import { ConsentService } from './consent.service';
-import { GrantConsentDto } from './dto/consent.dto';
-import { Consent, ConsentType } from './entities/consent.entity';
-import { PrivacyRequest, PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
+import type { GrantConsentDto } from './dto/consent.dto';
+import type { Consent } from './entities/consent.entity';
+import { ConsentType } from './entities/consent.entity';
+import type { PrivacyRequest } from './entities/privacy-request.entity';
+import { PrivacyRequestStatus, PrivacyRequestType } from './entities/privacy-request.entity';
 import { PrivacyController } from './privacy.controller';
 import { PrivacyService } from './privacy.service';
 

@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import { PasswordHashService } from '../../src/common/services/password-hash.service';
 import { toErrorMessage } from '../../src/common/utils/error.util';
 import { Client } from '../../src/modules/bookings/entities/client.entity';

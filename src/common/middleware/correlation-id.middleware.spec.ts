@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { asyncLocalStorage } from '../logger/request-context';
 import { CORRELATION_ID_HEADER, CorrelationIdMiddleware } from './correlation-id.middleware';
 

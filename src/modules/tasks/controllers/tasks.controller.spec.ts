@@ -1,10 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
-import { User } from '../../users/entities/user.entity';
-import { AddTaskAssigneeDto, AssignTaskDto, UpdateTaskAssigneeDto, UpdateTaskDto } from '../dto';
+import type { User } from '../../users/entities/user.entity';
+import type { AddTaskAssigneeDto, AssignTaskDto, UpdateTaskAssigneeDto, UpdateTaskDto } from '../dto';
 import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
-import { Task } from '../entities/task.entity';
+import type { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskAssigneeService } from '../services/task-assignee.service';
 import { TasksService } from '../services/tasks.service';

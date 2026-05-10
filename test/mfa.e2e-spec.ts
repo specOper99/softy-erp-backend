@@ -1,5 +1,7 @@
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { createHmac } from 'crypto';
 import request from 'supertest';

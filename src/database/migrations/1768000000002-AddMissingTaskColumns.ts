@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn, TableForeignKey } from 'typeorm';
 
 export class AddMissingTaskColumns1768000000002 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

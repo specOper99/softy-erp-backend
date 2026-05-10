@@ -1,8 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { mockTenantContext } from '../../../test/helpers/mock-factories';
-import { Attachment } from './entities/attachment.entity';
+import type { Attachment } from './entities/attachment.entity';
 import { MediaService } from './media.service';
 import { AttachmentRepository } from './repositories/attachment.repository';
 import { StorageService } from './storage.service';

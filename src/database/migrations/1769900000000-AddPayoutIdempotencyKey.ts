@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddPayoutIdempotencyKey1769900000000 implements MigrationInterface {
   name = 'AddPayoutIdempotencyKey1769900000000';

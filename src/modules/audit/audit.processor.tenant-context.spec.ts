@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
-import { Job } from 'bullmq';
+import type { Job } from 'bullmq';
 import { AuditProcessor } from './audit.processor';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 

@@ -1,11 +1,12 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, UpdateResult } from 'typeorm';
+import type { Repository, UpdateResult } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
-import { PlatformAuditLog } from '../entities/platform-audit-log.entity';
+import type { PlatformAuditLog } from '../entities/platform-audit-log.entity';
 import { PlatformSession } from '../entities/platform-session.entity';
 import { PlatformUser } from '../entities/platform-user.entity';
 import { PlatformRole } from '../enums/platform-role.enum';

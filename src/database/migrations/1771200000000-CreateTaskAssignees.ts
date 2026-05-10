@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey, TableIndex } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { Table, TableForeignKey, TableIndex } from 'typeorm';
 
 export class CreateTaskAssignees1771200000000 implements MigrationInterface {
   name = 'CreateTaskAssignees1771200000000';

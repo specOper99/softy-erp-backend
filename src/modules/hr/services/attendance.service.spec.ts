@@ -1,10 +1,12 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { DeleteResult } from 'typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { DeleteResult } from 'typeorm';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
-import { Attendance } from '../entities/attendance.entity';
+import type { CreateAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
+import type { Attendance } from '../entities/attendance.entity';
 import { AttendanceService } from './attendance.service';
 
 // Use string literal directly to avoid circular import from hr.module

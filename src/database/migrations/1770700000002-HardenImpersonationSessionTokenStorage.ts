@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn } from 'typeorm';
 
 export class HardenImpersonationSessionTokenStorage1770700000002 implements MigrationInterface {
   name = 'HardenImpersonationSessionTokenStorage1770700000002';

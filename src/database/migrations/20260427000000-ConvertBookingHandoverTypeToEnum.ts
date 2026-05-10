@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class ConvertBookingHandoverTypeToEnum20260427000000 implements MigrationInterface {
   name = 'ConvertBookingHandoverTypeToEnum20260427000000';

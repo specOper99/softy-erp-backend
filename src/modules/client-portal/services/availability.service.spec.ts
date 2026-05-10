@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import type { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';

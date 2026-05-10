@@ -1,8 +1,10 @@
 import { getQueueToken } from '@nestjs/bullmq';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Queue } from 'bullmq';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Queue } from 'bullmq';
 import { mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { BookingEmailData, EMAIL_QUEUE, TaskAssignmentEmailData } from '../mail.types';
+import type { BookingEmailData, TaskAssignmentEmailData } from '../mail.types';
+import { EMAIL_QUEUE } from '../mail.types';
 import { MailQueueService } from './mail-queue.service';
 import { MailSenderService } from './mail-sender.service';
 

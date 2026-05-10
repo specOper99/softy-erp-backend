@@ -1,8 +1,10 @@
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Cache } from 'cache-manager';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Cache } from 'cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
-import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import type { StartedTestContainer } from 'testcontainers';
+import { GenericContainer } from 'testcontainers';
 
 describe('Redis Cache Integration Tests', () => {
   let module: TestingModule;

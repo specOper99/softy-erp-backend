@@ -1,7 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { JwtAuthGuard } from '../auth/guards';
-import { ConfirmUploadDto, CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto/media.dto';
-import { Attachment } from './entities/attachment.entity';
+import type { ConfirmUploadDto, CreateAttachmentDto, LinkAttachmentDto, PresignedUploadDto } from './dto/media.dto';
+import type { Attachment } from './entities/attachment.entity';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
 

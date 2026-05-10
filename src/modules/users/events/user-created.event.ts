@@ -1,4 +1,4 @@
-import { IEvent } from '@nestjs/cqrs';
+import type { IEvent } from '@nestjs/cqrs';
 
 /**
  * Event fired when a new user is created.

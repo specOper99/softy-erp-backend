@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class SyncProfileSchema1767700000002 implements MigrationInterface {
   name = 'SyncProfileSchema1767700000002';

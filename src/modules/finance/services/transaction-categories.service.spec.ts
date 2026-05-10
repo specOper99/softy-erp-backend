@@ -1,7 +1,9 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createMockRepository, MockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import { TransactionCategory } from '../entities/transaction-category.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { TransactionCategoriesService } from './transaction-categories.service';

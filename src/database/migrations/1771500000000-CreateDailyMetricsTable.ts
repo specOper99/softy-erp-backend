@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, Table, TableColumn, TableIndex } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { Table, TableColumn, TableIndex } from 'typeorm';
 
 export class CreateDailyMetricsTable1771500000000 implements MigrationInterface {
   name = 'CreateDailyMetricsTable1771500000000';

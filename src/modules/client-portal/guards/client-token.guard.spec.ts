@@ -1,6 +1,8 @@
-import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Client } from '../../bookings/entities/client.entity';
+import type { ExecutionContext } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Client } from '../../bookings/entities/client.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { ClientAuthService } from '../services/client-auth.service';
 import { ClientTokenGuard } from './client-token.guard';

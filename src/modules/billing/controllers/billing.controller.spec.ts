@@ -1,16 +1,17 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import Stripe from 'stripe';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type Stripe from 'stripe';
 import * as TenantContextServiceModule from '../../../common/services/tenant-context.service';
-import {
+import type {
   CreateCheckoutSessionDto,
   CreatePortalSessionDto,
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
 } from '../dto/billing.dto';
-import { BillingCustomer } from '../entities/billing-customer.entity';
-import { Subscription } from '../entities/subscription.entity';
+import type { BillingCustomer } from '../entities/billing-customer.entity';
+import type { Subscription } from '../entities/subscription.entity';
 import { StripeService } from '../services/stripe.service';
 import { SubscriptionService } from '../services/subscription.service';
 import { BillingController } from './billing.controller';

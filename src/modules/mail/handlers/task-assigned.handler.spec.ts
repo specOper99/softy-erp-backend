@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { TaskAssignedEvent } from '../../tasks/events/task-assigned.event';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { TaskAssignedEvent } from '../../tasks/events/task-assigned.event';
 import { MailService } from '../mail.service';
 import { TaskAssignedHandler } from './task-assigned.handler';
 

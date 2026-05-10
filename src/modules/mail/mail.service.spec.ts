@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { MailService } from './mail.service';
-import { BookingEmailData, PayrollEmailData, TaskAssignmentEmailData } from './mail.types';
+import type { BookingEmailData, PayrollEmailData, TaskAssignmentEmailData } from './mail.types';
 import { MailQueueService } from './services/mail-queue.service';
 import { MailSenderService } from './services/mail-sender.service';
 

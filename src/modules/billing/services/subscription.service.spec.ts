@@ -1,9 +1,10 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import Stripe from 'stripe';
-import { Repository } from 'typeorm';
+import type Stripe from 'stripe';
+import type { Repository } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { BillingCustomer } from '../entities/billing-customer.entity';

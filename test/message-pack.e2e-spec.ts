@@ -1,5 +1,7 @@
-import { INestApplication, VersioningType } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { VersioningType } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { unpack } from 'msgpackr';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';

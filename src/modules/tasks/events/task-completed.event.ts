@@ -1,4 +1,4 @@
-import { IEvent } from '@nestjs/cqrs';
+import type { IEvent } from '@nestjs/cqrs';
 
 export class TaskCompletedEvent implements IEvent {
   constructor(

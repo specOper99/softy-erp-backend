@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { PlatformAuditService } from '../services/platform-audit.service';
 import { PlatformAuditController } from './platform-audit.controller';

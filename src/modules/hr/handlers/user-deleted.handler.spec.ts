@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { UserDeletedEvent } from '../../users/events/user-deleted.event';
 import { HrService } from '../services/hr.service';
 import { UserDeletedHandler } from './user-deleted.handler';

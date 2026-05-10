@@ -1,8 +1,10 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
-import { Test, TestingModule } from '@nestjs/testing';
-import { DataSource, QueryRunner } from 'typeorm';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { QueryRunner } from 'typeorm';
+import { DataSource } from 'typeorm';
 import {
   createMockConfigService,
   createMockDataSource,

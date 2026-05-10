@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { EventBus } from '@nestjs/cqrs';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { BookingRepository } from '../bookings/repositories/booking.repository';

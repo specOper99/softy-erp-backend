@@ -1,5 +1,7 @@
-import { Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { Logger } from '@nestjs/common';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { createMockUser } from '../../../test/helpers/mock-factories';
@@ -9,7 +11,7 @@ import { GeoIpService } from '../../common/services/geoip.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
-import { User } from '../users/entities/user.entity';
+import type { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { UsersService } from '../users/services/users.service';
 import { AuthService } from './auth.service';
@@ -22,7 +24,8 @@ import { MfaService } from './services/mfa.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { TokenBlacklistService } from './services/token-blacklist.service';
-import { TokenPayload, TokenService } from './services/token.service';
+import type { TokenPayload } from './services/token.service';
+import { TokenService } from './services/token.service';
 
 import { TEST_SECRETS } from '../../../test/secrets';
 

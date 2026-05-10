@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddPhase3Indexes1767700000000 implements MigrationInterface {
   name = 'AddPhase3Indexes1767700000000';

@@ -1,4 +1,5 @@
-import { DataSource, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';

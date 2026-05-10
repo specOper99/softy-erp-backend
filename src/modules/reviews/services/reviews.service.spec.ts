@@ -1,6 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { MockRepository, createMockTenantAwareRepository } from '../../../../test/helpers/mock-factories';
-import { Review } from '../entities/review.entity';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockTenantAwareRepository } from '../../../../test/helpers/mock-factories';
+import type { Review } from '../entities/review.entity';
 import { ReviewStatus } from '../enums/review-status.enum';
 import { ReviewRepository } from '../repositories/review.repository';
 import { ReviewsService } from './reviews.service';

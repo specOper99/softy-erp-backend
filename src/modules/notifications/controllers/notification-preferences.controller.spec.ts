@@ -1,7 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { User } from '../../users/entities/user.entity';
-import { UpdateNotificationPreferenceDto } from '../dto/notification-preference.dto';
-import { NotificationPreference } from '../entities/notification-preference.entity';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { User } from '../../users/entities/user.entity';
+import type { UpdateNotificationPreferenceDto } from '../dto/notification-preference.dto';
+import type { NotificationPreference } from '../entities/notification-preference.entity';
 import { NotificationType } from '../enums/notification.enum';
 import { NotificationPreferencesService } from '../services/notification-preferences.service';
 import { NotificationPreferencesController } from './notification-preferences.controller';

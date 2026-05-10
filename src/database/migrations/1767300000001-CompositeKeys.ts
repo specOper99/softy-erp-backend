@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CompositeKeys1767300000001 implements MigrationInterface {
   name = 'CompositeKeys1767300000001';

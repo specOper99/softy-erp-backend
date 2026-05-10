@@ -1,7 +1,8 @@
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Request } from 'express';
-import { User } from '../../users/entities/user.entity';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Request } from 'express';
+import type { User } from '../../users/entities/user.entity';
 import { AuthService } from '../auth.service';
 import { TokenBlacklistService } from '../services/token-blacklist.service';
 import { JwtStrategy } from './jwt.strategy';

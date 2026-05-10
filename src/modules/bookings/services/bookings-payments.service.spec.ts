@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import {
   createMockBooking,
@@ -11,7 +12,7 @@ import {
 import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 import { FinanceService } from '../../finance/services/finance.service';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingsService } from './bookings.service';

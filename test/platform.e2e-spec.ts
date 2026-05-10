@@ -1,10 +1,13 @@
 // Disable rate limiting for E2E tests
 process.env.RATE_LIMIT_ENABLED = 'false';
 
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import request, { Response } from 'supertest';
+import type { Response } from 'supertest';
+import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';

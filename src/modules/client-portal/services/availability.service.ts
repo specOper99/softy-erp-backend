@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Raw, Repository } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
@@ -48,12 +48,12 @@ export class AvailabilityService {
 
       const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
       if (!tenant) {
-        throw new Error('tenants.not_found');
+        throw new NotFoundException('tenants.not_found');
       }
 
       const servicePackage = await this.packageRepository.findOne({ where: { id: packageId } });
       if (!servicePackage) {
-        throw new Error('client_portal.package_not_found');
+        throw new NotFoundException('client_portal.package_not_found');
       }
 
       const targetDate = parseDateOnlyToUtc(date);

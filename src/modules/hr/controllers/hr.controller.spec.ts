@@ -1,10 +1,17 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { TenantsService } from '../../tenants/tenants.service';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { AvailabilityQueryDto, CreateProfileDto, CreateStaffDto, ProfileFilterDto, UpdateProfileDto } from '../dto';
+import type {
+  AvailabilityQueryDto,
+  CreateProfileDto,
+  CreateStaffDto,
+  ProfileFilterDto,
+  UpdateProfileDto,
+} from '../dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
 import { HrController } from './hr.controller';

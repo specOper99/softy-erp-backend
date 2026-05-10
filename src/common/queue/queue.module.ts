@@ -3,6 +3,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { areBackgroundJobsEnabled } from './background-jobs.runtime';
 import { RuntimeFailure } from '../errors/runtime-failure';
+import { parseEnvInt } from '../utils/env-int.util';
 
 const backgroundJobsEnabled = areBackgroundJobsEnabled();
 
@@ -28,7 +29,7 @@ const backgroundJobsEnabled = areBackgroundJobsEnabled();
             return {
               connection: {
                 host: url.hostname,
-                port: parseInt(url.port, 10) || 9379,
+                port: parseEnvInt(url.port, 6379),
                 password: url.password || undefined,
                 username: url.username || undefined,
               },

@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError } from '@nestjs/terminus';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import * as net from 'net';
 import { SmtpHealthIndicator } from './smtp-health.indicator';
 

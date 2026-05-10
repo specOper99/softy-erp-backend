@@ -1,8 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { GeoIpService } from '../../../common/services/geoip.service';
 import { MailService } from '../../mail/mail.service';
-import { RefreshToken } from '../entities/refresh-token.entity';
+import type { RefreshToken } from '../entities/refresh-token.entity';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
 

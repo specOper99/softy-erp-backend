@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { Table, TableIndex } from 'typeorm';
 
 export class AddBillingWebhookEventIdempotency1770700000001 implements MigrationInterface {
   name = 'AddBillingWebhookEventIdempotency1770700000001';

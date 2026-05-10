@@ -1,6 +1,7 @@
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { AnalyticsService } from '../services/analytics.service';

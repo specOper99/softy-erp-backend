@@ -1,9 +1,10 @@
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { TenantsService } from '../../tenants/tenants.service';
 import { Role } from '../../users/enums/role.enum';
-import { CreateTaskTypeEligibilityDto } from '../dto/task-type-eligibility.dto';
+import type { CreateTaskTypeEligibilityDto } from '../dto/task-type-eligibility.dto';
 import { TaskTypeEligibilityService } from '../services/task-type-eligibility.service';
 import { TaskTypeEligibilityController } from './task-type-eligibility.controller';
 

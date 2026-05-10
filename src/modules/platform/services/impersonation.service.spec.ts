@@ -1,9 +1,11 @@
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, LessThan, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { DataSource, LessThan } from 'typeorm';
 import { ImpersonationSession } from '../entities/impersonation-session.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { ImpersonationService } from './impersonation.service';

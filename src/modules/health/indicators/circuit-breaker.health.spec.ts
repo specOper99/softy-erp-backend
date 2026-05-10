@@ -1,5 +1,6 @@
 import { HealthCheckError } from '@nestjs/terminus';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { DatabaseResilienceService } from '../../../common/resilience/database-resilience.service';
 import { CircuitBreakerHealthIndicator } from './circuit-breaker.health';
 

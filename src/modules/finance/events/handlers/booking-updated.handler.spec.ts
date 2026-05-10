@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { BookingUpdatedEvent } from '../../../bookings/events/booking-updated.event';
 import { FinancialReportService } from '../../services/financial-report.service';
 import { BookingUpdatedHandler } from './booking-updated.handler';

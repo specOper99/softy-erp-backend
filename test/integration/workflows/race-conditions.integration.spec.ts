@@ -5,7 +5,8 @@
  * These tests require a real database connection (Postgres via testcontainers).
  */
 
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import type { EntityManager, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { EmployeeWallet } from '../../../src/modules/finance/entities/employee-wallet.entity';

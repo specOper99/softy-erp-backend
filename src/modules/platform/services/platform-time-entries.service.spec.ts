@@ -1,7 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import type { Repository, SelectQueryBuilder } from 'typeorm';
 import { createMockRepository } from '../../../../test/helpers/mock-factories';
 import { Task } from '../../tasks/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/entities/time-entry.entity';

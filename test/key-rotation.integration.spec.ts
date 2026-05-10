@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import { ConfigService } from '@nestjs/config';
-import { DataSource, Repository } from 'typeorm';
+import type { ConfigService } from '@nestjs/config';
+import type { DataSource, Repository } from 'typeorm';
 import { EncryptionService } from '../src/common/services/encryption.service';
 import { KeyRotationService } from '../src/modules/admin/services/key-rotation.service';
-import { Webhook } from '../src/modules/webhooks/entities/webhook.entity';
+import type { Webhook } from '../src/modules/webhooks/entities/webhook.entity';
 
 const mockConfigService = {
   get: jest.fn((key: string) => {

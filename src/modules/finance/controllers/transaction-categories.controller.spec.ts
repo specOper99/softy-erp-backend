@@ -1,5 +1,6 @@
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { TransactionCategoriesService } from '../services/transaction-categories.service';
 import { TransactionCategoriesController } from './transaction-categories.controller';

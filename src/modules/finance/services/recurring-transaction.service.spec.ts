@@ -1,18 +1,20 @@
 import { NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
 import {
   createMockRecurringTransaction,
   createMockRepository,
-  MockRepository,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+import type { PaginationDto } from '../../../common/dto/pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
-import { RecurringFrequency, RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
-import { Transaction } from '../entities/transaction.entity';
+import type { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
+import type { RecurringTransaction } from '../entities/recurring-transaction.entity';
+import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
+import type { Transaction } from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
 import { FinanceService } from './finance.service';

@@ -119,11 +119,30 @@ const AppDataSource = new DataSource({
   synchronize: false, // Use migrations instead of synchronize during seeding
 });
 
+const REQUIRED_SEED_PASSWORDS = [
+  'SEED_ADMIN_PASSWORD',
+  'SEED_STAFF_PASSWORD',
+  'SEED_OPS_PASSWORD',
+  'SEED_PLATFORM_ADMIN_PASSWORD',
+] as const;
+
+function assertSeedPasswordsConfigured(): void {
+  const missing = REQUIRED_SEED_PASSWORDS.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Seeding aborted: required environment variables are not set: ${missing.join(', ')}. ` +
+        'Set strong unique values before running the seed script.',
+    );
+  }
+}
+
 async function seed() {
   SeedLogger.log('Starting database seed...\n');
   SeedLogger.log(
     `DB: ${process.env.DB_HOST ?? '<missing>'}:${process.env.DB_PORT ?? '<missing>'} / ${process.env.DB_DATABASE ?? '<missing>'}`,
   );
+
+  assertSeedPasswordsConfigured();
 
   try {
     await AppDataSource.initialize();

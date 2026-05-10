@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
 import { WebhookService } from '../webhooks.service';
 import { TaskCompletedWebhookHandler } from './task-completed.handler';
 

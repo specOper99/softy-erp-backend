@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableIndex } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn, TableIndex } from 'typeorm';
 
 export class HardenPlatformSessionsAndSyncInvoiceSchema1770700000000 implements MigrationInterface {
   name = 'HardenPlatformSessionsAndSyncInvoiceSchema1770700000000';

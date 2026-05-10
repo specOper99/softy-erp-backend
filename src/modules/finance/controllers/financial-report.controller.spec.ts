@@ -1,15 +1,16 @@
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
-import { PnLEntry, RevenueByPackageEntry } from '../../finance/types/report.types';
+import type { PnLEntry, RevenueByPackageEntry } from '../../finance/types/report.types';
 import { Role } from '../../users/enums/role.enum';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { FinancialReportFilterDto } from '../dto/financial-report.dto';
-import { PackageProfitabilityDto, ProfitabilityQueryDto } from '../dto/profitability.dto';
-import {
+import type { PackageProfitabilityDto, ProfitabilityQueryDto } from '../dto/profitability.dto';
+import type {
   ClientStatementQueryDto,
   EmployeeStatementQueryDto,
   StatementResponseDto,

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class PartitionAuditLogs1767900000000 implements MigrationInterface {
   name = 'PartitionAuditLogs1767900000000';

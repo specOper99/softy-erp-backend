@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { ContextType } from '../enums/context-type.enum';
+import type { ContextType } from '../enums/context-type.enum';
 
 export const CONTEXT_TYPE_KEY = 'context_type';
 

@@ -1,7 +1,9 @@
-import { HeadBucketCommand, HeadBucketCommandOutput } from '@aws-sdk/client-s3';
+import type { HeadBucketCommandOutput } from '@aws-sdk/client-s3';
+import { HeadBucketCommand } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError } from '@nestjs/terminus';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { S3HealthIndicator } from './s3-health.indicator';
 
 const mockSend = jest.fn();

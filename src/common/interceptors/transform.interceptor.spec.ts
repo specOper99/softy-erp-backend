@@ -1,5 +1,6 @@
-import { CallHandler, ExecutionContext } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { CallHandler, ExecutionContext } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { of } from 'rxjs';
 import { TransformInterceptor } from './transform.interceptor';
 

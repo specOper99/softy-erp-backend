@@ -1,9 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
-import { DailyMetrics } from '../entities/daily-metrics.entity';
+import type { DailyMetrics } from '../entities/daily-metrics.entity';
 import { DailyMetricsRepository } from '../repositories/daily-metrics.repository';
 import { UpdateMetricsHandler } from './update-metrics.handler';
 

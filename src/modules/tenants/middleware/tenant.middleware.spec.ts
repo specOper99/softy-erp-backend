@@ -1,7 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
-import { NextFunction, Request, Response } from 'express';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { NextFunction, Request, Response } from 'express';
 import { TenantsService } from '../tenants.service';
 import { TenantMiddleware } from './tenant.middleware';
 

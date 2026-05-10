@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn } from 'typeorm';
 
 export class AddMissingBookingColumns1768000000001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

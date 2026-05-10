@@ -13,7 +13,7 @@ import { configureSwagger } from './config/swagger.config';
 // Initialize OpenTelemetry tracing
 initTracing();
 
-import { NestExpressApplication } from '@nestjs/platform-express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
 import { DataSource } from 'typeorm';
 import { toErrorMessage } from './common/utils/error.util';

@@ -1,9 +1,10 @@
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
 import { DataSource } from 'typeorm';
 import { createMockInvoice } from '../../../../test/helpers/mock-factories';
-import { Invoice } from '../entities/invoice.entity';
+import type { Invoice } from '../entities/invoice.entity';
 import { InvoiceService } from '../services/invoice.service';
 import { InvoiceController } from './invoice.controller';
 

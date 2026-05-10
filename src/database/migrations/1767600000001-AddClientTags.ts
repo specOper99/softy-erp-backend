@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddClientTags1767600000001 implements MigrationInterface {
   name = 'AddClientTags1767600000001';

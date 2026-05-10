@@ -1,10 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Job } from 'bullmq';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Job } from 'bullmq';
 import { WebhookService } from '../webhooks.service';
-import { WebhookEvent, WebhookJobData } from '../webhooks.types';
+import type { WebhookEvent, WebhookJobData } from '../webhooks.types';
 import { WebhookProcessor } from './webhook.processor';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { Webhook } from '../entities/webhook.entity';
+import type { Webhook } from '../entities/webhook.entity';
 
 describe('WebhookProcessor - Tenant Context', () => {
   let processor: WebhookProcessor;

@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
 import { BookingCompletionHandler } from './booking-completion.handler';

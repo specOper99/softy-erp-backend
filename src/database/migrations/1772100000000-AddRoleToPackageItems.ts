@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddRoleToPackageItems1772100000000 implements MigrationInterface {
   name = 'AddRoleToPackageItems1772100000000';

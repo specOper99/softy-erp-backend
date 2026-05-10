@@ -1,7 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { CreateProcessingTypeDto, UpdateProcessingTypeDto } from '../dto/processing-type.dto';
-import { ProcessingType } from '../entities/processing-type.entity';
+import type { CreateProcessingTypeDto, UpdateProcessingTypeDto } from '../dto/processing-type.dto';
+import type { ProcessingType } from '../entities/processing-type.entity';
 import { ProcessingTypeService } from '../services/processing-type.service';
 import { ProcessingTypesController } from './processing-types.controller';
 

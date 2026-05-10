@@ -80,13 +80,14 @@ export class WebhookService {
     let url: URL;
     try {
       url = new URL(config.url);
-      if (url.protocol !== 'https:') {
-        throw new Error('webhooks.invalid_protocol');
-      }
     } catch (error) {
       // Fail closed: invalid URL must not be persisted.
       this.logger.warn(`Invalid webhook URL for tenant ${tenantId}: ${config.url} (${toErrorMessage(error)})`);
       throw new BadRequestException('webhooks.invalid_url');
+    }
+    if (url.protocol !== 'https:') {
+      this.logger.warn(`Webhook URL with non-https protocol for tenant ${tenantId}: ${config.url}`);
+      throw new BadRequestException('webhooks.invalid_protocol');
     }
 
     // SSRF Prevention: Block private IPs and localhost, get resolved IPs for caching

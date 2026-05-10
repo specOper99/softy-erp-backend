@@ -1,13 +1,14 @@
 import { BadRequestException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { I18nService } from '../../common/i18n';
-import { User } from '../users/entities/user.entity';
+import type { User } from '../users/entities/user.entity';
 import { Role } from '../users/enums/role.enum';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { LogoutDto } from './dto';
+import type { LogoutDto } from './dto';
 
 describe('AuthController', () => {
   let controller: AuthController;

@@ -1,5 +1,7 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -7,7 +9,7 @@ import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { BookingStatus } from '../src/modules/bookings/enums/booking-status.enum';
 import { DashboardGateway } from '../src/modules/dashboard/dashboard.gateway';
-import { Transaction } from '../src/modules/finance/entities/transaction.entity';
+import type { Transaction } from '../src/modules/finance/entities/transaction.entity';
 import { TransactionType } from '../src/modules/finance/enums/transaction-type.enum';
 import { WalletService } from '../src/modules/finance/services/wallet.service';
 import { MailService } from '../src/modules/mail/mail.service';

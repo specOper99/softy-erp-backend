@@ -1,7 +1,10 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { DataSource, DeepPartial } from 'typeorm';
+import type { DeepPartial } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { TransformInterceptor } from '../../src/common/interceptors';
 import { Booking } from '../../src/modules/bookings/entities/booking.entity';

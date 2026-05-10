@@ -39,6 +39,7 @@ import { Observable, of, throwError } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { CacheUtilsService } from '../cache/cache-utils.service';
 import { TenantContextService } from '../services/tenant-context.service';
+import { toErrorMessage } from '../utils/error.util';
 
 /** Metadata key for idempotency configuration */
 export const IDEMPOTENT_KEY = 'idempotent';
@@ -160,21 +161,26 @@ export class IdempotencyInterceptor implements NestInterceptor {
     // Mark as processing
     await this.cacheUtils.set(cacheKey, { processing: true, startedAt: Date.now() } as ProcessingStatus, 60000);
 
-    // Process the request
+    // Process the request. Cache writes run after the response is emitted —
+    // we deliberately fire-and-forget the cache mutation so it cannot block
+    // or fail the user-visible request, but we explicitly catch its promise
+    // to avoid UnhandledPromiseRejection.
     return next.handle().pipe(
-      tap(async (response) => {
-        // Cache successful response
+      tap((response) => {
         const cachedResponse: CachedResponse = {
           status: 200,
           body: response,
           cachedAt: Date.now(),
         };
-        await this.cacheUtils.set(cacheKey, cachedResponse, ttl);
-        this.logger.debug(`Cached response for idempotency key: ${idempotencyKey}`);
+        this.cacheUtils
+          .set(cacheKey, cachedResponse, ttl)
+          .then(() => this.logger.debug(`Cached response for idempotency key: ${idempotencyKey}`))
+          .catch((err: unknown) => this.logger.warn(`Failed to cache idempotent response: ${toErrorMessage(err)}`));
       }),
-      catchError(async (error) => {
-        // Remove processing marker on error (don't cache errors)
-        await this.cacheUtils.del(cacheKey);
+      catchError((error: unknown) => {
+        this.cacheUtils
+          .del(cacheKey)
+          .catch((err: unknown) => this.logger.warn(`Failed to clear idempotency marker: ${toErrorMessage(err)}`));
         return throwError(() => error);
       }),
     );

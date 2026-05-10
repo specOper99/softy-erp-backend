@@ -1,5 +1,6 @@
-import { EventBus } from '@nestjs/cqrs';
-import { DataSource, Repository } from 'typeorm';
+import type { EventBus } from '@nestjs/cqrs';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
@@ -12,7 +13,7 @@ import { TransactionType } from '../../../src/modules/finance/enums/transaction-
 import { TransactionRepository } from '../../../src/modules/finance/repositories/transaction.repository';
 import { Profile } from '../../../src/modules/hr/entities/profile.entity';
 import { ProfileRepository } from '../../../src/modules/hr/repositories/profile.repository';
-import { StorageService } from '../../../src/modules/media/storage.service';
+import type { StorageService } from '../../../src/modules/media/storage.service';
 import {
   PrivacyRequest,
   PrivacyRequestStatus,

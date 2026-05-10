@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AllowNullPlatformSessionToken1770400000000 implements MigrationInterface {
   name = 'AllowNullPlatformSessionToken1770400000000';

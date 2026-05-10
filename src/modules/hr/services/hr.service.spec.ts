@@ -1,21 +1,23 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, FindOneOptions } from 'typeorm';
+import type { FindOneOptions } from 'typeorm';
+import { DataSource } from 'typeorm';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
 import {
   createMockEmployeeWallet,
   createMockProfile,
   createMockRepository,
   createMockUser,
-  MockRepository,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
 import { WalletService } from '../../finance/services/wallet.service';
 import { UsersService } from '../../users/services/users.service';
-import { CreateProfileDto } from '../dto/hr.dto';
-import { Profile } from '../entities/profile.entity';
+import type { CreateProfileDto } from '../dto/hr.dto';
+import type { Profile } from '../entities/profile.entity';
 import { ProfileRepository } from '../repositories/profile.repository';
 import { HrService } from './hr.service';
 

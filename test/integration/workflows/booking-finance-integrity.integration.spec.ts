@@ -1,10 +1,11 @@
-import { ConfigService } from '@nestjs/config';
-import { EventBus } from '@nestjs/cqrs';
-import { DataSource, Repository } from 'typeorm';
+import type { ConfigService } from '@nestjs/config';
+import type { EventBus } from '@nestjs/cqrs';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
-import { AuditPublisher } from '../../../src/modules/audit/audit.publisher';
-import { UpdateBookingDto } from '../../../src/modules/bookings/dto';
+import type { AuditPublisher } from '../../../src/modules/audit/audit.publisher';
+import type { UpdateBookingDto } from '../../../src/modules/bookings/dto';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
@@ -13,7 +14,7 @@ import { BookingRepository } from '../../../src/modules/bookings/repositories/bo
 import { BookingStateMachineService } from '../../../src/modules/bookings/services/booking-state-machine.service';
 import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import { BookingWorkflowService } from '../../../src/modules/bookings/services/booking-workflow.service';
-import { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
+import type { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
 import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';

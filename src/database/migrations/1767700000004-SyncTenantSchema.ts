@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn, TableForeignKey } from 'typeorm';
 
 export class SyncTenantSchema1767700000004 implements MigrationInterface {
   name = 'SyncTenantSchema1767700000004';

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import { DataSource, Repository } from 'typeorm';
-import { OutboxEvent, OutboxStatus } from '../src/common/entities/outbox-event.entity';
+import type { DataSource, Repository } from 'typeorm';
+import type { OutboxEvent } from '../src/common/entities/outbox-event.entity';
+import { OutboxStatus } from '../src/common/entities/outbox-event.entity';
 import { OutboxRelayService } from '../src/common/services/outbox-relay.service';
 
 describe('Transactional Outbox Integration', () => {

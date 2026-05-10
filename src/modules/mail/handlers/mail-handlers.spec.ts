@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { createMockMailService } from '../../../../test/helpers/mock-factories';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { TaskAssignedEvent } from '../../tasks/events/task-assigned.event';

@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
 import { normalizeMigrationNamesForTypeOrm } from '../utils/typeorm-migration-name.util';
 

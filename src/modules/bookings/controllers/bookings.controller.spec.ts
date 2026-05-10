@@ -1,8 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
-import { User } from '../../users/entities/user.entity';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
+import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import {
+import type {
   BookingAvailabilityQueryDto,
   BookingFilterDto,
   CancelBookingDto,

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class PreventConcurrentActiveImpersonationSessions1770700000003 implements MigrationInterface {
   name = 'PreventConcurrentActiveImpersonationSessions1770700000003';

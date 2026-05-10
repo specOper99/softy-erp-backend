@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddStudioSettingsToTenants1738885200000 implements MigrationInterface {
   name = 'AddStudioSettingsToTenants1738885200000';

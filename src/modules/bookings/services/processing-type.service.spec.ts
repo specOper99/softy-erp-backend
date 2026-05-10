@@ -1,7 +1,8 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { ProcessingType } from '../entities/processing-type.entity';
+import type { ProcessingType } from '../entities/processing-type.entity';
 import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { ProcessingTypeService } from './processing-type.service';
 

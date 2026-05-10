@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import type { NextFunction, Request, Response } from 'express';
-import { Tenant } from '../../tenants/entities/tenant.entity';
+import type { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantsService } from '../../tenants/tenants.service';
 import { ValidateTenantSlugMiddleware } from './validate-tenant-slug.decorator';
 

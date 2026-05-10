@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
 import { PassThrough, Readable } from 'stream';
 import { ExportService } from './export.service';
 

@@ -5,7 +5,8 @@
  * These decorators include value transformers to ensure type safety
  * at the database boundary (PostgreSQL returns decimals as strings).
  */
-import { Column, ColumnOptions } from 'typeorm';
+import type { ColumnOptions } from 'typeorm';
+import { Column } from 'typeorm';
 import { DecimalTransformer, ExchangeRateTransformer, PercentTransformer } from '../transformers/decimal.transformer';
 
 /**

@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
 import { createMockQueryBuilder } from '../../../../test/helpers/test-setup.utils';
 import { PlatformAuditLog } from '../entities/platform-audit-log.entity';
 import { PlatformAction } from '../enums/platform-action.enum';

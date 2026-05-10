@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import {
   createMockAuditService,
@@ -20,9 +21,9 @@ import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.
 import { AuditService } from '../../audit/audit.service';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
-import { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { CreateBookingDto } from '../dto';
+import type { CreateBookingDto } from '../dto';
 import { ProcessingType } from '../entities/processing-type.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingRepository } from '../repositories/booking.repository';

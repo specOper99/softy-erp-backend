@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { BookingUpdatedEvent } from '../../bookings/events/booking-updated.event';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { BookingUpdatedEvent } from '../../bookings/events/booking-updated.event';
 import { WebhookService } from '../webhooks.service';
 import { BookingUpdatedWebhookHandler } from './booking-updated.handler';
 

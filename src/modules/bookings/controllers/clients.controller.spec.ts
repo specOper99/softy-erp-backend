@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Response } from 'express';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
+import type { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ClientsService } from '../services/clients.service';
 import { ClientsController } from './clients.controller';
 

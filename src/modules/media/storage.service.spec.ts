@@ -1,6 +1,7 @@
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { Readable } from 'stream';
 import { TEST_SECRETS } from '../../../test/secrets';
 import { StorageService } from './storage.service';

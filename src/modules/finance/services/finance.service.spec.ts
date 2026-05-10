@@ -1,14 +1,16 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, EntityManager, FindOneOptions, QueryFailedError } from 'typeorm';
+import type { EntityManager, FindOneOptions } from 'typeorm';
+import { DataSource, QueryFailedError } from 'typeorm';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
 import {
   createMockQueryRunner,
   createMockRepository,
   createMockResponse,
   createMockTransaction,
-  MockRepository,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import { Booking } from '../../bookings/entities/booking.entity';

@@ -1,10 +1,11 @@
 import { NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { FlagsService } from '../../common/flags/flags.service';
 import { MetricsFactory } from '../../common/services/metrics.factory';
-import { EntityManager, Repository } from 'typeorm';
-import { CreateTenantDto } from './dto/create-tenant.dto';
+import type { EntityManager, Repository } from 'typeorm';
+import type { CreateTenantDto } from './dto/create-tenant.dto';
 import { Tenant } from './entities/tenant.entity';
 import { TenantStatus } from './enums/tenant-status.enum';
 import { TenantsService } from './tenants.service';

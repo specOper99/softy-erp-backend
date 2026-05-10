@@ -1,7 +1,8 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import type { Repository, SelectQueryBuilder } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';

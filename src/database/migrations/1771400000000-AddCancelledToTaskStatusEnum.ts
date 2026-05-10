@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddCancelledToTaskStatusEnum1771400000000 implements MigrationInterface {
   name = 'AddCancelledToTaskStatusEnum1771400000000';

@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { I18nService } from '../../../common/i18n';
 import { ImpersonationService } from '../services/impersonation.service';
 import { PlatformSupportController } from './platform-support.controller';

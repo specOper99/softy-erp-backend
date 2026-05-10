@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { EncryptionService } from '../../../common/services/encryption.service';

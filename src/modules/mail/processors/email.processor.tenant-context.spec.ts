@@ -1,7 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Job } from 'bullmq';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Job } from 'bullmq';
 import { MailService } from '../mail.service';
-import { EmailJobData } from '../mail.types';
+import type { EmailJobData } from '../mail.types';
 import { EmailProcessor } from './email.processor';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddPhone2ToClients1744243201000 implements MigrationInterface {
   name = 'AddPhone2ToClients1744243201000';

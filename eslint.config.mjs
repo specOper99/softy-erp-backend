@@ -43,8 +43,15 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-unsafe-argument': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/consistent-type-imports': ['error', { disallowTypeAnnotations: false }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
+      'eqeqeq': ['error', 'always', { 'null': 'ignore' }],
+      'no-debugger': 'error',
+      'no-var': 'error',
+      'prefer-const': 'error',
+      'no-console': ['error', { allow: ['warn', 'error', 'info', 'debug'] }],
 
       // Custom security rules
       'local-rules/no-unsafe-tenant-context': 'error',
@@ -59,7 +66,7 @@ export default tseslint.config(
       ],
     },
   },
-  // Relaxed rules for test files - mocks commonly use any types
+  // Relaxed rules for test files - mocks commonly use any types and load helpers log to console
   {
     files: ['**/*.spec.ts', '**/*.e2e-spec.ts', '**/test/**/*.ts'],
     rules: {
@@ -70,7 +77,17 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-console': 'off',
+    },
+  },
+  // Scripts and CI tools commonly log to stdout/stderr.
+  {
+    files: ['scripts/**/*.{ts,js}', 'load-tests/**/*.{ts,js}'],
+    rules: {
+      'no-console': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
     },
   },
 );

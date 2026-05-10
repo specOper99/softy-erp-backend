@@ -1,15 +1,17 @@
-import { BadRequestException, Logger } from '@nestjs/common';
+import type { Logger } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { SelectQueryBuilder } from 'typeorm';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { SelectQueryBuilder } from 'typeorm';
 import { createMockRepository, mockTenantContext } from '../../../test/helpers/mock-factories';
 import { TEST_SECRETS } from '../../../test/secrets';
 import { EncryptionService } from '../../common/services/encryption.service';
-import { Webhook } from './entities/webhook.entity';
+import type { Webhook } from './entities/webhook.entity';
 import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
 import { WebhookRepository } from './repositories/webhook.repository';
 import { WebhookService } from './webhooks.service';
-import { WebhookConfig, WebhookEvent } from './webhooks.types';
+import type { WebhookConfig, WebhookEvent } from './webhooks.types';
 
 // Mock dns/promises
 jest.mock('node:dns/promises', () => ({
@@ -345,10 +347,7 @@ describe('WebhookService', () => {
       };
 
       await expect(service.registerWebhook(config)).rejects.toThrow(BadRequestException);
-      // Checking for key in parameterized error is complex with simple toThrow, skipping specific key check or using simpler check if possible.
-      // Actually invalid_protocol is retained as Error inside try, but catch wraps it as BadRequest 'webhooks.invalid_url'
-      // So checking type is good enough or substring of new message.
-      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.invalid_url');
+      await expect(service.registerWebhook(config)).rejects.toThrow('webhooks.invalid_protocol');
     });
 
     it('should reject secrets shorter than minimum length', async () => {

@@ -1,9 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Repository, SelectQueryBuilder } from 'typeorm';
 import { createMockQueryBuilder } from '../../../../test/helpers/test-setup.utils';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { Booking } from '../../bookings/entities/booking.entity';
+import type { Booking } from '../../bookings/entities/booking.entity';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { AnalyticsService } from './analytics.service';
 

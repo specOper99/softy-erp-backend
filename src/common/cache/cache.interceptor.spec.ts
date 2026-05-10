@@ -1,7 +1,8 @@
-import { CallHandler, ExecutionContext } from '@nestjs/common';
+import type { CallHandler, ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { firstValueFrom, of } from 'rxjs';
 import { CACHEABLE_KEY } from '../decorators/cacheable.decorator';
 import { NO_CACHE_KEY } from '../decorators/no-cache.decorator';

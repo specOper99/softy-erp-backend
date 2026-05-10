@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddTenantIdToAttachmentsAndFixWalletUniq1767220000000 implements MigrationInterface {
   name = 'AddTenantIdToAttachmentsAndFixWalletUniq1767220000000';

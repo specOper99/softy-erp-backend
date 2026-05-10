@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { createMockCacheManager, createMockConfigService } from '../../../../test/helpers/mock-factories';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { AccountLockoutService } from './account-lockout.service';

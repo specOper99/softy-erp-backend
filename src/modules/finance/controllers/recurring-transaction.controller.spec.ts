@@ -1,9 +1,11 @@
 import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { createMockRecurringTransaction } from '../../../../test/helpers/mock-factories';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
-import { RecurringFrequency, RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
+import type { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
+import type { RecurringTransaction } from '../entities/recurring-transaction.entity';
+import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionService } from '../services/recurring-transaction.service';
 import { RecurringTransactionController } from './recurring-transaction.controller';

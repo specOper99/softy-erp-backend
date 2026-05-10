@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn } from 'typeorm';
 
 export class AddClientAuthFields1767600000000 implements MigrationInterface {
   name = 'AddClientAuthFields1767600000000';

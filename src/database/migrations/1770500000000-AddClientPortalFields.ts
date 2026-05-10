@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey, TableIndex } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { TableColumn, TableForeignKey, TableIndex } from 'typeorm';
 
 export class AddClientPortalFields1770500000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

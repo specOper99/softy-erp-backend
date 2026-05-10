@@ -14,7 +14,7 @@
  * ```
  */
 
-import { Response } from 'express';
+import type { Response } from 'express';
 import type { ObjectLiteral, Repository } from 'typeorm';
 import { TenantContextService } from '../../src/common/services/tenant-context.service';
 
