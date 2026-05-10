@@ -1,17 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Raw, Repository } from 'typeorm';
+import { In, IsNull, LessThanOrEqual, MoreThanOrEqual, Raw, Repository } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
+import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
+import { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
+import { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
 type WorkingHoursArray = Array<{ day: string; startTime: string; endTime: string; isOpen: boolean }>;
 type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 type WorkingHoursMap = Partial<Record<Weekday, { start: string; end: string; enabled: boolean }>>;
+
+/** Parse "HH:mm" into total minutes since midnight */
+function toMin(t: string): number {
+  const [h = 0, m = 0] = t.split(':').map(Number);
+  return h * 60 + m;
+}
 
 export interface TimeSlot {
   start: string;
@@ -36,6 +45,12 @@ export class AvailabilityService {
     private readonly packageRepository: ServicePackageRepository,
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
+    @InjectRepository(StaffAvailabilitySlot)
+    private readonly staffSlotRepo: Repository<StaffAvailabilitySlot>,
+    @InjectRepository(TaskTypeEligibility)
+    private readonly eligibilityRepo: Repository<TaskTypeEligibility>,
+    @InjectRepository(PackageItem)
+    private readonly packageItemRepo: Repository<PackageItem>,
   ) {}
 
   async checkAvailability(tenantId: string, packageId: string, date: string): Promise<AvailabilityResponse> {
@@ -75,85 +90,159 @@ export class AvailabilityService {
         return response;
       }
 
-      // Get working hours for day of week (support both array and map shapes)
-      const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayOfWeek = daysOfWeek[targetDate.getUTCDay()];
-
-      // Normalize working hours to a consistent shape { enabled, start, end }
-      let normalized: { enabled: boolean; start: string; end: string } | null = null;
-
-      const wh = tenant.workingHours as WorkingHoursArray | WorkingHoursMap | null;
-      if (Array.isArray(wh)) {
-        const entry = wh.find((e) => (e.day || '').toLowerCase() === dayOfWeek);
-        if (entry) {
-          normalized = {
-            enabled: Boolean(entry.isOpen),
-            start: entry.startTime,
-            end: entry.endTime,
-          };
-        }
-      } else if (wh && typeof wh === 'object') {
-        const dayObj = wh[dayOfWeek as Weekday];
-        if (dayObj) {
-          normalized = {
-            enabled: Boolean(dayObj.enabled),
-            start: dayObj.start,
-            end: dayObj.end,
-          };
-        }
-      }
-
-      if (!normalized || !normalized.enabled) {
-        const response: AvailabilityResponse = {
-          available: false,
-          date,
-          timeSlots: [],
-        };
-        await this.availabilityCacheOwner.setAvailability(tenantId, packageId, date, response);
-        return response;
-      }
-
-      // Generate time slots
-      const timeSlots = this.generateTimeSlots(
-        normalized.start,
-        normalized.end,
-        tenant.timeSlotDurationMinutes ?? 60,
-        servicePackage.durationMinutes,
+      const utcDayOfWeek = targetDate.getUTCDay();
+      const dateOnly = new Date(
+        Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate()),
       );
 
-      const bookings = await this.bookingRepository.find({
-        where: {
-          packageId,
-          eventDate: Raw((alias) => `${alias} >= :targetDate AND ${alias} < :nextDayDate`, {
-            targetDate: dayRange.dayStart,
-            nextDayDate: dayRange.dayEnd,
-          }),
-          status: BookingStatus.CONFIRMED,
-        },
-        select: ['startTime', 'eventDate'],
-      });
+      // ── Resolve staff schedules for this package/date ────────────────────
+      // 1. Find which task types are required by this package
+      const packageItems = await this.packageItemRepo.find({ where: { packageId } });
+      const taskTypeIds = [...new Set(packageItems.map((i) => i.taskTypeId))];
 
-      // Count bookings per slot
-      const bookingCounts = new Map<string, number>();
-      bookings.forEach((booking) => {
-        if (booking.startTime) {
-          bookingCounts.set(booking.startTime, (bookingCounts.get(booking.startTime) || 0) + 1);
+      let timeSlots: TimeSlot[] = [];
+      let hasStaffSlots = false;
+
+      if (taskTypeIds.length > 0) {
+        // 2. Find all eligible (active) staff user IDs for those task types
+        const eligibilities = await this.eligibilityRepo.find({
+          where: { taskTypeId: In(taskTypeIds) },
+          select: { userId: true },
+        });
+        const eligibleUserIds = [...new Set(eligibilities.map((e) => e.userId))];
+
+        if (eligibleUserIds.length > 0) {
+          // 3. Load active availability slots for eligible staff on this day
+          const staffSlots = await this.staffSlotRepo.find({
+            where: [
+              {
+                userId: In(eligibleUserIds),
+                dayOfWeek: utcDayOfWeek,
+                effectiveFrom: LessThanOrEqual(dateOnly),
+                effectiveTo: IsNull(),
+              },
+              {
+                userId: In(eligibleUserIds),
+                dayOfWeek: utcDayOfWeek,
+                effectiveFrom: LessThanOrEqual(dateOnly),
+                effectiveTo: MoreThanOrEqual(dateOnly),
+              },
+            ],
+          });
+
+          hasStaffSlots = staffSlots.length > 0;
+
+          if (hasStaffSlots) {
+            // 4. Build the set of candidate time windows from slot union, at slot-duration increments
+            const slotDuration = servicePackage.durationMinutes;
+            const stepMinutes = tenant.timeSlotDurationMinutes ?? 60;
+            const requiredStaff = servicePackage.requiredStaffCount ?? 1;
+
+            // Determine overall time range covered by any staff slot
+            const minStart = Math.min(...staffSlots.map((s) => toMin(s.startTime)));
+            const maxEnd = Math.max(...staffSlots.map((s) => toMin(s.endTime)));
+
+            // Fetch confirmed bookings for the day to compute slot load
+            const bookings = await this.bookingRepository.find({
+              where: {
+                packageId,
+                eventDate: Raw((alias) => `${alias} >= :start AND ${alias} < :end`, {
+                  start: dayRange.dayStart,
+                  end: dayRange.dayEnd,
+                }),
+                status: BookingStatus.CONFIRMED,
+              },
+              select: ['startTime'],
+            });
+            const bookingCounts = new Map<string, number>();
+            for (const b of bookings) {
+              if (b.startTime) bookingCounts.set(b.startTime, (bookingCounts.get(b.startTime) ?? 0) + 1);
+            }
+
+            // Generate candidate slots
+            for (let startMin = minStart; startMin + slotDuration <= maxEnd; startMin += stepMinutes) {
+              const endMin = startMin + slotDuration;
+              const startStr = `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`;
+              const endStr = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+
+              // Count staff whose slot fully covers this candidate window
+              const coveringStaff = staffSlots.filter(
+                (s) => toMin(s.startTime) <= startMin && toMin(s.endTime) >= endMin,
+              );
+              // Subtract booked bookings in this slot from the covering staff count
+              const bookedCount = bookingCounts.get(startStr) ?? 0;
+              const freeStaff = Math.max(0, coveringStaff.length - bookedCount);
+              const available = freeStaff >= requiredStaff;
+
+              timeSlots.push({
+                start: startStr,
+                end: endStr,
+                available,
+                capacity: Math.max(0, coveringStaff.length - requiredStaff + 1 - bookedCount),
+                booked: bookedCount,
+              });
+            }
+          }
         }
-      });
+      }
 
-      // Mark availability
-      const maxConcurrent = tenant.maxConcurrentBookingsPerSlot ?? 1;
-      let hasAvailableSlot = false;
+      // ── Fallback: use tenant working hours when no staff slots configured ──
+      if (!hasStaffSlots) {
+        const daysOfWeekNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = daysOfWeekNames[utcDayOfWeek];
 
-      timeSlots.forEach((slot) => {
-        const booked = bookingCounts.get(slot.start) || 0;
-        slot.booked = booked;
-        slot.capacity = maxConcurrent - booked;
-        slot.available = slot.capacity > 0;
-        if (slot.available) {
-          hasAvailableSlot = true;
+        let normalized: { enabled: boolean; start: string; end: string } | null = null;
+        const wh = tenant.workingHours as WorkingHoursArray | WorkingHoursMap | null;
+        if (Array.isArray(wh)) {
+          const entry = wh.find((e) => (e.day || '').toLowerCase() === dayName);
+          if (entry) normalized = { enabled: Boolean(entry.isOpen), start: entry.startTime, end: entry.endTime };
+        } else if (wh && typeof wh === 'object') {
+          const dayObj = wh[dayName as Weekday];
+          if (dayObj) normalized = { enabled: Boolean(dayObj.enabled), start: dayObj.start, end: dayObj.end };
         }
-      });
+
+        if (!normalized || !normalized.enabled) {
+          const response: AvailabilityResponse = { available: false, date, timeSlots: [] };
+          await this.availabilityCacheOwner.setAvailability(tenantId, packageId, date, response);
+          return response;
+        }
+
+        timeSlots = this.generateTimeSlots(
+          normalized.start,
+          normalized.end,
+          tenant.timeSlotDurationMinutes ?? 60,
+          servicePackage.durationMinutes,
+        );
+
+        const bookings = await this.bookingRepository.find({
+          where: {
+            packageId,
+            eventDate: Raw((alias) => `${alias} >= :targetDate AND ${alias} < :nextDayDate`, {
+              targetDate: dayRange.dayStart,
+              nextDayDate: dayRange.dayEnd,
+            }),
+            status: BookingStatus.CONFIRMED,
+          },
+          select: ['startTime', 'eventDate'],
+        });
+
+        const bookingCounts = new Map<string, number>();
+        bookings.forEach((booking) => {
+          if (booking.startTime) {
+            bookingCounts.set(booking.startTime, (bookingCounts.get(booking.startTime) || 0) + 1);
+          }
+        });
+
+        const maxConcurrent = tenant.maxConcurrentBookingsPerSlot ?? 1;
+        timeSlots.forEach((slot) => {
+          const booked = bookingCounts.get(slot.start) || 0;
+          slot.booked = booked;
+          slot.capacity = maxConcurrent - booked;
+          slot.available = slot.capacity > 0;
+        });
+      }
+
+      const hasAvailableSlot = timeSlots.some((s) => s.available);
 
       const response: AvailabilityResponse = {
         available: hasAvailableSlot,

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { SelectQueryBuilder } from 'typeorm';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
@@ -32,6 +33,7 @@ export class CatalogService {
     private readonly packageItemRepository: PackageItemRepository,
     private readonly auditService: AuditPublisher,
     private readonly cacheUtils: CacheUtilsService,
+    private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
   ) {}
 
   // Cache TTLs in milliseconds
@@ -61,6 +63,10 @@ export class CatalogService {
     // Validate price is positive
     if (dto.price !== undefined && dto.price <= 0) {
       throw new BadRequestException('catalog.price_must_be_positive');
+    }
+
+    if (dto.requiredStaffCount !== undefined && dto.requiredStaffCount < 1) {
+      throw new BadRequestException('catalog.required_staff_count_must_be_at_least_one');
     }
 
     const pkg = this.packageRepository.create({ ...dto });
@@ -225,10 +231,16 @@ export class CatalogService {
       name: pkg.name,
       price: pkg.price,
       isActive: pkg.isActive,
+      durationMinutes: pkg.durationMinutes,
+      requiredStaffCount: pkg.requiredStaffCount,
     };
 
     if (dto.price !== undefined && dto.price <= 0) {
       throw new BadRequestException('catalog.price_must_be_positive');
+    }
+
+    if (dto.requiredStaffCount !== undefined && dto.requiredStaffCount < 1) {
+      throw new BadRequestException('catalog.required_staff_count_must_be_at_least_one');
     }
 
     if (dto.name !== undefined) pkg.name = dto.name;
@@ -259,9 +271,16 @@ export class CatalogService {
       });
     }
 
-    // Invalidate cache
+    // Invalidate caches
     const tenantId = TenantContextService.getTenantIdOrThrow();
     await this.invalidatePackagesCache(tenantId);
+
+    // Invalidate availability cache when staffing-affecting fields change
+    const availabilityAffected =
+      dto.isActive !== undefined || dto.durationMinutes !== undefined || dto.requiredStaffCount !== undefined;
+    if (availabilityAffected) {
+      await this.availabilityCacheOwner.delAvailabilityForPackage(tenantId, id);
+    }
 
     return savedPkg;
   }
@@ -289,9 +308,10 @@ export class CatalogService {
       oldValues: { name: pkg.name, price: pkg.price },
     });
 
-    // Invalidate cache
+    // Invalidate both package list and availability caches
     const tenantId = TenantContextService.getTenantIdOrThrow();
     await this.invalidatePackagesCache(tenantId);
+    await this.availabilityCacheOwner.delAvailabilityForPackage(tenantId, id);
   }
 
   async addPackageItems(packageId: string, dto: AddPackageItemsDto): Promise<PackageItem[]> {

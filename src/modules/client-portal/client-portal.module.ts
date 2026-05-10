@@ -22,7 +22,10 @@ import { BookingsModule } from '../bookings/bookings.module';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { CatalogModule } from '../catalog/catalog.module';
+import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
+import { StaffAvailabilitySlot } from '../hr/entities/staff-availability-slot.entity';
+import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -65,7 +68,15 @@ class ClientPortalTenantContextInterceptor implements NestInterceptor {
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Client, Booking, Tenant, ServicePackage]),
+    TypeOrmModule.forFeature([
+      Client,
+      Booking,
+      Tenant,
+      ServicePackage,
+      StaffAvailabilitySlot,
+      TaskTypeEligibility,
+      PackageItem,
+    ]),
     BookingsModule,
     MailModule,
     MetricsModule,

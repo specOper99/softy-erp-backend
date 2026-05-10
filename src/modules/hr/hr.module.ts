@@ -14,6 +14,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { User } from '../users/entities/user.entity';
 import { UsersModule } from '../users/users.module';
+import { BookingsModule } from '../bookings/bookings.module';
 import {
   AttendanceController,
   HrController,
@@ -61,6 +62,7 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
     NotificationsModule,
     TenantsModule,
     UsersModule,
+    BookingsModule,
   ],
   controllers: [HrController, AttendanceController, StaffAvailabilitySlotController, TaskTypeEligibilityController],
   providers: [

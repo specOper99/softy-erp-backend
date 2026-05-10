@@ -22,4 +22,20 @@ export class AvailabilityCacheOwnerService {
   async delAvailability(tenantId: string, packageId: string, date: string): Promise<void> {
     await this.cacheUtils.del(this.getKey(tenantId, packageId, date));
   }
+
+  /**
+   * Invalidate all cached availability entries for a specific package across all dates.
+   * Used when package staffing fields (durationMinutes, requiredStaffCount, isActive) change.
+   */
+  async delAvailabilityForPackage(tenantId: string, packageId: string): Promise<void> {
+    await this.cacheUtils.invalidateByPattern(`availability:${tenantId}:${packageId}:*`);
+  }
+
+  /**
+   * Invalidate all cached availability entries for a tenant across all packages and dates.
+   * Used when staff availability slots change, since they affect every package in the tenant.
+   */
+  async delAvailabilityForTenant(tenantId: string): Promise<void> {
+    await this.cacheUtils.invalidateByPattern(`availability:${tenantId}:*`);
+  }
 }

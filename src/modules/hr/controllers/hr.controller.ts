@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -23,6 +35,7 @@ import {
 } from '../dto';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
+import { StaffConflictService } from '../../bookings/services/staff-conflict.service';
 
 @ApiTags('HR')
 @ApiBearerAuth()
@@ -42,6 +55,7 @@ export class HrController {
   constructor(
     private readonly hrService: HrService,
     private readonly payrollService: PayrollService,
+    private readonly staffConflictService: StaffConflictService,
   ) {}
 
   @Post('profiles')
@@ -113,6 +127,35 @@ export class HrController {
   @ApiResponse({ status: 200, description: 'Return profiles list' })
   findAllProfilesCursor(@Query() query: CursorPaginationDto) {
     return this.hrService.findAllProfilesCursor(query);
+  }
+
+  @Get('packages/:packageId/available-staff')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({
+    summary: 'Get available staff for a package on a given date/time (Admin/OpsManager)',
+    description:
+      'Returns eligible, scheduled, and free staff count for a given package, date, and start time. Useful for diagnosing why a package appears unavailable.',
+  })
+  @ApiQuery({ name: 'date', required: true, description: 'Date in YYYY-MM-DD format' })
+  @ApiQuery({ name: 'startTime', required: true, description: 'Start time in HH:mm format' })
+  @ApiResponse({ status: 200, description: 'Staff availability breakdown returned' })
+  async getAvailableStaffForPackage(
+    @Param('packageId', ParseUUIDPipe) packageId: string,
+    @Query('date') date: string,
+    @Query('startTime') startTime: string,
+  ) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new BadRequestException('hr.invalid_date_format');
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)) {
+      throw new BadRequestException('hr.invalid_time_format');
+    }
+    const eventDate = new Date(`${date}T00:00:00.000Z`);
+    return this.staffConflictService.checkPackageStaffAvailability({
+      packageId,
+      eventDate,
+      startTime,
+    });
   }
 
   @Get('availability')

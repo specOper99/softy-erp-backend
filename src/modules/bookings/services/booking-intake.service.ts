@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
+import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
@@ -37,6 +38,7 @@ export class BookingIntakeService {
     private readonly staffConflictService: StaffConflictService,
     private readonly eventBus: EventBus,
     private readonly processingTypeRepository: ProcessingTypeRepository,
+    private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
   ) {}
 
   /**
@@ -290,9 +292,12 @@ export class BookingIntakeService {
       );
     }
 
-    // Invalidate availability cache (best-effort — non-blocking)
+    // Invalidate availability cache so the newly-created booking is reflected immediately
     try {
-      await this.bookingRepository.findOne({ where: { id: savedBookingId } }).catch(() => null);
+      const eventDateStr = eventDate.toISOString().split('T')[0];
+      if (eventDateStr) {
+        await this.availabilityCacheOwner.delAvailability(tenantId, dto.packageId, eventDateStr);
+      }
       this.logger.debug(`[BookingIntake] Booking ${savedBookingId} created for client ${savedClientId}`);
     } catch (err) {
       const message = toErrorMessage(err);

@@ -6,6 +6,7 @@ import { CatalogModule } from '../catalog/catalog.module';
 import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceModule } from '../finance/finance.module';
+import { StaffAvailabilitySlot } from '../hr/entities/staff-availability-slot.entity';
 import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
 import { TaskTypeEligibilityRepository } from '../hr/repositories/task-type-eligibility.repository';
 import { MailModule } from '../mail/mail.module';
@@ -50,6 +51,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
       ServicePackage,
       PackageItem,
       TaskTypeEligibility,
+      StaffAvailabilitySlot,
       User,
       TaskAssignee,
       Task,
@@ -96,6 +98,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     BookingRepository,
     ClientRepository,
     ProcessingTypeService,
+    StaffConflictService,
   ],
 })
 export class BookingsModule {}
