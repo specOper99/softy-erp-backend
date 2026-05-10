@@ -27,7 +27,7 @@ interface CheckPackageStaffAvailabilityInput {
   excludeBookingId?: string;
 }
 
-interface StaffAvailabilityResult {
+export interface StaffAvailabilityResult {
   ok: boolean;
   requiredStaffCount: number;
   eligibleCount: number;
