@@ -8,8 +8,8 @@ import { BookingRepository } from '../../bookings/repositories/booking.repositor
 import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
-import { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
-import { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
+import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
+import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
 type WorkingHoursArray = Array<{ day: string; startTime: string; endTime: string; isOpen: boolean }>;
@@ -45,10 +45,8 @@ export class AvailabilityService {
     private readonly packageRepository: ServicePackageRepository,
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
-    @InjectRepository(StaffAvailabilitySlot)
-    private readonly staffSlotRepo: Repository<StaffAvailabilitySlot>,
-    @InjectRepository(TaskTypeEligibility)
-    private readonly eligibilityRepo: Repository<TaskTypeEligibility>,
+    private readonly staffSlotRepo: StaffAvailabilitySlotRepository,
+    private readonly eligibilityRepo: TaskTypeEligibilityRepository,
     @InjectRepository(PackageItem)
     private readonly packageItemRepo: Repository<PackageItem>,
   ) {}

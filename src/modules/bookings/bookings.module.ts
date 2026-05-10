@@ -8,6 +8,7 @@ import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceModule } from '../finance/finance.module';
 import { StaffAvailabilitySlot } from '../hr/entities/staff-availability-slot.entity';
 import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
+import { StaffAvailabilitySlotRepository } from '../hr/repositories/staff-availability-slot.repository';
 import { TaskTypeEligibilityRepository } from '../hr/repositories/task-type-eligibility.repository';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
@@ -83,6 +84,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     UserRepository,
     TaskAssigneeRepository,
     TaskTypeEligibilityRepository,
+    StaffAvailabilitySlotRepository,
     StaffConflictService,
     BookingCompletionHandler,
     ProcessingTypeService,

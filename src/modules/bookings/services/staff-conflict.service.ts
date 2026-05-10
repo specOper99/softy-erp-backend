@@ -1,9 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
-import { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
+import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
 import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
@@ -51,8 +50,7 @@ export class StaffConflictService {
     private readonly userRepository: UserRepository,
     private readonly taskAssigneeRepository: TaskAssigneeRepository,
     private readonly taskRepository: TaskRepository,
-    @InjectRepository(StaffAvailabilitySlot)
-    private readonly availabilitySlotRepo: Repository<StaffAvailabilitySlot>,
+    private readonly availabilitySlotRepo: StaffAvailabilitySlotRepository,
   ) {}
 
   async checkPackageStaffAvailability(input: CheckPackageStaffAvailabilityInput): Promise<StaffAvailabilityResult> {
