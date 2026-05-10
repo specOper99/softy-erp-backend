@@ -3,10 +3,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { seconds, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import Redis from 'ioredis';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { join } from 'node:path';
+import { DataSource } from 'typeorm';
+import { addTransactionalDataSource } from 'typeorm-transactional';
 import { RESILIENCE_CONSTANTS } from './common/constants';
 import { databaseConfig } from './config';
 import { validate } from './config/env-validation';
@@ -71,7 +75,7 @@ import { CoreModule } from './modules/core/core.module';
           return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : defaultValue;
         };
 
-        return [
+        const throttlers = [
           {
             name: 'short',
             ttl: seconds(getThrottleValue('THROTTLE_SHORT_TTL_SECONDS', 1)),
@@ -88,6 +92,18 @@ import { CoreModule } from './modules/core/core.module';
             limit: getThrottleValue('THROTTLE_LONG_LIMIT', 100),
           },
         ];
+
+        // Use Redis-backed storage when REDIS_URL is set so throttle counters
+        // are shared across instances. Falls back to in-memory storage when
+        // unset (single-process / tests).
+        const redisUrl = configService.get<string>('REDIS_URL');
+        if (!redisUrl) {
+          return { throttlers };
+        }
+        return {
+          throttlers,
+          storage: new ThrottlerStorageRedisService(new Redis(redisUrl, { lazyConnect: true })),
+        };
       },
     }),
 
@@ -148,6 +164,14 @@ import { CoreModule } from './modules/core/core.module';
           password: configService.get<string>('database.password'),
           database: configService.get<string>('database.database'),
         };
+      },
+      // Register the DataSource with typeorm-transactional so future
+      // `@Transactional()`-decorated services pick up the request-scoped
+      // EntityManager. Returning the original instance keeps current behaviour
+      // unchanged — the proxy is opt-in per service.
+      dataSourceFactory: async (options) => {
+        if (!options) throw new Error('TypeOrmModule: missing DataSource options');
+        return addTransactionalDataSource(new DataSource(options));
       },
     }),
 

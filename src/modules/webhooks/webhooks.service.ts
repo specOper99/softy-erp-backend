@@ -11,6 +11,7 @@ import { Queue } from 'bullmq';
 import * as ipaddr from 'ipaddr.js';
 import { createHmac, randomInt, randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
+import { RequestFilteringHttpsAgent } from 'request-filtering-agent';
 import { Webhook as StandardWebhook } from 'standardwebhooks';
 import * as https from 'node:https';
 import { isIP } from 'node:net';
@@ -216,6 +217,18 @@ export class WebhookService {
     }
   }
 
+  /**
+   * SSRF defense-in-depth: reject sockets that resolve to private/loopback/link-local
+   * IPs at connect time. Pairs with the explicit pinning + DNS-rebind checks above —
+   * even if those fail, this Agent stops the connection from being established to a
+   * private address.
+   */
+  private readonly outboundHttpsAgent = new RequestFilteringHttpsAgent({
+    allowPrivateIPAddress: false,
+    allowMetaIPAddress: false,
+    keepAlive: false,
+  });
+
   private async postPinnedJson(
     url: URL,
     pinnedIp: string,
@@ -237,6 +250,7 @@ export class WebhookService {
             'Content-Length': Buffer.byteLength(body).toString(),
           },
           servername: url.hostname,
+          agent: this.outboundHttpsAgent,
         },
         (res) => {
           const chunks: Buffer[] = [];

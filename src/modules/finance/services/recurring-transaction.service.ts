@@ -10,6 +10,7 @@ import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.
 import { FINANCE } from '../constants';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
+import { toRruleString } from '../utils/rrule-helper';
 import { FinanceService } from './finance.service';
 
 import { toErrorMessage } from '../../../common/utils/error.util';
@@ -29,10 +30,12 @@ export class RecurringTransactionService {
   ) {}
 
   async create(dto: CreateRecurringTransactionDto): Promise<RecurringTransaction> {
+    const startDate = new Date(dto.startDate);
     const rt = this.recurringRepo.create({
       ...dto,
-      nextRunDate: new Date(dto.startDate),
+      nextRunDate: startDate,
       status: RecurringStatus.ACTIVE,
+      rruleString: toRruleString(dto.frequency, dto.interval ?? 1, startDate),
     });
     return this.recurringRepo.save(rt);
   }
@@ -80,6 +83,12 @@ export class RecurringTransactionService {
     if (dto.maxOccurrences !== undefined) rt.maxOccurrences = dto.maxOccurrences;
     if (dto.notifyBeforeDays !== undefined) rt.notifyBeforeDays = dto.notifyBeforeDays;
     if (dto.status !== undefined) rt.status = dto.status;
+
+    // Re-derive RRULE whenever a field that affects scheduling changes.
+    if (dto.frequency !== undefined || dto.interval !== undefined || dto.startDate !== undefined) {
+      rt.rruleString = toRruleString(rt.frequency, rt.interval, rt.startDate);
+    }
+
     return this.recurringRepo.save(rt);
   }
 

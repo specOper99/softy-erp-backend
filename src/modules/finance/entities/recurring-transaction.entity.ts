@@ -101,6 +101,16 @@ export class RecurringTransaction extends BaseTenantEntity {
   @Column({ name: 'last_error', type: 'text', nullable: true })
   lastError: string | undefined;
 
+  /**
+   * RFC 5545 RRULE string mirroring `frequency` + `interval`.
+   *
+   * Populated on create/update by the service layer for the parallel-shadow
+   * window. Reads use {@link calculateNextRunDate} (legacy path) until the
+   * shadow comparison confirms parity. See `rrule-helper.ts`.
+   */
+  @Column({ name: 'rrule_string', type: 'text', nullable: true })
+  rruleString: string | null;
+
   isComplete(): boolean {
     if (this.status === RecurringStatus.COMPLETED) return true;
     if (this.endDate && new Date() > this.endDate) return true;

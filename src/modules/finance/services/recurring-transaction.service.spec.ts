@@ -130,6 +130,7 @@ describe('RecurringTransactionService', () => {
         ...dto,
         nextRunDate: expect.any(Date),
         status: RecurringStatus.ACTIVE,
+        rruleString: expect.stringContaining('FREQ=MONTHLY'),
       });
       expect(result).toEqual(mockRecurringTransaction);
     });

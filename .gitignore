@@ -122,3 +122,4 @@ skip-tenant-report.*
 tenant-contract-report.*
 sql-safety-report.*
 duplication_report.*
+graphify-out

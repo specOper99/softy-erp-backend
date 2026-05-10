@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import 'reflect-metadata';
+import { initializeTransactionalContext } from 'typeorm-transactional';
 import { applyOpenApiExportEnv } from '../src/config/openapi-export-env';
 import { createSwaggerDocument } from '../src/config/swagger.config';
 
@@ -17,6 +18,9 @@ async function main() {
     commitSha: process.env.OPENAPI_EXPORT_BUILD_SHA || 'openapi-export',
     generatedAt: process.env.OPENAPI_EXPORT_GENERATED_AT || '1970-01-01T00:00:00.000Z',
   };
+
+  // Must be called before any DataSource / TypeORM module is instantiated.
+  initializeTransactionalContext();
 
   console.log('Creating Nest application for OpenAPI export...');
   // Deferred require is intentional: applyOpenApiExportEnv() must set

@@ -4,6 +4,7 @@ import './instrument';
 
 import { ClassSerializerInterceptor, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
+import { initializeTransactionalContext } from 'typeorm-transactional';
 import { AppModule } from './app.module';
 import { ApiErrors } from './common/errors/api-errors';
 import { initTracing } from './common/telemetry/tracing';
@@ -12,6 +13,11 @@ import { configureSwagger } from './config/swagger.config';
 
 // Initialize OpenTelemetry tracing
 initTracing();
+
+// Initialize transactional CLS scope before any DataSource is created.
+// Repositories continue to behave as before until services opt in by adding
+// `@Transactional()` decorators — this just installs the proxy plumbing.
+initializeTransactionalContext();
 
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import express from 'express';
