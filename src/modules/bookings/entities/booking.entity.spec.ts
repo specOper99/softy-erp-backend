@@ -46,8 +46,8 @@ describe('Booking.derivePaymentStatus', () => {
     expect(booking.derivePaymentStatus()).toBe(PaymentStatus.PARTIALLY_PAID);
   });
 
-  it('should return UNPAID when totalPrice is 0 (edge case)', () => {
+  it('should return FULLY_PAID when totalPrice is 0 (free booking has no outstanding balance)', () => {
     const booking = createBookingForPayment({ amountPaid: 0, totalPrice: 0, depositAmount: 0 });
-    expect(booking.derivePaymentStatus()).toBe(PaymentStatus.UNPAID);
+    expect(booking.derivePaymentStatus()).toBe(PaymentStatus.FULLY_PAID);
   });
 });

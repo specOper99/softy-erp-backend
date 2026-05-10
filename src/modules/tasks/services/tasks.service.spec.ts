@@ -55,6 +55,7 @@ describe('TasksService - Comprehensive Tests', () => {
 
   const mockWalletService = {
     moveToPayable: jest.fn().mockResolvedValue({}),
+    addToPayableBalance: jest.fn().mockResolvedValue({}),
     addPendingCommission: jest.fn().mockResolvedValue({}),
     subtractPendingCommission: jest.fn().mockResolvedValue({}),
   };
@@ -557,8 +558,8 @@ describe('TasksService - Comprehensive Tests', () => {
 
       const result = await service.completeTask('task-uuid-123', adminUser);
 
-      expect(mockWalletService.moveToPayable).toHaveBeenCalledTimes(1);
-      expect(mockWalletService.moveToPayable).toHaveBeenCalledWith(mockQueryRunner.manager, 'legacy-user', 120);
+      expect(mockWalletService.addToPayableBalance).toHaveBeenCalledTimes(1);
+      expect(mockWalletService.addToPayableBalance).toHaveBeenCalledWith(mockQueryRunner.manager, 'legacy-user', 120);
       expect(result.commissionAccrued).toBe(120);
       expect(result.walletUpdated).toBe(true);
     });
@@ -703,7 +704,7 @@ describe('TasksService - Comprehensive Tests', () => {
         status: TaskStatus.IN_PROGRESS,
       });
 
-      mockWalletService.moveToPayable.mockRejectedValueOnce(new Error('Wallet error'));
+      mockWalletService.addToPayableBalance.mockRejectedValueOnce(new Error('Wallet error'));
       await expect(service.completeTask('task-uuid-123', adminUser)).rejects.toThrow('Wallet error');
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });
