@@ -1,10 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { In, IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
+import { In, IsNull, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
+import { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
 import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
