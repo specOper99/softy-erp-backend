@@ -72,7 +72,12 @@
     "check:api-error-keys": "ts-node scripts/audit/api-error-keys.ts",
     "validate": "npm run lint:check && npm run type-check && npm run check:sql-safety && npm run check:tenant-query-safety && npm run check:security-patterns && npm run check:layering-contract && npm run check:authorization-contract && npm run check:platform-tenant-body && npm run check:event-contract && npm run check:tenant-contract && npm run check:tenant-async-boundary && npm run check:i18n-parity && npm run check:api-error-keys && npm run test",
     "pre-push": "npm run validate",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "deps:audit": "npm audit --omit=dev --audit-level=high",
+    "deps:audit:signatures": "npm audit signatures",
+    "deps:licenses": "license-checker --production --excludePrivatePackages --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Unlicense;CC0-1.0;CC-BY-4.0;Python-2.0;BlueOak-1.0.0' --summary",
+    "deps:unused": "depcheck --ignores=\"@types/*,ts-node,tsconfig-paths,jest-junit,supertest,sqlite3,@stryker-mutator/*,@testcontainers/*,@pact-foundation/pact,jest,ts-jest,husky,lint-staged,prettier,eslint,eslint-*,@eslint/*,typescript,typescript-eslint,@nestjs/cli,@nestjs/schematics,@types/jest,@types/express,@types/node,@types/multer,@types/bcrypt,@types/qrcode,@types/sanitize-html,@types/passport-jwt,@types/opossum,@types/archiver,@types/node-vault,@types/nodemailer,@types/supertest,@commitlint/*,knip,madge,jscpd,axios,globals\"",
+    "deps:hygiene": "npm run deps:licenses && npm run deps:audit:signatures && npm run deps:unused"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1029.0",
@@ -127,7 +132,6 @@
     "opossum": "^9.0.0",
     "otpauth": "^9.5.0",
     "p-limit": "^7.3.0",
-    "p-queue": "^9.1.2",
     "p-retry": "^8.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -139,6 +143,7 @@
     "rxjs": "^7.8.2",
     "sanitize-html": "^2.17.2",
     "socket.io": "^4.8.3",
+    "standardwebhooks": "^1.0.0",
     "stripe": "^22.0.1",
     "typeorm": "^0.3.28",
     "unleash-client": "^6.10.1",
@@ -172,6 +177,7 @@
     "@types/sanitize-html": "^2.16.1",
     "@types/supertest": "^6.0.3",
     "axios": "^1.13.5",
+    "depcheck": "^1.4.7",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -181,6 +187,7 @@
     "jest-junit": "^16.0.0",
     "jscpd": "^4.0.9",
     "knip": "^6.7.0",
+    "license-checker": "^25.0.1",
     "lint-staged": "^16.4.0",
     "madge": "^8.0.0",
     "prettier": "^3.8.2",
@@ -219,7 +226,6 @@
       "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
     ],
     "moduleNameMapper": {
-      "^p-queue$": "<rootDir>/../test/__mocks__/p-queue.ts",
       "^p-retry$": "<rootDir>/../test/__mocks__/p-retry.ts",
       "^file-type$": "<rootDir>/../test/__mocks__/file-type.ts"
     },

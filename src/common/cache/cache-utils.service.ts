@@ -1,7 +1,7 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
-import { batchDelete } from '../utils/async.utils';
+import pLimit from 'p-limit';
 
 /**
  * Maximum concurrent cache operations to prevent resource exhaustion.
@@ -104,13 +104,22 @@ export class CacheUtilsService {
     }
 
     const keys: string[] = await store.keys(pattern);
-    if (keys.length > 0) {
-      // Use bounded concurrency to prevent resource exhaustion
-      // when invalidating large key sets (DoS prevention)
-      const deleted = await batchDelete((key) => this.cacheManager.del(key), keys, MAX_CACHE_CONCURRENCY);
-      return deleted;
-    }
-    return 0;
+    if (keys.length === 0) return 0;
+
+    // Bounded concurrency prevents resource exhaustion (DoS) on large key sets.
+    // Errors swallowed: best-effort invalidation, return successful count.
+    const limit = pLimit(MAX_CACHE_CONCURRENCY);
+    const results = await Promise.all(
+      keys.map((key) =>
+        limit(() =>
+          this.cacheManager
+            .del(key)
+            .then(() => true)
+            .catch(() => false),
+        ),
+      ),
+    );
+    return results.filter(Boolean).length;
   }
 
   /**

@@ -20,39 +20,42 @@ describe('ExportService', () => {
   });
 
   describe('streamFromStream', () => {
-    let mockResponse: Partial<Response>;
+    let mockResponse: Response;
     let mockStream: Readable;
+    let setHeaderSpy: jest.Mock;
+
+    const buildMockResponse = (): Response => {
+      const passthrough = new PassThrough();
+      // Drain to /dev/null so pipeline can complete its writable end.
+      passthrough.resume();
+      const headers = new Map<string, string>();
+      const res = passthrough as unknown as Response & { setHeader: jest.Mock };
+      setHeaderSpy = jest.fn((name: string, value: string) => {
+        headers.set(name, value);
+        return res;
+      });
+      res.setHeader = setHeaderSpy;
+      res.status = jest.fn().mockReturnThis() as Response['status'];
+      res.headersSent = false as Response['headersSent'];
+      return res;
+    };
 
     beforeEach(() => {
-      mockResponse = new PassThrough() as unknown as Response;
-      mockResponse.setHeader = jest.fn();
-      mockResponse.status = jest.fn().mockReturnThis();
-      mockResponse.end = jest.fn();
-
-      // Basic mock stream
-      mockStream = new Readable({
-        objectMode: true,
-        read() {
-          this.push({ col1: 'val1' });
-          this.push(null); // End immediately
-        },
-      });
+      mockResponse = buildMockResponse();
+      mockStream = Readable.from([{ col1: 'val1' }], { objectMode: true });
     });
 
     it('should set proper headers', async () => {
-      await service.streamFromStream(mockResponse as Response, mockStream, 'test.csv');
+      await service.streamFromStream(mockResponse, mockStream, 'test.csv');
 
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv');
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="test.csv"');
+      expect(setHeaderSpy).toHaveBeenCalledWith('Content-Type', 'text/csv');
+      expect(setHeaderSpy).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="test.csv"');
     });
 
     it('should sanitize filename', async () => {
-      await service.streamFromStream(mockResponse as Response, mockStream, 'bad/file:name.csv');
+      await service.streamFromStream(mockResponse, mockStream, 'bad/file:name.csv');
 
-      expect(mockResponse.setHeader).toHaveBeenCalledWith(
-        'Content-Disposition',
-        'attachment; filename="bad_file_name.csv"',
-      );
+      expect(setHeaderSpy).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="bad_file_name.csv"');
     });
   });
 });

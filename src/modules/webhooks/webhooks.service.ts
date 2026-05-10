@@ -9,8 +9,9 @@ import {
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import * as ipaddr from 'ipaddr.js';
-import { createHmac, randomInt } from 'node:crypto';
+import { createHmac, randomInt, randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
+import { Webhook as StandardWebhook } from 'standardwebhooks';
 import * as https from 'node:https';
 import { isIP } from 'node:net';
 import { SelectQueryBuilder } from 'typeorm';
@@ -449,14 +450,25 @@ export class WebhookService {
       ? this.encryptionService.decrypt(webhook.secret)
       : webhook.secret; // Handle legacy unencrypted secrets
 
-    // Include timestamp in signature to prevent replay attacks
-    const signature = this.createSignature(`${timestamp}.${body}`, decryptedSecret);
+    // Legacy signature: HMAC-SHA256(`${timestampMs}.${body}`) hex.
+    const legacySignature = this.createSignature(`${timestamp}.${body}`, decryptedSecret);
+
+    // Standard Webhooks signature (https://www.standardwebhooks.com).
+    // Dual-emitted alongside legacy headers; consumers may verify with either
+    // until the legacy headers are removed in a future release.
+    const standardSigner = new StandardWebhook(decryptedSecret, { format: 'raw' });
+    const msgId = delivery?.id ?? randomUUID();
+    const signedAt = new Date();
+    const standardSignature = standardSigner.sign(msgId, signedAt, body);
 
     const sentHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-Webhook-Signature': signature,
+      'X-Webhook-Signature': legacySignature,
       'X-Webhook-Timestamp': timestamp,
       'X-Webhook-Event': event.type,
+      'webhook-id': msgId,
+      'webhook-timestamp': Math.floor(signedAt.getTime() / 1000).toString(),
+      'webhook-signature': standardSignature,
     };
 
     const controller = new AbortController();
