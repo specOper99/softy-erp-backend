@@ -1,8 +1,9 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiErrorResponses, Roles } from '../../../common/decorators';
+import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import { BookingIntakeDto, BookingIntakeResponseDto } from '../dto/booking-intake.dto';
 import { BookingIntakeService } from '../services/booking-intake.service';
@@ -25,7 +26,10 @@ export class BookingIntakeController {
       'all in a single database transaction. If any step fails the entire operation is rolled back.',
   })
   @ApiResponse({ status: 201, type: BookingIntakeResponseDto })
-  intake(@Body() dto: BookingIntakeDto): Promise<BookingIntakeResponseDto> {
+  intake(@Body() dto: BookingIntakeDto, @CurrentUser() user: User): Promise<BookingIntakeResponseDto> {
+    if (dto.skipAvailabilityCheck && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('booking.skip_availability_admin_only');
+    }
     return this.bookingIntakeService.intake(dto);
   }
 }

@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsEnum,
@@ -16,7 +18,6 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 
 /**
@@ -180,6 +181,14 @@ export class BookingIntakeDto {
   @ValidateNested()
   @Type(() => BookingIntakeDepositDto)
   deposit?: BookingIntakeDepositDto;
+
+  @ApiPropertyOptional({
+    description: 'Admin-only: skip staff availability check and force the booking through',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  skipAvailabilityCheck?: boolean;
 }
 
 /**

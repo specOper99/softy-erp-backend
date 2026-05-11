@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { Transaction } from '../../finance/entities/transaction.entity';
@@ -23,7 +24,6 @@ import { ProcessingTypeRepository } from '../repositories/processing-type.reposi
 import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
 import { BookingPriceCalculator } from '../utils/booking-price.calculator';
 import { StaffConflictService } from './staff-conflict.service';
-import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class BookingIntakeService {
@@ -79,7 +79,7 @@ export class BookingIntakeService {
       throw new BadRequestException('booking.invalid_deposit_percentage');
     }
 
-    if (dto.startTime && pkg.durationMinutes > 0) {
+    if (dto.startTime && pkg.durationMinutes > 0 && !dto.skipAvailabilityCheck) {
       const availability = await this.staffConflictService.checkPackageStaffAvailability({
         packageId: dto.packageId,
         eventDate,
