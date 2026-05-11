@@ -87,6 +87,7 @@
         "date_only_expected": "بەروار بە فۆرماتی YYYY-MM-DD بەکاربهێنە",
         "invalid_date": "بەروار نادروستە",
         "invalid_time_format": "کاتی {time} نادروستە. فۆرماتی HH:mm بەکاربهێنە.",
+        "skip_availability_admin_only": "تەنها بەڕێوەبەران دەتوانن پشکنینی بەردەستبوون بگوازنەوە",
         "already_confirmed": "نۆرە پێشتر پشتڕاستکراوەتەوە",
         "invalid_status": "دۆخی نۆرەی هەڵە",
         "cannot_update_non_draft": "ناتوانرێت خانەکانی نۆرە نوێبکرێتەوە",

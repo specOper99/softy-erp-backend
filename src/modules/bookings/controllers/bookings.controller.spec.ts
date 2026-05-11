@@ -1,6 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { Response } from 'express';
+import { TasksService } from '../../tasks/services/tasks.service';
 import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
 import type {
@@ -17,7 +18,6 @@ import { BookingWorkflowService } from '../services/booking-workflow.service';
 import { BookingsPaymentsService } from '../services/bookings-payments.service';
 import { BookingsService } from '../services/bookings.service';
 import { BookingsController } from './bookings.controller';
-import { TasksService } from '../../tasks/services/tasks.service';
 
 describe('BookingsController', () => {
   let controller: BookingsController;
@@ -142,8 +142,9 @@ describe('BookingsController', () => {
 
   describe('confirm', () => {
     it('should call workflowService.confirmBooking', async () => {
-      await controller.confirm('uuid');
-      expect(workflowService.confirmBooking).toHaveBeenCalledWith('uuid');
+      const user = { role: 'ADMIN' } as any;
+      await controller.confirm('uuid', {}, user);
+      expect(workflowService.confirmBooking).toHaveBeenCalledWith('uuid', false);
     });
   });
 
@@ -160,9 +161,10 @@ describe('BookingsController', () => {
         eventDate: new Date(Date.now() + 172800000).toISOString(),
         startTime: '12:00',
       } as RescheduleBookingDto;
+      const user = { role: 'ADMIN' } as any;
 
-      await controller.reschedule('uuid', dto);
-      expect(workflowService.rescheduleBooking).toHaveBeenCalledWith('uuid', dto);
+      await controller.reschedule('uuid', dto, user);
+      expect(workflowService.rescheduleBooking).toHaveBeenCalledWith('uuid', dto, false);
     });
   });
 

@@ -114,7 +114,8 @@
     "listing_not_found": "Listing not found",
     "date_only_expected": "Use a date in YYYY-MM-DD format",
     "invalid_date": "Invalid date",
-    "invalid_time_format": "Invalid time {time}. Use HH:mm format."
+    "invalid_time_format": "Invalid time {time}. Use HH:mm format.",
+    "skip_availability_admin_only": "Only administrators can skip the availability check"
   },
   "bookings": {
     "not_found": "Booking not found",
