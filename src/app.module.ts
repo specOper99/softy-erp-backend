@@ -1,13 +1,13 @@
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { seconds, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import Redis from 'ioredis';
 import { SentryModule } from '@sentry/nestjs/setup';
+import Redis from 'ioredis';
 import { join } from 'node:path';
 import { DataSource } from 'typeorm';
 import { addTransactionalDataSource } from 'typeorm-transactional';
@@ -17,7 +17,7 @@ import { validate } from './config/env-validation';
 import { vaultLoader } from './config/vault.loader';
 
 // Common imports
-import { AcceptLanguageResolver, I18nJsonLoader, I18nMiddleware, I18nModule } from 'nestjs-i18n';
+import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import { AppCacheModule } from './common/cache/cache.module';
 import { CommonModule } from './common/common.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -241,9 +241,6 @@ import { CoreModule } from './modules/core/core.module';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(CorrelationIdMiddleware).forRoutes('*');
-    // I18nMiddleware must run before guards so that I18nContext is available
-    // in AllExceptionsFilter even when an exception is thrown in a guard.
-    consumer.apply(I18nMiddleware).forRoutes('*');
     consumer.apply(TenantMiddleware).forRoutes('*');
   }
 }
