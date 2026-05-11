@@ -1,27 +1,24 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { ProcessingType } from '../../bookings/entities/processing-type.entity';
-import { User } from '../../users/entities/user.entity';
+import { ProcessingTypeRepository } from '../../bookings/repositories/processing-type.repository';
+import { UserRepository } from '../../users/repositories/user.repository';
 import {
   CreateProcessingTypeEligibilityDto,
   EligibleProcessingTypeDto,
   EligibleStaffDto,
 } from '../dto/processing-type-eligibility.dto';
-import { Profile, ProcessingTypeEligibility } from '../entities';
+import { ProcessingTypeEligibility } from '../entities';
+import { ProcessingTypeEligibilityRepository } from '../repositories/processing-type-eligibility.repository';
+import { ProfileRepository } from '../repositories/profile.repository';
 
 @Injectable()
 export class ProcessingTypeEligibilityService {
   constructor(
-    @InjectRepository(ProcessingTypeEligibility)
-    private readonly eligibilityRepository: Repository<ProcessingTypeEligibility>,
-    @InjectRepository(ProcessingType)
-    private readonly processingTypeRepository: Repository<ProcessingType>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
+    private readonly eligibilityRepository: ProcessingTypeEligibilityRepository,
+    private readonly processingTypeRepository: ProcessingTypeRepository,
+    private readonly userRepository: UserRepository,
+    private readonly profileRepository: ProfileRepository,
   ) {}
 
   async createEligibility(dto: CreateProcessingTypeEligibilityDto): Promise<ProcessingTypeEligibility> {

@@ -41,6 +41,7 @@ import { PayrollService } from './services/payroll.service';
 import { StaffAvailabilitySlotService } from './services/staff-availability-slot.service';
 import { ProcessingTypeEligibilityRepository } from './repositories/processing-type-eligibility.repository';
 import { ProcessingTypeEligibilityService } from './services/processing-type-eligibility.service';
+import { ProcessingTypeRepository } from '../bookings/repositories/processing-type.repository';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { ProcessingTypeEligibilityService } from './services/processing-type-eli
     StaffAvailabilitySlotService,
     ProcessingTypeEligibilityService,
     ProcessingTypeEligibilityRepository,
+    ProcessingTypeRepository,
     UserDeletedHandler,
     WalletBalanceUpdatedHandler,
     {
