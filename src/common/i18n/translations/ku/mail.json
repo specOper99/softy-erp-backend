@@ -1,0 +1,7 @@
+{
+  "template_not_found": "تێمپلەیت نەدۆزرایەوە",
+  "template_name_exists": "تێمپلەیتێک بەم ناوە پێشتر هەیە",
+  "template_system_delete": "ناتوانرێت تێمپلەیتی سیستەم بسڕیتەوە",
+  "template_compile_failed": "کۆکردنەوەی تێمپلەیت سەرکەوتوو نەبوو: {detail}",
+  "template_compilation_failed": "کۆکردنەوەی تێمپلەیت سەرکەوتوو نەبوو"
+}

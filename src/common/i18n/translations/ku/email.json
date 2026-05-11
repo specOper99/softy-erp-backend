@@ -1,0 +1,20 @@
+{
+  "subjects": {
+    "bookingConfirmed": "حجز پشتڕاستکرایەوە - {packageName}",
+    "taskAssigned": "ئەرکی نوێ دابەشکرا: {taskType}",
+    "bookingRescheduled": "حجز دووبارە کاتبەندکرا: {bookingId}",
+    "payrollProcessed": "مووچە پرۆسەسکرا - وردەکاری پارەدان",
+    "clientPortalLogin": "چوونە ژوورەوەی پۆرتاڵی کڕیارانی {companyName}",
+    "passwordReset": "ڕیسێتکردنی وشەی نهینی",
+    "emailVerification": "پشتڕاستکردنەوەی ئیمەیڵ",
+    "newDeviceLogin": "چوونەژوورەوەی نوێ بینرا",
+    "suspiciousActivity": "ئاگادارکردنەوەی ئەمنیەت: چالاکی مەترسیدار بینرا"
+  },
+  "content": {
+    "newLoginAlert": "ئاگادارکردنەوەی چوونەژوورەوەی نوێ",
+    "newLoginDesc": "چوونەژوورەوەیەکی نوێ لە هەژمارەکەتدا بینین.",
+    "securityAlert": "ئاگادارکردنەوەی ئەمنیەت",
+    "suspiciousActivityDesc": "چالاکی مەترسیدار: {activityType}",
+    "unknownLocation": "شوێنی نەناسراو"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "tenant_required": "Tenant context required",
+  "stripe_config_error": "Stripe configuration error",
+  "raw_body_error": "Raw body not available",
+  "missing_stripe_signature": "Missing Stripe signature",
+  "invalid_webhook_signature": "Invalid webhook signature",
+  "subscription_none_for_tenant": "No subscription found for tenant",
+  "stripe_not_configured": "Stripe is not configured. Set STRIPE_SECRET_KEY to enable billing.",
+  "stripe_unavailable": "Billing service is temporarily unavailable. Please try again later."
+}

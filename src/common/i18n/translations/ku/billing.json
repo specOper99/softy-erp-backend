@@ -1,0 +1,10 @@
+{
+  "tenant_required": "تێنەنت دەوێت",
+  "stripe_config_error": "هەڵەی هەڵگەڕاندنی Stripe",
+  "stripe_not_configured": "Stripe ڕێکنەخراوە. STRIPE_SECRET_KEY دابنێ بۆ چالاککردنی پارەدان.",
+  "stripe_unavailable": "خزمەتگوزاری پارەدان لە کاتیدا بەردەست نییە. تکایە دواتر هەوڵبدەرەوە.",
+  "raw_body_error": "جەستەی خاوە بەردەست نییە",
+  "missing_stripe_signature": "واژووی Stripe ون بووە",
+  "invalid_webhook_signature": "واژووی webhook نادروستە",
+  "subscription_none_for_tenant": "هیچ بەژدارییەک بۆ ئەم تێنەنتە نەدۆزرایەوە"
+}

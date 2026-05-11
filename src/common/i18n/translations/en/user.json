@@ -1,0 +1,4 @@
+{
+  "not_found": "User with ID {id} was not found",
+  "duplicate_email": "This email is already registered: {email}"
+}

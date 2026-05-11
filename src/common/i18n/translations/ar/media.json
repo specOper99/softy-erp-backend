@@ -1,0 +1,17 @@
+{
+  "s3_error": "خطأ في خدمة التخزين",
+  "task_not_found_in_tenant": "المهمة غير موجودة في المستأجر",
+  "cross_tenant_denied": "لا يُسمح بكتابة مرفق عبر مستأجرين",
+  "unsupported_file_type": "نوع ملف غير مدعوم: {mimeType}. المسموح: {allowed}",
+  "booking_not_found_in_tenant": "الحجز غير موجود في المستأجر",
+  "attachment_not_found": "المرفق بالمعرف {id} غير موجود",
+  "booking_reference_soft_deleted": "الحجز المرتبط لم يعد متاحاً",
+  "task_reference_soft_deleted": "المهمة المرتبطة لم تعد متاحة",
+  "upload_not_found": "التحميل غير موجود",
+  "file_too_large": "الملف كبير جداً",
+  "invalid_mime_type": "نوع الملف غير صالح",
+  "invalid_storage_key": "مفتاح التخزين غير صالح",
+  "mime_type_mismatch": "محتوى الملف لا يتطابق مع النوع المعلن",
+  "attachment_not_found_id": "المرفق ذو المعرف {id} غير موجود",
+  "file_not_in_storage": "الملف غير موجود في التخزين: {key}"
+}

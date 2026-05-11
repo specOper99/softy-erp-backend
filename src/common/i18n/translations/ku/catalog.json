@@ -1,0 +1,9 @@
+{
+  "price_must_be_positive": "نرخ دەبێت گەورەتر بێت لە سیفر",
+  "required_staff_count_must_be_at_least_one": "ژمارەی ئەندامانی ستافی پێویست دەبێت لانیکەم یەک بێت",
+  "package_not_found_in_tenant": "پاکێج لەم ڕێکخراوەدا نەدۆزرایەوە",
+  "package_in_use": "پاکێج بەکاردێت و ناتوانرێت بسڕێتەوە",
+  "service_package_not_found": "پاکێجی خزمەتگوزاری بە ناسنامەی {id} نەدۆزرایەوە",
+  "package_item_not_found": "بڕگەی پاکێج بە ناسنامەی {id} نەدۆزرایەوە",
+  "task_type_not_found": "جۆری ئەرک بە ناسنامەی {id} نەدۆزرایەوە"
+}

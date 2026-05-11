@@ -1,0 +1,9 @@
+{
+  "pending_request_exists": "يوجد طلب {type} معلق بالفعل",
+  "request_not_found": "طلب الخصوصية غير موجود",
+  "cancel_pending_only": "يمكن فقط إلغاء الطلبات المعلقة",
+  "invalid_user_id_format": "تنسيق معرف المستخدم غير صالح",
+  "invalid_file_path": "مسار الملف غير صالح",
+  "invalid_request_type": "نوع الطلب غير صالح",
+  "consent_grant_required": "يجب على المستخدم منح موافقة {type} للمتابعة"
+}

@@ -1,0 +1,20 @@
+{
+  "amount_exceeds_maximum": "بڕی ماملەکە زیاترە لە ئاستی پشتگیریکراو",
+  "unsupported_currency": "دراوێکی پشتگیریکراو دیارینەکراوە",
+  "amount_must_be_positive": "بڕی ماملەکە دەبێت ئەرێنیبێت",
+  "amount_must_be_valid_number": "بڕ دەبێت ژمارەیەکی دروست بێت",
+  "amount_invalid": "بڕی نادروست",
+  "transaction_already_voided": "ئەم مامەڵەیە پێشتر هەڵوەشێنراوەتەوە",
+  "cannot_void_a_reversal": "ناتوانرێت مامەڵەی پێچەوانە هەڵبوەشێنرێتەوە",
+  "vendor_not_found": "فرۆشیار نەدۆزرایەوە",
+  "purchase_invoice_already_exists": "پسوولەی کڕینێک بۆ ئەم سەرچاوەیە پێشتر هەیە",
+  "purchase_invoice_not_found": "پسوولەی کڕین نەدۆزرایەوە",
+  "category_not_found": "هاوپۆل نەدۆزرایەوە",
+  "category_name_already_exists": "هاوپۆلێک بەم ناوە پێشتر هەیە",
+  "category_circular_reference": "هاوپۆلی باوک سەرچاوەی بازنەیی دروست دەکات",
+  "parent_category_not_found": "هاوپۆلی باوک نەدۆزرایەوە",
+  "category_has_children": "ناتوانرێت هاوپۆلێک بسڕیتەوە کە هاوپۆلی لاوەکی هەیە",
+  "invoice_not_found": "پسوولە بە ناسنامەی {id} نەدۆزرایەوە",
+  "transaction_not_found": "مامەڵە بە ناسنامەی {id} نەدۆزرایەوە",
+  "recurring_not_found": "مامەڵەی دووبارە نەدۆزرایەوە"
+}

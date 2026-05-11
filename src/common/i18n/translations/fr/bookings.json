@@ -1,0 +1,5 @@
+{
+  "not_found": "Réservation non trouvée",
+  "export_failed": "Échec de l'exportation",
+  "not_found_by_id": "Réservation avec l'ID {id} non trouvée"
+}

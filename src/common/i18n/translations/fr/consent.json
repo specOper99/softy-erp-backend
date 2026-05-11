@@ -1,0 +1,5 @@
+{
+  "granted": "Consentement accordé",
+  "revoked": "Consentement retiré",
+  "grant_required": "L'utilisateur doit accorder son consentement {type} pour continuer"
+}

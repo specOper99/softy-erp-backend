@@ -1,0 +1,4 @@
+{
+  "webhook_url_invalid": "L'URL du webhook de billetterie est invalide",
+  "webhook_failed": "Échec de la création du ticket via le webhook de billetterie"
+}

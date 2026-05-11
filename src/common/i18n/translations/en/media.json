@@ -1,0 +1,17 @@
+{
+  "booking_not_found_in_tenant": "Booking not found in tenant",
+  "task_not_found_in_tenant": "Task not found in tenant",
+  "unsupported_file_type": "Unsupported file type: {mimeType}. Allowed: {allowed}",
+  "attachment_not_found": "Attachment with ID {id} not found",
+  "cross_tenant_denied": "Cross-tenant attachment write is not allowed",
+  "s3_error": "Storage service error",
+  "booking_reference_soft_deleted": "The related booking is no longer available",
+  "task_reference_soft_deleted": "The related task is no longer available",
+  "upload_not_found": "Upload not found",
+  "file_too_large": "File is too large",
+  "invalid_mime_type": "Invalid file type",
+  "invalid_storage_key": "Invalid storage key",
+  "mime_type_mismatch": "File content does not match the declared type",
+  "attachment_not_found_id": "Attachment with ID {id} was not found",
+  "file_not_in_storage": "File not found in storage: {key}"
+}

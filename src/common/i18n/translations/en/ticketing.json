@@ -1,0 +1,4 @@
+{
+  "webhook_failed": "Failed to create ticket via ticketing webhook",
+  "webhook_url_invalid": "Ticketing webhook URL is invalid"
+}

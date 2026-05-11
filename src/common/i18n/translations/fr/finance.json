@@ -1,0 +1,20 @@
+{
+  "amount_exceeds_maximum": "Le montant dépasse le maximum autorisé",
+  "unsupported_currency": "Devise non supportée préciser",
+  "amount_must_be_positive": "Le montant doit être positif",
+  "amount_must_be_valid_number": "Le montant doit être un nombre valide",
+  "amount_invalid": "Montant invalide",
+  "transaction_already_voided": "Cette transaction est déjà annulée",
+  "cannot_void_a_reversal": "Impossible d'annuler une transaction de contrepassation",
+  "vendor_not_found": "Fournisseur non trouvé",
+  "purchase_invoice_already_exists": "Une facture d'achat existe déjà pour cette référence",
+  "purchase_invoice_not_found": "Facture d'achat non trouvée",
+  "category_not_found": "Catégorie non trouvée",
+  "category_name_already_exists": "Une catégorie avec ce nom existe déjà",
+  "category_circular_reference": "La catégorie parente créerait une référence circulaire",
+  "parent_category_not_found": "Catégorie parente non trouvée",
+  "category_has_children": "Impossible de supprimer une catégorie comportant des sous-catégories",
+  "invoice_not_found": "Facture avec l'ID {id} non trouvée",
+  "transaction_not_found": "Transaction avec l'ID {id} non trouvée",
+  "recurring_not_found": "Transaction récurrente non trouvée"
+}

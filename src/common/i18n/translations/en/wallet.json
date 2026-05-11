@@ -1,0 +1,7 @@
+{
+  "commission_must_be_positive": "Commission amount must be positive",
+  "transfer_must_be_positive": "Transfer amount must be positive",
+  "not_found": "Wallet not found for user {id}",
+  "insufficient_balance": "Insufficient balance: required {required}, available {available}",
+  "not_found_for_user": "Wallet not found for user {userId}"
+}

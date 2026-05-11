@@ -1,0 +1,7 @@
+{
+  "invalid_checkout_format": "تنسيق وقت المغادرة غير صالح",
+  "invalid_date_format": "تنسيق التاريخ غير صالح",
+  "checkout_must_be_after_checkin": "يجب أن يكون وقت المغادرة بعد وقت الدخول",
+  "record_not_found": "سجل الحضور غير موجود",
+  "invalid_checkin_format": "تنسيق وقت الدخول غير صالح"
+}

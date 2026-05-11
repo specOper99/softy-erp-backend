@@ -1,0 +1,21 @@
+{
+  "profile_not_found": "Profil non trouvé",
+  "user_not_found_in_tenant": "Utilisateur non trouvé dans le locataire",
+  "task_type_eligibility_already_exists": "Cette règle d'éligibilité existe déjà",
+  "task_type_eligibility_not_found": "Éligibilité du type de tâche non trouvée",
+  "profile_not_found_in_tenant": "Profil non trouvé dans cette organisation",
+  "task_type_not_found_in_tenant": "Type de tâche non trouvé dans cette organisation",
+  "unsupported_studio_role": "Rôle de personnel non pris en charge pour le locataire studio",
+  "user_or_profile_exists": "L'utilisateur ou le profil existe déjà",
+  "profile_exists_for_user": "Le profil existe déjà pour l'utilisateur {userId}",
+  "attendance_self_only_create": "Le personnel de terrain ne peut créer des enregistrements de présence que pour lui-même",
+  "attendance_invalid_user_id": "userId invalide",
+  "attendance_self_only_view": "Le personnel de terrain ne peut consulter que ses propres enregistrements de présence",
+  "attendance_duplicate_day": "Un enregistrement de présence pour cet utilisateur et cette date existe déjà",
+  "availability_slot_effective_to_before_from": "La date de fin ne doit pas être antérieure à la date de début",
+  "availability_slot_not_found": "Créneau de disponibilité introuvable",
+  "invalid_date_format": "La date doit être au format YYYY-MM-DD",
+  "invalid_time_format": "L'heure doit être au format HH:mm",
+  "availability_slot_overlap": "Ce créneau de disponibilité chevauche un créneau existant",
+  "availability_slot_start_must_be_before_end": "L'heure de début doit être antérieure à l'heure de fin"
+}

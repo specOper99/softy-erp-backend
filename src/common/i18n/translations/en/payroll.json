@@ -1,0 +1,5 @@
+{
+  "run_success": "Payroll processed for {count} employees",
+  "no_employees": "No employees found for payroll",
+  "run_failed": "Payroll run failed"
+}

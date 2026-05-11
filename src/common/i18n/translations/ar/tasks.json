@@ -1,0 +1,19 @@
+{
+  "assignee_already_exists": "هذا المستخدم معين بالفعل للمهمة",
+  "not_found_by_id": "المهمة ذات المعرف {id} غير موجودة",
+  "parent_not_found": "المهمة الأم ذات المعرف {id} غير موجودة",
+  "assignee_not_found_for_user": "المعين للمهمة غير موجود للمستخدم {userId}",
+  "cannot_be_own_parent": "لا يمكن أن تكون المهمة الأم لنفسها",
+  "reassignment_use_assign": "إعادة تعيين المهمة يجب أن تستخدم نقطة نهاية assign",
+  "status_use_endpoints": "تحديثات الحالة يجب أن تستخدم نقاط نهاية مخصصة (start/complete)",
+  "commission_snapshot_positive": "يجب أن يكون commissionSnapshot أكبر من 0",
+  "assignees_forbidden": "غير مسموح بقراءة قائمة معيني هذه المهمة",
+  "user_not_found_in_tenant": "المستخدم غير موجود في المستأجر",
+  "client_data_missing": "بيانات العميل مفقودة للحجز {bookingId}",
+  "cannot_start_status": "لا يمكن بدء المهمة: الحالة الحالية {status}",
+  "already_completed": "المهمة مكتملة بالفعل",
+  "booking_cancelled": "لا يمكن إكمال المهمة: تم إلغاء الحجز المرتبط بها",
+  "complete_no_assignee": "لا يمكن إكمال المهمة: لا يوجد مستخدم معين",
+  "not_assigned": "المهمة غير معينة",
+  "modify_forbidden": "غير مسموح بتعديل هذه المهمة"
+}

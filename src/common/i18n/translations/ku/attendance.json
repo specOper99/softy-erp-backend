@@ -1,0 +1,7 @@
+{
+  "invalid_checkout_format": "فۆرماتی کاتی دەرچوون هەڵەیە",
+  "invalid_date_format": "فۆرماتی بەروار هەڵەیە",
+  "checkout_must_be_after_checkin": "کاتی دەرچوون دەبێت دوای کاتی دەوێن بێت",
+  "record_not_found": "تۆماری حاضری نەدۆزرایەوە",
+  "invalid_checkin_format": "فۆرماتی کاتی دەوێن هەڵەیە"
+}

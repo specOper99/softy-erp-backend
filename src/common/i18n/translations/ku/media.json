@@ -1,0 +1,17 @@
+{
+  "s3_error": "هەڵەی خزمەتگوزاری هەڵدانەوە",
+  "task_not_found_in_tenant": "ئەرکەکە لە تێنەنتاتدا نەدۆزرایەوە",
+  "cross_tenant_denied": "نووسینی بەلگە لە تێنەنتێکی ترەوە ڕێگەپێنێرێت",
+  "unsupported_file_type": "جۆرێکی فایلێک پشتگیری ناکرێت: {mimeType}. ڕێگەپێدراو: {allowed}",
+  "booking_not_found_in_tenant": "نۆرەکە لە تێنەنتاتدا نەدۆزرایەوە",
+  "attachment_not_found": "بەلگەکە بە ئایدی {id} نەدۆزرایەوە",
+  "booking_reference_soft_deleted": "نۆرەی پەیوەست لە ئێستادا بەردەست نییە",
+  "task_reference_soft_deleted": "ئەرکی پەیوەست لە ئێستادا بەردەست نییە",
+  "upload_not_found": "بارکردن نەدۆزرایەوە",
+  "file_too_large": "فایل زۆر گەورەیە",
+  "invalid_mime_type": "جۆری فایل نادروستە",
+  "invalid_storage_key": "کلیلی هەڵگرتن نادروستە",
+  "mime_type_mismatch": "ناوەڕۆکی فایل لەگەڵ جۆری ڕاگەیەنراودا یەک ناگرێتەوە",
+  "attachment_not_found_id": "هاوپێچ بە ناسنامەی {id} نەدۆزرایەوە",
+  "file_not_in_storage": "فایل لە هەڵگرتندا نەدۆزرایەوە: {key}"
+}

@@ -1,0 +1,6 @@
+{
+  "endpoint_disabled": "نقطة النهاية معطلة",
+  "invalid_key": "مفتاح غير صالح",
+  "missing_key": "معامل المفتاح مفقود",
+  "test_error": "هذا خطأ تجريبي لمراقبة Sentry"
+}

@@ -1,0 +1,20 @@
+{
+  "subjects": {
+    "bookingConfirmed": "Booking Confirmed - {packageName}",
+    "taskAssigned": "New Task Assigned: {taskType}",
+    "bookingRescheduled": "Booking Rescheduled: {bookingId}",
+    "payrollProcessed": "Payroll Processed - Payment Details",
+    "clientPortalLogin": "Login to {companyName} Client Portal",
+    "passwordReset": "Reset Your Password",
+    "emailVerification": "Verify Your Email Address",
+    "newDeviceLogin": "New Login Detected",
+    "suspiciousActivity": "Security Alert: Suspicious Activity Detected"
+  },
+  "content": {
+    "newLoginAlert": "New Login Alert",
+    "newLoginDesc": "We detected a new login on your account.",
+    "securityAlert": "Security Alert",
+    "suspiciousActivityDesc": "Suspicious Activity: {activityType}",
+    "unknownLocation": "Unknown Location"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "transfer_must_be_positive": "مبلغ التحويل يجب أن يكون إيجابياً",
+  "commission_must_be_positive": "مبلغ العمولة يجب أن يكون إيجابياً",
+  "not_found": "Wallet not found",
+  "insufficient_balance": "رصيد غير كاف: المطلوب {required}، المتاح {available}",
+  "not_found_for_user": "المحفظة غير موجودة للمستخدم {userId}"
+}

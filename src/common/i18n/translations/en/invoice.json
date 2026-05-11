@@ -1,0 +1,3 @@
+{
+  "booking_not_found": "Booking with ID {bookingId} was not found"
+}

@@ -1,0 +1,18 @@
+{
+  "tenant_id_required": "En-tête d'ID de locataire requis",
+  "tenant_suspended": "Cette organisation a été suspendue",
+  "not_found": "Locataire non trouvé",
+  "not_found_by_id": "Locataire avec l'ID {id} non trouvé",
+  "not_found_by_slug": "Locataire avec le slug {slug} non trouvé",
+  "slug_taken": "Tenant slug is already taken",
+  "tenant_exists_name_slug": "Un locataire avec ce nom ou ce slug existe déjà",
+  "creation_not_supported": "La création de locataire n'est pas prise en charge via l'API",
+  "deletion_not_supported": "La suppression de locataire n'est pas prise en charge via l'API",
+  "cross_tenant_forbidden": "L'accès inter-locataires est interdit",
+  "subscription_active_exists": "Le locataire a déjà un abonnement actif",
+  "subscription_none": "Aucun abonnement trouvé pour le locataire",
+  "suspended_already": "Le locataire est déjà suspendu",
+  "active_already": "Le locataire est déjà actif",
+  "upgrade_required": "Passez à {plan} pour accéder à cette fonctionnalité.",
+  "quota_exceeded": "Quota dépassé pour {resourceType}. Limite : {limit}, actuel : {currentUsage}"
+}

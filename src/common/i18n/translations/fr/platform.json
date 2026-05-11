@@ -1,0 +1,16 @@
+{
+  "target_tenant_required": "Locataire cible requis",
+  "invalid_tenant_id_format": "Format d'identifiant de locataire invalide",
+  "tenant_not_found": "Locataire avec l'ID {tenantId} non trouvé",
+  "user_not_found_in_tenant": "Utilisateur {userId} non trouvé dans le locataire {tenantId}",
+  "impersonation_session_exists": "Une session d'impersonation active existe déjà pour cet utilisateur",
+  "impersonation_not_found": "Session d'impersonation non trouvée",
+  "impersonation_session_ended": "La session est déjà terminée",
+  "impersonation_session_ended_success": "Session d'impersonation terminée",
+  "impersonation_end_own_only": "Vous ne pouvez terminer que vos propres sessions d'impersonation",
+  "ip_cidr_invalid": "Format IP ou CIDR invalide : {value}",
+  "permissions_missing": "Permissions requises manquantes : {permissions}",
+  "role_required": "Rôle de plateforme requis",
+  "reason_required": "Une raison détaillée (minimum 10 caractères) est requise pour cette opération",
+  "end_time_before_start": "L'heure de fin ne peut pas être antérieure à l'heure de début"
+}

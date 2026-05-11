@@ -1,0 +1,16 @@
+{
+  "target_tenant_required": "المستأجر المستهدف مطلوب",
+  "invalid_tenant_id_format": "تنسيق معرف المستأجر غير صالح",
+  "tenant_not_found": "المستأجر ذو المعرف {tenantId} غير موجود",
+  "user_not_found_in_tenant": "المستخدم {userId} غير موجود في المستأجر {tenantId}",
+  "impersonation_session_exists": "توجد بالفعل جلسة انتحال نشطة لهذا المستخدم",
+  "impersonation_not_found": "جلسة الانتحال غير موجودة",
+  "impersonation_session_ended": "الجلسة منتهية بالفعل",
+  "impersonation_session_ended_success": "تم إنهاء جلسة الانتحال",
+  "impersonation_end_own_only": "يمكنك فقط إنهاء جلسات الانتحال الخاصة بك",
+  "ip_cidr_invalid": "تنسيق IP أو CIDR غير صالح: {value}",
+  "permissions_missing": "أذونات مطلوبة مفقودة: {permissions}",
+  "role_required": "دور المنصة مطلوب",
+  "reason_required": "سبب مفصل (10 أحرف على الأقل) مطلوب لهذه العملية",
+  "end_time_before_start": "وقت الانتهاء لا يمكن أن يكون قبل وقت البدء"
+}

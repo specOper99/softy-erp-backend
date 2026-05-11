@@ -1,0 +1,16 @@
+{
+  "private_ip_denied": "لا يمكن أنيشير رابط الويب إلى عناوين IP خاصة",
+  "localhost_denied": "لا يمكن أن يشير رابط الويب إلى المضيف المحلي",
+  "invalid_protocol": "بروتوكول غير صالح",
+  "secret_length": "سر رابط الويب يجب أن يكون على الأقل {min} أحرف",
+  "invalid_url": "رابط ويب غير صالح",
+  "dns_lookup_failed": "فشل بحث DNS لمضيف webhook",
+  "dns_rebinding_not_pinned": "لا يمكن تثبيت مضيف webhook بأمان",
+  "dns_rebinding_blocked": "تم حظر webhook بسبب حماية إعادة ربط DNS",
+  "not_found": "Webhook غير موجود",
+  "redirect_blocked": "إعادة توجيه عناوين URL لـ webhook غير مسموح",
+  "request_timeout": "انتهت مهلة طلب webhook",
+  "upstream_http_error": "أرجعت نقطة نهاية الويب هوك HTTP {statusCode} {statusMessage}",
+  "missing_response_status": "رمز حالة استجابة HTTP مفقود",
+  "operation_aborted": "تم إلغاء العملية"
+}

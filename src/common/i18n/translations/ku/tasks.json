@@ -1,0 +1,19 @@
+{
+  "assignee_already_exists": "ئەم بەکارهێنەرە پێشتر بۆ ئەرکەکە دانراوە",
+  "not_found_by_id": "ئەرک بە ناسنامەی {id} نەدۆزرایەوە",
+  "parent_not_found": "ئەرکی باوک بە ناسنامەی {id} نەدۆزرایەوە",
+  "assignee_not_found_for_user": "دانراوی ئەرک بۆ بەکارهێنەر {userId} نەدۆزرایەوە",
+  "cannot_be_own_parent": "ئەرکێک ناتوانێت باوکی خۆی بێت",
+  "reassignment_use_assign": "دانانەوەی ئەرک دەبێت لە ڕێگەی نقطەی assignەوە بێت",
+  "status_use_endpoints": "نوێکردنەوەی دۆخ دەبێت لە ڕێگەی نقطە تایبەتەکانەوە بێت (start/complete)",
+  "commission_snapshot_positive": "commissionSnapshot دەبێت لە 0 زیاتر بێت",
+  "assignees_forbidden": "خوێندنەوەی لیستی دانراوەکانی ئەم ئەرکە ڕێگەپێدراو نییە",
+  "user_not_found_in_tenant": "بەکارهێنەر لە تێنەنتدا نەدۆزرایەوە",
+  "client_data_missing": "زانیاری کڕیار بۆ نۆرە {bookingId} ون بووە",
+  "cannot_start_status": "ناتوانرێت ئەرک دەستپێبکرێت: دۆخی ئێستا {status}",
+  "already_completed": "ئەرک پێشتر تەواوبووە",
+  "booking_cancelled": "ناتوانرێت ئەرک تەواو بکرێت: نۆرەی پەیوەندیدار هەڵوەشێنراوەتەوە",
+  "complete_no_assignee": "ناتوانرێت ئەرک تەواو بکرێت: هیچ بەکارهێنەرێک دانەنراوە",
+  "not_assigned": "ئەرک دانەنراوە",
+  "modify_forbidden": "گۆڕینی ئەم ئەرکە ڕێگەپێدراو نییە"
+}

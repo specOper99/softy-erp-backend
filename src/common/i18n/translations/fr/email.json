@@ -1,0 +1,20 @@
+{
+  "subjects": {
+    "bookingConfirmed": "Réservation confirmée - {packageName}",
+    "taskAssigned": "Nouvelle tâche assignée : {taskType}",
+    "bookingRescheduled": "Réservation reprogrammée : {bookingId}",
+    "payrollProcessed": "Paie traitée - Détails du paiement",
+    "clientPortalLogin": "Connexion au portail client {companyName}",
+    "passwordReset": "Réinitialiser votre mot de passe",
+    "emailVerification": "Vérifier votre adresse e-mail",
+    "newDeviceLogin": "Nouvelle connexion détectée",
+    "suspiciousActivity": "Alerte de sécurité : activité suspecte détectée"
+  },
+  "content": {
+    "newLoginAlert": "Alerte de nouvelle connexion",
+    "newLoginDesc": "Nous avons détecté une nouvelle connexion sur votre compte.",
+    "securityAlert": "Alerte de sécurité",
+    "suspiciousActivityDesc": "Activité suspecte : {activityType}",
+    "unknownLocation": "Emplacement inconnu"
+  }
+}

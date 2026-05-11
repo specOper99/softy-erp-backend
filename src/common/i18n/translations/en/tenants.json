@@ -1,0 +1,18 @@
+{
+  "tenant_id_required": "Tenant ID header required",
+  "tenant_suspended": "This organization has been suspended",
+  "not_found": "Tenant not found",
+  "not_found_by_id": "Tenant with ID {id} was not found",
+  "not_found_by_slug": "Tenant with slug {slug} was not found",
+  "slug_taken": "Tenant slug '{slug}' is already taken",
+  "tenant_exists_name_slug": "Tenant with this name or slug already exists",
+  "creation_not_supported": "Tenant creation is not supported via API",
+  "deletion_not_supported": "Tenant deletion is not supported via API",
+  "cross_tenant_forbidden": "Cross-tenant access is forbidden",
+  "subscription_active_exists": "Tenant already has an active subscription",
+  "subscription_none": "No subscription found for tenant",
+  "suspended_already": "Tenant is already suspended",
+  "active_already": "Tenant is already active",
+  "upgrade_required": "Upgrade to {plan} to access this feature.",
+  "quota_exceeded": "Quota exceeded for {resourceType}. Limit: {limit}, Current: {currentUsage}"
+}

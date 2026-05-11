@@ -1,0 +1,19 @@
+{
+  "assignee_already_exists": "This user is already assigned to the task",
+  "not_found_by_id": "Task with ID {id} was not found",
+  "parent_not_found": "Parent task with ID {id} was not found",
+  "assignee_not_found_for_user": "Task assignee not found for user {userId}",
+  "cannot_be_own_parent": "A task cannot be its own parent",
+  "reassignment_use_assign": "Task reassignment must use the assign endpoint",
+  "status_use_endpoints": "Status updates must use dedicated endpoints (start/complete)",
+  "commission_snapshot_positive": "commissionSnapshot must be greater than 0",
+  "assignees_forbidden": "Not allowed to read this task assignees list",
+  "user_not_found_in_tenant": "User not found in tenant",
+  "client_data_missing": "Client data is missing for booking {bookingId}",
+  "cannot_start_status": "Cannot start task: current status is {status}",
+  "already_completed": "Task is already completed",
+  "booking_cancelled": "Cannot complete task: the associated booking has been cancelled",
+  "complete_no_assignee": "Cannot complete task: no user assigned",
+  "not_assigned": "Task is not assigned",
+  "modify_forbidden": "Not allowed to modify this task"
+}

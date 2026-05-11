@@ -1,0 +1,19 @@
+{
+  "assignee_already_exists": "Cet utilisateur est déjà affecté à la tâche",
+  "not_found_by_id": "Tâche avec l'ID {id} non trouvée",
+  "parent_not_found": "Tâche parente avec l'ID {id} non trouvée",
+  "assignee_not_found_for_user": "Affectation de tâche non trouvée pour l'utilisateur {userId}",
+  "cannot_be_own_parent": "Une tâche ne peut pas être son propre parent",
+  "reassignment_use_assign": "La réaffectation de tâche doit utiliser le point de terminaison assign",
+  "status_use_endpoints": "Les mises à jour de statut doivent utiliser des points de terminaison dédiés (start/complete)",
+  "commission_snapshot_positive": "commissionSnapshot doit être supérieur à 0",
+  "assignees_forbidden": "Lecture de la liste des affectés à cette tâche non autorisée",
+  "user_not_found_in_tenant": "Utilisateur non trouvé dans le locataire",
+  "client_data_missing": "Données client manquantes pour la réservation {bookingId}",
+  "cannot_start_status": "Impossible de démarrer la tâche : statut actuel {status}",
+  "already_completed": "La tâche est déjà terminée",
+  "booking_cancelled": "Impossible de terminer la tâche : la réservation associée a été annulée",
+  "complete_no_assignee": "Impossible de terminer la tâche : aucun utilisateur affecté",
+  "not_assigned": "La tâche n'est pas affectée",
+  "modify_forbidden": "Modification de cette tâche non autorisée"
+}

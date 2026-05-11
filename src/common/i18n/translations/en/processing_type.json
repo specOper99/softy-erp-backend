@@ -1,0 +1,4 @@
+{
+  "name_already_exists": "A processing type with this name already exists",
+  "not_found": "Processing type with ID {id} was not found"
+}

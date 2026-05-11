@@ -1,0 +1,21 @@
+{
+  "user_not_found_in_tenant": "User not found in tenant",
+  "profile_not_found": "Profile not found",
+  "task_type_eligibility_already_exists": "This eligibility rule already exists",
+  "task_type_eligibility_not_found": "Task type eligibility not found",
+  "profile_not_found_in_tenant": "Profile not found in this organization",
+  "task_type_not_found_in_tenant": "Task type not found in this organization",
+  "unsupported_studio_role": "Unsupported staff role for studio tenant",
+  "user_or_profile_exists": "User or profile already exists",
+  "profile_exists_for_user": "Profile already exists for user {userId}",
+  "attendance_self_only_create": "Field staff can only create attendance records for themselves",
+  "attendance_invalid_user_id": "Invalid userId",
+  "attendance_self_only_view": "Field staff can only view their own attendance records",
+  "attendance_duplicate_day": "Attendance record for this user and date already exists",
+  "availability_slot_effective_to_before_from": "Effective to date must not be before effective from date",
+  "availability_slot_not_found": "Availability slot not found",
+  "availability_slot_start_must_be_before_end": "Start time must be before end time",
+  "invalid_date_format": "Date must be in YYYY-MM-DD format",
+  "invalid_time_format": "Time must be in HH:mm format",
+  "availability_slot_overlap": "This availability slot overlaps with an existing slot"
+}

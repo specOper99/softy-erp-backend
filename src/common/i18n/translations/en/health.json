@@ -1,0 +1,6 @@
+{
+  "endpoint_disabled": "Endpoint disabled",
+  "missing_key": "Missing key parameter",
+  "invalid_key": "Invalid key",
+  "test_error": "This is a test error for Sentry monitoring"
+}

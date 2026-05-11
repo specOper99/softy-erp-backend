@@ -1,0 +1,20 @@
+{
+  "subjects": {
+    "bookingConfirmed": "تأكيد الحجز - {packageName}",
+    "taskAssigned": "مهمة جديدة مُسندة: {taskType}",
+    "bookingRescheduled": "تم إعادة جدولة الحجز: {bookingId}",
+    "payrollProcessed": "تمت معالجة الراتب - تفاصيل الدفع",
+    "clientPortalLogin": "تسجيل الدخول إلى بوابة {companyName} للعملاء",
+    "passwordReset": "إعادة تعيين كلمة المرور",
+    "emailVerification": "التحقق من عنوان البريد الإلكتروني",
+    "newDeviceLogin": "تم اكتشاف تسجيل دخول جديد",
+    "suspiciousActivity": "تنبيه أمني: تم اكتشاف نشاط مشبوه"
+  },
+  "content": {
+    "newLoginAlert": "تنبيه تسجيل دخول جديد",
+    "newLoginDesc": "اكتشفنا تسجيل دخول جديداً على حسابك.",
+    "securityAlert": "تنبيه أمني",
+    "suspiciousActivityDesc": "نشاط مشبوه: {activityType}",
+    "unknownLocation": "موقع غير معروف"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "s3_error": "Erreur du service de stockage",
+  "task_not_found_in_tenant": "Tâche non trouvée dans le locataire",
+  "cross_tenant_denied": "Écriture inter-locataire non autorisée",
+  "unsupported_file_type": "Type de fichier non supporté: {mimeType}. Autorisés: {allowed}",
+  "booking_not_found_in_tenant": "Réservation non trouvée dans le locataire",
+  "attachment_not_found": "Pièce jointe avec l'ID {id} non trouvée",
+  "booking_reference_soft_deleted": "La réservation associée n'est plus disponible",
+  "task_reference_soft_deleted": "La tâche associée n'est plus disponible",
+  "upload_not_found": "Téléversement non trouvé",
+  "file_too_large": "Le fichier est trop volumineux",
+  "invalid_mime_type": "Type de fichier invalide",
+  "invalid_storage_key": "Clé de stockage invalide",
+  "mime_type_mismatch": "Le contenu du fichier ne correspond pas au type déclaré",
+  "attachment_not_found_id": "Pièce jointe avec l'ID {id} non trouvée",
+  "file_not_in_storage": "Fichier non trouvé dans le stockage : {key}"
+}

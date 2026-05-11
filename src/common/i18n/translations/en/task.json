@@ -1,0 +1,9 @@
+{
+  "created": "Task created successfully",
+  "assigned": "Task assigned to {staffName}",
+  "started": "Task started",
+  "completed": "Task completed",
+  "not_found": "Task with ID {id} was not found",
+  "already_assigned": "Task {id} is already assigned",
+  "not_found_plain": "Task not found"
+}

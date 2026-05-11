@@ -1,0 +1,16 @@
+{
+  "target_tenant_required": "Target tenant is required",
+  "invalid_tenant_id_format": "Invalid tenant ID format",
+  "tenant_not_found": "Tenant with ID {tenantId} was not found",
+  "user_not_found_in_tenant": "User {userId} was not found in tenant {tenantId}",
+  "impersonation_session_exists": "An active impersonation session already exists for this user",
+  "impersonation_not_found": "Impersonation session not found",
+  "impersonation_session_ended": "Session is already ended",
+  "impersonation_end_own_only": "You can only end your own impersonation sessions",
+  "ip_cidr_invalid": "Invalid IP or CIDR format: {value}",
+  "permissions_missing": "Missing required permissions: {permissions}",
+  "role_required": "Platform role required",
+  "reason_required": "A detailed reason (minimum 10 characters) is required for this operation",
+  "end_time_before_start": "End time cannot be earlier than start time",
+  "impersonation_session_ended_success": "Impersonation session ended"
+}

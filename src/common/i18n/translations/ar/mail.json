@@ -1,0 +1,7 @@
+{
+  "template_not_found": "القالب غير موجود",
+  "template_name_exists": "يوجد قالب بهذا الاسم بالفعل",
+  "template_system_delete": "لا يمكن حذف قوالب النظام",
+  "template_compile_failed": "فشل تجميع القالب: {detail}",
+  "template_compilation_failed": "فشل تجميع القالب"
+}

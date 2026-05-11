@@ -1,0 +1,10 @@
+{
+  "tenant_required": "Contexte du locataire requis",
+  "stripe_config_error": "Erreur de configuration Stripe",
+  "stripe_not_configured": "Stripe n'est pas configuré. Définissez STRIPE_SECRET_KEY pour activer la facturation.",
+  "stripe_unavailable": "Le service de facturation est temporairement indisponible. Veuillez réessayer plus tard.",
+  "raw_body_error": "Corps brut non disponible",
+  "missing_stripe_signature": "Signature Stripe manquante",
+  "invalid_webhook_signature": "Signature webhook invalide",
+  "subscription_none_for_tenant": "Aucun abonnement trouvé pour le locataire"
+}

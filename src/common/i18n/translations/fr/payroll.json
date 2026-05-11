@@ -1,0 +1,5 @@
+{
+  "run_success": "Paie traitée pour {count} employés",
+  "no_employees": "Aucun employé trouvé pour la paie",
+  "run_failed": "Échec du traitement de la paie"
+}

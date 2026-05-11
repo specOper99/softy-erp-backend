@@ -1,7 +1,7 @@
 import type { Logger } from '@nestjs/common';
+import type { I18nService } from 'nestjs-i18n';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { I18nService } from 'nestjs-i18n';
 
 /** Body shape thrown by ApiErrors / ValidationPipe (avoid collision with Nest defaults). */
 export const API_ERROR_CODE = 'code';
@@ -16,18 +16,26 @@ export interface ApiValidationErrorItem {
 let cachedRegisteredKeys: Set<string> | undefined;
 
 /**
- * Flattened leaf keys from en.json — used only to detect server-side i18n codes in exception strings.
- * Never used with arbitrary user input as translation input (only membership check).
+ * Flattened leaf keys from the en/ namespace files — used only to detect server-side i18n codes
+ * in exception strings. Never used with arbitrary user input as translation input (only membership check).
  */
 export function getRegisteredApiErrorKeys(): Set<string> {
   if (!cachedRegisteredKeys) {
     try {
-      const enPath = path.join(__dirname, 'translations', 'en.json');
-      const raw = fs.readFileSync(enPath, 'utf-8');
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      cachedRegisteredKeys = flattenLeafKeys(parsed);
+      const enDir = path.join(__dirname, 'translations', 'en');
+      const files = fs.readdirSync(enDir).filter((f) => f.endsWith('.json'));
+      const allKeys = new Set<string>();
+      for (const file of files) {
+        const namespace = path.basename(file, '.json');
+        const raw = fs.readFileSync(path.join(enDir, file), 'utf-8');
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        for (const key of flattenLeafKeys(parsed, namespace)) {
+          allKeys.add(key);
+        }
+      }
+      cachedRegisteredKeys = allKeys;
     } catch {
-      // Translation file missing or malformed — return empty set so individual
+      // Translation files missing or malformed — return empty set so individual
       // requests degrade gracefully rather than cascading into repeated failures.
       cachedRegisteredKeys = new Set<string>();
     }

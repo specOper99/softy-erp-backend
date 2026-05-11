@@ -1,0 +1,16 @@
+{
+  "private_ip_denied": "L'URL du webhook ne peut pas pointer vers des adresses IP privées",
+  "localhost_denied": "L'URL du webhook ne peut pas pointer vers localhost",
+  "invalid_protocol": "Protocole invalide",
+  "secret_length": "Le secret du webhook doit contenir au moins {min} caractères",
+  "invalid_url": "URL du webhook invalide",
+  "dns_lookup_failed": "Échec de la résolution DNS pour l'hôte du webhook",
+  "dns_rebinding_not_pinned": "L'hôte du webhook n'a pas pu être épinglé en toute sécurité",
+  "dns_rebinding_blocked": "Webhook bloqué en raison de la protection contre le DNS rebinding",
+  "not_found": "Webhook non trouvé",
+  "redirect_blocked": "Les redirections d'URL de webhook ne sont pas autorisées",
+  "request_timeout": "Délai d'attente de la requête webhook dépassé",
+  "upstream_http_error": "Le point de terminaison du webhook a renvoyé HTTP {statusCode} {statusMessage}",
+  "missing_response_status": "Code de statut de réponse HTTP manquant",
+  "operation_aborted": "L'opération a été annulée"
+}

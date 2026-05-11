@@ -1,0 +1,16 @@
+{
+  "private_ip_denied": "URLی وێب هووک ناتوانرێت بۆ IP-i تایبەتەکانەوە بکات",
+  "localhost_denied": "URLی وێب هووک ناتوانرێت بۆ localhost بکات",
+  "invalid_protocol": "پرۆتۆکۆلێکی هەڵە",
+  "secret_length": "نهێنی وێب هووک دەبێت لانیکەم {min} پیت بێت",
+  "invalid_url": "URLی وێب هووکی هەڵە",
+  "dns_lookup_failed": "گەڕانی DNS بۆ هۆستی webhook سەرکەوتوو نەبوو",
+  "dns_rebinding_not_pinned": "هۆستی webhook بە سەلامەتی دانانرا",
+  "dns_rebinding_blocked": "Webhook بەهۆی پاراستنی DNS rebinding بلۆککرا",
+  "not_found": "Webhook نەدۆزرایەوە",
+  "redirect_blocked": "ڕاڕەوکردنەوەی URL بۆ webhook ڕێگەپێدراو نییە",
+  "request_timeout": "کاتی داواکاری webhook تەواوبوو",
+  "upstream_http_error": "کۆتایی وێب هووک HTTP {statusCode} {statusMessage}ی گەڕاندەوە",
+  "missing_response_status": "کۆدی دۆخی وەڵامی HTTP ونە",
+  "operation_aborted": "کردارەکە هەڵوەشێندرایەوە"
+}

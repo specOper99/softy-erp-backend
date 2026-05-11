@@ -1,0 +1,10 @@
+{
+  "logout_success": "Déconnexion réussie",
+  "data_export_processed": "Export des données traité avec succès",
+  "data_deletion_processed": "Suppression des données traitée avec succès",
+  "notification_deleted": "Notification supprimée avec succès",
+  "notification_not_found": "Notification non trouvée",
+  "notification_read_all": "Toutes les notifications ont été marquées comme lues",
+  "consent_not_found": "Consentement non trouvé",
+  "request_processing": "Une demande avec cette clé d'idempotence est actuellement en traitement"
+}

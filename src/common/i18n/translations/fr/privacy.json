@@ -1,0 +1,9 @@
+{
+  "pending_request_exists": "Une demande {type} en attente existe déjà",
+  "request_not_found": "Demande de confidentialité non trouvée",
+  "cancel_pending_only": "Seules les demandes en attente peuvent être annulées",
+  "invalid_user_id_format": "Format d'identifiant utilisateur invalide",
+  "invalid_file_path": "Chemin de fichier invalide",
+  "invalid_request_type": "Type de demande invalide",
+  "consent_grant_required": "L'utilisateur doit accorder son consentement {type} pour continuer"
+}

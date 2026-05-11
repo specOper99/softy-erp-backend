@@ -1,0 +1,7 @@
+{
+  "invalid_format": "Format de curseur invalide",
+  "invalid_date": "Date de curseur invalide",
+  "invalid_id": "ID de curseur invalide",
+  "malformed": "Curseur mal formé",
+  "tampered": "Curseur invalide ou falsifié"
+}

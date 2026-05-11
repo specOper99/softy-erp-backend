@@ -1,0 +1,14 @@
+{
+  "package_not_found": "Forfait non trouvé",
+  "invalid_date_format_hint": "Format de date invalide. Utilisez AAAA-MM-JJ",
+  "review_completed_only": "Seules les réservations terminées peuvent être évaluées",
+  "review_already_submitted": "Vous avez déjà évalué cette réservation",
+  "tenant_slug_required_param": "tenantSlug est requis",
+  "date_format_yyyy_mm_dd": "Le format de date doit être AAAA-MM-JJ",
+  "availability_range_invalid": "Plage de dates de disponibilité invalide",
+  "tenant_slug_required_body": "Le slug du locataire est requis",
+  "booking_cancel_status": "La réservation ne peut pas être annulée dans son statut actuel",
+  "slot_fully_booked": "Le créneau horaire sélectionné est complet",
+  "min_notice_hours": "La réservation nécessite un préavis d'au moins {hours} heures",
+  "client_not_found": "Client non trouvé"
+}

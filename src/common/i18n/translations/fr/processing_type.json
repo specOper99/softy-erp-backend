@@ -1,0 +1,4 @@
+{
+  "name_already_exists": "Un type de traitement avec ce nom existe déjà",
+  "not_found": "Type de traitement avec l'ID {id} non trouvé"
+}

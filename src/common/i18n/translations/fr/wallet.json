@@ -1,0 +1,7 @@
+{
+  "transfer_must_be_positive": "Le montant du transfert doit être positif",
+  "commission_must_be_positive": "Le montant de la commission doit être positif",
+  "not_found": "Wallet not found",
+  "insufficient_balance": "Solde insuffisant : requis {required}, disponible {available}",
+  "not_found_for_user": "Portefeuille non trouvé pour l'utilisateur {userId}"
+}

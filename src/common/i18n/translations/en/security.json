@@ -1,0 +1,6 @@
+{
+  "mfa_enabled": "MFA enabled successfully",
+  "mfa_disabled": "MFA disabled",
+  "metrics_auth_required": "Authorization header required",
+  "metrics_token_invalid": "Invalid metrics token"
+}

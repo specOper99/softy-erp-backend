@@ -1,0 +1,7 @@
+{
+  "transfer_must_be_positive": "بڕی گواستنەوە دەبێت ئەرێنیبێت",
+  "commission_must_be_positive": "بڕی کۆمیژەن دەبێت ئەرێنیبێت",
+  "not_found": "Wallet not found",
+  "insufficient_balance": "باڵانس کەمە: پێویست {required}، بەردەست {available}",
+  "not_found_for_user": "جزدان بۆ بەکارهێنەر {userId} نەدۆزرایەوە"
+}

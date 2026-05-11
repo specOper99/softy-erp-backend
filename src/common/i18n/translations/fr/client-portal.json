@@ -1,0 +1,5 @@
+{
+  "tenant_blocked": "Ce portail client n'est pas disponible",
+  "token_required": "Jeton client requis",
+  "token_invalid": "Jeton client invalide ou expiré"
+}

@@ -1,0 +1,20 @@
+{
+  "amount_exceeds_maximum": "مبلغ المعاملة يتجاوز الحد الأقصى المسموح به",
+  "unsupported_currency": "عملة غير مدعومة محددة",
+  "amount_must_be_positive": "يجب أن يكون مبلغ المعاملة إيجابياً",
+  "amount_must_be_valid_number": "يجب أن يكون المبلغ رقماً صالحاً",
+  "amount_invalid": "مبلغ غير صالح",
+  "transaction_already_voided": "هذه المعاملة ملغاة بالفعل",
+  "cannot_void_a_reversal": "لا يمكن إلغاء معاملة عكسية",
+  "vendor_not_found": "المورد غير موجود",
+  "purchase_invoice_already_exists": "توجد فاتورة شراء لهذا المرجع بالفعل",
+  "purchase_invoice_not_found": "فاتورة الشراء غير موجودة",
+  "category_not_found": "الفئة غير موجودة",
+  "category_name_already_exists": "توجد فئة بهذا الاسم بالفعل",
+  "category_circular_reference": "الفئة الأم ستنشئ مرجعاً دائرياً",
+  "parent_category_not_found": "الفئة الأم غير موجودة",
+  "category_has_children": "لا يمكن حذف فئة تحتوي على فئات فرعية",
+  "invoice_not_found": "الفاتورة ذات المعرف {id} غير موجودة",
+  "transaction_not_found": "المعاملة ذات المعرف {id} غير موجودة",
+  "recurring_not_found": "المعاملة المتكررة غير موجودة"
+}

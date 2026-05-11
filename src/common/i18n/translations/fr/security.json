@@ -1,0 +1,6 @@
+{
+  "mfa_enabled": "Authentification MFA activée avec succès",
+  "mfa_disabled": "Authentification MFA désactivée",
+  "metrics_auth_required": "En-tête d'autorisation requis",
+  "metrics_token_invalid": "Jeton de métriques invalide"
+}

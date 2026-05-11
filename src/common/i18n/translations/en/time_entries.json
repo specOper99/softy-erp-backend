@@ -1,0 +1,6 @@
+{
+  "not_found": "Time entry not found",
+  "active_timer": "You have an active timer. Please stop it first.",
+  "timer_not_running": "Timer is not running",
+  "update_forbidden": "Not allowed to update this time entry"
+}

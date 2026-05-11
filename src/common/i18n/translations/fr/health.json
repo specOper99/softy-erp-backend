@@ -1,0 +1,6 @@
+{
+  "endpoint_disabled": "Point de terminaison désactivé",
+  "invalid_key": "Clé invalide",
+  "missing_key": "Paramètre de clé manquant",
+  "test_error": "Ceci est une erreur de test pour la surveillance Sentry"
+}

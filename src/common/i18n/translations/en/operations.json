@@ -1,0 +1,10 @@
+{
+  "logout_success": "Logged out successfully",
+  "data_export_processed": "Data export processed successfully",
+  "data_deletion_processed": "Data deletion processed successfully",
+  "notification_deleted": "Notification deleted successfully",
+  "notification_not_found": "Notification not found",
+  "notification_read_all": "All notifications marked as read",
+  "consent_not_found": "Consent not found",
+  "request_processing": "A request with this idempotency key is currently being processed"
+}

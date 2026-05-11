@@ -1,0 +1,16 @@
+{
+  "invalid_protocol": "Invalid protocol",
+  "invalid_url": "Invalid webhook URL",
+  "secret_length": "Webhook secret must be at least {min} characters",
+  "localhost_denied": "Webhook URL cannot point to localhost",
+  "private_ip_denied": "Webhook URL cannot point to private IP addresses",
+  "dns_lookup_failed": "DNS lookup failed for the webhook host",
+  "dns_rebinding_not_pinned": "Webhook host could not be pinned safely",
+  "dns_rebinding_blocked": "Webhook blocked due to DNS rebinding protection",
+  "not_found": "Webhook not found",
+  "redirect_blocked": "Webhook URL redirects are not allowed",
+  "request_timeout": "Webhook request timed out",
+  "missing_response_status": "Missing HTTP response status code",
+  "operation_aborted": "The operation was aborted",
+  "upstream_http_error": "Webhook endpoint returned HTTP {statusCode} {statusMessage}"
+}

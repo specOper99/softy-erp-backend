@@ -1,0 +1,5 @@
+{
+  "tenant_blocked": "This client portal is not available",
+  "token_required": "Client token is required",
+  "token_invalid": "Invalid or expired client token"
+}

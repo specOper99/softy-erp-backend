@@ -1,0 +1,5 @@
+{
+  "granted": "Consent granted",
+  "revoked": "Consent revoked",
+  "grant_required": "User must grant {type} consent to proceed"
+}

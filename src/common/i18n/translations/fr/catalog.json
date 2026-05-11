@@ -1,0 +1,9 @@
+{
+  "price_must_be_positive": "Le prix doit être supérieur à zéro",
+  "required_staff_count_must_be_at_least_one": "Le nombre de membres du personnel requis doit être d'au moins un",
+  "package_not_found_in_tenant": "Forfait non trouvé dans cette organisation",
+  "package_in_use": "Le forfait est utilisé et ne peut pas être supprimé",
+  "service_package_not_found": "Forfait de service avec l'ID {id} non trouvé",
+  "package_item_not_found": "Élément de forfait avec l'ID {id} non trouvé",
+  "task_type_not_found": "Type de tâche avec l'ID {id} non trouvé"
+}

@@ -1,0 +1,18 @@
+{
+  "tenant_id_required": "معرف المستأجر في العنوان مطلوب",
+  "tenant_suspended": "تم إيقاف هذه المنظمة",
+  "not_found": "المستأجر غير موجود",
+  "not_found_by_id": "المستأجر ذو المعرف {id} غير موجود",
+  "not_found_by_slug": "المستأجر ذو الرمز {slug} غير موجود",
+  "slug_taken": "Tenant slug is already taken",
+  "tenant_exists_name_slug": "يوجد مستأجر بهذا الاسم أو الرمز بالفعل",
+  "creation_not_supported": "إنشاء المستأجر غير مدعوم عبر API",
+  "deletion_not_supported": "حذف المستأجر غير مدعوم عبر API",
+  "cross_tenant_forbidden": "الوصول بين المستأجرين ممنوع",
+  "subscription_active_exists": "يوجد بالفعل اشتراك نشط للمستأجر",
+  "subscription_none": "لا يوجد اشتراك لهذا المستأجر",
+  "suspended_already": "المستأجر موقوف بالفعل",
+  "active_already": "المستأجر نشط بالفعل",
+  "upgrade_required": "قم بالترقية إلى {plan} للوصول إلى هذه الميزة.",
+  "quota_exceeded": "تم تجاوز الحصة لـ {resourceType}. الحد: {limit}، الحالي: {currentUsage}"
+}

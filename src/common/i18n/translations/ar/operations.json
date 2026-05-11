@@ -1,0 +1,10 @@
+{
+  "logout_success": "تم تسجيل الخروج بنجاح",
+  "data_export_processed": "تم معالجة تصدير البيانات بنجاح",
+  "data_deletion_processed": "تم معالجة حذف البيانات بنجاح",
+  "notification_deleted": "تم حذف الإشعار بنجاح",
+  "notification_not_found": "الإشعار غير موجود",
+  "notification_read_all": "تم تمييز جميع الإشعارات كمقروءة",
+  "consent_not_found": "الموافقة غير موجودة",
+  "request_processing": "طلب برمز تكرار هذا قيد المعالجة بالفعل"
+}

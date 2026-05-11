@@ -1,0 +1,9 @@
+{
+  "created": "Tâche créée avec succès",
+  "assigned": "Tâche assignée à {staffName}",
+  "started": "Tâche démarrée",
+  "completed": "Tâche terminée",
+  "not_found": "Tâche non trouvée",
+  "already_assigned": "La tâche est déjà assignée",
+  "not_found_plain": "Tâche non trouvée"
+}

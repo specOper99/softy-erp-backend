@@ -1,0 +1,5 @@
+{
+  "not_found": "Booking not found",
+  "export_failed": "Export failed",
+  "not_found_by_id": "Booking with ID {id} was not found"
+}

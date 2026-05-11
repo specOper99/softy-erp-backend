@@ -1,0 +1,16 @@
+{
+  "target_tenant_required": "تێنەنتی ئامانج پێویستە",
+  "invalid_tenant_id_format": "فۆرماتی ناسنامەی تێنەنت نادروستە",
+  "tenant_not_found": "تێنەنت بە ناسنامەی {tenantId} نەدۆزرایەوە",
+  "user_not_found_in_tenant": "بەکارهێنەر {userId} لە تێنەنتی {tenantId}دا نەدۆزرایەوە",
+  "impersonation_session_exists": "دانیشتنێکی چالاکی خۆ-جێگرەوەکردن بۆ ئەم بەکارهێنەرە هەیە",
+  "impersonation_not_found": "دانیشتنی خۆ-جێگرەوەکردن نەدۆزرایەوە",
+  "impersonation_session_ended": "دانیشتن پێشتر کۆتایی هاتووە",
+  "impersonation_session_ended_success": "دانیشتنی جێگرەوە کۆتاییهات",
+  "impersonation_end_own_only": "تەنیا دەتوانیت دانیشتنی خۆت کۆتایی پێبهێنیت",
+  "ip_cidr_invalid": "فۆرماتی IP یان CIDR نادروستە: {value}",
+  "permissions_missing": "ڕێگەپێدانی پێویست ون بووە: {permissions}",
+  "role_required": "ڕۆڵی پلاتفۆرم پێویستە",
+  "reason_required": "هۆکارێکی وردی (لانیکەم 10 پیت) بۆ ئەم کردارە پێویستە",
+  "end_time_before_start": "کاتی کۆتایی ناتوانێت پێش کاتی دەستپێکردن بێت"
+}

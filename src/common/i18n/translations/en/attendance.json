@@ -1,0 +1,7 @@
+{
+  "invalid_date_format": "Invalid date format",
+  "invalid_checkin_format": "Invalid check-in time format",
+  "invalid_checkout_format": "Invalid check-out time format",
+  "checkout_must_be_after_checkin": "Check-out time must be after check-in time",
+  "record_not_found": "Attendance record not found"
+}

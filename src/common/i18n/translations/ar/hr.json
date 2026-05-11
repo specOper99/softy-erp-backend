@@ -1,0 +1,21 @@
+{
+  "profile_not_found": "الملف الشخصي غير موجود",
+  "user_not_found_in_tenant": "المستخدم غير موجود في المستأجر",
+  "task_type_eligibility_already_exists": "قاعدة الأهلية هذه موجودة بالفعل",
+  "task_type_eligibility_not_found": "أهلية نوع المهمة غير موجودة",
+  "profile_not_found_in_tenant": "الملف الشخصي غير موجود في هذه المنظمة",
+  "task_type_not_found_in_tenant": "نوع المهمة غير موجود في هذه المنظمة",
+  "unsupported_studio_role": "دور موظف غير مدعوم لمستأجر الاستوديو",
+  "user_or_profile_exists": "المستخدم أو الملف الشخصي موجود بالفعل",
+  "profile_exists_for_user": "الملف الشخصي موجود بالفعل للمستخدم {userId}",
+  "attendance_self_only_create": "يمكن للموظفين الميدانيين إنشاء سجلات الحضور لأنفسهم فقط",
+  "attendance_invalid_user_id": "معرف المستخدم غير صالح",
+  "attendance_self_only_view": "يمكن للموظفين الميدانيين عرض سجلات حضورهم فقط",
+  "attendance_duplicate_day": "سجل الحضور لهذا المستخدم والتاريخ موجود بالفعل",
+  "availability_slot_effective_to_before_from": "يجب أن لا يكون تاريخ الانتهاء قبل تاريخ البدء",
+  "availability_slot_not_found": "فترة التوفر غير موجودة",
+  "availability_slot_start_must_be_before_end": "يجب أن يكون وقت البدء قبل وقت الانتهاء",
+  "invalid_date_format": "يجب أن يكون التاريخ بصيغة YYYY-MM-DD",
+  "invalid_time_format": "يجب أن يكون الوقت بصيغة HH:mm",
+  "availability_slot_overlap": "تتداخل فترة التوفر هذه مع فترة موجودة"
+}

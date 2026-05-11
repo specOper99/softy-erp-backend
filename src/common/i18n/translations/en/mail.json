@@ -1,0 +1,7 @@
+{
+  "template_not_found": "Template not found",
+  "template_name_exists": "Template with this name already exists",
+  "template_system_delete": "Cannot delete system templates",
+  "template_compile_failed": "Template compilation failed: {detail}",
+  "template_compilation_failed": "Template compilation failed"
+}

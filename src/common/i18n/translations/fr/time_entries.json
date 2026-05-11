@@ -1,0 +1,6 @@
+{
+  "not_found": "Saisie de temps non trouvée",
+  "active_timer": "Vous avez un minuteur actif. Veuillez l'arrêter d'abord.",
+  "timer_not_running": "Le minuteur n'est pas en cours d'exécution",
+  "update_forbidden": "Mise à jour de cette saisie de temps non autorisée"
+}

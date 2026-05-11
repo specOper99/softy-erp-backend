@@ -1,0 +1,9 @@
+{
+  "price_must_be_positive": "Price must be greater than zero",
+  "required_staff_count_must_be_at_least_one": "Required staff count must be at least one",
+  "package_not_found_in_tenant": "Package not found in this organization",
+  "package_in_use": "Package is in use and cannot be deleted",
+  "service_package_not_found": "Service package with ID {id} was not found",
+  "package_item_not_found": "Package item with ID {id} was not found",
+  "task_type_not_found": "Task type with ID {id} was not found"
+}

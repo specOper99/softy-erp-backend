@@ -1,0 +1,7 @@
+{
+  "template_not_found": "Modèle non trouvé",
+  "template_name_exists": "Un modèle avec ce nom existe déjà",
+  "template_system_delete": "Impossible de supprimer les modèles système",
+  "template_compile_failed": "Échec de la compilation du modèle : {detail}",
+  "template_compilation_failed": "Échec de la compilation du modèle"
+}

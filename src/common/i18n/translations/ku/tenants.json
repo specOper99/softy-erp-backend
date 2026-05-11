@@ -1,0 +1,18 @@
+{
+  "tenant_id_required": "ئایدی تێنەنت دەوێت",
+  "tenant_suspended": "ئەم ڕێکخراوە ڕاگیراوە",
+  "not_found": "تێنەنت نەدۆزرایەوە",
+  "not_found_by_id": "تێنەنت بە ناسنامەی {id} نەدۆزرایەوە",
+  "not_found_by_slug": "تێنەنت بە سلاگی {slug} نەدۆزرایەوە",
+  "slug_taken": "Tenant slug is already taken",
+  "tenant_exists_name_slug": "تێنەنتێک بەم ناو یان سلاگە پێشتر هەیە",
+  "creation_not_supported": "دروستکردنی تێنەنت لە ڕێگەی API پشتگیری ناکرێت",
+  "deletion_not_supported": "سڕینەوەی تێنەنت لە ڕێگەی API پشتگیری ناکرێت",
+  "cross_tenant_forbidden": "دەستگەیشتن لەنێوان تێنەنتەکاندا قەدەغەیە",
+  "subscription_active_exists": "تێنەنت پێشتر بەژدارییەکی چالاکی هەیە",
+  "subscription_none": "هیچ بەژدارییەک بۆ ئەم تێنەنتە نەدۆزرایەوە",
+  "suspended_already": "تێنەنت پێشتر ڕاگیراوە",
+  "active_already": "تێنەنت پێشتر چالاکە",
+  "upgrade_required": "بۆ {plan} بەرز بکەرەوە بۆ گەیشتن بەم تایبەتمەندیە.",
+  "quota_exceeded": "سنوور بۆ {resourceType} تێپەڕیوە. سنوور: {limit}، ئێستا: {currentUsage}"
+}

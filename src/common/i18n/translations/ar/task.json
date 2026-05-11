@@ -1,0 +1,9 @@
+{
+  "created": "تم إنشاء المهمة بنجاح",
+  "assigned": "تم تعيين المهمة إلى {staffName}",
+  "started": "بدأت المهمة",
+  "completed": "اكتملت المهمة",
+  "not_found": "المهمة غير موجودة",
+  "already_assigned": "المهمة معينة بالفعل",
+  "not_found_plain": "المهمة غير موجودة"
+}

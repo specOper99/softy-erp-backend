@@ -1,0 +1,5 @@
+{
+  "client_required": "Client information is required",
+  "client_ambiguous": "Multiple clients matched; please narrow the selection",
+  "client_not_found": "Client not found"
+}

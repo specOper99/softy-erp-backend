@@ -1,0 +1,14 @@
+{
+  "package_not_found": "الباقة غير موجودة",
+  "invalid_date_format_hint": "تنسيق التاريخ غير صالح. استخدم YYYY-MM-DD",
+  "review_completed_only": "يمكن فقط مراجعة الحجوزات المكتملة",
+  "review_already_submitted": "لقد قمت بمراجعة هذا الحجز بالفعل",
+  "tenant_slug_required_param": "tenantSlug مطلوب",
+  "date_format_yyyy_mm_dd": "يجب أن يكون تنسيق التاريخ YYYY-MM-DD",
+  "availability_range_invalid": "نطاق تاريخ التوفر غير صالح",
+  "tenant_slug_required_body": "رمز المستأجر مطلوب",
+  "booking_cancel_status": "لا يمكن إلغاء الحجز في حالته الحالية",
+  "slot_fully_booked": "الفترة الزمنية المحددة محجوزة بالكامل",
+  "min_notice_hours": "يتطلب الحجز إشعاراً قبل {hours} ساعة على الأقل",
+  "client_not_found": "العميل غير موجود"
+}

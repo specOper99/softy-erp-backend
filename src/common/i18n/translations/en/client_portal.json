@@ -1,0 +1,14 @@
+{
+  "package_not_found": "Package not found",
+  "invalid_date_format_hint": "Invalid date format. Use YYYY-MM-DD",
+  "review_completed_only": "Can only review completed bookings",
+  "review_already_submitted": "You have already reviewed this booking",
+  "tenant_slug_required_param": "tenantSlug is required",
+  "date_format_yyyy_mm_dd": "Date format must be YYYY-MM-DD",
+  "availability_range_invalid": "Invalid availability date range",
+  "tenant_slug_required_body": "Tenant slug is required",
+  "booking_cancel_status": "Booking cannot be cancelled in its current status",
+  "slot_fully_booked": "Selected time slot is fully booked",
+  "min_notice_hours": "Booking requires at least {hours} hours notice",
+  "client_not_found": "Client not found"
+}

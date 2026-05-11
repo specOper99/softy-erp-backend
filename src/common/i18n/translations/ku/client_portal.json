@@ -1,0 +1,14 @@
+{
+  "package_not_found": "پاکێج نەدۆزرایەوە",
+  "invalid_date_format_hint": "فۆرماتی بەروار نادروستە. YYYY-MM-DD بەکاربهێنە",
+  "review_completed_only": "تەنیا دەتوانیت نۆرەی تەواوبوو هەڵبسەنگێنیت",
+  "review_already_submitted": "تۆ پێشتر ئەم نۆرەیە هەڵسەنگاندووە",
+  "tenant_slug_required_param": "tenantSlug پێویستە",
+  "date_format_yyyy_mm_dd": "فۆرماتی بەروار دەبێت YYYY-MM-DD بێت",
+  "availability_range_invalid": "ماوەی بەروار بەردەست نادروستە",
+  "tenant_slug_required_body": "سلاگی تێنەنت پێویستە",
+  "booking_cancel_status": "نۆرە لە دۆخی ئێستادا ناتوانرێت هەڵبوەشێتەوە",
+  "slot_fully_booked": "ماوەی هەڵبژێردراو بە تەواوی نۆرەکراوە",
+  "min_notice_hours": "نۆرە لانیکەم {hours} کاتژمێر ئاگادارکردنەوە دەوێت",
+  "client_not_found": "کڕیار نەدۆزرایەوە"
+}

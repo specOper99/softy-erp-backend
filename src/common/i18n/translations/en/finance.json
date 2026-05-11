@@ -1,0 +1,20 @@
+{
+  "amount_must_be_positive": "Transaction amount must be positive",
+  "amount_exceeds_maximum": "Transaction amount exceeds maximum allowed value",
+  "unsupported_currency": "Unsupported currency specified",
+  "amount_must_be_valid_number": "Amount must be a valid number",
+  "amount_invalid": "Invalid amount",
+  "transaction_already_voided": "This transaction is already voided",
+  "cannot_void_a_reversal": "Cannot void a reversal transaction",
+  "vendor_not_found": "Vendor not found",
+  "purchase_invoice_already_exists": "A purchase invoice already exists for this reference",
+  "purchase_invoice_not_found": "Purchase invoice not found",
+  "category_not_found": "Category not found",
+  "category_name_already_exists": "A category with this name already exists",
+  "category_circular_reference": "Category parent would create a circular reference",
+  "parent_category_not_found": "Parent category not found",
+  "category_has_children": "Cannot delete a category that has subcategories",
+  "invoice_not_found": "Invoice with ID {id} was not found",
+  "transaction_not_found": "Transaction with ID {id} was not found",
+  "recurring_not_found": "Recurring transaction not found"
+}

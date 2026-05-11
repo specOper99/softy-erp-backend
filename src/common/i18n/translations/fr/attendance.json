@@ -1,0 +1,7 @@
+{
+  "invalid_checkout_format": "Format d'heure de départ invalide",
+  "invalid_date_format": "Format de date invalide",
+  "checkout_must_be_after_checkin": "L'heure de départ doit être après l'heure d'arrivée",
+  "record_not_found": "Enregistrement de présence non trouvé",
+  "invalid_checkin_format": "Format d'heure d'arrivée invalide"
+}

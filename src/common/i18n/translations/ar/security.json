@@ -1,0 +1,6 @@
+{
+  "mfa_enabled": "تم تفعيل المصادقة الثنائية بنجاح",
+  "mfa_disabled": "تم تعطيل المصادقة الثنائية",
+  "metrics_auth_required": "رأس التفويض مطلوب",
+  "metrics_token_invalid": "رمز المقاييس غير صالح"
+}

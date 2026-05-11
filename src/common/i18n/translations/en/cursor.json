@@ -1,0 +1,7 @@
+{
+  "invalid_format": "Invalid cursor format",
+  "invalid_date": "Invalid cursor date",
+  "invalid_id": "Invalid cursor id",
+  "malformed": "Malformed cursor",
+  "tampered": "Invalid or tampered cursor"
+}
