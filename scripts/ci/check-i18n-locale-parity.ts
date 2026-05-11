@@ -21,10 +21,24 @@ function flattenKeys(obj: Record<string, unknown>, prefix = ''): string[] {
 }
 
 function loadKeys(locale: string): Set<string> {
-  const filePath = path.join(TRANSLATIONS_DIR, `${locale}.json`);
-  const raw = fs.readFileSync(filePath, 'utf-8');
-  const parsed = JSON.parse(raw) as Record<string, unknown>;
-  return new Set(flattenKeys(parsed));
+  const localeDir = path.join(TRANSLATIONS_DIR, locale);
+  const merged: Record<string, unknown> = {};
+
+  if (fs.existsSync(localeDir) && fs.statSync(localeDir).isDirectory()) {
+    for (const file of fs.readdirSync(localeDir).filter((f) => f.endsWith('.json'))) {
+      const raw = fs.readFileSync(path.join(localeDir, file), 'utf-8');
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const namespace = path.basename(file, '.json');
+      merged[namespace] = parsed;
+    }
+  } else {
+    // Fallback: single flat file (legacy)
+    const filePath = path.join(TRANSLATIONS_DIR, `${locale}.json`);
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    Object.assign(merged, JSON.parse(raw) as Record<string, unknown>);
+  }
+
+  return new Set(flattenKeys(merged));
 }
 
 function main(): void {
