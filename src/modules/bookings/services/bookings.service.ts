@@ -1,11 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Counter } from 'prom-client';
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
-import { BookingsPricingService } from './bookings-pricing.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
+import { BookingsPricingService } from './bookings-pricing.service';
 
 import { FlagsService } from '../../../common/flags/flags.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
@@ -113,7 +113,7 @@ export class BookingsService {
     this.pricingService.validate(priceInput.taxRate, priceInput.depositPercentage);
     const pricing = this.pricingService.calculate(priceInput);
 
-    if (dto.startTime && pkg.durationMinutes > 0) {
+    if (dto.startTime && pkg.durationMinutes > 0 && !dto.skipAvailabilityCheck) {
       await this.ensureNoStaffConflict({
         packageId: dto.packageId,
         eventDate,

@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -15,12 +16,12 @@ import {
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
+import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TasksService } from '../../tasks/services/tasks.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
 import {
   BookingAvailabilityQueryDto,
   BookingAvailabilityResponseDto,
@@ -28,6 +29,7 @@ import {
   BookingExportFilterDto,
   BookingFilterDto,
   CancelBookingDto,
+  ConfirmBookingDto,
   CreateBookingDto,
   MarkBookingPaidDto,
   RecordPaymentDto,
@@ -72,7 +74,10 @@ export class BookingsController {
   @ApiResponse({ status: 400, description: 'Bad Request - Validation failed' })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  create(@Body() dto: CreateBookingDto) {
+  create(@Body() dto: CreateBookingDto, @CurrentUser() user: User) {
+    if (dto.skipAvailabilityCheck && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('booking.skip_availability_admin_only');
+    }
     return this.bookingsService.create(dto);
   }
 
@@ -199,8 +204,12 @@ export class BookingsController {
       'Booking request status is DRAFT. Confirm transitions DRAFT -> CONFIRMED and generates booking tasks in PENDING state.',
   })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
-  confirm(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingWorkflowService.confirmBooking(id);
+  @ApiBody({ type: ConfirmBookingDto, required: false })
+  confirm(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ConfirmBookingDto, @CurrentUser() user: User) {
+    if (dto?.skipAvailabilityCheck && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('booking.skip_availability_admin_only');
+    }
+    return this.bookingWorkflowService.confirmBooking(id, dto?.skipAvailabilityCheck ?? false);
   }
 
   @Patch(':id/reschedule')
@@ -209,8 +218,11 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: RescheduleBookingDto })
   @ApiResponse({ status: 200, description: 'Booking rescheduled' })
-  reschedule(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RescheduleBookingDto) {
-    return this.bookingWorkflowService.rescheduleBooking(id, dto);
+  reschedule(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RescheduleBookingDto, @CurrentUser() user: User) {
+    if (dto?.skipAvailabilityCheck && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('booking.skip_availability_admin_only');
+    }
+    return this.bookingWorkflowService.rescheduleBooking(id, dto, dto?.skipAvailabilityCheck ?? false);
   }
 
   @Get(':id/tasks')

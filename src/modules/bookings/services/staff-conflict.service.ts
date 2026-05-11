@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { In, IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, IsNull, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
-import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
+import { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
 import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
@@ -50,7 +51,8 @@ export class StaffConflictService {
     private readonly userRepository: UserRepository,
     private readonly taskAssigneeRepository: TaskAssigneeRepository,
     private readonly taskRepository: TaskRepository,
-    private readonly availabilitySlotRepo: StaffAvailabilitySlotRepository,
+    @InjectRepository(StaffAvailabilitySlot)
+    private readonly availabilitySlotRepo: Repository<StaffAvailabilitySlot>,
   ) {}
 
   async checkPackageStaffAvailability(input: CheckPackageStaffAvailabilityInput): Promise<StaffAvailabilityResult> {
@@ -83,7 +85,12 @@ export class StaffConflictService {
     }
 
     // Further filter to staff who have an active availability slot covering the requested day/time
-    const scheduledUserIds = await this.getScheduledUserIds(eligibleUserIds, input.eventDate, requestedWindow);
+    const scheduledUserIds = await this.getScheduledUserIds(
+      eligibleUserIds,
+      input.eventDate,
+      input.startTime,
+      durationMinutes,
+    );
     const scheduledCount = scheduledUserIds.length;
 
     if (scheduledCount < requiredStaffCount) {
@@ -158,14 +165,17 @@ export class StaffConflictService {
 
   /**
    * Filter eligible user IDs to those who have an active availability slot on the
-   * target day-of-week that covers the full booking time window.
-   * Falls back to returning all eligibleUserIds when no slots are configured (tenant
-   * has not yet set up staff schedules), maintaining backward compatibility.
+   * target day-of-week that fully covers the booking time window.
+   *
+   * Uses the raw startTime string (e.g. "10:00") and durationMinutes directly so
+   * the comparison stays in local-clock minutes and is unaffected by server timezone.
+   * Falls back to all eligibleUserIds when no slots are configured (backward-compatible).
    */
   private async getScheduledUserIds(
     eligibleUserIds: string[],
     eventDate: Date,
-    requestedWindow: { start: Date; end: Date },
+    startTime: string,
+    durationMinutes: number,
   ): Promise<string[]> {
     if (eligibleUserIds.length === 0) return [];
 
@@ -177,14 +187,14 @@ export class StaffConflictService {
     // Find slots for eligible staff on the matching day that are active for eventDate
     const slots = await this.availabilitySlotRepo.find({
       where: [
-        // Slots with no end date (open-ended)
+        // Open-ended slots
         {
           userId: In(eligibleUserIds),
           dayOfWeek,
           effectiveFrom: LessThanOrEqual(eventDateOnly),
           effectiveTo: IsNull(),
         },
-        // Slots with an explicit end date
+        // Bounded slots
         {
           userId: In(eligibleUserIds),
           dayOfWeek,
@@ -194,25 +204,34 @@ export class StaffConflictService {
       ],
     });
 
-    // If no slots are configured at all for any eligible staff, fall back to legacy
-    // behaviour (schedule-unaware) so tenants without slot data are not broken.
+    // No slots configured at all → fall back to schedule-unaware (legacy) behaviour
+    // so tenants that haven't set up staff schedules are not broken.
     if (slots.length === 0) {
       return eligibleUserIds;
     }
 
-    // Request window minutes relative to day start
-    const reqStartMin = toMinutes(
-      `${String(requestedWindow.start.getUTCHours()).padStart(2, '0')}:${String(requestedWindow.start.getUTCMinutes()).padStart(2, '0')}`,
-    );
-    const reqEndMin = toMinutes(
-      `${String(requestedWindow.end.getUTCHours()).padStart(2, '0')}:${String(requestedWindow.end.getUTCMinutes()).padStart(2, '0')}`,
-    );
+    // Compare directly in local-clock minutes — avoids UTC/local mismatch from Date objects
+    const reqStartMin = toMinutes(startTime);
+    const reqEndMin = reqStartMin + durationMinutes;
 
-    // A staff member is "scheduled" if any of their slots fully covers the booking window
+    // A staff member is "scheduled" if any of their slots fully covers the booking window.
+    // Per-user semantics:
+    //   • Has a slot on this day that covers the window → included ✅
+    //   • Has a slot on this day that does NOT cover the window → excluded ❌
+    //   • Has NO slot on this day at all → included (no restriction configured, legacy) ✅
+    const usersWithDaySlots = new Set(slots.map((slot) => slot.userId));
     const scheduledSet = new Set<string>();
+
     for (const slot of slots) {
       if (toMinutes(slot.startTime) <= reqStartMin && toMinutes(slot.endTime) >= reqEndMin) {
         scheduledSet.add(slot.userId);
+      }
+    }
+
+    // Users with no slot on this day-of-week are treated as always available (backward-compatible).
+    for (const userId of eligibleUserIds) {
+      if (!usersWithDaySlots.has(userId)) {
+        scheduledSet.add(userId);
       }
     }
 

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNumber,
@@ -105,6 +106,14 @@ export class CreateBookingDto {
   @IsUUID('4', { each: true })
   @IsOptional()
   processingTypeIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Admin-only: skip staff availability check and force the booking through',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  skipAvailabilityCheck?: boolean;
 }
 
 export class UpdateBookingDto {
@@ -195,6 +204,16 @@ export class UpdateBookingDto {
   processingTypeIds?: string[];
 }
 
+export class ConfirmBookingDto {
+  @ApiPropertyOptional({
+    description: 'Admin-only: skip staff availability check and force confirmation',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  skipAvailabilityCheck?: boolean;
+}
+
 export class RescheduleBookingDto {
   @ApiProperty({ example: '2024-12-31T18:00:00Z' })
   @IsDateString()
@@ -205,6 +224,14 @@ export class RescheduleBookingDto {
     message: 'startTime must be in HH:mm format',
   })
   startTime: string;
+
+  @ApiPropertyOptional({
+    description: 'Admin-only: skip staff availability check and force the reschedule',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  skipAvailabilityCheck?: boolean;
 }
 
 export class ClientResponseDto {

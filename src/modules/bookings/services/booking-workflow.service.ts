@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { Transaction } from '../../finance/entities/transaction.entity';
@@ -16,7 +17,6 @@ import { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import { Task } from '../../tasks/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/entities/time-entry.entity';
 import { TaskStatus } from '../../tasks/enums/task-status.enum';
-import { toErrorMessage } from '../../../common/utils/error.util';
 import { User } from '../../users/entities/user.entity';
 import { CancelBookingDto, ConfirmBookingResponseDto, RescheduleBookingDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
@@ -54,7 +54,7 @@ export class BookingWorkflowService {
    * 4. Create INCOME transaction in Finance
    * 5. Rollback all on failure
    */
-  async confirmBooking(id: string): Promise<ConfirmBookingResponseDto> {
+  async confirmBooking(id: string, skipAvailabilityCheck = false): Promise<ConfirmBookingResponseDto> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     let eventToPublish: BookingConfirmedEvent | null = null;
 
@@ -87,7 +87,7 @@ export class BookingWorkflowService {
 
       booking.durationMinutes = booking.servicePackage?.durationMinutes ?? booking.durationMinutes;
 
-      if (booking.startTime && booking.durationMinutes > 0) {
+      if (booking.startTime && booking.durationMinutes > 0 && !skipAvailabilityCheck) {
         await this.ensureNoStaffConflict({
           packageId: booking.packageId,
           eventDate: booking.eventDate,
@@ -470,7 +470,7 @@ export class BookingWorkflowService {
     return savedBooking;
   }
 
-  async rescheduleBooking(id: string, dto: RescheduleBookingDto): Promise<Booking> {
+  async rescheduleBooking(id: string, dto: RescheduleBookingDto, skipAvailabilityCheck = false): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     let eventToPublish: BookingRescheduledEvent | null = null;
     let previousDate: Date | null = null;
@@ -497,7 +497,7 @@ export class BookingWorkflowService {
         throw new BadRequestException('booking.event_date_must_be_future');
       }
 
-      if (booking.packageId && booking.durationMinutes > 0) {
+      if (booking.packageId && booking.durationMinutes > 0 && !skipAvailabilityCheck) {
         await this.ensureNoStaffConflict({
           packageId: booking.packageId,
           eventDate: nextEventDate,

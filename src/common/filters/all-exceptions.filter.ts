@@ -46,6 +46,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     private readonly i18nService: I18nService,
   ) {}
 
+  /** Languages for which we have translation files. */
+  private static readonly SUPPORTED_LANGUAGES = new Set<string>(['en', 'ar', 'ku', 'fr']);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -55,7 +58,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const correlationId = this.resolveCorrelationId(request);
     response.setHeader('X-Correlation-ID', correlationId);
 
-    const lang = I18nContext.current(host)?.lang ?? 'en';
+    // Primary: nestjs-i18n context (set by the i18n interceptor for route-handler requests).
+    // Fallback: read Accept-Language header directly, which is always present in the raw
+    // request — this covers exceptions thrown inside guards/middleware before the i18n
+    // interceptor has had a chance to run.
+    const i18nLang = I18nContext.current(host)?.lang;
+    const lang = i18nLang ?? this.resolveLanguageFromHeader(request.headers['accept-language'] as string | undefined);
 
     let status: number;
     let message: string;
@@ -197,6 +205,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     return s;
+  }
+
+  /**
+   * Parse a raw Accept-Language header value (e.g. "ar,en-US;q=0.9") into the
+   * first supported language code, falling back to "en".
+   */
+  private resolveLanguageFromHeader(acceptLanguage: string | undefined): string {
+    if (!acceptLanguage) return 'en';
+    for (const part of acceptLanguage.split(',')) {
+      const raw = (part.split(';')[0] ?? '').trim().toLowerCase();
+      if (AllExceptionsFilter.SUPPORTED_LANGUAGES.has(raw)) return raw;
+      // Also accept region tags like "ar-SA" → "ar"
+      const base = raw.split('-')[0] ?? '';
+      if (AllExceptionsFilter.SUPPORTED_LANGUAGES.has(base)) return base;
+    }
+    return 'en';
   }
 
   private resolveCorrelationId(request: RequestWithCorrelationId): string {
