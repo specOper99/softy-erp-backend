@@ -6,7 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const SRC_ROOT = path.join(__dirname, '../../src');
-const EN_JSON = path.join(__dirname, '../../src/common/i18n/translations/en.json');
+const TRANSLATIONS_DIR = path.join(__dirname, '../../src/common/i18n/translations');
 
 const KEY_LIKE = /^[a-z][a-z0-9_.]*$/;
 
@@ -21,6 +21,23 @@ function flattenKeys(obj: Record<string, unknown>, prefix = ''): Set<string> {
     }
   }
   return keys;
+}
+
+function loadLocaleKeys(locale: string): Set<string> {
+  const localeDir = path.join(TRANSLATIONS_DIR, locale);
+  const merged: Record<string, unknown> = {};
+  if (fs.existsSync(localeDir) && fs.statSync(localeDir).isDirectory()) {
+    for (const file of fs.readdirSync(localeDir).filter((f) => f.endsWith('.json'))) {
+      const parsed = JSON.parse(fs.readFileSync(path.join(localeDir, file), 'utf-8')) as Record<string, unknown>;
+      merged[path.basename(file, '.json')] = parsed;
+    }
+  } else {
+    Object.assign(
+      merged,
+      JSON.parse(fs.readFileSync(path.join(TRANSLATIONS_DIR, `${locale}.json`), 'utf-8')) as Record<string, unknown>,
+    );
+  }
+  return flattenKeys(merged);
 }
 
 function walkTsFiles(dir: string, out: string[]): void {
@@ -53,7 +70,7 @@ function extractExceptionStrings(line: string): string[] {
 }
 
 function main(): void {
-  const enKeys = flattenKeys(JSON.parse(fs.readFileSync(EN_JSON, 'utf-8')) as Record<string, unknown>);
+  const enKeys = loadLocaleKeys('en');
   const files: string[] = [];
   walkTsFiles(SRC_ROOT, files);
 

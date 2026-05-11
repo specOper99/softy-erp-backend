@@ -4,7 +4,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const EN_PATH = path.join(__dirname, '../../src/common/i18n/translations/en.json');
+const TRANSLATIONS_DIR = path.join(__dirname, '../../src/common/i18n/translations');
+const EN_DIR = path.join(TRANSLATIONS_DIR, 'en');
 
 function deepMerge(base: Record<string, unknown>, patch: Record<string, unknown>): void {
   for (const [k, v] of Object.entries(patch)) {
@@ -217,11 +218,17 @@ const PATCH: Record<string, unknown> = {
 };
 
 function main(): void {
-  const raw = fs.readFileSync(EN_PATH, 'utf-8');
-  const en = JSON.parse(raw) as Record<string, unknown>;
-  deepMerge(en, PATCH);
-  fs.writeFileSync(EN_PATH, JSON.stringify(en, null, 4) + '\n', 'utf-8');
-  console.log('Patched en.json with API error catalog additions.');
+  for (const [namespace, patch] of Object.entries(PATCH)) {
+    const moduleFile = path.join(EN_DIR, `${namespace}.json`);
+    let existing: Record<string, unknown> = {};
+    if (fs.existsSync(moduleFile)) {
+      existing = JSON.parse(fs.readFileSync(moduleFile, 'utf-8')) as Record<string, unknown>;
+    }
+    deepMerge(existing, patch as Record<string, unknown>);
+    fs.writeFileSync(moduleFile, JSON.stringify(existing, null, 4) + '\n', 'utf-8');
+    console.log(`Patched en/${namespace}.json`);
+  }
+  console.log('Done patching en/ module files with API error catalog additions.');
 }
 
 main();
