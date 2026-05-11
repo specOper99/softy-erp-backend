@@ -6,10 +6,9 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
 import { parseDateOnlyToUtc, toUtcDayRange } from '../../bookings/utils/booking-date-policy.util';
-import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
+import { ProcessingTypeEligibilityRepository } from '../../hr/repositories/processing-type-eligibility.repository';
 import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
-import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 
 type WorkingHoursArray = Array<{ day: string; startTime: string; endTime: string; isOpen: boolean }>;
@@ -46,9 +45,7 @@ export class AvailabilityService {
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
     private readonly staffSlotRepo: StaffAvailabilitySlotRepository,
-    private readonly eligibilityRepo: TaskTypeEligibilityRepository,
-    @InjectRepository(PackageItem)
-    private readonly packageItemRepo: Repository<PackageItem>,
+    private readonly eligibilityRepo: ProcessingTypeEligibilityRepository,
   ) {}
 
   async checkAvailability(tenantId: string, packageId: string, date: string): Promise<AvailabilityResponse> {
@@ -94,92 +91,85 @@ export class AvailabilityService {
       );
 
       // ── Resolve staff schedules for this package/date ────────────────────
-      // 1. Find which task types are required by this package
-      const packageItems = await this.packageItemRepo.find({ where: { packageId } });
-      const taskTypeIds = [...new Set(packageItems.map((i) => i.taskTypeId))];
+      // 1. Find all eligible staff user IDs via ProcessingTypeEligibility (tenant-wide)
+      const eligibilities = await this.eligibilityRepo.find({
+        select: { userId: true },
+      });
+      const eligibleUserIds = [...new Set(eligibilities.map((e) => e.userId))];
 
       let timeSlots: TimeSlot[] = [];
       let hasStaffSlots = false;
 
-      if (taskTypeIds.length > 0) {
-        // 2. Find all eligible (active) staff user IDs for those task types
-        const eligibilities = await this.eligibilityRepo.find({
-          where: { taskTypeId: In(taskTypeIds) },
-          select: { userId: true },
+      if (eligibleUserIds.length > 0) {
+        // 2. Load active availability slots for eligible staff on this day
+        const staffSlots = await this.staffSlotRepo.find({
+          where: [
+            {
+              userId: In(eligibleUserIds),
+              dayOfWeek: utcDayOfWeek,
+              effectiveFrom: LessThanOrEqual(dateOnly),
+              effectiveTo: IsNull(),
+            },
+            {
+              userId: In(eligibleUserIds),
+              dayOfWeek: utcDayOfWeek,
+              effectiveFrom: LessThanOrEqual(dateOnly),
+              effectiveTo: MoreThanOrEqual(dateOnly),
+            },
+          ],
         });
-        const eligibleUserIds = [...new Set(eligibilities.map((e) => e.userId))];
 
-        if (eligibleUserIds.length > 0) {
-          // 3. Load active availability slots for eligible staff on this day
-          const staffSlots = await this.staffSlotRepo.find({
-            where: [
-              {
-                userId: In(eligibleUserIds),
-                dayOfWeek: utcDayOfWeek,
-                effectiveFrom: LessThanOrEqual(dateOnly),
-                effectiveTo: IsNull(),
-              },
-              {
-                userId: In(eligibleUserIds),
-                dayOfWeek: utcDayOfWeek,
-                effectiveFrom: LessThanOrEqual(dateOnly),
-                effectiveTo: MoreThanOrEqual(dateOnly),
-              },
-            ],
+        hasStaffSlots = staffSlots.length > 0;
+
+        if (hasStaffSlots) {
+          // 3. Build the set of candidate time windows from slot union, at slot-duration increments
+          const slotDuration = servicePackage.durationMinutes;
+          const stepMinutes = tenant.timeSlotDurationMinutes ?? 60;
+          const requiredStaff = servicePackage.requiredStaffCount ?? 1;
+
+          // Determine overall time range covered by any staff slot
+          const minStart = Math.min(...staffSlots.map((s) => toMin(s.startTime)));
+          const maxEnd = Math.max(...staffSlots.map((s) => toMin(s.endTime)));
+
+          // Fetch confirmed bookings for the day to compute slot load
+          const bookings = await this.bookingRepository.find({
+            where: {
+              packageId,
+              eventDate: Raw((alias) => `${alias} >= :start AND ${alias} < :end`, {
+                start: dayRange.dayStart,
+                end: dayRange.dayEnd,
+              }),
+              status: BookingStatus.CONFIRMED,
+            },
+            select: ['startTime'],
           });
+          const bookingCounts = new Map<string, number>();
+          for (const b of bookings) {
+            if (b.startTime) bookingCounts.set(b.startTime, (bookingCounts.get(b.startTime) ?? 0) + 1);
+          }
 
-          hasStaffSlots = staffSlots.length > 0;
+          // Generate candidate slots
+          for (let startMin = minStart; startMin + slotDuration <= maxEnd; startMin += stepMinutes) {
+            const endMin = startMin + slotDuration;
+            const startStr = `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`;
+            const endStr = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
 
-          if (hasStaffSlots) {
-            // 4. Build the set of candidate time windows from slot union, at slot-duration increments
-            const slotDuration = servicePackage.durationMinutes;
-            const stepMinutes = tenant.timeSlotDurationMinutes ?? 60;
-            const requiredStaff = servicePackage.requiredStaffCount ?? 1;
+            // Count staff whose slot fully covers this candidate window
+            const coveringStaff = staffSlots.filter(
+              (s) => toMin(s.startTime) <= startMin && toMin(s.endTime) >= endMin,
+            );
+            // Subtract booked bookings in this slot from the covering staff count
+            const bookedCount = bookingCounts.get(startStr) ?? 0;
+            const freeStaff = Math.max(0, coveringStaff.length - bookedCount);
+            const available = freeStaff >= requiredStaff;
 
-            // Determine overall time range covered by any staff slot
-            const minStart = Math.min(...staffSlots.map((s) => toMin(s.startTime)));
-            const maxEnd = Math.max(...staffSlots.map((s) => toMin(s.endTime)));
-
-            // Fetch confirmed bookings for the day to compute slot load
-            const bookings = await this.bookingRepository.find({
-              where: {
-                packageId,
-                eventDate: Raw((alias) => `${alias} >= :start AND ${alias} < :end`, {
-                  start: dayRange.dayStart,
-                  end: dayRange.dayEnd,
-                }),
-                status: BookingStatus.CONFIRMED,
-              },
-              select: ['startTime'],
+            timeSlots.push({
+              start: startStr,
+              end: endStr,
+              available,
+              capacity: Math.max(0, coveringStaff.length - requiredStaff + 1 - bookedCount),
+              booked: bookedCount,
             });
-            const bookingCounts = new Map<string, number>();
-            for (const b of bookings) {
-              if (b.startTime) bookingCounts.set(b.startTime, (bookingCounts.get(b.startTime) ?? 0) + 1);
-            }
-
-            // Generate candidate slots
-            for (let startMin = minStart; startMin + slotDuration <= maxEnd; startMin += stepMinutes) {
-              const endMin = startMin + slotDuration;
-              const startStr = `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`;
-              const endStr = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
-
-              // Count staff whose slot fully covers this candidate window
-              const coveringStaff = staffSlots.filter(
-                (s) => toMin(s.startTime) <= startMin && toMin(s.endTime) >= endMin,
-              );
-              // Subtract booked bookings in this slot from the covering staff count
-              const bookedCount = bookingCounts.get(startStr) ?? 0;
-              const freeStaff = Math.max(0, coveringStaff.length - bookedCount);
-              const available = freeStaff >= requiredStaff;
-
-              timeSlots.push({
-                start: startStr,
-                end: endStr,
-                available,
-                capacity: Math.max(0, coveringStaff.length - requiredStaff + 1 - bookedCount),
-                booked: bookedCount,
-              });
-            }
           }
         }
       }

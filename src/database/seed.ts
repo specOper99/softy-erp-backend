@@ -64,9 +64,7 @@ if (missingEnvVars.length > 0) {
 // Import entities
 import { Booking } from '../modules/bookings/entities/booking.entity';
 import { Client } from '../modules/bookings/entities/client.entity';
-import { PackageItem } from '../modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
-import { TaskType } from '../modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
 import { Invoice } from '../modules/finance/entities/invoice.entity';
 import { Payout } from '../modules/finance/entities/payout.entity';
@@ -105,8 +103,6 @@ const AppDataSource = new DataSource({
     TransactionCategory,
     Payout,
     ServicePackage,
-    TaskType,
-    PackageItem,
     Booking,
     Client,
     Invoice,
@@ -154,8 +150,6 @@ async function seed() {
     const profileRepo = AppDataSource.getRepository(Profile);
     const walletRepo = AppDataSource.getRepository(EmployeeWallet);
     const packageRepo = AppDataSource.getRepository(ServicePackage);
-    const taskTypeRepo = AppDataSource.getRepository(TaskType);
-    const packageItemRepo = AppDataSource.getRepository(PackageItem);
     const categoryRepo = AppDataSource.getRepository(TransactionCategory);
 
     // ============ 0. CREATE DEFAULT TENANT ============
@@ -200,158 +194,45 @@ async function seed() {
       SeedLogger.log('   Admin user already exists');
     }
 
-    // ============ 2. CREATE TASK TYPES ============
-    SeedLogger.log('\nCreating task types...');
-    const taskTypesData = [
-      {
-        name: 'Photography',
-        description: 'Event photography coverage',
-        defaultCommissionAmount: 100,
-      },
-      {
-        name: 'Videography',
-        description: 'Video recording and capturing',
-        defaultCommissionAmount: 150,
-      },
-      {
-        name: 'Video Editing',
-        description: 'Post-production video editing',
-        defaultCommissionAmount: 200,
-      },
-      {
-        name: 'Color Grading',
-        description: 'Professional color correction',
-        defaultCommissionAmount: 120,
-      },
-      {
-        name: 'Sound Mixing',
-        description: 'Audio mixing and mastering',
-        defaultCommissionAmount: 80,
-      },
-      {
-        name: 'Drone Footage',
-        description: 'Aerial photography and videography',
-        defaultCommissionAmount: 180,
-      },
-    ];
-
-    const taskTypes: TaskType[] = [];
-    for (const data of taskTypesData) {
-      const existing = await taskTypeRepo.findOne({
-        where: { name: data.name, tenantId },
-      });
-      if (!existing) {
-        const taskType = taskTypeRepo.create({ ...data, tenantId });
-        taskTypes.push(await taskTypeRepo.save(taskType));
-        SeedLogger.log(`   Created: ${data.name}`);
-      } else {
-        taskTypes.push(existing);
-        SeedLogger.log(`   Exists: ${data.name}`);
-      }
-    }
-    const taskTypeByName = new Map(taskTypes.map((t) => [t.name, t]));
-
-    // ============ 3. CREATE SERVICE PACKAGES ============
+    // ============ 2. CREATE SERVICE PACKAGES ============
     SeedLogger.log('\nCreating service packages...');
     const packagesData = [
       {
         name: 'Wedding Premium',
         description: 'Complete wedding coverage with photography, videography, drone, and full editing',
         price: 2500,
-        items: [
-          { taskTypeName: 'Photography', quantity: 2 },
-          { taskTypeName: 'Videography', quantity: 2 },
-          { taskTypeName: 'Video Editing', quantity: 1 },
-          { taskTypeName: 'Drone Footage', quantity: 1 },
-          { taskTypeName: 'Color Grading', quantity: 1 },
-        ],
       },
       {
         name: 'Corporate Event',
         description: 'Professional corporate event coverage',
         price: 1500,
-        items: [
-          { taskTypeName: 'Photography', quantity: 1 },
-          { taskTypeName: 'Videography', quantity: 1 },
-          { taskTypeName: 'Video Editing', quantity: 1 },
-        ],
       },
       {
         name: 'Music Video',
         description: 'Full music video production',
         price: 3000,
-        items: [
-          { taskTypeName: 'Videography', quantity: 2 },
-          { taskTypeName: 'Video Editing', quantity: 1 },
-          { taskTypeName: 'Color Grading', quantity: 1 },
-          { taskTypeName: 'Sound Mixing', quantity: 1 },
-        ],
       },
       {
         name: 'Photo Session',
         description: 'Basic photography session',
         price: 500,
-        items: [{ taskTypeName: 'Photography', quantity: 1 }],
       },
     ];
 
     for (const pkgData of packagesData) {
-      let pkg = await packageRepo.findOne({
+      const existing = await packageRepo.findOne({
         where: { name: pkgData.name, tenantId },
       });
-      if (!pkg) {
-        pkg = packageRepo.create({
-          name: pkgData.name,
-          description: pkgData.description,
-          price: pkgData.price,
-          tenantId,
-        });
-        pkg = await packageRepo.save(pkg);
+      if (!existing) {
+        const pkg = packageRepo.create({ ...pkgData, tenantId });
+        await packageRepo.save(pkg);
         SeedLogger.log(`   Created package: ${pkgData.name}`);
-
-        // Add package items
-        for (const itemData of pkgData.items) {
-          const taskType = taskTypes.find((t) => t.name === itemData.taskTypeName);
-          if (taskType) {
-            const item = packageItemRepo.create({
-              packageId: pkg.id,
-              taskTypeId: taskType.id,
-              quantity: itemData.quantity,
-              tenantId,
-            });
-            await packageItemRepo.save(item);
-          }
-        }
       } else {
         SeedLogger.log(`   Exists: ${pkgData.name}`);
-
-        const existingItems = await packageItemRepo.find({
-          where: { packageId: pkg.id, tenantId },
-        });
-        const existingByTaskTypeId = new Map(existingItems.map((i) => [i.taskTypeId, i]));
-
-        for (const itemData of pkgData.items) {
-          const taskType = taskTypeByName.get(itemData.taskTypeName);
-          if (!taskType) continue;
-
-          const existingItem = existingByTaskTypeId.get(taskType.id);
-          if (!existingItem) {
-            const item = packageItemRepo.create({
-              packageId: pkg.id,
-              taskTypeId: taskType.id,
-              quantity: itemData.quantity,
-              tenantId,
-            });
-            await packageItemRepo.save(item);
-          } else if (existingItem.quantity !== itemData.quantity) {
-            existingItem.quantity = itemData.quantity;
-            await packageItemRepo.save(existingItem);
-          }
-        }
       }
     }
 
-    // ============ 4. CREATE FIELD STAFF USERS ============
+    // ============ 3. CREATE FIELD STAFF USERS ============
     SeedLogger.log('\nCreating field staff users...');
     const staffData = [
       {

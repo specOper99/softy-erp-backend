@@ -2,17 +2,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
 import { Role } from '../../users/enums/role.enum';
 
-export class CreateTaskTypeEligibilityDto {
+export class CreateProcessingTypeEligibilityDto {
   @ApiProperty()
   @IsUUID()
   userId: string;
 
   @ApiProperty()
   @IsUUID()
-  taskTypeId: string;
+  processingTypeId: string;
 }
 
-export class EligibleTaskTypeDto {
+export class EligibleProcessingTypeDto {
   @ApiProperty()
   id: string;
 
@@ -20,10 +20,13 @@ export class EligibleTaskTypeDto {
   name: string;
 
   @ApiPropertyOptional()
-  description: string;
+  description: string | null;
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty()
+  price: number;
 }
 
 export class EligibleStaffProfileDto {

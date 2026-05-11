@@ -3,7 +3,5 @@
   "required_staff_count_must_be_at_least_one": "يجب أن يكون عدد الموظفين المطلوب على الأقل واحداً",
   "package_not_found_in_tenant": "الباقة غير موجودة في هذه المنظمة",
   "package_in_use": "الباقة قيد الاستخدام ولا يمكن حذفها",
-  "service_package_not_found": "باقة الخدمة ذات المعرف {id} غير موجودة",
-  "package_item_not_found": "عنصر الباقة ذو المعرف {id} غير موجود",
-  "task_type_not_found": "نوع المهمة ذو المعرف {id} غير موجود"
+  "service_package_not_found": "باقة الخدمة ذات المعرف {id} غير موجودة"
 }

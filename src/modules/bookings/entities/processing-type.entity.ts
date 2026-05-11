@@ -15,4 +15,16 @@ export class ProcessingType extends BaseTenantEntity {
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  price: number;
+
+  @Column({
+    name: 'default_commission_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  defaultCommissionAmount: number;
 }

@@ -318,7 +318,7 @@ export class ClientPortalService {
       rating,
       reviewCount,
       imageUrl: undefined,
-      tags: (servicePackage.packageItems ?? []).map((item) => item.taskType?.name).filter(Boolean) as string[],
+      tags: [],
     };
   }
 }

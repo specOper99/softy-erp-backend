@@ -8,7 +8,6 @@ import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { toErrorMessage } from '../../../common/utils/error.util';
 import { AuditPublisher } from '../../audit/audit.publisher';
-import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { Transaction } from '../../finance/entities/transaction.entity';
 import { TransactionType } from '../../finance/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/services/finance.service';
@@ -20,6 +19,7 @@ import { TaskStatus } from '../../tasks/enums/task-status.enum';
 import { User } from '../../users/entities/user.entity';
 import { CancelBookingDto, ConfirmBookingResponseDto, RescheduleBookingDto } from '../dto';
 import { Booking } from '../entities/booking.entity';
+import { ProcessingType } from '../entities/processing-type.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCancelledEvent } from '../events/booking-cancelled.event';
 import { BookingCompletedEvent } from '../events/booking-completed.event';
@@ -99,36 +99,31 @@ export class BookingWorkflowService {
       booking.status = BookingStatus.CONFIRMED;
       await manager.save(booking);
 
-      // Step 3: Generate Tasks from package items (bulk insert for performance)
-      const packageItems = await manager.find(PackageItem, {
-        where: { packageId: booking.packageId, tenantId },
-        relations: ['taskType'],
+      // Step 3: Generate Tasks from booking's selected processing types (one task per type)
+      const bookingWithPT = await manager.findOne(Booking, {
+        where: { id, tenantId },
+        relations: ['processingTypes'],
       });
+      const processingTypes: ProcessingType[] = bookingWithPT?.processingTypes ?? [];
       const tasksToCreate: Partial<Task>[] = [];
       const maxTasks = this.configService.get<number>('booking.maxTasksPerBooking', 500);
 
-      // Calculate total tasks to be created
-      const totalTasksCount = packageItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-      if (totalTasksCount > maxTasks) {
+      if (processingTypes.length > maxTasks) {
         throw new BadRequestException(
-          `Cannot confirm booking: total tasks requested(${totalTasksCount}) exceeds the maximum allowed limit of ${maxTasks} per booking.`,
+          `Cannot confirm booking: total tasks requested(${processingTypes.length}) exceeds the maximum allowed limit of ${maxTasks} per booking.`,
         );
       }
 
-      for (const item of packageItems) {
-        for (let i = 0; i < item.quantity; i++) {
-          tasksToCreate.push({
-            bookingId: booking.id,
-            taskTypeId: item.taskTypeId,
-            status: TaskStatus.PENDING,
-            commissionSnapshot:
-              (item as { taskType?: { defaultCommissionAmount?: number } }).taskType?.defaultCommissionAmount ?? 0,
-            dueDate: booking.eventDate,
-            tenantId: booking.tenantId,
-            locationLink: booking.locationLink ?? null,
-          });
-        }
+      for (const pt of processingTypes) {
+        tasksToCreate.push({
+          bookingId: booking.id,
+          processingTypeId: pt.id,
+          status: TaskStatus.PENDING,
+          commissionSnapshot: Number(pt.defaultCommissionAmount) || 0,
+          dueDate: booking.eventDate,
+          tenantId: booking.tenantId,
+          locationLink: booking.locationLink ?? null,
+        });
       }
 
       const createdTasks = await manager.save(Task, tasksToCreate);

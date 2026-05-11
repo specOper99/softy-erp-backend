@@ -18,4 +18,7 @@ export class CurrentUserDto {
 
   @ApiProperty({ description: 'Whether TOTP-based MFA is enabled on the account' })
   isMfaEnabled: boolean;
+
+  @ApiProperty({ description: 'Tenant the user belongs to', format: 'uuid' })
+  tenantId: string;
 }

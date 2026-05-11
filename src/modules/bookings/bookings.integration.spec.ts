@@ -17,11 +17,10 @@ import { Client } from './entities/client.entity';
 import { Booking } from './entities/booking.entity';
 import { BookingStatus } from './enums/booking-status.enum';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
-import { TaskType } from '../catalog/entities/task-type.entity';
-import { PackageItem } from '../catalog/entities/package-item.entity';
 import { Transaction } from '../finance/entities/transaction.entity';
 import { TransactionType } from '../finance/enums/transaction-type.enum';
-import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
+import { ProcessingType } from './entities/processing-type.entity';
+import { ProcessingTypeEligibility } from '../hr/entities/processing-type-eligibility.entity';
 import { MailService } from '../mail/mail.service';
 import { Task } from '../tasks/entities/task.entity';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
@@ -58,7 +57,7 @@ type SeedResult = {
   staff: User;
   client: Client;
   servicePackage: ServicePackage;
-  taskType: TaskType;
+  processingType: ProcessingType;
 };
 
 type RedisClosableClient = {
@@ -193,12 +192,11 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
   let userRepository: Repository<User>;
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
-  let taskTypeRepository: Repository<TaskType>;
-  let packageItemRepository: Repository<PackageItem>;
+  let processingTypeRepository: Repository<ProcessingType>;
   let taskRepository: Repository<Task>;
   let bookingRepository: Repository<Booking>;
   let transactionRepository: Repository<Transaction>;
-  let eligibilityRepository: Repository<TaskTypeEligibility>;
+  let eligibilityRepository: Repository<ProcessingTypeEligibility>;
 
   const createFutureDate = (daysAhead: number): string => {
     const date = new Date();
@@ -247,10 +245,11 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
       tenantId: tenant.id,
     });
 
-    const taskType = await taskTypeRepository.save({
-      name: `TaskType ${suffix}`,
-      description: 'Integration task type',
+    const processingType = await processingTypeRepository.save({
+      name: `ProcessingType ${suffix}`,
+      description: 'Integration processing type',
       defaultCommissionAmount: 100,
+      price: 500,
       tenantId: tenant.id,
     });
 
@@ -263,17 +262,10 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
       tenantId: tenant.id,
     });
 
-    await packageItemRepository.save({
-      packageId: servicePackage.id,
-      taskTypeId: taskType.id,
-      quantity: 2,
-      tenantId: tenant.id,
-    });
-
     await eligibilityRepository.save({
       tenantId: tenant.id,
       userId: staff.id,
-      taskTypeId: taskType.id,
+      processingTypeId: processingType.id,
     });
 
     return {
@@ -282,7 +274,7 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
       staff,
       client,
       servicePackage,
-      taskType,
+      processingType,
     };
   };
 
@@ -425,12 +417,11 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
     userRepository = dataSource.getRepository(User);
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
-    taskTypeRepository = dataSource.getRepository(TaskType);
-    packageItemRepository = dataSource.getRepository(PackageItem);
+    processingTypeRepository = dataSource.getRepository(ProcessingType);
     taskRepository = dataSource.getRepository(Task);
     bookingRepository = dataSource.getRepository(Booking);
     transactionRepository = dataSource.getRepository(Transaction);
-    eligibilityRepository = dataSource.getRepository(TaskTypeEligibility);
+    eligibilityRepository = dataSource.getRepository(ProcessingTypeEligibility);
   });
 
   afterAll(async () => {

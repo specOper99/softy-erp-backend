@@ -91,9 +91,9 @@ export class ClientPortalDiscoveryController {
       ...this.mapListingSummary(servicePackage, tenant, rating, reviewCount),
       description: servicePackage.description ?? '',
       gallery: [],
-      highlights: (servicePackage.packageItems ?? []).map((item) => item.taskType?.name).filter(Boolean) as string[],
+      highlights: [],
       duration: undefined,
-      includes: (servicePackage.packageItems ?? []).map((item) => item.taskType?.name).filter(Boolean) as string[],
+      includes: [],
     };
   }
 
@@ -245,7 +245,7 @@ export class ClientPortalDiscoveryController {
       rating,
       reviewCount,
       imageUrl: undefined,
-      tags: (servicePackage.packageItems ?? []).map((item) => item.taskType?.name).filter(Boolean) as string[],
+      tags: [],
     };
   }
 

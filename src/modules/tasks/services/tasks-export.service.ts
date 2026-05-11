@@ -21,7 +21,7 @@ export class TasksExportService {
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.booking', 'booking')
       .leftJoinAndSelect('booking.client', 'client')
-      .leftJoinAndSelect('task.taskType', 'taskType')
+      .leftJoinAndSelect('task.processingType', 'processingType')
       .leftJoinAndSelect('task.assignedUser', 'assignedUser')
       .where('task.tenantId = :tenantId', { tenantId })
       .orderBy('task.createdAt', 'DESC')
@@ -33,7 +33,7 @@ export class TasksExportService {
       'dueDate',
       'bookingId',
       'clientName',
-      'taskType',
+      'processingType',
       'assignedUser',
       'commissionSnapshot',
       'notes',
@@ -49,7 +49,7 @@ export class TasksExportService {
         dueDate: r.task_dueDate ? new Date(r.task_dueDate as string).toISOString() : '',
         bookingId: r.task_bookingId || '',
         clientName: r.client_name || '',
-        taskType: r.taskType_name || '',
+        processingType: r.processingType_name || '',
         assignedUser: r.assignedUser_email || '',
         commissionSnapshot: r.task_commissionSnapshot || 0,
         notes: r.task_notes || '',

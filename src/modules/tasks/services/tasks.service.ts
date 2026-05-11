@@ -101,8 +101,8 @@ export class TasksService {
       qb.andWhere('task.bookingId = :bookingId', { bookingId: filter.bookingId });
     }
 
-    if (filter.taskTypeId) {
-      qb.andWhere('task.taskTypeId = :taskTypeId', { taskTypeId: filter.taskTypeId });
+    if (filter.processingTypeId) {
+      qb.andWhere('task.processingTypeId = :processingTypeId', { processingTypeId: filter.processingTypeId });
     }
 
     if (filter.dueDateStart && filter.dueDateEnd) {
@@ -117,7 +117,7 @@ export class TasksService {
     }
 
     if (filter.search) {
-      applyIlikeSearch(qb, ['task.notes', 'taskType.name'], filter.search);
+      applyIlikeSearch(qb, ['task.notes', 'processingType.name'], filter.search);
     }
   }
 
@@ -137,7 +137,7 @@ export class TasksService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const task = await this.taskRepository.findOne({
       where: { id, tenantId },
-      relations: ['booking', 'booking.client', 'taskType', 'assignedUser'],
+      relations: ['booking', 'booking.client', 'processingType', 'assignedUser'],
     });
     if (!task) {
       throw new NotFoundException({
@@ -153,7 +153,7 @@ export class TasksService {
     const take = this.normalizeListLimit(limit);
     return this.taskRepository.find({
       where: { bookingId, tenantId },
-      relations: ['taskType', 'assignedUser', 'booking', 'booking.client'],
+      relations: ['processingType', 'assignedUser', 'booking', 'booking.client'],
       take,
     });
   }
@@ -163,7 +163,7 @@ export class TasksService {
     const take = this.normalizeListLimit(limit);
     return this.taskRepository.find({
       where: { assignedUserId: userId, tenantId },
-      relations: ['booking', 'booking.client', 'taskType'],
+      relations: ['booking', 'booking.client', 'processingType'],
       order: { dueDate: 'ASC' },
       take,
     });
@@ -391,7 +391,7 @@ export class TasksService {
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.booking', 'booking', 'booking.tenantId = :tenantId', { tenantId })
       .leftJoinAndSelect('booking.client', 'client', 'client.tenantId = :tenantId', { tenantId })
-      .leftJoinAndSelect('task.taskType', 'taskType', 'taskType.tenantId = :tenantId', { tenantId })
+      .leftJoinAndSelect('task.processingType', 'processingType', 'processingType.tenantId = :tenantId', { tenantId })
       .leftJoinAndSelect('task.assignedUser', 'assignedUser', 'assignedUser.tenantId = :tenantId', { tenantId })
       .andWhere('task.tenantId = :tenantId', { tenantId });
   }
@@ -400,7 +400,7 @@ export class TasksService {
     manager: import('typeorm').EntityManager,
     id: string,
     tenantId: string,
-    relations: string[] = ['booking', 'taskType', 'assignedUser'],
+    relations: string[] = ['booking', 'processingType', 'assignedUser'],
   ): Promise<Task> {
     // Step 1: Acquire pessimistic lock (without relations due to FOR UPDATE limitation)
     const taskLock = await manager.findOne(Task, {

@@ -1,10 +1,10 @@
 {
   "profile_not_found": "الملف الشخصي غير موجود",
   "user_not_found_in_tenant": "المستخدم غير موجود في المستأجر",
-  "task_type_eligibility_already_exists": "قاعدة الأهلية هذه موجودة بالفعل",
-  "task_type_eligibility_not_found": "أهلية نوع المهمة غير موجودة",
+  "processing_type_eligibility_already_exists": "قاعدة الأهلية هذه موجودة بالفعل",
+  "processing_type_eligibility_not_found": "أهلية نوع المعالجة غير موجودة",
   "profile_not_found_in_tenant": "الملف الشخصي غير موجود في هذه المنظمة",
-  "task_type_not_found_in_tenant": "نوع المهمة غير موجود في هذه المنظمة",
+  "processing_type_not_found_in_tenant": "نوع المعالجة غير موجود في هذه المنظمة",
   "unsupported_studio_role": "دور موظف غير مدعوم لمستأجر الاستوديو",
   "user_or_profile_exists": "المستخدم أو الملف الشخصي موجود بالفعل",
   "profile_exists_for_user": "الملف الشخصي موجود بالفعل للمستخدم {userId}",

@@ -354,6 +354,7 @@ export class AuthController {
       role: user.role,
       isActive: user.isActive,
       isMfaEnabled: user.isMfaEnabled,
+      tenantId: user.tenantId,
     };
   }
 

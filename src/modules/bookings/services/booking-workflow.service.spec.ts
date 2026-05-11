@@ -72,13 +72,6 @@ describe('BookingWorkflowService', () => {
       servicePackage: {
         name: 'Test Package',
         durationMinutes: 90,
-        packageItems: Promise.resolve([
-          {
-            taskTypeId: 'type-1',
-            quantity: 2,
-            taskType: { defaultCommissionAmount: 10 },
-          },
-        ]),
       } as unknown as Booking['servicePackage'],
       derivePaymentStatus: jest.fn().mockReturnValue('DEPOSIT_PAID'),
     };
@@ -93,13 +86,7 @@ describe('BookingWorkflowService', () => {
       // Handle save(entity) or save(Entity, entity)
       return Promise.resolve(maybeEntity || targetOrEntity);
     });
-    (mockQR.manager.find as jest.Mock).mockResolvedValue([
-      {
-        taskTypeId: 'type-1',
-        quantity: 2,
-        taskType: { defaultCommissionAmount: 10 },
-      },
-    ]);
+    (mockQR.manager.find as jest.Mock).mockResolvedValue([]);
 
     dataSource = createMockDataSource() as unknown as DataSource;
     (dataSource as unknown as { manager: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock } }).manager = {
@@ -183,16 +170,23 @@ describe('BookingWorkflowService', () => {
 
   describe('confirmBooking', () => {
     it('should successfully confirm a booking', async () => {
-      // Mock finding booking (first for lock, second for data)
+      // Mock finding booking (first for lock, second for data, third for processingTypes relation)
       (queryRunner.manager.findOne as jest.Mock)
         .mockResolvedValueOnce({ id: 'booking-1' }) // Lock
-        .mockResolvedValueOnce(mockBooking); // Data
+        .mockResolvedValueOnce(mockBooking) // Data
+        .mockResolvedValueOnce({
+          ...mockBooking,
+          processingTypes: [
+            { id: 'pt-1', defaultCommissionAmount: 100 },
+            { id: 'pt-2', defaultCommissionAmount: 150 },
+          ],
+        }); // PT relation load
 
       const result = await service.confirmBooking('booking-1');
 
       expect(dataSource.transaction).toHaveBeenCalled();
-      // findOne called twice: once for lock, once for data
-      expect(queryRunner.manager.findOne).toHaveBeenCalledTimes(2);
+      // findOne called three times: once for lock, once for data, once for processingTypes relation
+      expect(queryRunner.manager.findOne).toHaveBeenCalledTimes(3);
 
       // Verify status update
       expect(mockBooking.status).toBe(BookingStatus.CONFIRMED);

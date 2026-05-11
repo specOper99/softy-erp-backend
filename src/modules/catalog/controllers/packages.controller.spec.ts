@@ -4,7 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
-import type { AddPackageItemsDto, CreateServicePackageDto, UpdateServicePackageDto } from '../dto/catalog.dto';
+import type { CreateServicePackageDto, UpdateServicePackageDto } from '../dto/catalog.dto';
 import type { PackageFilterDto } from '../dto/package-filter.dto';
 import { CatalogService } from '../services/catalog.service';
 import { PackagesController } from './packages.controller';
@@ -29,8 +29,7 @@ describe('PackagesController', () => {
             createPackage: jest.fn().mockResolvedValue(mockPackage),
             updatePackage: jest.fn().mockResolvedValue(mockPackage),
             deletePackage: jest.fn().mockResolvedValue(undefined),
-            addPackageItems: jest.fn().mockResolvedValue(mockPackage),
-            removePackageItem: jest.fn().mockResolvedValue(undefined),
+            clonePackage: jest.fn().mockResolvedValue(mockPackage),
           },
         },
         {
@@ -96,21 +95,6 @@ describe('PackagesController', () => {
     it('should call service.deletePackage', async () => {
       await controller.remove('uuid');
       expect(service.deletePackage).toHaveBeenCalledWith('uuid');
-    });
-  });
-
-  describe('addItems', () => {
-    it('should call service.addPackageItems', async () => {
-      const dto = { items: [{ taskTypeId: '1', quantity: 1 }] } as unknown as AddPackageItemsDto;
-      await controller.addItems('uuid', dto);
-      expect(service.addPackageItems).toHaveBeenCalledWith('uuid', dto);
-    });
-  });
-
-  describe('removeItem', () => {
-    it('should call service.removePackageItem', async () => {
-      await controller.removeItem('item-uuid');
-      expect(service.removePackageItem).toHaveBeenCalledWith('item-uuid');
     });
   });
 });

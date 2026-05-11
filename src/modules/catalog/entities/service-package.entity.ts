@@ -1,6 +1,5 @@
 import { Column, Entity } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import type { PackageItem } from './package-item.entity';
 
 @Entity('service_packages')
 export class ServicePackage extends BaseTenantEntity {
@@ -30,6 +29,4 @@ export class ServicePackage extends BaseTenantEntity {
 
   @Column({ name: 'template_category', type: 'varchar', nullable: true })
   templateCategory: string | null;
-
-  packageItems?: PackageItem[];
 }

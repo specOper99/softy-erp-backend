@@ -1,10 +1,10 @@
 {
   "user_not_found_in_tenant": "User not found in tenant",
   "profile_not_found": "Profile not found",
-  "task_type_eligibility_already_exists": "This eligibility rule already exists",
-  "task_type_eligibility_not_found": "Task type eligibility not found",
+  "processing_type_eligibility_already_exists": "This eligibility rule already exists",
+  "processing_type_eligibility_not_found": "Processing type eligibility not found",
   "profile_not_found_in_tenant": "Profile not found in this organization",
-  "task_type_not_found_in_tenant": "Task type not found in this organization",
+  "processing_type_not_found_in_tenant": "Processing type not found in this organization",
   "unsupported_studio_role": "Unsupported staff role for studio tenant",
   "user_or_profile_exists": "User or profile already exists",
   "profile_exists_for_user": "Profile already exists for user {userId}",

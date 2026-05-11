@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
 
 export class CreateProcessingTypeDto {
@@ -24,6 +24,18 @@ export class CreateProcessingTypeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Additional price added to booking total', default: 0 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  price?: number;
+
+  @ApiPropertyOptional({ description: 'Default commission amount for tasks of this type', default: 0 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  defaultCommissionAmount?: number;
 }
 
 export class UpdateProcessingTypeDto extends PartialType(CreateProcessingTypeDto) {}
@@ -43,6 +55,12 @@ export class ProcessingTypeResponseDto {
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty()
+  price: number;
+
+  @ApiProperty()
+  defaultCommissionAmount: number;
 
   @ApiProperty()
   createdAt: Date;

@@ -63,8 +63,8 @@ export class TaskResponseDto {
   @ApiProperty()
   bookingId: string;
 
-  @ApiProperty()
-  taskTypeId: string;
+  @ApiPropertyOptional()
+  processingTypeId: string | null;
 
   @ApiPropertyOptional()
   assignedUserId: string | null;

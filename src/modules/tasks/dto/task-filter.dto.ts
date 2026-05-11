@@ -19,10 +19,10 @@ export class TaskFilterDto extends CombinedPaginationDto {
   @IsUUID()
   bookingId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by task type ID' })
+  @ApiPropertyOptional({ description: 'Filter by processing type ID' })
   @IsOptional()
   @IsUUID()
-  taskTypeId?: string;
+  processingTypeId?: string;
 
   @ApiPropertyOptional({ description: 'Start date for due date range (ISO 8601)' })
   @IsOptional()
@@ -34,7 +34,7 @@ export class TaskFilterDto extends CombinedPaginationDto {
   @IsDateString()
   dueDateEnd?: string;
 
-  @ApiPropertyOptional({ description: 'Search in notes and task type name' })
+  @ApiPropertyOptional({ description: 'Search in notes and processing type name' })
   @IsOptional()
   @IsString()
   search?: string;

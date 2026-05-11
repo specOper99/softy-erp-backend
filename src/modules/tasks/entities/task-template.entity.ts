@@ -12,8 +12,8 @@ export class TaskTemplate extends BaseTenantEntity {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ name: 'task_type_id', type: 'text', nullable: true })
-  taskTypeId: string | null;
+  @Column({ name: 'processing_type_id', type: 'text', nullable: true })
+  processingTypeId: string | null;
 
   @Column({
     type: 'enum',

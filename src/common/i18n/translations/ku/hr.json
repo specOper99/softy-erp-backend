@@ -1,10 +1,10 @@
 {
   "profile_not_found": "پرۆفایلەکە نەدۆزرایەوە",
   "user_not_found_in_tenant": "بەکارھێنەرەکە لە تێنەنتاتدا نەدۆزرایەوە",
-  "task_type_eligibility_already_exists": "ئەم یاسای شایستەبوون پێشتر هەیە",
-  "task_type_eligibility_not_found": "شایستەبوونی جۆری ئەرک نەدۆزرایەوە",
+  "processing_type_eligibility_already_exists": "ئەم یاسای شایستەبوون پێشتر هەیە",
+  "processing_type_eligibility_not_found": "شایستەبوونی جۆری پرۆسێس نەدۆزرایەوە",
   "profile_not_found_in_tenant": "پرۆفایل لەم ڕێکخراوەدا نەدۆزرایەوە",
-  "task_type_not_found_in_tenant": "جۆری ئەرک لەم ڕێکخراوەدا نەدۆزرایەوە",
+  "processing_type_not_found_in_tenant": "جۆری پرۆسێس لەم ڕێکخراوەدا نەدۆزرایەوە",
   "unsupported_studio_role": "ڕۆڵی ستاف بۆ تێنەنتی ستۆدیۆ پشتگیری ناکرێت",
   "user_or_profile_exists": "بەکارهێنەر یان پرۆفایل پێشتر هەیە",
   "profile_exists_for_user": "پرۆفایل بۆ بەکارهێنەر {userId} پێشتر هەیە",

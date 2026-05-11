@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { CommonModule } from '../../common/common.module';
 import { TENANT_REPO_ATTENDANCE, TENANT_REPO_STAFF_AVAILABILITY } from '../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
-import { TaskType } from '../catalog/entities/task-type.entity';
+import { ProcessingType } from '../bookings/entities/processing-type.entity';
 import { EmployeeWallet } from '../finance/entities/employee-wallet.entity';
 import { Payout } from '../finance/entities/payout.entity';
 import { FinanceModule } from '../finance/finance.module';
@@ -18,16 +18,16 @@ import { BookingsModule } from '../bookings/bookings.module';
 import {
   AttendanceController,
   HrController,
+  ProcessingTypeEligibilityController,
   StaffAvailabilitySlotController,
-  TaskTypeEligibilityController,
 } from './controllers';
 import {
   Attendance,
   PayrollRun,
   PerformanceReview,
+  ProcessingTypeEligibility,
   Profile,
   StaffAvailabilitySlot,
-  TaskTypeEligibility,
 } from './entities';
 import { UserDeletedHandler } from './handlers/user-deleted.handler';
 import { WalletBalanceUpdatedHandler } from './handlers/wallet-balance-updated.handler';
@@ -39,7 +39,8 @@ import { MockPaymentGatewayService } from './services/payment-gateway.service';
 import { PayrollReconciliationService } from './services/payroll-reconciliation.service';
 import { PayrollService } from './services/payroll.service';
 import { StaffAvailabilitySlotService } from './services/staff-availability-slot.service';
-import { TaskTypeEligibilityService } from './services/task-type-eligibility.service';
+import { ProcessingTypeEligibilityRepository } from './repositories/processing-type-eligibility.repository';
+import { ProcessingTypeEligibilityService } from './services/processing-type-eligibility.service';
 
 @Module({
   imports: [
@@ -51,8 +52,8 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
       PerformanceReview,
       Payout,
       StaffAvailabilitySlot,
-      TaskTypeEligibility,
-      TaskType,
+      ProcessingTypeEligibility,
+      ProcessingType,
       User,
     ]),
     CommonModule,
@@ -64,7 +65,12 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
     UsersModule,
     BookingsModule,
   ],
-  controllers: [HrController, AttendanceController, StaffAvailabilitySlotController, TaskTypeEligibilityController],
+  controllers: [
+    HrController,
+    AttendanceController,
+    StaffAvailabilitySlotController,
+    ProcessingTypeEligibilityController,
+  ],
   providers: [
     ProfileRepository,
     PayrollRunRepository,
@@ -74,7 +80,8 @@ import { TaskTypeEligibilityService } from './services/task-type-eligibility.ser
     MockPaymentGatewayService,
     AttendanceService,
     StaffAvailabilitySlotService,
-    TaskTypeEligibilityService,
+    ProcessingTypeEligibilityService,
+    ProcessingTypeEligibilityRepository,
     UserDeletedHandler,
     WalletBalanceUpdatedHandler,
     {

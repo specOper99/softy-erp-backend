@@ -3,13 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from '../../common/common.module';
 import { OutboxEvent } from '../../common/entities/outbox-event.entity';
 import { CatalogModule } from '../catalog/catalog.module';
-import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { FinanceModule } from '../finance/finance.module';
+import { ProcessingTypeEligibility } from '../hr/entities/processing-type-eligibility.entity';
 import { StaffAvailabilitySlot } from '../hr/entities/staff-availability-slot.entity';
-import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
+import { ProcessingTypeEligibilityRepository } from '../hr/repositories/processing-type-eligibility.repository';
 import { StaffAvailabilitySlotRepository } from '../hr/repositories/staff-availability-slot.repository';
-import { TaskTypeEligibilityRepository } from '../hr/repositories/task-type-eligibility.repository';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { TaskAssignee } from '../tasks/entities/task-assignee.entity';
@@ -50,8 +49,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
       Booking,
       Client,
       ServicePackage,
-      PackageItem,
-      TaskTypeEligibility,
+      ProcessingTypeEligibility,
       StaffAvailabilitySlot,
       User,
       TaskAssignee,
@@ -83,7 +81,7 @@ import { StaffConflictService } from './services/staff-conflict.service';
     ProcessingTypeRepository,
     UserRepository,
     TaskAssigneeRepository,
-    TaskTypeEligibilityRepository,
+    ProcessingTypeEligibilityRepository,
     StaffAvailabilitySlotRepository,
     StaffConflictService,
     BookingCompletionHandler,

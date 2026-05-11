@@ -6,11 +6,10 @@ import { AvailabilityCacheOwnerService } from '../../../common/cache/availabilit
 import type { Booking } from '../../bookings/entities/booking.entity';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../bookings/repositories/booking.repository';
-import { PackageItem } from '../../catalog/entities/package-item.entity';
 import type { ServicePackage } from '../../catalog/entities/service-package.entity';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
+import { ProcessingTypeEligibilityRepository } from '../../hr/repositories/processing-type-eligibility.repository';
 import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
-import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { AvailabilityService } from './availability.service';
 
@@ -84,11 +83,7 @@ describe('AvailabilityService', () => {
           useValue: { find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(null) },
         },
         {
-          provide: TaskTypeEligibilityRepository,
-          useValue: { find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(null) },
-        },
-        {
-          provide: getRepositoryToken(PackageItem),
+          provide: ProcessingTypeEligibilityRepository,
           useValue: { find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(null) },
         },
       ],

@@ -11,7 +11,6 @@ import { FlagsService } from '../../../common/flags/flags.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
-import { PackageItem } from '../../catalog/entities/package-item.entity';
 import { CatalogService } from '../../catalog/services/catalog.service';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { Task } from '../../tasks/entities/task.entity';
@@ -109,6 +108,15 @@ export class BookingsService {
       depositPercentage: dto.depositPercentage ?? 0,
       discountAmount: dto.discountAmount ?? 0,
     };
+
+    // Add selected processing type prices to the package base price
+    if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
+      const processingTypes = await this.processingTypeRepository.find({
+        where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
+      });
+      const processingTypeTotal = processingTypes.reduce((sum, pt) => sum + Number(pt.price), 0);
+      priceInput.packagePrice += processingTypeTotal;
+    }
 
     this.pricingService.validate(priceInput.taxRate, priceInput.depositPercentage);
     const pricing = this.pricingService.calculate(priceInput);
@@ -254,16 +262,9 @@ export class BookingsService {
     qb.leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('booking.servicePackage', 'servicePackage')
       .leftJoinAndSelect('booking.processingTypes', 'processingTypes')
-      .leftJoinAndMapMany(
-        'servicePackage.packageItems',
-        PackageItem,
-        'packageItems',
-        'packageItems.packageId = servicePackage.id AND packageItems.tenantId = servicePackage.tenantId',
-      )
-      .leftJoinAndSelect('packageItems.taskType', 'packageTaskType')
       .leftJoinAndSelect(Task, 'tasks', 'tasks.bookingId = booking.id AND tasks.tenantId = booking.tenantId')
       .leftJoinAndSelect('tasks.assignedUser', 'assignedUser')
-      .leftJoinAndSelect('tasks.taskType', 'taskTaskType');
+      .leftJoinAndSelect('tasks.processingType', 'taskProcessingType');
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
@@ -359,8 +360,27 @@ export class BookingsService {
         const pkgId = dto.packageId ?? booking.packageId;
         const pkg = await this.catalogService.findPackageById(pkgId);
 
+        // Determine processing type total (use updated IDs if changing, else load current)
+        let processingTypeTotal = 0;
+        const ptIds = dto.processingTypeIds !== undefined ? dto.processingTypeIds : undefined;
+        if (ptIds !== undefined) {
+          if (ptIds.length > 0) {
+            const pts = await manager.find(ProcessingType, {
+              where: ptIds.map((ptId) => ({ id: ptId, tenantId: existingBooking.tenantId })),
+            });
+            processingTypeTotal = pts.reduce((sum, pt) => sum + Number(pt.price), 0);
+          }
+        } else {
+          // Load existing processing types for price recalculation
+          const existingWithPT = await manager.findOne(Booking, {
+            where: { id: existingBooking.id, tenantId: existingBooking.tenantId },
+            relations: ['processingTypes'],
+          });
+          processingTypeTotal = (existingWithPT?.processingTypes ?? []).reduce((sum, pt) => sum + Number(pt.price), 0);
+        }
+
         const pricing = this.pricingService.calculate({
-          packagePrice: Number(pkg.price),
+          packagePrice: Number(pkg.price) + processingTypeTotal,
           taxRate: dto.taxRate ?? Number(booking.taxRate),
           depositPercentage: dto.depositPercentage ?? Number(booking.depositPercentage),
           discountAmount: dto.discountAmount ?? Number(booking.discountAmount ?? 0),

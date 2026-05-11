@@ -2,14 +2,12 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { MockRepository } from '../../../../test/helpers/mock-factories';
 import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import type { PackageItem } from '../../catalog/entities/package-item.entity';
 import type { ServicePackage } from '../../catalog/entities/service-package.entity';
-import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
+import type { ProcessingTypeEligibility } from '../../hr/entities/processing-type-eligibility.entity';
+import { ProcessingTypeEligibilityRepository } from '../../hr/repositories/processing-type-eligibility.repository';
 import type { StaffAvailabilitySlot } from '../../hr/entities/staff-availability-slot.entity';
-import type { TaskTypeEligibility } from '../../hr/entities/task-type-eligibility.entity';
 import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
-import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
 import type { TaskAssignee } from '../../tasks/entities/task-assignee.entity';
 import type { Task } from '../../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
@@ -39,8 +37,7 @@ const createRawQueryBuilder = (rows: BusyAssignmentRecord[]) => {
 describe('StaffConflictService', () => {
   let service: StaffConflictService;
   let servicePackageRepo: MockRepository<ServicePackage>;
-  let packageItemRepo: MockRepository<PackageItem>;
-  let taskTypeEligibilityRepo: MockRepository<TaskTypeEligibility>;
+  let processingTypeEligibilityRepo: MockRepository<ProcessingTypeEligibility>;
   let userRepo: MockRepository<User>;
   let taskAssigneeRepo: MockRepository<TaskAssignee>;
   let taskRepo: MockRepository<Task>;
@@ -55,12 +52,8 @@ describe('StaffConflictService', () => {
           useValue: createMockRepository<ServicePackage>(),
         },
         {
-          provide: PackageItemRepository,
-          useValue: createMockRepository<PackageItem>(),
-        },
-        {
-          provide: TaskTypeEligibilityRepository,
-          useValue: createMockRepository<TaskTypeEligibility>(),
+          provide: ProcessingTypeEligibilityRepository,
+          useValue: createMockRepository<ProcessingTypeEligibility>(),
         },
         {
           provide: UserRepository,
@@ -83,8 +76,7 @@ describe('StaffConflictService', () => {
 
     service = module.get<StaffConflictService>(StaffConflictService);
     servicePackageRepo = module.get(ServicePackageRepository);
-    packageItemRepo = module.get(PackageItemRepository);
-    taskTypeEligibilityRepo = module.get(TaskTypeEligibilityRepository);
+    processingTypeEligibilityRepo = module.get(ProcessingTypeEligibilityRepository);
     userRepo = module.get(UserRepository);
     taskAssigneeRepo = module.get(TaskAssigneeRepository);
     taskRepo = module.get(TaskRepository);
@@ -106,16 +98,11 @@ describe('StaffConflictService', () => {
       durationMinutes: 120,
       requiredStaffCount: 2,
     } as ServicePackage);
-    packageItemRepo.find.mockResolvedValue([
-      { taskTypeId: 'tt-1' } as PackageItem,
-      { taskTypeId: 'tt-2' } as PackageItem,
-      { taskTypeId: 'tt-1' } as PackageItem,
-    ]);
-    taskTypeEligibilityRepo.find.mockResolvedValue([
-      { userId: 'u-1' } as TaskTypeEligibility,
-      { userId: 'u-2' } as TaskTypeEligibility,
-      { userId: 'u-3' } as TaskTypeEligibility,
-      { userId: 'u-3' } as TaskTypeEligibility,
+    processingTypeEligibilityRepo.find.mockResolvedValue([
+      { userId: 'u-1' } as ProcessingTypeEligibility,
+      { userId: 'u-2' } as ProcessingTypeEligibility,
+      { userId: 'u-3' } as ProcessingTypeEligibility,
+      { userId: 'u-3' } as ProcessingTypeEligibility,
     ]);
     userRepo.find.mockResolvedValue([{ id: 'u-1' } as User, { id: 'u-2' } as User, { id: 'u-3' } as User]);
 
@@ -153,10 +140,9 @@ describe('StaffConflictService', () => {
       durationMinutes: 90,
       requiredStaffCount: 3,
     } as ServicePackage);
-    packageItemRepo.find.mockResolvedValue([{ taskTypeId: 'tt-1' } as PackageItem]);
-    taskTypeEligibilityRepo.find.mockResolvedValue([
-      { userId: 'u-1' } as TaskTypeEligibility,
-      { userId: 'u-2' } as TaskTypeEligibility,
+    processingTypeEligibilityRepo.find.mockResolvedValue([
+      { userId: 'u-1' } as ProcessingTypeEligibility,
+      { userId: 'u-2' } as ProcessingTypeEligibility,
     ]);
     userRepo.find.mockResolvedValue([{ id: 'u-1' } as User, { id: 'u-2' } as User]);
 
@@ -184,8 +170,7 @@ describe('StaffConflictService', () => {
       durationMinutes: 60,
       requiredStaffCount: 1,
     } as ServicePackage);
-    packageItemRepo.find.mockResolvedValue([{ taskTypeId: 'tt-9' } as PackageItem]);
-    taskTypeEligibilityRepo.find.mockResolvedValue([{ userId: 'u-9' } as TaskTypeEligibility]);
+    processingTypeEligibilityRepo.find.mockResolvedValue([{ userId: 'u-9' } as ProcessingTypeEligibility]);
     userRepo.find.mockResolvedValue([{ id: 'u-9' } as User]);
 
     const assigneeQb = createRawQueryBuilder([

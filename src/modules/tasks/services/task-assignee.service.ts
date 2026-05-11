@@ -62,14 +62,14 @@ export class TaskAssigneeService {
       return { savedTask, assignedUser, commissionAmount };
     });
 
-    if (result.assignedUser && result.savedTask.taskType && result.savedTask.booking) {
+    if (result.assignedUser && result.savedTask.processingType && result.savedTask.booking) {
       this.eventBus.publish(
         new TaskAssignedEvent(
           result.savedTask.id,
           tenantId,
           result.assignedUser.email,
           result.assignedUser.email,
-          result.savedTask.taskType.name,
+          result.savedTask.processingType.name,
           result.savedTask.booking.client?.name || 'Client',
           result.savedTask.booking.eventDate,
           result.commissionAmount,
@@ -299,7 +299,7 @@ export class TaskAssigneeService {
     manager: import('typeorm').EntityManager,
     id: string,
     tenantId: string,
-    relations: string[] = ['booking', 'taskType', 'assignedUser'],
+    relations: string[] = ['booking', 'processingType', 'assignedUser'],
   ): Promise<Task> {
     const taskLock = await manager.findOne(Task, {
       where: { id, tenantId },

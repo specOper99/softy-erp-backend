@@ -6,15 +6,7 @@ describe('Catalog Module Tests', () => {
   });
 
   describe('Catalog Entities', () => {
-    it('package-item.entity should be defined', () => {
-      expect(true).toBe(true);
-    });
-
     it('service-package.entity should be defined', () => {
-      expect(true).toBe(true);
-    });
-
-    it('task-type.entity should be defined', () => {
       expect(true).toBe(true);
     });
   });

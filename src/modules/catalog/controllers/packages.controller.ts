@@ -29,7 +29,6 @@ import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
 import {
-  AddPackageItemsDto,
   ClonePackageDto,
   CreateServicePackageDto,
   PackageFilterDto,
@@ -148,29 +147,6 @@ export class PackagesController {
   @ApiResponse({ status: 404, description: 'client_portal.package_not_found' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.catalogService.deletePackage(id);
-  }
-
-  @Post(':id/items')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Add items to service package' })
-  @ApiResponse({ status: 201, description: 'Items added' })
-  @ApiResponse({ status: 400, description: 'Invalid input' })
-  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Package or Item not found' })
-  addItems(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddPackageItemsDto) {
-    return this.catalogService.addPackageItems(id, dto);
-  }
-
-  @Delete('items/:itemId')
-  @Roles(Role.ADMIN, Role.OPS_MANAGER)
-  @ApiOperation({ summary: 'Remove item from package' })
-  @ApiResponse({ status: 200, description: 'Item removed' })
-  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Item not found' })
-  removeItem(@Param('itemId', ParseUUIDPipe) itemId: string) {
-    return this.catalogService.removePackageItem(itemId);
   }
 
   @Post(':id/clone')

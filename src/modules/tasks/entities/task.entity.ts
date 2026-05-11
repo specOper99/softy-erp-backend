@@ -3,7 +3,7 @@ import { TaskStatus } from '../enums/task-status.enum';
 
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
-import { TaskType } from '../../catalog/entities/task-type.entity';
+import { ProcessingType } from '../../bookings/entities/processing-type.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('tasks')
@@ -16,8 +16,8 @@ export class Task extends BaseTenantEntity {
   bookingId: string;
 
   @Index()
-  @Column({ name: 'task_type_id' })
-  taskTypeId: string;
+  @Column({ name: 'processing_type_id', nullable: true })
+  processingTypeId: string | null;
 
   @Index()
   @Column({ name: 'assigned_user_id', nullable: true })
@@ -64,9 +64,9 @@ export class Task extends BaseTenantEntity {
   @JoinColumn({ name: 'booking_id' })
   booking: Booking;
 
-  @ManyToOne(() => TaskType)
-  @JoinColumn({ name: 'task_type_id' })
-  taskType: TaskType;
+  @ManyToOne(() => ProcessingType, { nullable: true })
+  @JoinColumn({ name: 'processing_type_id' })
+  processingType: ProcessingType | null;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'assigned_user_id' })

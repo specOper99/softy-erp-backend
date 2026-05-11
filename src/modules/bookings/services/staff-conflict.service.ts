@@ -1,9 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { In, IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
-import { PackageItemRepository } from '../../catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
 import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
-import { TaskTypeEligibilityRepository } from '../../hr/repositories/task-type-eligibility.repository';
+import { ProcessingTypeEligibilityRepository } from '../../hr/repositories/processing-type-eligibility.repository';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
 import { TaskRepository } from '../../tasks/repositories/task.repository';
@@ -45,8 +44,7 @@ interface BusyAssignmentRecord {
 export class StaffConflictService {
   constructor(
     private readonly servicePackageRepository: ServicePackageRepository,
-    private readonly packageItemRepository: PackageItemRepository,
-    private readonly taskTypeEligibilityRepository: TaskTypeEligibilityRepository,
+    private readonly processingTypeEligibilityRepository: ProcessingTypeEligibilityRepository,
     private readonly userRepository: UserRepository,
     private readonly taskAssigneeRepository: TaskAssigneeRepository,
     private readonly taskRepository: TaskRepository,
@@ -68,7 +66,7 @@ export class StaffConflictService {
     const durationMinutes = input.durationMinutes ?? servicePackage.durationMinutes;
     const requestedWindow = computeBookingWindow(input.eventDate, input.startTime, durationMinutes);
 
-    const packageTaskTypeIds = await this.getPackageTaskTypeIds(input.packageId);
+    const packageTaskTypeIds = await this.getActiveProcessingTypeIds();
     const eligibleUserIds = await this.getEligibleActiveUserIds(packageTaskTypeIds);
     const eligibleCount = eligibleUserIds.length;
 
@@ -114,34 +112,28 @@ export class StaffConflictService {
     };
   }
 
-  private async getPackageTaskTypeIds(packageId: string): Promise<string[]> {
-    const packageItems = await this.packageItemRepository.find({
-      where: {
-        packageId,
-      },
-      select: {
-        taskTypeId: true,
-      },
+  private async getActiveProcessingTypeIds(): Promise<string[]> {
+    const eligibilities = await this.processingTypeEligibilityRepository.find({
+      select: { processingTypeId: true },
     });
-
-    return Array.from(new Set(packageItems.map((item) => item.taskTypeId)));
+    return Array.from(new Set(eligibilities.map((e) => e.processingTypeId)));
   }
 
-  private async getEligibleActiveUserIds(packageTaskTypeIds: string[]): Promise<string[]> {
-    if (packageTaskTypeIds.length === 0) {
+  private async getEligibleActiveUserIds(processingTypeIds: string[]): Promise<string[]> {
+    if (processingTypeIds.length === 0) {
       return [];
     }
 
-    const eligibilities = await this.taskTypeEligibilityRepository.find({
+    const eligibilities = await this.processingTypeEligibilityRepository.find({
       where: {
-        taskTypeId: In(packageTaskTypeIds),
+        processingTypeId: In(processingTypeIds),
       },
       select: {
         userId: true,
       },
     });
 
-    const eligibleUserIds = Array.from(new Set(eligibilities.map((eligibility) => eligibility.userId)));
+    const eligibleUserIds = Array.from(new Set(eligibilities.map((e) => e.userId)));
 
     if (eligibleUserIds.length === 0) {
       return [];

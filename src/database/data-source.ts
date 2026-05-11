@@ -9,9 +9,7 @@ import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { Booking } from '../modules/bookings/entities/booking.entity';
 import { Client } from '../modules/bookings/entities/client.entity';
 import { ProcessingType } from '../modules/bookings/entities/processing-type.entity';
-import { PackageItem } from '../modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
-import { TaskType } from '../modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
 import { Invoice } from '../modules/finance/entities/invoice.entity';
 import { Payout } from '../modules/finance/entities/payout.entity';
@@ -46,7 +44,7 @@ import { UserPreference } from '../modules/dashboard/entities/user-preference.en
 import { DepartmentBudget } from '../modules/finance/entities/department-budget.entity';
 import { Attendance } from '../modules/hr/entities/attendance.entity';
 import { PerformanceReview } from '../modules/hr/entities/performance-review.entity';
-import { TaskTypeEligibility } from '../modules/hr/entities/task-type-eligibility.entity';
+import { ProcessingTypeEligibility } from '../modules/hr/entities/processing-type-eligibility.entity';
 import { ImpersonationSession } from '../modules/platform/entities/impersonation-session.entity';
 import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
 import { PlatformSession } from '../modules/platform/entities/platform-session.entity';
@@ -69,8 +67,6 @@ export const dataSourceOptions: DataSourceOptions = {
     Profile,
     PayrollRun,
     ServicePackage,
-    PackageItem,
-    TaskType,
     Booking,
     Client,
     ProcessingType,
@@ -105,7 +101,7 @@ export const dataSourceOptions: DataSourceOptions = {
     DepartmentBudget,
     Attendance,
     PerformanceReview,
-    TaskTypeEligibility,
+    ProcessingTypeEligibility,
     PlatformUser,
     PlatformSession,
     PlatformAuditLog,

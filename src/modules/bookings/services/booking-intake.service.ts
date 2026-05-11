@@ -100,8 +100,17 @@ export class BookingIntakeService {
       }
     }
 
+    // Add selected processing type prices to the base package price
+    let processingTypeTotal = 0;
+    if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
+      const processingTypesForPrice = await this.processingTypeRepository.find({
+        where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
+      });
+      processingTypeTotal = processingTypesForPrice.reduce((sum, pt) => sum + Number(pt.price), 0);
+    }
+
     const pricing = BookingPriceCalculator.calculate({
-      packagePrice: Number(pkg.price),
+      packagePrice: Number(pkg.price) + processingTypeTotal,
       taxRate,
       depositPercentage,
       discountAmount: dto.discountAmount ?? 0,

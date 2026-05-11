@@ -20,7 +20,6 @@ import { TenantContextService } from '../../src/common/services/tenant-context.s
 
 // Import entity types for type safety in mock factories
 import type { Booking } from '../../src/modules/bookings/entities/booking.entity';
-import type { TaskType } from '../../src/modules/catalog/entities/task-type.entity';
 import type { Task } from '../../src/modules/tasks/entities/task.entity';
 import type { User } from '../../src/modules/users/entities/user.entity';
 
@@ -34,8 +33,6 @@ type MockTransaction = { id: string; tenantId: string } & Record<string, unknown
 type MockRecurringTransaction = { id: string; tenantId: string } & Record<string, unknown>;
 type MockEmployeeWallet = { id: string; userId: string } & Record<string, unknown>;
 type MockServicePackage = { id: string; tenantId: string } & Record<string, unknown>;
-type MockTaskType = { id: string; tenantId: string } & Record<string, unknown>;
-type MockPackageItem = { id: string; packageId: string } & Record<string, unknown>;
 type MockProfile = { id: string; userId: string } & Record<string, unknown>;
 type MockTimeEntry = { id: string; taskId: string } & Record<string, unknown>;
 type MockAuditLog = { id: string; tenantId: string } & Record<string, unknown>;
@@ -436,9 +433,7 @@ export function createMockCatalogService() {
     findPackageById: jest
       .fn()
       .mockResolvedValue({ id: 'pkg-1', price: 100, name: 'Test Package', durationMinutes: 60 }),
-    findTaskTypeById: jest.fn().mockResolvedValue({ id: 'task-type-1', name: 'Test Task Type' }),
     findAllPackages: jest.fn().mockResolvedValue([]),
-    findAllTaskTypes: jest.fn().mockResolvedValue([]),
     createPackage: jest.fn(),
     updatePackage: jest.fn(),
     deletePackage: jest.fn(),
@@ -617,7 +612,8 @@ export function createMockTask(overrides: Partial<MockTask> = {}): MockTask {
   return {
     id: 'task-uuid-123',
     bookingId: 'booking-uuid-123',
-    taskTypeId: 'task-type-uuid-123',
+    taskTypeId: undefined,
+    processingTypeId: 'processing-type-uuid-123',
     assignedUserId: 'user-uuid-123',
     status: 'PENDING' as unknown as Task['status'],
     commissionSnapshot: 100,
@@ -629,7 +625,7 @@ export function createMockTask(overrides: Partial<MockTask> = {}): MockTask {
       clientId: 'client-123',
       client: { name: 'John Doe' },
     } as unknown as Booking,
-    taskType: { id: 'task-type-uuid-123', name: 'Photography' } as unknown as TaskType,
+    processingType: { id: 'processing-type-uuid-123', name: 'Photography' },
     assignedUser: { id: 'user-uuid-123', email: 'user@example.com' } as unknown as User,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -760,38 +756,6 @@ export function createMockServicePackage(overrides: Partial<MockServicePackage> 
     requiredStaffCount: 1,
     revenueAccountCode: 'SERVICES',
     isActive: true,
-    packageItems: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  };
-}
-
-/**
- * Creates a mock TaskType entity with default values.
- */
-export function createMockTaskType(overrides: Partial<MockTaskType> = {}): MockTaskType {
-  return {
-    id: 'tt-123',
-    tenantId: 'tenant-123',
-    name: 'Photography',
-    defaultCommissionAmount: 100,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  };
-}
-
-/**
- * Creates a mock PackageItem entity with default values.
- */
-export function createMockPackageItem(overrides: Partial<MockPackageItem> = {}): MockPackageItem {
-  return {
-    id: 'item-123',
-    packageId: 'pkg-123',
-    taskTypeId: 'tt-123',
-    quantity: 2,
-    tenantId: 'tenant-123',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

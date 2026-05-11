@@ -45,6 +45,8 @@ export class ProcessingTypeService {
       description: dto.description ?? null,
       sortOrder: dto.sortOrder ?? 0,
       isActive: dto.isActive ?? true,
+      price: dto.price ?? 0,
+      defaultCommissionAmount: dto.defaultCommissionAmount ?? 0,
     });
     return this.repository.save(entity);
   }
@@ -61,6 +63,8 @@ export class ProcessingTypeService {
     if (dto.description !== undefined) entity.description = dto.description ?? null;
     if (dto.sortOrder !== undefined) entity.sortOrder = dto.sortOrder;
     if (dto.isActive !== undefined) entity.isActive = dto.isActive;
+    if (dto.price !== undefined) entity.price = dto.price;
+    if (dto.defaultCommissionAmount !== undefined) entity.defaultCommissionAmount = dto.defaultCommissionAmount;
 
     return this.repository.save(entity);
   }

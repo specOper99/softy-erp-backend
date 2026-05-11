@@ -22,12 +22,11 @@ import { BookingsModule } from '../bookings/bookings.module';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Client } from '../bookings/entities/client.entity';
 import { CatalogModule } from '../catalog/catalog.module';
-import { PackageItem } from '../catalog/entities/package-item.entity';
 import { ServicePackage } from '../catalog/entities/service-package.entity';
 import { StaffAvailabilitySlot } from '../hr/entities/staff-availability-slot.entity';
-import { TaskTypeEligibility } from '../hr/entities/task-type-eligibility.entity';
+import { ProcessingTypeEligibility } from '../hr/entities/processing-type-eligibility.entity';
 import { StaffAvailabilitySlotRepository } from '../hr/repositories/staff-availability-slot.repository';
-import { TaskTypeEligibilityRepository } from '../hr/repositories/task-type-eligibility.repository';
+import { ProcessingTypeEligibilityRepository } from '../hr/repositories/processing-type-eligibility.repository';
 import { MailModule } from '../mail/mail.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -76,8 +75,7 @@ class ClientPortalTenantContextInterceptor implements NestInterceptor {
       Tenant,
       ServicePackage,
       StaffAvailabilitySlot,
-      TaskTypeEligibility,
-      PackageItem,
+      ProcessingTypeEligibility,
     ]),
     BookingsModule,
     MailModule,
@@ -122,7 +120,7 @@ class ClientPortalTenantContextInterceptor implements NestInterceptor {
     ClientPortalService,
     AvailabilityService,
     StaffAvailabilitySlotRepository,
-    TaskTypeEligibilityRepository,
+    ProcessingTypeEligibilityRepository,
     ClientTokenGuard,
     {
       provide: APP_INTERCEPTOR,
