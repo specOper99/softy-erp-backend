@@ -158,7 +158,7 @@ export default registerAs('finance', (): FinanceConfig => {
     },
 
     currency: {
-      defaultCode: process.env.DEFAULT_CURRENCY || 'SAR',
+      defaultCode: process.env.DEFAULT_CURRENCY || 'IQD',
       moneyPrecision: parseEnvInt(process.env.MONEY_PRECISION, 2),
       exchangeRatePrecision: parseEnvInt(process.env.EXCHANGE_RATE_PRECISION, 6),
       percentPrecision: parseEnvInt(process.env.PERCENT_PRECISION, 4),

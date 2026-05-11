@@ -10,9 +10,9 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
-import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
 
 export class CreateRecurringTransactionDto {
   @IsString()
@@ -31,7 +31,7 @@ export class CreateRecurringTransactionDto {
 
   @IsEnum(Currency)
   @IsOptional()
-  @ApiPropertyOptional({ enum: Currency, default: Currency.USD })
+  @ApiPropertyOptional({ enum: Currency, default: Currency.IQD })
   currency?: Currency;
 
   @IsString()

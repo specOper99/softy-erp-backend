@@ -107,6 +107,9 @@ async function bootstrap() {
           arrayNotEmpty: 'validation.required',
           // Object
           isObject: 'validation.must_be_object',
+          // Nested / whitelist
+          nestedValidation: 'validation.invalid',
+          whitelistValidation: 'validation.invalid',
           // Misc
           isOptional: 'validation.invalid',
         };

@@ -45,7 +45,7 @@ export class RecurringTransaction extends BaseTenantEntity {
   @Column({
     type: 'enum',
     enum: Currency,
-    default: Currency.USD,
+    default: Currency.IQD,
   })
   currency: Currency;
 

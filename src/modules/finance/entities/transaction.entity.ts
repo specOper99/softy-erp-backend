@@ -31,7 +31,7 @@ export class Transaction extends BaseTenantEntity {
   @Column({
     type: 'enum',
     enum: Currency,
-    default: Currency.USD,
+    default: Currency.IQD,
   })
   currency: Currency;
 

@@ -116,7 +116,7 @@ export class CreateTransactionDto {
   @SanitizeHtml()
   reference?: string;
 
-  @ApiProperty({ enum: Currency, default: Currency.USD })
+  @ApiProperty({ enum: Currency, default: Currency.IQD })
   @IsEnum(Currency)
   @IsOptional()
   currency?: Currency;

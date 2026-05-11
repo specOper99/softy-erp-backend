@@ -187,6 +187,14 @@ import { CoreModule } from './modules/core/core.module';
         watch: false,
       },
       resolvers: [AcceptLanguageResolver],
+      // Replace {variable} placeholders in translation strings with args values.
+      formatter: (template: string, ...args: unknown[]) => {
+        const params = args.find((a) => a !== null && typeof a === 'object' && !Array.isArray(a)) as
+          | Record<string, unknown>
+          | undefined;
+        if (!params) return template;
+        return template.replace(/\{(\w+)\}/g, (_, key: string) => (key in params ? String(params[key]) : `{${key}}`));
+      },
     }),
 
     // Feature Modules

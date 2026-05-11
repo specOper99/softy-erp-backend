@@ -35,7 +35,7 @@ export class Tenant {
     type: 'enum',
     enum: Currency,
     name: 'base_currency',
-    default: Currency.USD,
+    default: Currency.IQD,
   })
   baseCurrency: Currency;
 
