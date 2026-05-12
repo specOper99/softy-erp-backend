@@ -46,7 +46,7 @@ export class StripeService implements OnModuleInit {
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2026-03-25.dahlia',
+      apiVersion: Stripe.API_VERSION,
       typescript: true,
     });
   }

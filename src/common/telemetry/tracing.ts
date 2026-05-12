@@ -66,7 +66,7 @@ export function initTracing(): void {
     // Let's stick to standard config:
     instrumentations: [
       getNodeAutoInstrumentations({
-        '@opentelemetry/instrumentation-fs': { enabled: false },
+        '@opentelemetry/instrumentation-fs': { requireParentSpan: true },
         '@opentelemetry/instrumentation-nestjs-core': { enabled: true },
       }),
     ],

@@ -1,6 +1,5 @@
 // IMPORTANT: This file must be imported FIRST in main.ts
 // Load environment variables before Sentry init
-import type { NodeOptions } from '@sentry/node';
 import * as Sentry from '@sentry/nestjs';
 import 'dotenv/config';
 
@@ -19,7 +18,7 @@ if (process.env.SENTRY_DSN) {
     sendDefaultPii: false,
     // Tracing sample rate (10% in production, 100% in dev)
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-  } as NodeOptions);
+  } as Parameters<typeof Sentry.init>[0]);
   SentryLogger.log('Sentry initialized');
 } else {
   SentryLogger.log('Sentry is disabled (SENTRY_DSN not set)');
