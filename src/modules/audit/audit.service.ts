@@ -60,7 +60,11 @@ export class AuditService implements AuditPublisher {
       if (!this.auditQueue) {
         throw new RuntimeFailure('Audit queue not available');
       }
-      await this.auditQueue.add('log', sanitizedData);
+      await this.auditQueue.add('log', sanitizedData, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+        removeOnComplete: true,
+      });
     } catch (queueError) {
       this.auditWriteFailureCounter.inc({ tenant_id: tenantId, stage: 'queue' });
       // Fallback: Synchronous write if queue is unavailable

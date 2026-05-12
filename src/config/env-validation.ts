@@ -1,4 +1,5 @@
 import { plainToInstance } from 'class-transformer';
+import type { ValidationError } from 'class-validator';
 import { IsEnum, IsIn, IsNumber, IsOptional, IsString, Matches, MinLength, validateSync } from 'class-validator';
 import { RuntimeFailure } from '../common/errors/runtime-failure';
 
@@ -346,7 +347,7 @@ export function validate(config: Record<string, unknown>) {
     // Only bypass JWT_SECRET and CURSOR_SECRET validation in explicit test environment
     // This prevents accidental deployment with weak secrets in development/staging
     const secretProperties = ['JWT_SECRET', 'PLATFORM_JWT_SECRET', 'CURSOR_SECRET'];
-    const filteredErrors = errors.filter((e) => {
+    const filteredErrors = errors.filter((e: ValidationError) => {
       if (isTestEnv && secretProperties.includes(e.property)) return false;
       return true;
     });
@@ -354,7 +355,7 @@ export function validate(config: Record<string, unknown>) {
     if (filteredErrors.length > 0) {
       // Create a more readable error summary
       const errorSummary = filteredErrors
-        .map((e) => {
+        .map((e: ValidationError) => {
           const constraints = Object.values(e.constraints || {}).join(', ');
           return `${e.property}: ${constraints}`;
         })

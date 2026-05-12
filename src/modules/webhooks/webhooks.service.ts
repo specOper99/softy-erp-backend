@@ -349,6 +349,8 @@ export class WebhookService {
             {
               attempts: 5,
               backoff: { type: 'exponential', delay: 30000 },
+              removeOnComplete: true,
+              removeOnFail: false,
             },
           );
           this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
