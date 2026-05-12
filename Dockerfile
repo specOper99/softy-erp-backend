@@ -5,14 +5,14 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci --only=production=false
+RUN HUSKY=0 npm ci --include=dev
 
 # Copy source and build
 COPY . .
 RUN npm run build
 
 # Prune dev dependencies
-RUN npm prune --production
+RUN npm prune --omit=dev && npm pkg delete devDependencies scripts.prepare
 
 # Production stage - using distroless for enhanced security
 # gcr.io/distroless/nodejs provides a minimal image with just Node.js runtime

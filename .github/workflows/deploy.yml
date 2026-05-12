@@ -93,7 +93,7 @@ jobs:
 
       - name: Validate deployable build
         run: |
-          npm ci
+          HUSKY=0 npm ci --include=dev
           npm run lint:check
           npm run type-check
           npm run build
@@ -149,9 +149,11 @@ jobs:
           ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
 
           cd "${CURRENT_LINK}"
-          npm ci
+          HUSKY=0 npm ci --include=dev
           npm run build
           npm run migration:run
+          npm prune --omit=dev
+          npm pkg delete devDependencies scripts.prepare
 
           pm2 delete "${PM2_APP_NAME}" || true
           pm2 start npm --name "${PM2_APP_NAME}" --cwd "${CURRENT_LINK}" -- start:prod
