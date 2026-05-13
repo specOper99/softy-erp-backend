@@ -55,7 +55,7 @@ describe('Race Condition Tests', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "tasks", "bookings", "clients", "package_items", "service_packages", "task_types", "employee_wallets", "users", "tenants" CASCADE',
+      'TRUNCATE TABLE "tasks", "bookings", "clients", "package_items", "service_packages", "processing_types", "employee_wallets", "users", "tenants" CASCADE',
     );
     seeded = await seedTestDatabase(dataSource);
   });
@@ -220,7 +220,7 @@ describe('Race Condition Tests', () => {
 
       const task = await taskRepository.save({
         bookingId: booking.id,
-        taskTypeId: seeded.taskType.id,
+        processingTypeId: seeded.processingType.id,
         assignedUserId: null,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -307,7 +307,7 @@ describe('Race Condition Tests', () => {
 
       const task = await taskRepository.save({
         bookingId: booking.id,
-        taskTypeId: seeded.taskType.id,
+        processingTypeId: seeded.processingType.id,
         assignedUserId: user.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,

@@ -7,7 +7,7 @@ import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { BookingRepository } from '../../../src/modules/bookings/repositories/booking.repository';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
+import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
 import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
 import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
 import { TransactionRepository } from '../../../src/modules/finance/repositories/transaction.repository';
@@ -46,7 +46,7 @@ describe('PrivacyService Integration Tests', () => {
   let clientRepo: Repository<Client>;
   let packageRepo: Repository<ServicePackage>;
   let bookingRepo: Repository<Booking>;
-  let taskTypeRepo: Repository<TaskType>;
+  let processingTypeRepo: Repository<ProcessingType>;
   let taskRepo: Repository<Task>;
   let transactionRepo: Repository<Transaction>;
   let privacyRequestRepo: Repository<PrivacyRequest>;
@@ -84,7 +84,7 @@ describe('PrivacyService Integration Tests', () => {
     clientRepo = dataSource.getRepository(Client);
     packageRepo = dataSource.getRepository(ServicePackage);
     bookingRepo = dataSource.getRepository(Booking);
-    taskTypeRepo = dataSource.getRepository(TaskType);
+    processingTypeRepo = dataSource.getRepository(ProcessingType);
     taskRepo = dataSource.getRepository(Task);
     transactionRepo = dataSource.getRepository(Transaction);
     privacyRequestRepo = dataSource.getRepository(PrivacyRequest);
@@ -115,7 +115,7 @@ describe('PrivacyService Integration Tests', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     await dataSource.query(
-      'TRUNCATE TABLE "privacy_requests", "transactions", "tasks", "task_types", "bookings", "service_packages", "clients", "profiles", "users" CASCADE',
+      'TRUNCATE TABLE "privacy_requests", "transactions", "tasks", "processing_types", "bookings", "service_packages", "clients", "profiles", "users" CASCADE',
     );
   });
 
@@ -213,18 +213,18 @@ describe('PrivacyService Integration Tests', () => {
       },
     ]);
 
-    await taskTypeRepo.save([
+    await processingTypeRepo.save([
       {
         id: TENANT_1_TASK_TYPE_ID,
-        name: 'Tenant1 TaskType',
-        description: 'Tenant1 task type',
+        name: 'Tenant1 ProcessingType',
+        description: 'Tenant1 processing type',
         defaultCommissionAmount: 0,
         tenantId: TENANT_1_ID,
       },
       {
         id: TENANT_2_TASK_TYPE_ID,
-        name: 'Tenant2 TaskType',
-        description: 'Tenant2 task type',
+        name: 'Tenant2 ProcessingType',
+        description: 'Tenant2 processing type',
         defaultCommissionAmount: 0,
         tenantId: TENANT_2_ID,
       },
@@ -233,7 +233,7 @@ describe('PrivacyService Integration Tests', () => {
     await taskRepo.save({
       id: TENANT_1_TASK_ID,
       bookingId: TENANT_1_BOOKING_ID,
-      taskTypeId: TENANT_1_TASK_TYPE_ID,
+      processingTypeId: TENANT_1_TASK_TYPE_ID,
       assignedUserId: TARGET_USER_ID,
       status: TaskStatus.PENDING,
       commissionSnapshot: 125,
@@ -243,7 +243,7 @@ describe('PrivacyService Integration Tests', () => {
     await dataSource.query("SET session_replication_role = 'replica'");
     try {
       await dataSource.query(
-        'INSERT INTO "tasks" ("id", "booking_id", "task_type_id", "assigned_user_id", "status", "commission_snapshot", "tenant_id") VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        'INSERT INTO "tasks" ("id", "booking_id", "processing_type_id", "assigned_user_id", "status", "commission_snapshot", "tenant_id") VALUES ($1, $2, $3, $4, $5, $6, $7)',
         [
           LEAK_TRAP_TASK_ID,
           TENANT_2_BOOKING_ID,

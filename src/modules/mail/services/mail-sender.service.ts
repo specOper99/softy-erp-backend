@@ -118,13 +118,16 @@ export class MailSenderService {
   async sendTaskAssignment(data: TaskAssignmentEmailData, locale = 'en'): Promise<EmailResult> {
     return this.sendEmail({
       to: data.employeeEmail,
-      subject: this.i18n.translate('email.subjects.taskAssigned', { lang: locale, args: { taskType: data.taskType } }),
+      subject: this.i18n.translate('email.subjects.taskAssigned', {
+        lang: locale,
+        args: { processingType: data.processingType },
+      }),
       logLabel: 'Task assignment',
       templateName: 'task-assignment',
       context: this.templateService.sanitizeContext(
         this.templateService.buildCommonContext({
           employeeName: data.employeeName,
-          taskType: data.taskType,
+          processingType: data.processingType,
           clientName: data.clientName,
           eventDate: this.templateService.formatDate(data.eventDate),
           commission: this.templateService.formatCurrency(data.commission),

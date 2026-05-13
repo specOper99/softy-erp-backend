@@ -5,7 +5,7 @@ import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
+import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
 import { Invoice } from '../../../src/modules/finance/entities/invoice.entity';
 import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
 import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
@@ -20,7 +20,7 @@ describe('FinanceRepository Integration Tests', () => {
   let taskRepository: Repository<Task>;
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
-  let taskTypeRepository: Repository<TaskType>;
+  let processingTypeRepository: Repository<ProcessingType>;
 
   const tenant1 = randomUUID();
   const tenant2 = randomUUID();
@@ -45,7 +45,7 @@ describe('FinanceRepository Integration Tests', () => {
     taskRepository = dataSource.getRepository(Task);
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
-    taskTypeRepository = dataSource.getRepository(TaskType);
+    processingTypeRepository = dataSource.getRepository(ProcessingType);
   });
 
   afterAll(async () => {
@@ -56,7 +56,7 @@ describe('FinanceRepository Integration Tests', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "transactions", "invoices", "tasks", "task_types", "bookings", "service_packages", "clients" CASCADE',
+      'TRUNCATE TABLE "transactions", "invoices", "tasks", "processing_types", "bookings", "service_packages", "clients" CASCADE',
     );
   });
 
@@ -158,14 +158,14 @@ describe('FinanceRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const taskType = await taskTypeRepository.save({
+      const processingType = await processingTypeRepository.save({
         name: 'Photography',
         description: 'Photo task',
         tenantId: tenant1,
       });
 
       const task = await taskRepository.save({
-        taskTypeId: taskType.id,
+        processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,

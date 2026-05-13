@@ -1,7 +1,7 @@
 {
   "subjects": {
     "bookingConfirmed": "Booking Confirmed - {packageName}",
-    "taskAssigned": "New Task Assigned: {taskType}",
+    "taskAssigned": "New Task Assigned: {processingType}",
     "bookingRescheduled": "Booking Rescheduled: {bookingId}",
     "payrollProcessed": "Payroll Processed - Payment Details",
     "clientPortalLogin": "Login to {companyName} Client Portal",

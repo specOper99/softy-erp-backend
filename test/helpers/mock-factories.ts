@@ -612,7 +612,6 @@ export function createMockTask(overrides: Partial<MockTask> = {}): MockTask {
   return {
     id: 'task-uuid-123',
     bookingId: 'booking-uuid-123',
-    taskTypeId: undefined,
     processingTypeId: 'processing-type-uuid-123',
     assignedUserId: 'user-uuid-123',
     status: 'PENDING' as unknown as Task['status'],

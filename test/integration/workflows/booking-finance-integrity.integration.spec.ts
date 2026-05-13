@@ -17,7 +17,7 @@ import { BookingWorkflowService } from '../../../src/modules/bookings/services/b
 import type { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
 import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
+import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
 import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
 import { PaymentStatus } from '../../../src/modules/finance/enums/payment-status.enum';
 import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
@@ -45,7 +45,7 @@ describe('Booking -> Finance Integrity Integration', () => {
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
   let packageItemRepository: Repository<PackageItem>;
-  let taskTypeRepository: Repository<TaskType>;
+  let processingTypeRepository: Repository<ProcessingType>;
   let bookingRepository: Repository<Booking>;
   let taskRepository: Repository<Task>;
   let transactionRepository: Repository<Transaction>;
@@ -176,16 +176,16 @@ describe('Booking -> Finance Integrity Integration', () => {
       tenantId,
     });
 
-    const taskType = await taskTypeRepository.save({
-      name: `TaskType ${randomUUID()}`,
-      description: 'Fixture task type',
+    const processingType = await processingTypeRepository.save({
+      name: `ProcessingType ${randomUUID()}`,
+      description: 'Fixture processing type',
       defaultCommissionAmount: 75,
       tenantId,
     });
 
     await packageItemRepository.save({
       packageId: servicePackage.id,
-      taskTypeId: taskType.id,
+      processingTypeId: processingType.id,
       quantity: taskCount,
       tenantId,
     });
@@ -233,7 +233,7 @@ describe('Booking -> Finance Integrity Integration', () => {
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
     packageItemRepository = dataSource.getRepository(PackageItem);
-    taskTypeRepository = dataSource.getRepository(TaskType);
+    processingTypeRepository = dataSource.getRepository(ProcessingType);
     bookingRepository = dataSource.getRepository(Booking);
     taskRepository = dataSource.getRepository(Task);
     transactionRepository = dataSource.getRepository(Transaction);
@@ -247,7 +247,7 @@ describe('Booking -> Finance Integrity Integration', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "transactions", "tasks", "bookings", "package_items", "task_types", "service_packages", "clients", "tenants" CASCADE',
+      'TRUNCATE TABLE "transactions", "tasks", "bookings", "package_items", "processing_types", "service_packages", "clients", "tenants" CASCADE',
     );
   });
 

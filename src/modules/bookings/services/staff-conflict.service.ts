@@ -66,8 +66,8 @@ export class StaffConflictService {
     const durationMinutes = input.durationMinutes ?? servicePackage.durationMinutes;
     const requestedWindow = computeBookingWindow(input.eventDate, input.startTime, durationMinutes);
 
-    const packageTaskTypeIds = await this.getActiveProcessingTypeIds();
-    const eligibleUserIds = await this.getEligibleActiveUserIds(packageTaskTypeIds);
+    const activeProcessingTypeIds = await this.getActiveProcessingTypeIds();
+    const eligibleUserIds = await this.getEligibleActiveUserIds(activeProcessingTypeIds);
     const eligibleCount = eligibleUserIds.length;
 
     if (eligibleCount < requiredStaffCount) {

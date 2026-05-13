@@ -110,8 +110,6 @@ const PATCH: Record<string, unknown> = {
   catalog: {
     package_in_use: 'Package is in use and cannot be deleted',
     service_package_not_found: 'Service package with ID {id} was not found',
-    package_item_not_found: 'Package item with ID {id} was not found',
-    task_type_not_found: 'Task type with ID {id} was not found',
   },
   finance: {
     invoice_not_found: 'Invoice with ID {id} was not found',

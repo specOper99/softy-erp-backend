@@ -74,7 +74,7 @@ describe('EmailProcessor - Tenant Context', () => {
         data: {
           employeeName: 'Jane',
           employeeEmail: 'jane@example.com',
-          taskType: 'Photography',
+          processingType: 'Photography',
           clientName: 'Client',
           eventDate: '2025-06-15T10:00:00Z',
           commission: 100,

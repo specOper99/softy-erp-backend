@@ -39,7 +39,7 @@ npm run start:dev
 - **Users** - User management with roles (ADMIN, OPS_MANAGER, FIELD_STAFF)
 - **Bookings** - Client booking management
 - **Tasks** - Work task assignment and tracking
-- **Catalog** - Service packages and task types
+- **Catalog** - Service packages
 - **Finance** - Transactions and employee wallets
 - **HR** - Employee profiles and payroll
 - **Media** - File uploads via MinIO/S3
@@ -57,7 +57,7 @@ erDiagram
     Booking ||--o| Invoice : "generates"
     Booking ||--o{ Transaction : "related to"
     Booking }|--|| Package : "includes"
-    Task }|--|| TaskType : "defined by"
+    Task }|--o| ProcessingType : "uses"
     Invoice ||--o{ Transaction : "paid by"
     AuditLog }|--|| User : "performed by"
 

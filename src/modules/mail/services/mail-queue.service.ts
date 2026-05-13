@@ -78,7 +78,7 @@ export class MailQueueService {
       tenantId,
       employeeName: data.employeeName,
       employeeEmail: data.employeeEmail,
-      taskType: data.taskType,
+      processingType: data.processingType,
       clientName: data.clientName,
       eventDate: data.eventDate.toISOString(),
       commission: data.commission,

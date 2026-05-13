@@ -8,7 +8,7 @@ import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
+import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
 import type { AuditService } from '../../../src/modules/audit/audit.service';
 import type { FinanceService } from '../../../src/modules/finance/services/finance.service';
 import type { WalletService } from '../../../src/modules/finance/services/wallet.service';
@@ -33,14 +33,14 @@ describe('TasksService Integration Tests', () => {
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
   let bookingRepository: Repository<Booking>;
-  let taskTypeRepository: Repository<TaskType>;
+  let processingTypeRepository: Repository<ProcessingType>;
   let taskRepository: Repository<Task>;
   let taskAssigneeRepository: Repository<TaskAssignee>;
 
-  const createBookingAndTaskType = async (
+  const createBookingAndProcessingType = async (
     tenantId: string,
     label: string,
-  ): Promise<{ booking: Booking; taskType: TaskType }> => {
+  ): Promise<{ booking: Booking; processingType: ProcessingType }> => {
     const client = await clientRepository.save({
       name: `${label} Client`,
       email: `${label.toLowerCase()}-${randomUUID()}@test.local`,
@@ -75,26 +75,26 @@ describe('TasksService Integration Tests', () => {
       tenantId,
     });
 
-    const taskType = await taskTypeRepository.save({
-      name: `${label} TaskType`,
-      description: `${label} task type`,
+    const processingType = await processingTypeRepository.save({
+      name: `${label} ProcessingType`,
+      description: `${label} processing type`,
       defaultCommissionAmount: 0,
       tenantId,
     });
 
-    return { booking, taskType };
+    return { booking, processingType };
   };
 
   const createTask = async (params: {
     tenantId: string;
     bookingId: string;
-    taskTypeId: string;
+    processingTypeId: string;
     assignedUserId: string | null;
     notes: string;
   }): Promise<Task> => {
     return taskRepository.save({
       bookingId: params.bookingId,
-      taskTypeId: params.taskTypeId,
+      processingTypeId: params.processingTypeId,
       assignedUserId: params.assignedUserId,
       parentId: null,
       status: TaskStatus.PENDING,
@@ -121,7 +121,7 @@ describe('TasksService Integration Tests', () => {
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
     bookingRepository = dataSource.getRepository(Booking);
-    taskTypeRepository = dataSource.getRepository(TaskType);
+    processingTypeRepository = dataSource.getRepository(ProcessingType);
     taskRepository = dataSource.getRepository(Task);
     taskAssigneeRepository = dataSource.getRepository(TaskAssignee);
 
@@ -155,7 +155,7 @@ describe('TasksService Integration Tests', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "task_assignees", "tasks", "task_types", "bookings", "service_packages", "clients", "users", "tenants" CASCADE',
+      'TRUNCATE TABLE "task_assignees", "tasks", "processing_types", "bookings", "service_packages", "clients", "users", "tenants" CASCADE',
     );
   });
 
@@ -178,23 +178,23 @@ describe('TasksService Integration Tests', () => {
       tenantId: tenant1,
     });
 
-    const tenant1Fixture = await createBookingAndTaskType(tenant1, 'Tenant1');
+    const tenant1Fixture = await createBookingAndProcessingType(tenant1, 'Tenant1');
     const tenant1Task = await createTask({
       tenantId: tenant1,
       bookingId: tenant1Fixture.booking.id,
-      taskTypeId: tenant1Fixture.taskType.id,
+      processingTypeId: tenant1Fixture.processingType.id,
       assignedUserId: tenant1FieldStaff.id,
       notes: 'tenant1-task',
     });
 
-    const tenant2Fixture = await createBookingAndTaskType(tenant2, 'Tenant2');
+    const tenant2Fixture = await createBookingAndProcessingType(tenant2, 'Tenant2');
     const tenant2LeakTrapTaskId = randomUUID();
 
     try {
       await taskRepository.save({
         id: tenant2LeakTrapTaskId,
         bookingId: tenant2Fixture.booking.id,
-        taskTypeId: tenant2Fixture.taskType.id,
+        processingTypeId: tenant2Fixture.processingType.id,
         assignedUserId: tenant1FieldStaff.id,
         parentId: null,
         status: TaskStatus.PENDING,
@@ -208,11 +208,11 @@ describe('TasksService Integration Tests', () => {
       await dataSource.query("SET session_replication_role = 'replica'");
       try {
         await dataSource.query(
-          'INSERT INTO "tasks" ("id", "booking_id", "task_type_id", "assigned_user_id", "parent_id", "status", "commission_snapshot", "due_date", "completed_at", "notes", "tenant_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+          'INSERT INTO "tasks" ("id", "booking_id", "processing_type_id", "assigned_user_id", "parent_id", "status", "commission_snapshot", "due_date", "completed_at", "notes", "tenant_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
           [
             tenant2LeakTrapTaskId,
             tenant2Fixture.booking.id,
-            tenant2Fixture.taskType.id,
+            tenant2Fixture.processingType.id,
             tenant1FieldStaff.id,
             null,
             TaskStatus.PENDING,
@@ -263,11 +263,11 @@ describe('TasksService Integration Tests', () => {
       tenantId: tenant1,
     });
 
-    const fixture = await createBookingAndTaskType(tenant1, 'Tenant1-Forbidden');
+    const fixture = await createBookingAndProcessingType(tenant1, 'Tenant1-Forbidden');
     const task = await createTask({
       tenantId: tenant1,
       bookingId: fixture.booking.id,
-      taskTypeId: fixture.taskType.id,
+      processingTypeId: fixture.processingType.id,
       assignedUserId: leadUser.id,
       notes: 'field-staff-forbidden-task',
     });

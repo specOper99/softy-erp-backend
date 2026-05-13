@@ -1,7 +1,7 @@
 {
   "subjects": {
     "bookingConfirmed": "حجز پشتڕاستکرایەوە - {packageName}",
-    "taskAssigned": "ئەرکی نوێ دابەشکرا: {taskType}",
+    "taskAssigned": "ئەرکی نوێ دابەشکرا: {processingType}",
     "bookingRescheduled": "حجز دووبارە کاتبەندکرا: {bookingId}",
     "payrollProcessed": "مووچە پرۆسەسکرا - وردەکاری پارەدان",
     "clientPortalLogin": "چوونە ژوورەوەی پۆرتاڵی کڕیارانی {companyName}",

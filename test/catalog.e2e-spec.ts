@@ -22,7 +22,6 @@ describe('Catalog Module E2E Tests', () => {
   let app: INestApplication;
   let accessToken: string;
   let createdPackageId: string;
-  let createdTaskTypeId: string;
   let tenantHost: string;
 
   beforeAll(async () => {
@@ -209,111 +208,6 @@ describe('Catalog Module E2E Tests', () => {
         // Verify it's deleted
         await request(app.getHttpServer())
           .get(`/api/v1/packages/${packageIdToDelete}`)
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(404);
-      });
-    });
-  });
-
-  // ============ TASK TYPES TESTS ============
-  describe('Task Types', () => {
-    describe('POST /api/v1/task-types', () => {
-      it('should create a task type (Admin)', async () => {
-        const response = await request(app.getHttpServer())
-          .post('/api/v1/task-types')
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send({
-            name: 'Photography',
-            description: 'Event photography services',
-            defaultCommissionAmount: 150,
-          })
-          .expect(201);
-
-        expect(response.body.data).toHaveProperty('id');
-        expect(response.body.data.name).toBe('Photography');
-        createdTaskTypeId = response.body.data.id;
-      });
-
-      it('should fail without authentication', async () => {
-        await request(app.getHttpServer())
-          .post('/api/v1/task-types')
-          .set('Host', tenantHost)
-          .send({
-            name: 'Unauthorized Task Type',
-          })
-          .expect(401);
-      });
-    });
-
-    describe('GET /api/v1/task-types', () => {
-      it('should return all task types', async () => {
-        const response = await request(app.getHttpServer())
-          .get('/api/v1/task-types')
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
-
-        expect(response.body.data).toBeInstanceOf(Array);
-        expect(response.body.data.length).toBeGreaterThan(0);
-      });
-    });
-
-    describe('GET /api/v1/task-types/:id', () => {
-      it('should return a specific task type', async () => {
-        const response = await request(app.getHttpServer())
-          .get(`/api/v1/task-types/${createdTaskTypeId}`)
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
-
-        expect(response.body.data.id).toBe(createdTaskTypeId);
-        expect(response.body.data.name).toBe('Photography');
-      });
-    });
-
-    describe('PATCH /api/v1/task-types/:id', () => {
-      it('should update a task type', async () => {
-        const response = await request(app.getHttpServer())
-          .patch(`/api/v1/task-types/${createdTaskTypeId}`)
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send({
-            description: 'Advanced video editing task',
-            defaultCommissionAmount: 200,
-          })
-          .expect(200);
-
-        expect(response.body.data.description).toBe('Advanced video editing task');
-        expect(Number(response.body.data.defaultCommissionAmount)).toBe(200);
-      });
-    });
-
-    describe('DELETE /api/v1/task-types/:id', () => {
-      it('should delete a task type', async () => {
-        // Create a task type to delete
-        const createResponse = await request(app.getHttpServer())
-          .post('/api/v1/task-types')
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send({
-            name: 'Task Type To Delete',
-            defaultCommissionAmount: 50,
-          })
-          .expect(201);
-
-        const taskTypeIdToDelete = createResponse.body.data.id;
-
-        await request(app.getHttpServer())
-          .delete(`/api/v1/task-types/${taskTypeIdToDelete}`)
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
-
-        // Verify it's deleted
-        await request(app.getHttpServer())
-          .get(`/api/v1/task-types/${taskTypeIdToDelete}`)
           .set('Host', tenantHost)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(404);

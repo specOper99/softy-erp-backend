@@ -1,7 +1,7 @@
 {
   "subjects": {
     "bookingConfirmed": "تأكيد الحجز - {packageName}",
-    "taskAssigned": "مهمة جديدة مُسندة: {taskType}",
+    "taskAssigned": "مهمة جديدة مُسندة: {processingType}",
     "bookingRescheduled": "تم إعادة جدولة الحجز: {bookingId}",
     "payrollProcessed": "تمت معالجة الراتب - تفاصيل الدفع",
     "clientPortalLogin": "تسجيل الدخول إلى بوابة {companyName} للعملاء",

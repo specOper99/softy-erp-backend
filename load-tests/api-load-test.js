@@ -147,17 +147,6 @@ export default function (data) {
 
     sleep(0.5);
 
-    // ============ Catalog - Task Types ============
-    group('Catalog - Task Types', () => {
-        const res = http.get(`${BASE_URL}/task-types`, { headers });
-        const passed = check(res, {
-            'list task types 200': (r) => r.status === 200,
-        });
-        errorRate.add(!passed);
-    });
-
-    sleep(0.5);
-
     // ============ Bookings ============
     group('Bookings', () => {
         const start = Date.now();

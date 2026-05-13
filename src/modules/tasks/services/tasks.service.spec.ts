@@ -34,7 +34,7 @@ describe('TasksService - Comprehensive Tests', () => {
       clientId: 'client-123',
       client: { name: 'John Doe' },
     },
-    taskType: { id: 'task-type-uuid-123', name: 'Photography' },
+    processingType: { id: 'processing-type-uuid-123', name: 'Photography' },
     assignedUser: { id: 'user-uuid-123', email: 'user@example.com' },
   }) as unknown as Task;
 

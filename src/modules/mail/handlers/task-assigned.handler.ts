@@ -10,7 +10,7 @@ export class TaskAssignedHandler implements IEventHandler<TaskAssignedEvent> {
     await this.mailService.sendTaskAssignment({
       employeeName: event.employeeName,
       employeeEmail: event.employeeEmail,
-      taskType: event.taskTypeName,
+      processingType: event.processingTypeName,
       clientName: event.clientName,
       eventDate: event.eventDate,
       commission: event.commission,

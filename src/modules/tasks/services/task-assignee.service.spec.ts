@@ -35,7 +35,7 @@ describe('TaskAssigneeService', () => {
       client: { name: 'John Doe' },
       eventDate: new Date('2024-12-31'),
     },
-    taskType: { id: 'task-type-uuid-123', name: 'Photography' },
+    processingType: { id: 'processing-type-uuid-123', name: 'Photography' },
     assignedUser: { id: 'old-user-id', email: 'old@example.com' },
   }) as unknown as Task;
 

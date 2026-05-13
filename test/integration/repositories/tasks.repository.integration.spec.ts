@@ -5,7 +5,7 @@ import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
+import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
 import { Task } from '../../../src/modules/tasks/entities/task.entity';
 import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
 import { User } from '../../../src/modules/users/entities/user.entity';
@@ -18,7 +18,7 @@ describe('TasksRepository Integration Tests', () => {
   let bookingRepository: Repository<Booking>;
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
-  let taskTypeRepository: Repository<TaskType>;
+  let processingTypeRepository: Repository<ProcessingType>;
 
   const tenant1 = randomUUID();
   const tenant2 = randomUUID();
@@ -42,7 +42,7 @@ describe('TasksRepository Integration Tests', () => {
     bookingRepository = dataSource.getRepository(Booking);
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
-    taskTypeRepository = dataSource.getRepository(TaskType);
+    processingTypeRepository = dataSource.getRepository(ProcessingType);
   });
 
   afterAll(async () => {
@@ -53,7 +53,7 @@ describe('TasksRepository Integration Tests', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "tasks", "task_types", "bookings", "users", "service_packages", "clients" CASCADE',
+      'TRUNCATE TABLE "tasks", "processing_types", "bookings", "users", "service_packages", "clients" CASCADE',
     );
   });
 
@@ -99,14 +99,14 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const taskType = await taskTypeRepository.save({
+      const processingType = await processingTypeRepository.save({
         name: 'Photography',
         description: 'Photo task',
         tenantId: tenant1,
       });
 
       const task = await taskRepository.save({
-        taskTypeId: taskType.id,
+        processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -173,14 +173,14 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const taskType = await taskTypeRepository.save({
+      const processingType = await processingTypeRepository.save({
         name: 'Photography',
         description: 'Photo task',
         tenantId: tenant1,
       });
 
       const task = await taskRepository.save({
-        taskTypeId: taskType.id,
+        processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -237,14 +237,14 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const taskType = await taskTypeRepository.save({
+      const processingType = await processingTypeRepository.save({
         name: 'Photography',
         description: 'Photo task',
         tenantId: tenant1,
       });
 
       const task = await taskRepository.save({
-        taskTypeId: taskType.id,
+        processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -308,14 +308,14 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const taskType = await taskTypeRepository.save({
+      const processingType = await processingTypeRepository.save({
         name: 'Photography',
         description: 'Photo task',
         tenantId: tenant1,
       });
 
       const task = await taskRepository.save({
-        taskTypeId: taskType.id,
+        processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -412,20 +412,20 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant2,
       });
 
-      const taskType1 = await taskTypeRepository.save({
+      const processingType1 = await processingTypeRepository.save({
         name: 'Type 1',
         description: 'Desc',
         tenantId: tenant1,
       });
 
-      const taskType2 = await taskTypeRepository.save({
+      const processingType2 = await processingTypeRepository.save({
         name: 'Type 2',
         description: 'Desc',
         tenantId: tenant2,
       });
 
       await taskRepository.save({
-        taskTypeId: taskType1.id,
+        processingTypeId: processingType1.id,
         bookingId: booking1.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
@@ -433,7 +433,7 @@ describe('TasksRepository Integration Tests', () => {
       });
 
       await taskRepository.save({
-        taskTypeId: taskType2.id,
+        processingTypeId: processingType2.id,
         bookingId: booking2.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 200,

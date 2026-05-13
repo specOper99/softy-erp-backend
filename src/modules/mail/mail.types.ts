@@ -10,7 +10,7 @@ export interface BookingEmailData {
 export interface TaskAssignmentEmailData {
   employeeName: string;
   employeeEmail: string;
-  taskType: string;
+  processingType: string;
   clientName: string;
   eventDate: Date;
   commission: number;
@@ -125,7 +125,7 @@ export interface BookingConfirmationJobData extends TenantAwareEmailJobData {
 export interface TaskAssignmentJobData extends TenantAwareEmailJobData {
   employeeName: string;
   employeeEmail: string;
-  taskType: string;
+  processingType: string;
   clientName: string;
   eventDate: string;
   commission: number;

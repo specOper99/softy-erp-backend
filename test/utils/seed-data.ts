@@ -3,18 +3,17 @@ import type { DataSource } from 'typeorm';
 import { PasswordHashService } from '../../src/common/services/password-hash.service';
 import { toErrorMessage } from '../../src/common/utils/error.util';
 import { Client } from '../../src/modules/bookings/entities/client.entity';
-import { PackageItem } from '../../src/modules/catalog/entities/package-item.entity';
+import { ProcessingType } from '../../src/modules/bookings/entities/processing-type.entity';
 import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
-import { TaskType } from '../../src/modules/catalog/entities/task-type.entity';
 import { EmployeeWallet } from '../../src/modules/finance/entities/employee-wallet.entity';
 import { Profile } from '../../src/modules/hr/entities/profile.entity';
+import { ProcessingTypeEligibility } from '../../src/modules/hr/entities/processing-type-eligibility.entity';
 import { PlatformUser } from '../../src/modules/platform/entities/platform-user.entity';
 import { PlatformRole } from '../../src/modules/platform/enums/platform-role.enum';
 import { Tenant } from '../../src/modules/tenants/entities/tenant.entity';
 import { User } from '../../src/modules/users/entities/user.entity';
 import { Role } from '../../src/modules/users/enums/role.enum';
 
-import { TaskTypeEligibility } from '../../src/modules/hr/entities/task-type-eligibility.entity';
 import { SubscriptionPlan } from '../../src/modules/tenants/enums/subscription-plan.enum';
 
 export async function seedTestDatabase(dataSource: DataSource) {
@@ -22,12 +21,11 @@ export async function seedTestDatabase(dataSource: DataSource) {
   const userRepo = dataSource.getRepository(User);
   const profileRepo = dataSource.getRepository(Profile);
   const walletRepo = dataSource.getRepository(EmployeeWallet);
-  const taskTypeRepo = dataSource.getRepository(TaskType);
+  const processingTypeRepo = dataSource.getRepository(ProcessingType);
   const packageRepo = dataSource.getRepository(ServicePackage);
-  const packageItemRepo = dataSource.getRepository(PackageItem);
   const clientRepo = dataSource.getRepository(Client);
   const platformUserRepo = dataSource.getRepository(PlatformUser);
-  const eligibilityRepo = dataSource.getRepository(TaskTypeEligibility);
+  const eligibilityRepo = dataSource.getRepository(ProcessingTypeEligibility);
 
   // Initialize password hash service
   const passwordHashService = new PasswordHashService();
@@ -216,43 +214,46 @@ export async function seedTestDatabase(dataSource: DataSource) {
     await walletRepo.update({ id: staffWallet.id }, { tenantId });
   }
 
-  // 4. Create Task Types
-  const taskTypeName = 'Photography';
-  let taskType = await taskTypeRepo.findOne({
-    where: { name: taskTypeName, tenantId },
+  // 4. Create Processing Types
+  const processingTypeName = 'Photography';
+  let processingType = await processingTypeRepo.findOne({
+    where: { name: processingTypeName, tenantId },
   });
-  if (!taskType) {
+  if (!processingType) {
     try {
-      taskType = await taskTypeRepo.save(
-        taskTypeRepo.create({
-          name: taskTypeName,
+      processingType = await processingTypeRepo.save(
+        processingTypeRepo.create({
+          name: processingTypeName,
           description: 'Photos',
           defaultCommissionAmount: 100,
+          price: 0,
+          sortOrder: 0,
+          isActive: true,
           tenantId,
         }),
       );
     } catch {
-      taskType = await taskTypeRepo.findOne({
-        where: { name: taskTypeName, tenantId },
+      processingType = await processingTypeRepo.findOne({
+        where: { name: processingTypeName, tenantId },
       });
     }
   }
 
-  if (!taskType) {
-    throw new Error('Failed to seed/find task type');
+  if (!processingType) {
+    throw new Error('Failed to seed/find processing type');
   }
 
-  // Create TaskTypeEligibility for staff user to allow conflict checks
+  // Create processing eligibility for staff user to allow conflict checks
   try {
     const existingEligibility = await eligibilityRepo.findOne({
-      where: { tenantId, userId: staff.id, taskTypeId: taskType.id },
+      where: { tenantId, userId: staff.id, processingTypeId: processingType.id },
     });
     if (!existingEligibility) {
       await eligibilityRepo.save(
         eligibilityRepo.create({
           tenantId,
           userId: staff.id,
-          taskTypeId: taskType.id,
+          processingTypeId: processingType.id,
         }),
       );
     }
@@ -272,15 +273,6 @@ export async function seedTestDatabase(dataSource: DataSource) {
           name: packageName,
           description: 'Full Package',
           price: 2000,
-          tenantId,
-        }),
-      );
-
-      await packageItemRepo.save(
-        packageItemRepo.create({
-          packageId: pkg.id,
-          taskTypeId: taskType.id,
-          quantity: 2,
           tenantId,
         }),
       );
@@ -318,7 +310,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
       }
     }
 
-    return { tenantId, tenantSlug, admin, staff, pkg, taskType, client };
+    return { tenantId, tenantSlug, admin, staff, pkg, processingType, client };
   } catch (outerError: unknown) {
     console.error('Seeder error:', toErrorMessage(outerError));
     throw outerError;

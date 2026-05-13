@@ -143,7 +143,7 @@ describe('Mail Handlers', () => {
       expect(mailService.sendTaskAssignment).toHaveBeenCalledWith({
         employeeName: 'Jane Smith',
         employeeEmail: 'jane@example.com',
-        taskType: 'Photography',
+        processingType: 'Photography',
         clientName: 'Client Corp',
         eventDate: testDate,
         commission: 250,

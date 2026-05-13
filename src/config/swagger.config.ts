@@ -205,7 +205,6 @@ Tenant Admin can create studio-side users primarily with roles: \`OPS_MANAGER\`,
     .addTag('Client Portal', '🔓 Client-facing portal with Magic Link auth')
     .addTag('Users', '🏢 [Tenant] User management')
     .addTag('Service Packages', '🏢 [Tenant] Catalog - Service packages')
-    .addTag('Task Types', '🏢 [Tenant] Catalog - Task type definitions')
     .addTag('Bookings', '🏢 [Tenant] Booking management and workflows')
     .addTag('Tasks', '🏢 [Tenant] Task assignment and completion')
     .addTag('Finance - Transactions', '🏢 [Tenant] Financial transactions')

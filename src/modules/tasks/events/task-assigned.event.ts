@@ -6,7 +6,7 @@ export class TaskAssignedEvent implements IEvent {
     public readonly tenantId: string,
     public readonly employeeName: string,
     public readonly employeeEmail: string,
-    public readonly taskTypeName: string,
+    public readonly processingTypeName: string,
     public readonly clientName: string,
     public readonly eventDate: Date,
     public readonly commission: number,

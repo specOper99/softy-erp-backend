@@ -8,8 +8,8 @@ import { BookingStatus } from '../../../src/modules/bookings/enums/booking-statu
 import { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
 import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { TaskType } from '../../../src/modules/catalog/entities/task-type.entity';
-import { TaskTypeEligibility } from '../../../src/modules/hr/entities/task-type-eligibility.entity';
+import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
+import { ProcessingTypeEligibility } from '../../../src/modules/hr/entities/processing-type-eligibility.entity';
 import { TaskAssignee } from '../../../src/modules/tasks/entities/task-assignee.entity';
 import { Task } from '../../../src/modules/tasks/entities/task.entity';
 import { TaskAssigneeRole } from '../../../src/modules/tasks/enums/task-assignee-role.enum';
@@ -19,7 +19,7 @@ import { User } from '../../../src/modules/users/entities/user.entity';
 import { Role } from '../../../src/modules/users/enums/role.enum';
 import { PackageItemRepository } from '../../../src/modules/catalog/repositories/package-item.repository';
 import { ServicePackageRepository } from '../../../src/modules/catalog/repositories/service-package.repository';
-import { TaskTypeEligibilityRepository } from '../../../src/modules/hr/repositories/task-type-eligibility.repository';
+import { ProcessingTypeEligibilityRepository } from '../../../src/modules/hr/repositories/processing-type-eligibility.repository';
 import { TaskAssigneeRepository } from '../../../src/modules/tasks/repositories/task-assignee.repository';
 import { TaskRepository } from '../../../src/modules/tasks/repositories/task.repository';
 import { UserRepository } from '../../../src/modules/users/repositories/user.repository';
@@ -32,8 +32,8 @@ describe('StaffConflictService Integration Tests', () => {
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
   let packageItemRepository: Repository<PackageItem>;
-  let taskTypeRepository: Repository<TaskType>;
-  let taskTypeEligibilityRepository: Repository<TaskTypeEligibility>;
+  let processingTypeRepository: Repository<ProcessingType>;
+  let processingTypeEligibilityRepository: Repository<ProcessingTypeEligibility>;
   let bookingRepository: Repository<Booking>;
   let taskRepository: Repository<Task>;
   let taskAssigneeRepository: Repository<TaskAssignee>;
@@ -53,8 +53,8 @@ describe('StaffConflictService Integration Tests', () => {
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
     packageItemRepository = dataSource.getRepository(PackageItem);
-    taskTypeRepository = dataSource.getRepository(TaskType);
-    taskTypeEligibilityRepository = dataSource.getRepository(TaskTypeEligibility);
+    processingTypeRepository = dataSource.getRepository(ProcessingType);
+    processingTypeEligibilityRepository = dataSource.getRepository(ProcessingTypeEligibility);
     bookingRepository = dataSource.getRepository(Booking);
     taskRepository = dataSource.getRepository(Task);
     taskAssigneeRepository = dataSource.getRepository(TaskAssignee);
@@ -63,7 +63,7 @@ describe('StaffConflictService Integration Tests', () => {
     staffConflictService = new StaffConflictService(
       new ServicePackageRepository(packageRepository),
       new PackageItemRepository(packageItemRepository),
-      new TaskTypeEligibilityRepository(taskTypeEligibilityRepository),
+      new ProcessingTypeEligibilityRepository(processingTypeEligibilityRepository),
       new UserRepository(userRepository),
       new TaskAssigneeRepository(taskAssigneeRepository),
       new TaskRepository(taskRepository),
@@ -78,7 +78,7 @@ describe('StaffConflictService Integration Tests', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "task_assignees", "tasks", "bookings", "task_type_eligibilities", "package_items", "task_types", "service_packages", "clients", "users", "tenants" CASCADE',
+      'TRUNCATE TABLE "task_assignees", "tasks", "bookings", "processing_type_eligibilities", "package_items", "processing_types", "service_packages", "clients", "users", "tenants" CASCADE',
     );
   });
 
@@ -107,9 +107,9 @@ describe('StaffConflictService Integration Tests', () => {
       tenantId: tenant1,
     });
 
-    const taskTypeTenant1 = await taskTypeRepository.save({
+    const processingTypeTenant1 = await processingTypeRepository.save({
       name: 'Photography Tenant 1',
-      description: 'Tenant1 task type',
+      description: 'Tenant1 processing type',
       defaultCommissionAmount: 0,
       tenantId: tenant1,
     });
@@ -125,20 +125,20 @@ describe('StaffConflictService Integration Tests', () => {
 
     await packageItemRepository.save({
       packageId: packageTenant1.id,
-      taskTypeId: taskTypeTenant1.id,
+      processingTypeId: processingTypeTenant1.id,
       quantity: 1,
       tenantId: tenant1,
     });
 
-    await taskTypeEligibilityRepository.save({
+    await processingTypeEligibilityRepository.save({
       userId: eligibleUser.id,
-      taskTypeId: taskTypeTenant1.id,
+      processingTypeId: processingTypeTenant1.id,
       tenantId: tenant1,
     });
 
-    const taskTypeTenant2 = await taskTypeRepository.save({
+    const processingTypeTenant2 = await processingTypeRepository.save({
       name: 'Photography Tenant 2',
-      description: 'Tenant2 task type',
+      description: 'Tenant2 processing type',
       defaultCommissionAmount: 0,
       tenantId: tenant2,
     });
@@ -179,7 +179,7 @@ describe('StaffConflictService Integration Tests', () => {
 
     const tenant2Task = await taskRepository.save({
       bookingId: overlappingBookingTenant2.id,
-      taskTypeId: taskTypeTenant2.id,
+      processingTypeId: processingTypeTenant2.id,
       assignedUserId: null,
       parentId: null,
       status: TaskStatus.PENDING,
