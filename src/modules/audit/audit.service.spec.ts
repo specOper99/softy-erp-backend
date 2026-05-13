@@ -85,6 +85,7 @@ describe('AuditService', () => {
           ...logData,
           tenantId: testTenantId,
         }),
+        expect.any(Object),
       );
     });
 
@@ -113,6 +114,7 @@ describe('AuditService', () => {
             nested: { ssn: '***MASKED***' },
           },
         }),
+        expect.any(Object),
       );
     });
 
