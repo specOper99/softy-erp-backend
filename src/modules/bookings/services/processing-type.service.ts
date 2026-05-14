@@ -1,18 +1,22 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { In } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CatalogService } from '../../catalog/services/catalog.service';
 import { CreateProcessingTypeDto, UpdateProcessingTypeDto } from '../dto/processing-type.dto';
 import { ProcessingType } from '../entities/processing-type.entity';
 import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 
 @Injectable()
 export class ProcessingTypeService {
-  constructor(private readonly repository: ProcessingTypeRepository) {}
+  constructor(
+    private readonly repository: ProcessingTypeRepository,
+    private readonly catalogService: CatalogService,
+  ) {}
 
-  async findAll(): Promise<ProcessingType[]> {
+  async findAll(filter: { packageId?: string } = {}): Promise<ProcessingType[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.repository.find({
-      where: { tenantId },
+      where: filter.packageId ? { tenantId, packageId: filter.packageId } : { tenantId },
       order: { sortOrder: 'ASC', name: 'ASC' },
     });
   }
@@ -36,11 +40,13 @@ export class ProcessingTypeService {
 
   async create(dto: CreateProcessingTypeDto): Promise<ProcessingType> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
-    const exists = await this.repository.findOne({ where: { tenantId, name: dto.name } });
+    await this.catalogService.findPackageById(dto.packageId);
+    const exists = await this.repository.findOne({ where: { tenantId, packageId: dto.packageId, name: dto.name } });
     if (exists) throw new ConflictException('processing_type.name_already_exists');
 
     const entity = this.repository.create({
       tenantId,
+      packageId: dto.packageId,
       name: dto.name,
       description: dto.description ?? null,
       sortOrder: dto.sortOrder ?? 0,
@@ -53,11 +59,22 @@ export class ProcessingTypeService {
 
   async update(id: string, dto: UpdateProcessingTypeDto): Promise<ProcessingType> {
     const entity = await this.findOne(id);
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    const nextPackageId = dto.packageId ?? entity.packageId;
+    const packageChanged = dto.packageId !== undefined && dto.packageId !== entity.packageId;
+    const nameChanged = dto.name !== undefined && dto.name !== entity.name;
 
-    if (dto.name !== undefined && dto.name !== entity.name) {
-      const tenantId = TenantContextService.getTenantIdOrThrow();
-      const conflict = await this.repository.findOne({ where: { tenantId, name: dto.name } });
+    if (packageChanged) {
+      await this.catalogService.findPackageById(nextPackageId);
+    }
+    if (nameChanged || packageChanged) {
+      const conflict = await this.repository.findOne({
+        where: { tenantId, packageId: nextPackageId, name: dto.name ?? entity.name },
+      });
       if (conflict) throw new ConflictException('processing_type.name_already_exists');
+    }
+    if (packageChanged) entity.packageId = dto.packageId!;
+    if (dto.name !== undefined && dto.name !== entity.name) {
       entity.name = dto.name;
     }
     if (dto.description !== undefined) entity.description = dto.description ?? null;

@@ -1,8 +1,12 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
 
 export class CreateProcessingTypeDto {
+  @ApiProperty({ description: 'Parent service package ID' })
+  @IsUUID()
+  packageId: string;
+
   @ApiProperty({ description: 'Processing type name', example: 'Raw Edit' })
   @IsString()
   @MaxLength(100)
@@ -43,6 +47,9 @@ export class UpdateProcessingTypeDto extends PartialType(CreateProcessingTypeDto
 export class ProcessingTypeResponseDto {
   @ApiProperty()
   id: string;
+
+  @ApiProperty()
+  packageId: string;
 
   @ApiProperty()
   name: string;

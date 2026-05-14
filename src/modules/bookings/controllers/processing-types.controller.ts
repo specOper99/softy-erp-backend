@@ -9,9 +9,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponses, Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -34,9 +35,10 @@ export class ProcessingTypesController {
   @Get()
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'List all processing types for the tenant' })
+  @ApiQuery({ name: 'packageId', required: false, description: 'Optional service package ID filter' })
   @ApiResponse({ status: 200, type: [ProcessingTypeResponseDto] })
-  findAll() {
-    return this.service.findAll();
+  findAll(@Query('packageId') packageId?: string) {
+    return this.service.findAll(packageId ? { packageId } : undefined);
   }
 
   @Get(':id')

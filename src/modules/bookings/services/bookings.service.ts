@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Counter } from 'prom-client';
-import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
@@ -90,6 +90,38 @@ export class BookingsService {
     }
   }
 
+  private validateProcessingTypeSelection(
+    requestedIds: string[],
+    processingTypes: ProcessingType[],
+    packageId: string,
+  ): ProcessingType[] {
+    const uniqueIds = Array.from(new Set(requestedIds));
+    const validTypes = processingTypes.filter((pt) => pt.packageId === packageId);
+    const validIds = new Set(validTypes.map((pt) => pt.id));
+    const allRequestedTypesMatchPackage = uniqueIds.every((id) => validIds.has(id));
+
+    if (validTypes.length !== uniqueIds.length || !allRequestedTypesMatchPackage) {
+      throw new BadRequestException('booking.processing_type_package_mismatch');
+    }
+
+    return validTypes;
+  }
+
+  private async findPackageProcessingTypes(
+    ids: string[] | undefined,
+    tenantId: string,
+    packageId: string,
+  ): Promise<ProcessingType[]> {
+    const uniqueIds = Array.from(new Set(ids ?? []));
+    if (uniqueIds.length === 0) return [];
+
+    const processingTypes = await this.processingTypeRepository.find({
+      where: { id: In(uniqueIds), tenantId },
+    });
+
+    return this.validateProcessingTypeSelection(uniqueIds, processingTypes, packageId);
+  }
+
   async create(dto: CreateBookingDto): Promise<Booking> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     // Validate package exists and get price
@@ -110,11 +142,13 @@ export class BookingsService {
     };
 
     // Add selected processing type prices to the package base price
+    const selectedProcessingTypes = await this.findPackageProcessingTypes(
+      dto.processingTypeIds,
+      tenantId,
+      dto.packageId,
+    );
     if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
-      const processingTypes = await this.processingTypeRepository.find({
-        where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
-      });
-      const processingTypeTotal = processingTypes.reduce((sum, pt) => sum + Number(pt.price), 0);
+      const processingTypeTotal = selectedProcessingTypes.reduce((sum, pt) => sum + Number(pt.price), 0);
       priceInput.packagePrice += processingTypeTotal;
     }
 
@@ -157,10 +191,7 @@ export class BookingsService {
 
     // Attach processing types via join table if provided
     if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
-      const types = await this.processingTypeRepository.find({
-        where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
-      });
-      savedBooking.processingTypes = types;
+      savedBooking.processingTypes = selectedProcessingTypes;
       await this.bookingRepository.save(savedBooking);
     } else {
       savedBooking.processingTypes = [];
@@ -366,9 +397,10 @@ export class BookingsService {
         if (ptIds !== undefined) {
           if (ptIds.length > 0) {
             const pts = await manager.find(ProcessingType, {
-              where: ptIds.map((ptId) => ({ id: ptId, tenantId: existingBooking.tenantId })),
+              where: { id: In(Array.from(new Set(ptIds))), tenantId: existingBooking.tenantId },
             });
-            processingTypeTotal = pts.reduce((sum, pt) => sum + Number(pt.price), 0);
+            const selectedTypes = this.validateProcessingTypeSelection(ptIds, pts, pkgId);
+            processingTypeTotal = selectedTypes.reduce((sum, pt) => sum + Number(pt.price), 0);
           }
         } else {
           // Load existing processing types for price recalculation
@@ -411,9 +443,14 @@ export class BookingsService {
       // Update processing types if provided
       if (dto.processingTypeIds !== undefined) {
         if (dto.processingTypeIds.length > 0) {
-          booking.processingTypes = await manager.find(ProcessingType, {
-            where: dto.processingTypeIds.map((ptId) => ({ id: ptId, tenantId: existingBooking.tenantId })),
+          const types = await manager.find(ProcessingType, {
+            where: { id: In(Array.from(new Set(dto.processingTypeIds))), tenantId: existingBooking.tenantId },
           });
+          booking.processingTypes = this.validateProcessingTypeSelection(
+            dto.processingTypeIds,
+            types,
+            dto.packageId ?? booking.packageId,
+          );
         } else {
           booking.processingTypes = [];
         }

@@ -13,6 +13,7 @@ describe('ProcessingTypesController', () => {
   const mockType = {
     id: 'pt-1',
     tenantId: 'tenant-123',
+    packageId: 'pkg-1',
     name: 'Raw Edit',
     description: null,
     sortOrder: 0,
@@ -50,6 +51,15 @@ describe('ProcessingTypesController', () => {
       expect(result).toEqual([mockType]);
       expect(service.findAll).toHaveBeenCalled();
     });
+
+    it('should pass packageId query filter to the service', async () => {
+      const result = await (
+        controller as unknown as { findAll: (packageId?: string) => Promise<ProcessingType[]> }
+      ).findAll('pkg-1');
+
+      expect(result).toEqual([mockType]);
+      expect(service.findAll).toHaveBeenCalledWith({ packageId: 'pkg-1' });
+    });
   });
 
   describe('findOne', () => {
@@ -62,7 +72,7 @@ describe('ProcessingTypesController', () => {
 
   describe('create', () => {
     it('should create a processing type', async () => {
-      const dto: CreateProcessingTypeDto = { name: 'Raw Edit' };
+      const dto: CreateProcessingTypeDto = { name: 'Raw Edit', packageId: 'pkg-1' };
       const result = await controller.create(dto);
       expect(result).toEqual(mockType);
       expect(service.create).toHaveBeenCalledWith(dto);

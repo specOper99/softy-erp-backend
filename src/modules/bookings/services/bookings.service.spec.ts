@@ -269,7 +269,7 @@ describe('BookingsService', () => {
     });
 
     it('should attach processing types when processingTypeIds provided', async () => {
-      const mockProcessingType = { id: 'pt-1', tenantId: 'tenant-123', name: 'Raw Edit' };
+      const mockProcessingType = { id: 'pt-1', tenantId: 'tenant-123', packageId: 'pkg-1', name: 'Raw Edit' };
       const dto: CreateBookingDto = {
         clientId: 'client-1',
         packageId: 'pkg-1',
@@ -292,6 +292,28 @@ describe('BookingsService', () => {
       expect(processingTypeRepository.find).toHaveBeenCalled();
       // save is called twice: once for main booking, once to persist relations
       expect(bookingRepository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('should reject processing types that do not belong to the selected package', async () => {
+      const dto: CreateBookingDto = {
+        clientId: 'client-1',
+        packageId: 'pkg-1',
+        eventDate: new Date(Date.now() + 86400000).toISOString(),
+        processingTypeIds: ['pt-2'],
+      };
+
+      catalogService.findPackageById.mockResolvedValue({
+        id: 'pkg-1',
+        price: 100,
+        name: 'Test Package',
+        durationMinutes: 60,
+      });
+      processingTypeRepository.find.mockResolvedValue([
+        { id: 'pt-2', tenantId: 'tenant-123', packageId: 'pkg-2', name: 'Wrong Package', price: 25 },
+      ]);
+
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+      expect(bookingRepository.save).not.toHaveBeenCalled();
     });
 
     it('should persist handover type when provided', async () => {
@@ -528,7 +550,7 @@ describe('BookingsService', () => {
         status: BookingStatus.CONFIRMED as unknown as BookingStatus,
         startTime: '10:00',
       });
-      const mockProcessingType = { id: 'pt-1', tenantId: 'tenant-1', name: 'طبع' };
+      const mockProcessingType = { id: 'pt-1', tenantId: 'tenant-1', packageId: 'pkg-1', name: 'طبع' };
 
       bookingRepository.createQueryBuilder.mockReturnValue({
         andWhere: jest.fn().mockReturnThis(),
@@ -559,7 +581,10 @@ describe('BookingsService', () => {
       expect(mockFind).toHaveBeenCalledWith(
         ProcessingType,
         expect.objectContaining({
-          where: [{ id: 'pt-1', tenantId: 'tenant-1' }],
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            id: expect.objectContaining({ _type: 'in', _value: ['pt-1'] }),
+          }),
         }),
       );
       expect(mockSave).toHaveBeenCalledWith(

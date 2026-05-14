@@ -1,9 +1,14 @@
-import { Column, Entity, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import type { ServicePackage } from '../../catalog/entities/service-package.entity';
 
 @Entity('processing_types')
-@Index(['tenantId', 'name'], { unique: true })
+@Index(['tenantId', 'packageId', 'name'], { unique: true })
+@Index(['tenantId', 'packageId', 'isActive', 'sortOrder'])
 export class ProcessingType extends BaseTenantEntity {
+  @Column({ name: 'package_id', type: 'uuid' })
+  packageId: string;
+
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
@@ -27,4 +32,8 @@ export class ProcessingType extends BaseTenantEntity {
     default: 0,
   })
   defaultCommissionAmount: number;
+
+  @ManyToOne('ServicePackage')
+  @JoinColumn({ name: 'package_id' })
+  servicePackage: ServicePackage;
 }

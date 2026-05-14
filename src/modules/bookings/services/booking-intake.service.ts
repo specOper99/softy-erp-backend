@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
@@ -14,6 +14,7 @@ import { FinanceService } from '../../finance/services/finance.service';
 import { BookingIntakeDto, BookingIntakeResponseDto } from '../dto/booking-intake.dto';
 import { Booking } from '../entities/booking.entity';
 import { Client } from '../entities/client.entity';
+import { ProcessingType } from '../entities/processing-type.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { BookingCreatedEvent } from '../events/booking-created.event';
 import { ClientCreatedEvent } from '../events/client.events';
@@ -40,6 +41,23 @@ export class BookingIntakeService {
     private readonly processingTypeRepository: ProcessingTypeRepository,
     private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
   ) {}
+
+  private validateProcessingTypeSelection(
+    requestedIds: string[],
+    processingTypes: ProcessingType[],
+    packageId: string,
+  ): ProcessingType[] {
+    const uniqueIds = Array.from(new Set(requestedIds));
+    const validTypes = processingTypes.filter((pt) => pt.packageId === packageId);
+    const validIds = new Set(validTypes.map((pt) => pt.id));
+    const allRequestedTypesMatchPackage = uniqueIds.every((id) => validIds.has(id));
+
+    if (validTypes.length !== uniqueIds.length || !allRequestedTypesMatchPackage) {
+      throw new BadRequestException('booking.processing_type_package_mismatch');
+    }
+
+    return validTypes;
+  }
 
   /**
    * Performs the full booking intake in a single database transaction.
@@ -102,11 +120,18 @@ export class BookingIntakeService {
 
     // Add selected processing type prices to the base package price
     let processingTypeTotal = 0;
+    let selectedProcessingTypes: ProcessingType[] = [];
     if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
+      const uniqueProcessingTypeIds = Array.from(new Set(dto.processingTypeIds));
       const processingTypesForPrice = await this.processingTypeRepository.find({
-        where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
+        where: { id: In(uniqueProcessingTypeIds), tenantId },
       });
-      processingTypeTotal = processingTypesForPrice.reduce((sum, pt) => sum + Number(pt.price), 0);
+      selectedProcessingTypes = this.validateProcessingTypeSelection(
+        dto.processingTypeIds,
+        processingTypesForPrice,
+        dto.packageId,
+      );
+      processingTypeTotal = selectedProcessingTypes.reduce((sum, pt) => sum + Number(pt.price), 0);
     }
 
     const pricing = BookingPriceCalculator.calculate({
@@ -202,10 +227,7 @@ export class BookingIntakeService {
       // ── Step 3: attach processing types ───────────────────────────────
 
       if (dto.processingTypeIds && dto.processingTypeIds.length > 0) {
-        const types = await this.processingTypeRepository.find({
-          where: dto.processingTypeIds.map((id) => ({ id, tenantId })),
-        });
-        booking.processingTypes = types;
+        booking.processingTypes = selectedProcessingTypes;
         booking = await manager.save(Booking, booking);
       } else {
         booking.processingTypes = [];
