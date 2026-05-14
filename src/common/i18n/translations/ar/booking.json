@@ -34,5 +34,6 @@
   "invalid_transition": "لا يمكن نقل الحجز من {from} إلى {to}",
   "terminal_state": "Booking is in a terminal state: {status}",
   "reject_draft_only": "يمكن فقط رفض حجوزات DRAFT",
+  "processing_type_package_mismatch": "واحد أو أكثر من أنواع المعالجة المحددة لا تنتمي إلى الباقة المختارة",
   "listing_not_found": "العرض غير موجود"
 }

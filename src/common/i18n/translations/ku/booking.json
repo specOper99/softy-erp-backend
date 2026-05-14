@@ -34,5 +34,6 @@
   "invalid_transition": "ناتوانرێت نۆرە لە {from} بۆ {to} بگۆڕدرێت",
   "terminal_state": "Booking is in a terminal state: {status}",
   "reject_draft_only": "تەنیا نۆرەی DRAFT دەکرێت ڕەتبکرێتەوە",
+  "processing_type_package_mismatch": "یەک یان زیاتر لە جۆرەکانی پرۆسێسکردنی هەڵبژێردراو بە پاکێجی هەڵبژێردراوەوە ناگونجێن",
   "listing_not_found": "لیستە نەدۆزرایەوە"
 }

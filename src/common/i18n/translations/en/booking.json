@@ -34,5 +34,6 @@
   "date_only_expected": "Use a date in YYYY-MM-DD format",
   "invalid_date": "Invalid date",
   "invalid_time_format": "Invalid time {time}. Use HH:mm format.",
-  "skip_availability_admin_only": "Only administrators can skip the availability check"
+  "skip_availability_admin_only": "Only administrators can skip the availability check",
+  "processing_type_package_mismatch": "One or more selected processing types do not belong to the chosen package"
 }

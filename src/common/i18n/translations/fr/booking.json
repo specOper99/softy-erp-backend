@@ -34,5 +34,6 @@
   "invalid_transition": "Impossible de faire passer la réservation de {from} à {to}",
   "terminal_state": "Booking is in a terminal state: {status}",
   "reject_draft_only": "Seules les réservations DRAFT peuvent être rejetées",
+  "processing_type_package_mismatch": "Un ou plusieurs types de traitement sélectionnés n'appartiennent pas au forfait choisi",
   "listing_not_found": "Annonce non trouvée"
 }
