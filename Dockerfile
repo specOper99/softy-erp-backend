@@ -14,40 +14,37 @@ RUN npm run build
 # Prune dev dependencies
 RUN npm prune --omit=dev && npm pkg delete devDependencies scripts.prepare
 
-# Production stage - using distroless for enhanced security
-# gcr.io/distroless/nodejs provides a minimal image with just Node.js runtime
-FROM gcr.io/distroless/nodejs22-debian12:nonroot AS production
+# Production stage - node:22-alpine for shell support (required for migration entrypoint)
+FROM node:22-alpine AS production
 
 # Set working directory
 WORKDIR /app
 
+# Create a non-root user matching the UID used by the former distroless nonroot image.
+# This preserves the same security posture (CIS Docker Benchmark CKV_DOCKER_3).
+RUN addgroup -g 65532 -S nonroot && adduser -u 65532 -S nonroot -G nonroot
+
 # Copy built application from builder
-# Note: In distroless, we can't create users or modify permissions at runtime
-# The `nonroot` tag already runs as UID 65532
 COPY --from=builder --chown=65532:65532 /app/dist ./dist
 COPY --from=builder --chown=65532:65532 /app/node_modules ./node_modules
 COPY --from=builder --chown=65532:65532 /app/package*.json ./
 
-# Create logs directory in builder and copy
-# (Distroless doesn't have mkdir/shell)
+# Copy entrypoint script that runs migrations then starts the app
+COPY --chown=65532:65532 entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 # Expose port
 EXPOSE 3000
 
-# HEALTHCHECK Configuration:
-# Distroless images do not support HEALTHCHECK directive because they lack a shell.
-# Instead, Kubernetes liveness and readiness probes are used:
-#   - Liveness probe: GET /api/v1/health/live (port 3000)
+# Health check via HTTP (Coolify / Docker Compose compatible).
+# Kubernetes deployments should use the liveness/readiness probes instead:
+#   - Liveness probe:  GET /api/v1/health/live  (port 3000)
 #   - Readiness probe: GET /api/v1/health/ready (port 3000)
-# This approach is the recommended best practice for containerized applications
-# and provides more sophisticated health monitoring than Docker's HEALTHCHECK.
-#
-# Security Note: The `nonroot` tag runs as UID 65532 (nonroot user)
-# ensuring the container doesn't run as root, meeting CIS Docker Benchmark requirements.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:3000/api/v1/health/live || exit 1
 
-# Explicitly set user (redundant with nonroot tag, but required by Checkov CKV_DOCKER_3)
 USER 65532
 
-# Start application
-# In distroless/nodejs, the entrypoint is already set to node
-CMD ["dist/main.js"]
+# Entrypoint runs pending migrations, then starts the app.
+# `exec` replaces the shell process so SIGTERM is forwarded correctly.
+ENTRYPOINT ["./entrypoint.sh"]

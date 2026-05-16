@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { join } from 'path';
 import type { DataSourceOptions } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { getDatabaseConnectionConfig } from './db-config';
@@ -32,6 +33,7 @@ import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
 
 // Missing entities added
+import { RuntimeFailure } from '../common/errors/runtime-failure';
 import { DailyMetrics } from '../modules/analytics/entities/daily-metrics.entity';
 import { EmailVerificationToken } from '../modules/auth/entities/email-verification-token.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
@@ -56,7 +58,6 @@ import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
 import { WebhookDelivery } from '../modules/webhooks/entities/webhook-delivery.entity';
 import { Webhook } from '../modules/webhooks/entities/webhook.entity';
-import { RuntimeFailure } from '../common/errors/runtime-failure';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -114,7 +115,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Webhook,
     Review,
   ],
-  migrations: ['src/database/migrations/[0-9]*.{ts,js}'],
+  migrations: [join(__dirname, 'migrations', '[0-9]*.{ts,js}')],
   migrationsTableName: 'migrations',
   logging: process.env.DB_LOGGING === 'true',
 
