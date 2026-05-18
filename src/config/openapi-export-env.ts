@@ -19,5 +19,10 @@ export function applyOpenApiExportEnv(env: MutableEnv = process.env): MutableEnv
   env.PLATFORM_JWT_SECRET = env.PLATFORM_JWT_SECRET || OPENAPI_EXPORT_FALLBACKS.PLATFORM_JWT_SECRET;
   env.CURSOR_SECRET = env.CURSOR_SECRET || OPENAPI_EXPORT_FALLBACKS.CURSOR_SECRET;
 
+  // CORS is irrelevant for schema generation; override any invalid value (e.g. "*")
+  // so module-level getCorsOriginAllowlist() does not throw during app bootstrap.
+  env.CORS_ORIGINS = 'http://localhost:3000';
+  env.NODE_ENV = 'development';
+
   return env;
 }

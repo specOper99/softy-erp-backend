@@ -13,15 +13,20 @@
 # =============================================================================
 set -euo pipefail
 
-# ── Colours ───────────────────────────────────────────────────────────────────
-R='\033[0;31m'; Y='\033[1;33m'; G='\033[0;32m'
-C='\033[0;36m'; B='\033[1m'; D='\033[2m'; N='\033[0m'
+# ── Colours ($'...' stores real ESC bytes, not literal backslash sequences) ──
+R=$'\033[0;31m'
+Y=$'\033[1;33m'
+G=$'\033[0;32m'
+C=$'\033[0;36m'
+B=$'\033[1m'
+D=$'\033[2m'
+N=$'\033[0m'
 
-info()    { echo -e "${C}  ▶${N} $*"; }
-warn()    { echo -e "${Y}  ⚠${N}  $*"; }
-ok()      { echo -e "${G}  ✔${N} $*"; }
-die()     { echo -e "${R}  ✖ ERROR:${N} $*" >&2; exit 1; }
-section() { echo -e "\n${B}━━━ $* ━━━${N}"; }
+info()    { printf "  ${C}▶${N} %s\n"        "$*"; }
+warn()    { printf "  ${Y}⚠${N}  %s\n"       "$*"; }
+ok()      { printf "  ${G}✔${N} %s\n"        "$*"; }
+die()     { printf "  ${R}✖ ERROR:${N} %s\n" "$*" >&2; exit 1; }
+section() { printf "\n${B}━━━ %s ━━━${N}\n"  "$*"; }
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 command -v openssl >/dev/null 2>&1 || die "openssl is required but not installed."
@@ -41,7 +46,8 @@ gen128() { openssl rand -base64 16; }
 # ask "prompt" "default"
 ask() {
   local _v
-  read -rp "  $1 [${D}${2}${N}]: " _v </dev/tty
+  printf "  %s [${D}%s${N}]: " "$1" "$2" >/dev/tty
+  read -r _v </dev/tty
   printf '%s' "${_v:-$2}"
 }
 
@@ -49,8 +55,9 @@ ask() {
 ask_required() {
   local _v=""
   while [[ -z "$_v" ]]; do
-    read -rp "  $1 (required): " _v </dev/tty
-    [[ -z "$_v" ]] && echo -e "  ${R}Value cannot be empty.${N}"
+    printf "  %s (required): " "$1" >/dev/tty
+    read -r _v </dev/tty
+    [[ -z "$_v" ]] && printf "  ${R}Value cannot be empty.${N}\n" >/dev/tty
   done
   printf '%s' "$_v"
 }
@@ -59,24 +66,42 @@ ask_required() {
 ask_secret() {
   local _v=""
   while [[ -z "$_v" ]]; do
-    read -rsp "  $1 (required, hidden): " _v </dev/tty; echo
-    [[ -z "$_v" ]] && echo -e "  ${R}Value cannot be empty.${N}"
+    printf "  %s (required, hidden): " "$1" >/dev/tty
+    read -rs _v </dev/tty
+    printf "\n" >/dev/tty
+    [[ -z "$_v" ]] && printf "  ${R}Value cannot be empty.${N}\n" >/dev/tty
   done
   printf '%s' "$_v"
 }
 
-# ask_opt_secret "prompt" — hidden input, optional (Enter to skip)
+# ask_opt_secret "prompt" — hidden, optional (Enter = skip)
 ask_opt_secret() {
   local _v=""
-  read -rsp "  $1 (optional, press Enter to skip): " _v </dev/tty; echo
+  printf "  %s (optional, press Enter to skip): " "$1" >/dev/tty
+  read -rs _v </dev/tty
+  printf "\n" >/dev/tty
   printf '%s' "$_v"
 }
 
 # ask_yn "prompt" → echoes "true" or "false"
 ask_yn() {
   local _v
-  read -rp "  $1 [y/N]: " _v </dev/tty
+  printf "  %s [y/N]: " "$1" >/dev/tty
+  read -r _v </dev/tty
   [[ "${_v:-n}" =~ ^[Yy]$ ]] && echo "true" || echo "false"
+}
+
+# gen_or_override "LABEL" [bits=256]
+# Generates a secret, tells the operator, then offers a hidden override.
+gen_or_override() {
+  local _label="$1" _bits="${2:-256}" _secret
+  [[ "$_bits" == "128" ]] && _secret=$(gen128) || _secret=$(gen256)
+  printf "  ${G}✔${N} %s: auto-generated (%s-bit)\n" "$_label" "$_bits" >/dev/tty
+  printf "    ${D}Press Enter to accept, or type your own value (hidden):${N} " >/dev/tty
+  local _override=""
+  read -rs _override </dev/tty
+  printf "\n" >/dev/tty
+  [[ -n "$_override" ]] && printf '%s' "$_override" || printf '%s' "$_secret"
 }
 
 # ── Safe .env writer ──────────────────────────────────────────────────────────
@@ -101,17 +126,17 @@ wcmt() { _OUT+="# ${*}"$'\n'; }
 wblank() { _OUT+=$'\n'; }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
-echo
-echo -e "${B}╔══════════════════════════════════════════════╗${N}"
-echo -e "${B}║   Softy ERP — Production .env Generator     ║${N}"
-echo -e "${B}╚══════════════════════════════════════════════╝${N}"
-echo
+printf "\n"
+printf "${B}╔══════════════════════════════════════════════╗${N}\n"
+printf "${B}║   Softy ERP — Production .env Generator     ║${N}\n"
+printf "${B}╚══════════════════════════════════════════════╝${N}\n"
+printf "\n"
 info "Output: ${OUT}"
 
 if [[ -f "$OUT" ]]; then
   warn ".env already exists at ${OUT}"
   OVERWRITE=$(ask_yn "Overwrite it? (a timestamped backup will be created first)")
-  if [[ "$OVERWRITE" != "true" ]]; then echo "Aborted."; exit 0; fi
+  if [[ "$OVERWRITE" != "true" ]]; then printf "Aborted.\n"; exit 0; fi
   BACKUP="${OUT}.bak.$(date +%Y%m%d%H%M%S)"
   cp "$OUT" "$BACKUP"
   ok "Backed up to ${BACKUP}"
@@ -126,11 +151,12 @@ COMPANY_URL=$(ask  "Company URL"  "https://erp.soft-y.org")
 PORT=$(ask         "Listening port" "3000")
 
 section "Database (PostgreSQL)"
+# Defaults match docker-compose.yml service configuration
 DB_HOST=$(ask_required "Host")
 DB_PORT=$(ask          "Port" "5432")
-DB_USERNAME=$(ask_required "Username")
-DB_PASSWORD=$(ask_secret   "Password")
-DB_DATABASE=$(ask          "Database name" "$DB_USERNAME")
+DB_USERNAME=$(ask      "Username" "softy")
+DB_PASSWORD=$(ask_secret "Password")
+DB_DATABASE=$(ask      "Database name" "${DB_USERNAME:-softy}")
 DB_POOL_SIZE=$(ask         "Connection pool size (prod recommendation: 50–100)" "50")
 
 CONFIGURE_REPLICA=$(ask_yn "Configure a read replica?")
@@ -143,19 +169,26 @@ if [[ "$CONFIGURE_REPLICA" == "true" ]]; then
 fi
 
 section "Redis"
-REDIS_URL=$(ask_required "Redis URL (e.g. redis://localhost:6379 or rediss://user:pass@host:6380)")
+# Default port matches docker-compose.yml redis mapping (9379→6379)
+REDIS_URL=$(ask "Redis URL" "redis://localhost:6379")
 
 section "CORS"
-CORS_ORIGINS=$(ask_required "Allowed origins, comma-separated (e.g. https://app.example.com)")
+while true; do
+  CORS_ORIGINS=$(ask_required "Allowed origins, comma-separated (e.g. https://app.example.com)")
+  if [[ "$CORS_ORIGINS" == "*" ]]; then
+    warn "Wildcard '*' is not a valid CORS origin — enter explicit URL(s)."
+  else
+    break
+  fi
+done
 
-section "Auto-generating cryptographic secrets"
-info "JWT_SECRET …"                  ; JWT_SECRET=$(gen256)
-info "PLATFORM_JWT_SECRET …"         ; PLATFORM_JWT_SECRET=$(gen256)
-info "CURSOR_SECRET …"               ; CURSOR_SECRET=$(gen256)
-info "PASSWORD_RESET_TOKEN_SECRET …" ; PASSWORD_RESET_TOKEN_SECRET=$(gen256)
-info "ENCRYPTION_KEY …"              ; ENCRYPTION_KEY=$(gen256)
-info "METRICS_TOKEN …"               ; METRICS_TOKEN=$(gen128)
-ok "All 6 secrets generated (256-bit entropy each)"
+section "Secrets — press Enter to accept each auto-generated value, or type your own"
+JWT_SECRET=$(gen_or_override                  "JWT_SECRET")
+PLATFORM_JWT_SECRET=$(gen_or_override         "PLATFORM_JWT_SECRET")
+CURSOR_SECRET=$(gen_or_override               "CURSOR_SECRET")
+PASSWORD_RESET_TOKEN_SECRET=$(gen_or_override "PASSWORD_RESET_TOKEN_SECRET")
+ENCRYPTION_KEY=$(gen_or_override              "ENCRYPTION_KEY")
+METRICS_TOKEN=$(gen_or_override               "METRICS_TOKEN" 128)
 
 JWT_ACCESS_EXPIRES_SECONDS=$(ask "JWT access token lifetime (seconds)" "900")
 JWT_REFRESH_EXPIRES_DAYS=$(ask   "JWT refresh token lifetime (days)"   "7")
@@ -431,20 +464,28 @@ trap - EXIT   # clear trap — file is in place
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 section "Done"
-echo
+printf "\n"
 ok "Written:     ${OUT}"
 ok "Permissions: 600 (owner read/write only)"
-echo
-echo -e "  ${B}App:${N}     ${APP_NAME} (${COMPANY_NAME})"
-echo -e "  ${B}DB:${N}      ${DB_USERNAME}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}"
-echo -e "  ${B}Redis:${N}   ${REDIS_URL}"
-echo -e "  ${B}JWT:${N}     ${JWT_ALLOWED_ALGORITHMS}"
-echo -e "  ${B}Storage:${N} $([[ "$CONFIGURE_STORAGE" == "true" ]] && echo "enabled (${MINIO_ENDPOINT})" || echo "disabled")"
-echo -e "  ${B}Email:${N}   $([[ "$CONFIGURE_MAIL" == "true" ]] && echo "enabled (${MAIL_HOST})" || echo "disabled")"
-echo -e "  ${B}Vault:${N}   ${VAULT_ENABLED}"
-echo -e "  ${B}OTEL:${N}    ${OTEL_ENABLED}"
-echo -e "  ${B}Stripe:${N}  ${CONFIGURE_STRIPE}"
-echo
+printf "\n"
+printf "  ${B}App:${N}     %s (%s)\n" "$APP_NAME" "$COMPANY_NAME"
+printf "  ${B}DB:${N}      %s@%s:%s/%s\n" "$DB_USERNAME" "$DB_HOST" "$DB_PORT" "$DB_DATABASE"
+printf "  ${B}Redis:${N}   %s\n" "$REDIS_URL"
+printf "  ${B}JWT:${N}     %s\n" "$JWT_ALLOWED_ALGORITHMS"
+if [[ "$CONFIGURE_STORAGE" == "true" ]]; then
+  printf "  ${B}Storage:${N} enabled (%s)\n" "$MINIO_ENDPOINT"
+else
+  printf "  ${B}Storage:${N} disabled\n"
+fi
+if [[ "$CONFIGURE_MAIL" == "true" ]]; then
+  printf "  ${B}Email:${N}   enabled (%s)\n" "$MAIL_HOST"
+else
+  printf "  ${B}Email:${N}   disabled\n"
+fi
+printf "  ${B}Vault:${N}   %s\n" "$VAULT_ENABLED"
+printf "  ${B}OTEL:${N}    %s\n" "$OTEL_ENABLED"
+printf "  ${B}Stripe:${N}  %s\n" "$CONFIGURE_STRIPE"
+printf "\n"
 warn "Back up the .env file securely. Losing auto-generated secrets means"
 warn "all existing JWT tokens, encrypted data, and cursors will be invalidated."
-echo
+printf "\n"

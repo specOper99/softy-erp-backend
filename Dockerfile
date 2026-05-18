@@ -40,7 +40,9 @@ EXPOSE 3000
 # Kubernetes deployments should use the liveness/readiness probes instead:
 #   - Liveness probe:  GET /api/v1/health/live  (port 3000)
 #   - Readiness probe: GET /api/v1/health/ready (port 3000)
-HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+# start-period covers DB-readiness wait + migrations + Nest boot before
+# failures count against the container (prevents kill during slow first boot).
+HEALTHCHECK --interval=10s --timeout=5s --start-period=120s --retries=5 \
   CMD wget -qO- http://localhost:3000/api/v1/health/live || exit 1
 
 USER 65532
