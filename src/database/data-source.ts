@@ -22,10 +22,8 @@ import { Vendor } from '../modules/finance/entities/vendor.entity';
 import { PayrollRun } from '../modules/hr/entities/payroll-run.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
 import { EmailTemplate } from '../modules/mail/entities/email-template.entity';
-import { Attachment } from '../modules/media/entities/attachment.entity';
 import { NotificationPreference } from '../modules/notifications/entities/notification-preference.entity';
 import { Notification } from '../modules/notifications/entities/notification.entity';
-import { Consent } from '../modules/privacy/entities/consent.entity';
 import { TaskAssignee } from '../modules/tasks/entities/task-assignee.entity';
 import { Task } from '../modules/tasks/entities/task.entity';
 import { TimeEntry } from '../modules/tasks/entities/time-entry.entity';
@@ -37,27 +35,13 @@ import { RuntimeFailure } from '../common/errors/runtime-failure';
 import { DailyMetrics } from '../modules/analytics/entities/daily-metrics.entity';
 import { EmailVerificationToken } from '../modules/auth/entities/email-verification-token.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
-import { BillingCustomer } from '../modules/billing/entities/billing-customer.entity';
-import { BillingWebhookEvent } from '../modules/billing/entities/billing-webhook-event.entity';
-import { PaymentMethod } from '../modules/billing/entities/payment-method.entity';
-import { Subscription as BillingSubscription } from '../modules/billing/entities/subscription.entity';
-import { UsageRecord } from '../modules/billing/entities/usage-record.entity';
 import { UserPreference } from '../modules/dashboard/entities/user-preference.entity';
 import { DepartmentBudget } from '../modules/finance/entities/department-budget.entity';
 import { Attendance } from '../modules/hr/entities/attendance.entity';
 import { PerformanceReview } from '../modules/hr/entities/performance-review.entity';
 import { ProcessingTypeEligibility } from '../modules/hr/entities/processing-type-eligibility.entity';
-import { ImpersonationSession } from '../modules/platform/entities/impersonation-session.entity';
-import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
-import { PlatformSession } from '../modules/platform/entities/platform-session.entity';
-import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
-import { TenantLifecycleEvent } from '../modules/platform/entities/tenant-lifecycle-event.entity';
-import { PrivacyRequest } from '../modules/privacy/entities/privacy-request.entity';
-import { Review } from '../modules/reviews/entities/review.entity';
 import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
-import { WebhookDelivery } from '../modules/webhooks/entities/webhook-delivery.entity';
-import { Webhook } from '../modules/webhooks/entities/webhook.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -82,38 +66,22 @@ export const dataSourceOptions: DataSourceOptions = {
     EmployeeWallet,
     AuditLog,
     RefreshToken,
-    Attachment,
     Invoice,
     PurchaseInvoice,
     Vendor,
     EmailTemplate,
     Notification,
     NotificationPreference,
-    Consent,
     DailyMetrics,
     EmailVerificationToken,
     PasswordResetToken,
-    BillingCustomer,
-    BillingWebhookEvent,
-    PaymentMethod,
-    BillingSubscription,
-    UsageRecord,
     UserPreference,
     DepartmentBudget,
     Attendance,
     PerformanceReview,
     ProcessingTypeEligibility,
-    PlatformUser,
-    PlatformSession,
-    PlatformAuditLog,
-    ImpersonationSession,
-    TenantLifecycleEvent,
-    PrivacyRequest,
     TaskTemplate,
     TenantSubscription,
-    WebhookDelivery,
-    Webhook,
-    Review,
   ],
   migrations: [join(__dirname, 'migrations', '[0-9]*.{ts,js}')],
   migrationsTableName: 'migrations',

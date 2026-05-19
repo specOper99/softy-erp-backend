@@ -72,8 +72,6 @@ import { TransactionCategory } from '../modules/finance/entities/transaction-cat
 import { Transaction } from '../modules/finance/entities/transaction.entity';
 import { TransactionType } from '../modules/finance/enums/transaction-type.enum';
 import { Profile } from '../modules/hr/entities/profile.entity';
-import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
-import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
 import { Task } from '../modules/tasks/entities/task.entity';
 import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
@@ -107,7 +105,6 @@ const AppDataSource = new DataSource({
     Client,
     Invoice,
     Task,
-    PlatformUser,
   ],
   migrations: ['src/database/migrations/*.{ts,js}'],
   dropSchema: shouldDropSchema,
@@ -368,28 +365,6 @@ async function seed() {
       }
     }
 
-    // ============ 7. CREATE PLATFORM ADMIN USER ============
-    SeedLogger.log('\nCreating platform admin user...');
-    const platformUserRepo = AppDataSource.getRepository(PlatformUser);
-    const existingPlatformAdmin = await platformUserRepo.findOne({
-      where: { email: 'admin@erp.soft-y.org' },
-    });
-    if (!existingPlatformAdmin) {
-      const passwordHash = await argon2.hash(process.env.SEED_PLATFORM_ADMIN_PASSWORD!, ARGON2_OPTIONS);
-      const platformAdmin = platformUserRepo.create({
-        email: 'admin@erp.soft-y.org',
-        fullName: 'Platform Administrator',
-        passwordHash,
-        role: PlatformRole.SUPER_ADMIN,
-        status: 'active',
-        mfaEnabled: false,
-      });
-      await platformUserRepo.save(platformAdmin);
-      SeedLogger.log('   Created: admin@erp.soft-y.org');
-    } else {
-      SeedLogger.log('   Exists: admin@erp.soft-y.org');
-    }
-
     SeedLogger.log('\n========================================');
     SeedLogger.log('Seed completed successfully!');
     SeedLogger.log('========================================\n');
@@ -399,9 +374,7 @@ async function seed() {
     SeedLogger.log('  Ops Mgr:  ops@erp.soft-y.org / [SEED_OPS_PASSWORD]');
     SeedLogger.log('  Staff:    john.photographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('            sarah.videographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
-    SeedLogger.log('            mike.editor@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
-    SeedLogger.log('\nPlatform:');
-    SeedLogger.log('  Admin:    admin@erp.soft-y.org / [SEED_PLATFORM_ADMIN_PASSWORD]\n');
+    SeedLogger.log('            mike.editor@erp.soft-y.org / [SEED_STAFF_PASSWORD]\n');
   } catch (error) {
     SeedLogger.error('Seed failed:', error);
     process.exit(1);
