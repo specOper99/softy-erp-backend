@@ -124,7 +124,7 @@ describe('Workflow Integration Tests (E2E)', () => {
         .set('Host', tenantHost)
         .set('Authorization', `Bearer ${adminToken}`);
       const packages = unwrapListData<{ id: string }>(packagesRes.body);
-      packageId = packages[0]?.id;
+      packageId = packages[0]?.id ?? '';
       if (!packageId) {
         console.log('WARNING: No packages found in database');
       }
@@ -188,7 +188,7 @@ describe('Workflow Integration Tests (E2E)', () => {
       const tasks = unwrapListData<Task>(res.body);
       const bookingTasks = tasks.filter((t) => t.bookingId === bookingId);
       expect(bookingTasks.length).toBeGreaterThan(0);
-      expect(bookingTasks[0].status).toBe(TaskStatus.PENDING);
+      expect(bookingTasks[0]!.status).toBe(TaskStatus.PENDING);
     });
 
     it('should have created income transaction for the booking', async () => {

@@ -1,19 +1,19 @@
+import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { FinancialReportService } from '../../../src/modules/finance/services/financial-report.service';
-import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
-import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
 import { DepartmentBudget } from '../../../src/modules/finance/entities/department-budget.entity';
 import { PurchaseInvoice } from '../../../src/modules/finance/entities/purchase-invoice.entity';
+import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
+import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
 import { DepartmentBudgetRepository } from '../../../src/modules/finance/repositories/department-budget.repository';
 import { PurchaseInvoiceRepository } from '../../../src/modules/finance/repositories/purchase-invoice.repository';
 import { TransactionRepository } from '../../../src/modules/finance/repositories/transaction.repository';
+import { FinancialReportService } from '../../../src/modules/finance/services/financial-report.service';
 import { Tenant } from '../../../src/modules/tenants/entities/tenant.entity';
 
 class InMemoryCacheUtilsStub {
@@ -186,6 +186,6 @@ describe('FinancialReportService Integration Tests', () => {
       payroll: 0,
       net: tenant1IncomeAmount,
     });
-    expect(report[0].income).not.toBe(tenant1IncomeAmount + tenant2LeakAmount);
+    expect(report[0]!.income).not.toBe(tenant1IncomeAmount + tenant2LeakAmount);
   });
 });

@@ -10,14 +10,14 @@ describe('Transactional Outbox Integration', () => {
   let relayService: OutboxRelayService;
 
   beforeAll(async () => {
-    dataSource = globalThis.__DATA_SOURCE__;
+    dataSource = globalThis.__DATA_SOURCE__!;
 
     if (!dataSource || !dataSource.isInitialized) {
       throw new Error('DataSource not initialized. Ensure integration setup ran.');
     }
 
     outboxRepository = dataSource.getRepository('OutboxEvent') as Repository<OutboxEvent>;
-    relayService = new OutboxRelayService(outboxRepository);
+    relayService = new OutboxRelayService(outboxRepository, {} as never, {} as never);
   });
 
   afterAll(async () => {

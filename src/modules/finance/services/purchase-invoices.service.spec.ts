@@ -15,7 +15,7 @@ import { PurchaseInvoicesService } from './purchase-invoices.service';
 describe('PurchaseInvoicesService', () => {
   let service: PurchaseInvoicesService;
   let repository: MockRepository<PurchaseInvoice>;
-  let financeService: { createTransactionWithManager: jest.Mock };
+  let financeService: { createTransactionWithManager: jest.Mock; notifyTransactionCreated: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let manager: {
     findOne: jest.Mock;

@@ -2,7 +2,7 @@ import dataSource from './data-source';
 
 async function runMigrations(): Promise<void> {
   await dataSource.initialize();
-  const migrations = await dataSource.runMigrations({ transaction: 'all' });
+  const migrations = await dataSource.runMigrations({ transaction: 'each' });
   if (migrations.length > 0) {
     console.info(`Applied ${migrations.length} migration(s): ${migrations.map((m) => m.name).join(', ')}`);
   } else {

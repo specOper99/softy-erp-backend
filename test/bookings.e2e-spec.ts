@@ -75,7 +75,7 @@ describe('Bookings Workflow E2E Tests', () => {
       .get('/api/v1/packages')
       .set('Host', tenantHost)
       .set('Authorization', `Bearer ${adminToken}`);
-    packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id;
+    packageId = unwrapListData<{ id: string }>(packagesRes.body)[0]?.id ?? '';
 
     // Store tenantId for tests
     globalThis.testTenantId = tenantId;
@@ -154,7 +154,7 @@ describe('Bookings Workflow E2E Tests', () => {
       const tasks = unwrapListData<{ bookingId: string; status: string }>(response.body);
       const bookingTasks = tasks.filter((t) => t.bookingId === bookingId);
       expect(bookingTasks.length).toBeGreaterThan(0);
-      expect(bookingTasks[0].status).toBe('PENDING');
+      expect(bookingTasks[0]!.status).toBe('PENDING');
     });
 
     it('Step 5: Verify Income Transaction was Created', async () => {

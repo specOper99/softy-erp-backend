@@ -2,6 +2,7 @@ import type { CallHandler, ExecutionContext } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { of } from 'rxjs';
+import type { TransformResponse } from './transform.interceptor';
 import { TransformInterceptor } from './transform.interceptor';
 
 describe('TransformInterceptor', () => {
@@ -37,10 +38,11 @@ describe('TransformInterceptor', () => {
       };
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
-        expect(result).toHaveProperty('data', testData);
-        expect(result).toHaveProperty('statusCode', 200);
-        expect(result).toHaveProperty('timestamp');
-        expect(typeof result.timestamp).toBe('string');
+        const r = result as TransformResponse<unknown>;
+        expect(r).toHaveProperty('data', testData);
+        expect(r).toHaveProperty('statusCode', 200);
+        expect(r).toHaveProperty('timestamp');
+        expect(typeof r.timestamp).toBe('string');
         done();
       });
     });
@@ -52,8 +54,9 @@ describe('TransformInterceptor', () => {
       };
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
-        expect(result.data).toEqual(testData);
-        expect(result.data).toHaveLength(2);
+        const r = result as TransformResponse<unknown>;
+        expect(r.data).toEqual(testData);
+        expect(r.data).toHaveLength(2);
         done();
       });
     });
@@ -64,8 +67,9 @@ describe('TransformInterceptor', () => {
       };
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
-        expect(result.data).toBeNull();
-        expect(result.statusCode).toBe(200);
+        const r = result as TransformResponse<unknown>;
+        expect(r.data).toBeNull();
+        expect(r.statusCode).toBe(200);
         done();
       });
     });
@@ -76,8 +80,9 @@ describe('TransformInterceptor', () => {
       };
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
-        expect(result.data).toBeUndefined();
-        expect(result.statusCode).toBe(200);
+        const r = result as TransformResponse<unknown>;
+        expect(r.data).toBeUndefined();
+        expect(r.statusCode).toBe(200);
         done();
       });
     });
@@ -90,7 +95,8 @@ describe('TransformInterceptor', () => {
       };
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
-        expect(result.statusCode).toBe(201);
+        const r = result as TransformResponse<unknown>;
+        expect(r.statusCode).toBe(201);
         mockResponse.statusCode = 200; // Reset
         done();
       });

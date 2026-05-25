@@ -2,12 +2,12 @@ import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { format } from 'date-fns';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
 import { DailyMetricsRepository } from '../repositories/daily-metrics.repository';
-import { toErrorMessage } from '../../../common/utils/error.util';
 
 @EventsHandler(BookingConfirmedEvent, TaskCompletedEvent, BookingCancelledEvent, PaymentRecordedEvent)
 export class UpdateMetricsHandler
@@ -31,40 +31,44 @@ export class UpdateMetricsHandler
     // "what happened today" rather than "what is the event date".
 
     const today = format(new Date(), 'yyyy-MM-dd');
-    let dateStr: string;
 
-    if (event instanceof BookingConfirmedEvent) {
-      // "Performance Dashboard" tracks sales made today (action date), not the event date.
-      dateStr = today;
-    } else if (event instanceof TaskCompletedEvent) {
-      dateStr = format(new Date(event.completedAt), 'yyyy-MM-dd');
-    } else if (event instanceof BookingCancelledEvent) {
-      dateStr = format(new Date(event.cancelledAt), 'yyyy-MM-dd');
-    } else {
-      // PaymentRecordedEvent and fallback: revenue tracked on collection date.
-      dateStr = today;
+    // Resolve date and increments via discriminated union switch.
+    // Adding a new event type to the @EventsHandler decorator will produce a
+    // TypeScript error here (via the never exhaustiveness check) until the
+    // switch is updated — preventing silent metric gaps.
+    let dateStr: string;
+    let increments: Parameters<UpdateMetricsHandler['incrementMetric']>[2];
+
+    switch (event.type) {
+      case 'BookingConfirmed':
+        // "Performance Dashboard" tracks sales made today (action date), not the event date.
+        dateStr = today;
+        increments = { bookingsCount: 1 };
+        break;
+      case 'TaskCompleted':
+        dateStr = format(new Date(event.completedAt), 'yyyy-MM-dd');
+        increments = { tasksCompletedCount: 1 };
+        break;
+      case 'BookingCancelled':
+        dateStr = format(new Date(event.cancelledAt), 'yyyy-MM-dd');
+        increments = { cancellationsCount: 1 };
+        break;
+      case 'PaymentRecorded':
+        // Revenue tracked on collection date.
+        dateStr = today;
+        increments = { totalRevenue: event.amount };
+        break;
+      default: {
+        // Exhaustiveness check — TS will error if a new event type is added
+        // without handling it here.
+        const _exhaustive: never = event;
+        return;
+      }
     }
 
     await TenantContextService.run(tenantId, async () => {
       try {
-        if (event instanceof BookingConfirmedEvent) {
-          await this.incrementMetric(tenantId, dateStr, {
-            bookingsCount: 1,
-            // totalRevenue removed here. Tracked on payment.
-          });
-        } else if (event instanceof TaskCompletedEvent) {
-          await this.incrementMetric(tenantId, dateStr, {
-            tasksCompletedCount: 1,
-          });
-        } else if (event instanceof BookingCancelledEvent) {
-          await this.incrementMetric(tenantId, dateStr, {
-            cancellationsCount: 1,
-          });
-        } else if (event instanceof PaymentRecordedEvent) {
-          await this.incrementMetric(tenantId, dateStr, {
-            totalRevenue: event.amount,
-          });
-        }
+        await this.incrementMetric(tenantId, dateStr, increments);
       } catch (error) {
         this.logger.error(`Failed to update daily metrics for tenant ${tenantId}: ${toErrorMessage(error)}`);
       }

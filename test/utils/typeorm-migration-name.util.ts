@@ -20,7 +20,7 @@ export function normalizeMigrationNamesForTypeOrm(migrations: DataSource['migrat
       continue;
     }
 
-    const [, baseName, numericSuffix] = parts;
+    const [, baseName, numericSuffix] = parts as [string, string, string];
     if (numericSuffix.length <= 13) {
       continue;
     }

@@ -67,7 +67,7 @@ describe('MfaRequiredGuard', () => {
       const requestWithUser = {
         user: {
           id: 'user-123',
-          role: Role.USER,
+          role: Role.FIELD_STAFF,
           isMfaEnabled: false,
         },
       };

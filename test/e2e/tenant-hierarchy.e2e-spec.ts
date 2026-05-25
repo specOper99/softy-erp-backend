@@ -150,6 +150,6 @@ describe('Tenant Hierarchy & Quotas (e2e)', () => {
       relations: ['parent'],
     });
 
-    expect(fetchedChild.parent.id).toEqual(parentTenant.id);
+    expect(fetchedChild!.parent.id).toEqual(parentTenant.id);
   });
 });

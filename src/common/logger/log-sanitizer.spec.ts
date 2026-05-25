@@ -12,13 +12,13 @@ describe('LogSanitizer', () => {
       },
     };
 
-    const result = sanitizeObject(input) as Record<string, any>;
+    const result = sanitizeObject(input) as Record<string, unknown>;
 
     expect(result.user).toBe('testuser');
     expect(result.password).toBe('[REDACTED]');
     expect(result.PASSWORD).toBe('[REDACTED]');
     expect(result.secret_key).toBe('[REDACTED]');
-    expect(result.nested.token).toBe('[REDACTED]');
+    expect((result.nested as Record<string, unknown>).token).toBe('[REDACTED]');
   });
 
   it('should redact JWT-like strings', () => {
@@ -38,7 +38,7 @@ describe('LogSanitizer', () => {
     const format = sanitizeFormat();
     const info = { level: 'info', message: 'test', password: 'secret' };
     const result = format.transform(info, {});
-    expect((result as Record<string, any>).password).toBe('[REDACTED]');
+    expect((result as Record<string, unknown>).password).toBe('[REDACTED]');
   });
 
   it('should redact long base64/hex-like strings', () => {

@@ -35,7 +35,7 @@ describe('ExportService', () => {
         return res;
       });
       res.setHeader = setHeaderSpy;
-      res.status = jest.fn().mockReturnThis() as Response['status'];
+      (res as { status: unknown }).status = jest.fn().mockReturnThis();
       res.headersSent = false as Response['headersSent'];
       return res;
     };

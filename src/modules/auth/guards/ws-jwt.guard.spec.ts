@@ -79,7 +79,7 @@ describe('WsJwtGuard', () => {
           query: { token: 'valid.token' },
           headers: {},
         },
-        data: {} as Record<string, any>,
+        data: {} as Record<string, unknown>,
       };
       const context = createMockContext(client);
       const payload = { sub: 'user-123', email: 'test@example.com', role: 'ADMIN', tenantId: 'tenant-123' };
@@ -108,7 +108,7 @@ describe('WsJwtGuard', () => {
           query: {},
           headers: { authorization: 'Bearer valid.token' },
         },
-        data: {} as Record<string, any>,
+        data: {} as Record<string, unknown>,
       };
       const context = createMockContext(client);
       const payload = { sub: 'user-123', email: 'test@example.com', role: 'ADMIN', tenantId: 'tenant-123' };
@@ -128,7 +128,7 @@ describe('WsJwtGuard', () => {
           query: { token: 'valid.token' },
           headers: {},
         },
-        data: {} as Record<string, any>,
+        data: {} as Record<string, unknown>,
       };
       const context = createMockContext(client);
       const payload = { sub: 'user-123', email: 'test@example.com', role: 'ADMIN', tenantId: 'tenant-123' };

@@ -5,6 +5,15 @@ export class EnforceGlobalUniqueUserEmail20260125000000 implements MigrationInte
   name = 'EnforceGlobalUniqueUserEmail20260125000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // Guard: if the users table doesn't exist yet (e.g. this migration runs on
+    // a partially-initialised DB where previous migrations are recorded but
+    // schema is missing), skip gracefully.  InitialSchema will create the table
+    // with the correct indexes on a clean database.
+    const [{ t }] = (await queryRunner.query(`SELECT to_regclass('public.users') AS t`)) as [{ t: string | null }];
+    if (!t) {
+      return;
+    }
+
     const duplicates = (await queryRunner.query(
       `
         SELECT email, COUNT(*)::text AS cnt

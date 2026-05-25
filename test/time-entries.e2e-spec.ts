@@ -121,7 +121,7 @@ describe('Time Entries E2E Tests', () => {
           (t) => t.bookingId === bookingId,
         );
         if (bookingTasks?.length > 0) {
-          createdTaskId = bookingTasks[0].id;
+          createdTaskId = bookingTasks[0]!.id;
         }
       }
     }

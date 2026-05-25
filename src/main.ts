@@ -20,6 +20,7 @@ initTracing();
 initializeTransactionalContext();
 
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import compression from 'compression';
 import express from 'express';
 import { DataSource } from 'typeorm';
 import { toErrorMessage } from './common/utils/error.util';
@@ -27,9 +28,16 @@ import { toErrorMessage } from './common/utils/error.util';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
+  // Gzip/brotli compress all responses. Place before body parsers so that
+  // compression headers are set correctly for all content types.
+  app.use(compression());
+
   // Enforce explicit payload size limits. Express defaults to 100KB but the rawBody
   // option is used for Stripe webhook verification; without an explicit cap, any
   // endpoint can receive arbitrarily large payloads.
+  // NOTE: rawBody (used for Stripe signature verification) also inherits the 1 MB
+  // cap because NestFactory passes `rawBody: true` which still goes through Express's
+  // json parser with the limit set below.
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

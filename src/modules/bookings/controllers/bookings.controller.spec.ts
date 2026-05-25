@@ -92,7 +92,7 @@ describe('BookingsController', () => {
   describe('create', () => {
     it('should call service.create', async () => {
       const dto = { clientId: 'c-id' } as unknown as CreateBookingDto;
-      await controller.create(dto);
+      await controller.create(dto, mockUser);
       expect(service.create).toHaveBeenCalledWith(dto);
     });
   });

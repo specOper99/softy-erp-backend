@@ -123,3 +123,6 @@ tenant-contract-report.*
 sql-safety-report.*
 duplication_report.*
 graphify-out
+.agents/
+.claude/
+skills-lock.json

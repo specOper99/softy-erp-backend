@@ -192,17 +192,25 @@ describe('Financial Report Controller (e2e)', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/finance/reports/pnl')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
-        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost!)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 
       expect(Array.isArray(response.body.data)).toBe(true);
-      const janData = response.body.data.find((d) => d.period === '2023-01');
+      const janData = (
+        response.body.data as Array<{
+          period: string;
+          income?: number;
+          expenses?: number;
+          payroll?: number;
+          net?: number;
+        }>
+      ).find((d) => d.period === '2023-01');
       expect(janData).toBeDefined();
-      expect(janData.income).toBe(5000);
-      expect(janData.expenses).toBe(1000);
-      expect(janData.payroll).toBe(2000);
-      expect(janData.net).toBe(2000); // 5000 - 1000 - 2000
+      expect(janData!.income).toBe(5000);
+      expect(janData!.expenses).toBe(1000);
+      expect(janData!.payroll).toBe(2000);
+      expect(janData!.net).toBe(2000); // 5000 - 1000 - 2000
     });
   });
 
@@ -211,7 +219,7 @@ describe('Financial Report Controller (e2e)', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/finance/reports/pnl/pdf')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
-        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost!)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 
@@ -226,16 +234,18 @@ describe('Financial Report Controller (e2e)', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/finance/reports/revenue-by-package')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
-        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost!)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 
       expect(Array.isArray(response.body.data)).toBe(true);
-      const pkgData = response.body.data.find((d) => d.packageName === 'Wedding Premium');
+      const pkgData = (response.body.data as Array<{ packageName: string; totalRevenue?: number }>).find(
+        (d) => d.packageName === 'Wedding Premium',
+      );
       // Note: If tests run in parallel or DB isn't reset, counts might be higher.
       // But typically E2E_DB_RESET=true ensures fresh DB or we just check > 0
       expect(pkgData).toBeDefined();
-      expect(pkgData.totalRevenue).toBeGreaterThanOrEqual(5000);
+      expect(pkgData!.totalRevenue).toBeGreaterThanOrEqual(5000);
     });
   });
 
@@ -244,7 +254,7 @@ describe('Financial Report Controller (e2e)', () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/finance/reports/revenue-by-package/pdf')
         .query({ startDate: '2023-01-01', endDate: '2023-01-31' })
-        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost)
+        .set('Host', (globalThis as { financeTenantHost?: string }).financeTenantHost!)
         .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
 

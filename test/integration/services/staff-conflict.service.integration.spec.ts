@@ -1,6 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
@@ -9,19 +9,18 @@ import { StaffConflictService } from '../../../src/modules/bookings/services/sta
 import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
+import { ServicePackageRepository } from '../../../src/modules/catalog/repositories/service-package.repository';
 import { ProcessingTypeEligibility } from '../../../src/modules/hr/entities/processing-type-eligibility.entity';
+import { ProcessingTypeEligibilityRepository } from '../../../src/modules/hr/repositories/processing-type-eligibility.repository';
 import { TaskAssignee } from '../../../src/modules/tasks/entities/task-assignee.entity';
 import { Task } from '../../../src/modules/tasks/entities/task.entity';
 import { TaskAssigneeRole } from '../../../src/modules/tasks/enums/task-assignee-role.enum';
 import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
+import { TaskAssigneeRepository } from '../../../src/modules/tasks/repositories/task-assignee.repository';
+import { TaskRepository } from '../../../src/modules/tasks/repositories/task.repository';
 import { Tenant } from '../../../src/modules/tenants/entities/tenant.entity';
 import { User } from '../../../src/modules/users/entities/user.entity';
 import { Role } from '../../../src/modules/users/enums/role.enum';
-import { PackageItemRepository } from '../../../src/modules/catalog/repositories/package-item.repository';
-import { ServicePackageRepository } from '../../../src/modules/catalog/repositories/service-package.repository';
-import { ProcessingTypeEligibilityRepository } from '../../../src/modules/hr/repositories/processing-type-eligibility.repository';
-import { TaskAssigneeRepository } from '../../../src/modules/tasks/repositories/task-assignee.repository';
-import { TaskRepository } from '../../../src/modules/tasks/repositories/task.repository';
 import { UserRepository } from '../../../src/modules/users/repositories/user.repository';
 
 describe('StaffConflictService Integration Tests', () => {
@@ -62,11 +61,11 @@ describe('StaffConflictService Integration Tests', () => {
 
     staffConflictService = new StaffConflictService(
       new ServicePackageRepository(packageRepository),
-      new PackageItemRepository(packageItemRepository),
       new ProcessingTypeEligibilityRepository(processingTypeEligibilityRepository),
       new UserRepository(userRepository),
       new TaskAssigneeRepository(taskAssigneeRepository),
       new TaskRepository(taskRepository),
+      {} as never,
     );
   });
 

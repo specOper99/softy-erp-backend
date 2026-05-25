@@ -1,6 +1,8 @@
 import type { IEvent } from '@nestjs/cqrs';
 
 export class BookingCancelledEvent implements IEvent {
+  readonly type = 'BookingCancelled' as const;
+
   constructor(
     public readonly bookingId: string,
     public readonly tenantId: string,

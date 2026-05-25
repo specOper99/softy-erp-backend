@@ -32,6 +32,7 @@ describe('BookingConfirmedMailHandler', () => {
   describe('handle', () => {
     it('should send booking confirmation email', async () => {
       const event: BookingConfirmedEvent = {
+        type: 'BookingConfirmed',
         bookingId: 'booking-123',
         tenantId: 'test-tenant',
         clientName: 'John Doe',
@@ -57,6 +58,7 @@ describe('BookingConfirmedMailHandler', () => {
       mailService.sendBookingConfirmation.mockRejectedValue(new Error('SMTP error'));
 
       const event: BookingConfirmedEvent = {
+        type: 'BookingConfirmed',
         bookingId: 'booking-456',
         tenantId: 'test-tenant',
         clientName: 'Jane Doe',

@@ -114,7 +114,7 @@ describe('Tasks Module E2E Tests', () => {
 
       // If there are tasks, test getting one by ID
       if (tasks.length > 0) {
-        const taskId = tasks[0].id;
+        const taskId = tasks[0]!.id;
 
         const response = await request(app.getHttpServer())
           .get(`/api/v1/tasks/${taskId}`)

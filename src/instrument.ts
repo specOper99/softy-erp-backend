@@ -23,3 +23,22 @@ if (process.env.SENTRY_DSN) {
 } else {
   SentryLogger.log('Sentry is disabled (SENTRY_DSN not set)');
 }
+
+// Catch unhandled promise rejections and uncaught exceptions that escape
+// Sentry's request-scoped handlers (e.g. async init code, background jobs).
+process.on('unhandledRejection', (reason: unknown) => {
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(reason);
+  }
+  process.stderr.write(`[unhandledRejection] ${String(reason)}\n`);
+  // Exit so the process manager (Docker/k8s) restarts into a clean state.
+  process.exit(1);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(error);
+  }
+  process.stderr.write(`[uncaughtException] ${error.message}\n`);
+  process.exit(1);
+});

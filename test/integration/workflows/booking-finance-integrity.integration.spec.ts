@@ -1,8 +1,8 @@
 import type { ConfigService } from '@nestjs/config';
 import type { EventBus } from '@nestjs/cqrs';
+import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import type { AuditPublisher } from '../../../src/modules/audit/audit.publisher';
 import type { UpdateBookingDto } from '../../../src/modules/bookings/dto';
@@ -12,8 +12,8 @@ import { BookingStatus } from '../../../src/modules/bookings/enums/booking-statu
 import { BookingPriceChangedEvent } from '../../../src/modules/bookings/events/booking-price-changed.event';
 import { BookingRepository } from '../../../src/modules/bookings/repositories/booking.repository';
 import { BookingStateMachineService } from '../../../src/modules/bookings/services/booking-state-machine.service';
-import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import { BookingWorkflowService } from '../../../src/modules/bookings/services/booking-workflow.service';
+import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import type { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
 import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
@@ -87,6 +87,7 @@ describe('Booking -> Finance Integrity Integration', () => {
       } as never,
       {} as never,
       {} as never,
+      {} as never,
       {
         invalidateReportCaches: jest.fn().mockResolvedValue(undefined),
       } as never,
@@ -121,10 +122,12 @@ describe('Booking -> Finance Integrity Integration', () => {
       eventBus,
       new BookingStateMachineService(),
       staffConflictService,
+      {} as never,
+      {} as never,
     );
   };
 
-  const createBookingsService = (eventBus: EventBus): BookingsService => {
+  const createBookingsService = (_eventBus: EventBus): BookingsService => {
     const staffConflictService = {
       checkPackageStaffAvailability: jest.fn().mockResolvedValue({
         ok: true,
@@ -138,14 +141,15 @@ describe('Booking -> Finance Integrity Integration', () => {
     return new BookingsService(
       new BookingRepository(bookingRepository),
       {} as never,
-      {} as never,
       dataSource,
-      eventBus,
-      new BookingStateMachineService(),
-      {
-        del: jest.fn().mockResolvedValue(undefined),
-      } as never,
+      {} as never,
+      {} as never,
       staffConflictService,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
     );
   };
 
@@ -276,8 +280,8 @@ describe('Booking -> Finance Integrity Integration', () => {
       where: { bookingId: booking.id, tenantId },
     });
     expect(transactions).toHaveLength(1);
-    expect(transactions[0].type).toBe(TransactionType.INCOME);
-    expect(Number(transactions[0].amount)).toBe(Number(booking.totalPrice));
+    expect(transactions[0]!.type).toBe(TransactionType.INCOME);
+    expect(Number(transactions[0]!.amount)).toBe(Number(booking.totalPrice));
   });
 
   it('rolls back confirmation when finance transaction step fails', async () => {
@@ -379,9 +383,13 @@ describe('Booking -> Finance Integrity Integration', () => {
     const bookingsService = createBookingsService(eventBusSpy.eventBus);
 
     await TenantContextService.run(tenantId, () =>
-      bookingsService.update(booking.id, {
-        notes: 'Updated even when reconciliation fails',
-      } satisfies UpdateBookingDto),
+      bookingsService.update(
+        booking.id,
+        {
+          notes: 'Updated even when reconciliation fails',
+        } satisfies UpdateBookingDto,
+        {} as never,
+      ),
     );
 
     const failingFinanceService = createFinanceService(eventBusSpy.eventBus, true);
@@ -410,7 +418,7 @@ describe('Booking -> Finance Integrity Integration', () => {
       (event): event is FinancialReconciliationFailedEvent => event instanceof FinancialReconciliationFailedEvent,
     );
     expect(failureEvents).toHaveLength(1);
-    expect(failureEvents[0].bookingId).toBe(booking.id);
+    expect(failureEvents[0]!.bookingId).toBe(booking.id);
 
     const adjustmentTransactions = await transactionRepository.find({
       where: {

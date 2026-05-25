@@ -1,6 +1,8 @@
 import type { IEvent } from '@nestjs/cqrs';
 
 export class PaymentRecordedEvent implements IEvent {
+  readonly type = 'PaymentRecorded' as const;
+
   constructor(
     public readonly bookingId: string,
     public readonly tenantId: string,

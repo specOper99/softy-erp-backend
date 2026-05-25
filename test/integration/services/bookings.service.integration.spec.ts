@@ -3,32 +3,32 @@ import { EventBus } from '@nestjs/cqrs';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { BookingRepository } from '../../../src/modules/bookings/repositories/booking.repository';
+import { AvailabilityCacheOwnerService } from '../../../src/common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../../src/common/cache/cache-utils.service';
 import { FlagsService } from '../../../src/common/flags/flags.service';
-import { MetricsFactory } from '../../../src/common/services/metrics.factory';
-
-void globalThis.fetch;
-import { randomUUID } from 'node:crypto';
 import { ExportService } from '../../../src/common/services/export.service';
+import { MetricsFactory } from '../../../src/common/services/metrics.factory';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
-
-void globalThis.fetch;
 import { AuditService } from '../../../src/modules/audit/audit.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
+import { BookingRepository } from '../../../src/modules/bookings/repositories/booking.repository';
 import { BookingStateMachineService } from '../../../src/modules/bookings/services/booking-state-machine.service';
 import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
-import { AvailabilityCacheOwnerService } from '../../../src/common/cache/availability-cache-owner.service';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { CatalogService } from '../../../src/modules/catalog/services/catalog.service';
 import { DashboardGateway } from '../../../src/modules/dashboard/dashboard.gateway';
-import { FinanceService } from '../../../src/modules/finance/services/finance.service';
 import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
+import { FinanceService } from '../../../src/modules/finance/services/finance.service';
+
+void globalThis.fetch;
+
+void globalThis.fetch;
 
 describe('BookingsService Integration Tests', () => {
   let module: TestingModule;
@@ -328,7 +328,7 @@ describe('BookingsService Integration Tests', () => {
         notes: 'Contract test',
       });
 
-      await expect(service.update(booking.id, { status: BookingStatus.CONFIRMED })).rejects.toThrow(
+      await expect(service.update(booking.id, { status: BookingStatus.CONFIRMED }, {} as never)).rejects.toThrow(
         'booking.lifecycle_status_requires_workflow',
       );
     });

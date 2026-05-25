@@ -368,7 +368,7 @@ describe('Client Portal (e2e)', () => {
         const batchResponses = await Promise.all(profileRequestTemplate.map((entry) => entry.execute()));
 
         batchResponses.forEach((response, index) => {
-          const expected = profileRequestTemplate[index];
+          const expected = profileRequestTemplate[index]!;
           expect(response.status).toBe(200);
           expect(response.body.data.email).toBe(expected.expectedEmail);
           expect(response.body.data.id).toBe(expected.expectedId);

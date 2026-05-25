@@ -270,7 +270,9 @@ describe('RecurringTransactionService', () => {
 
       // Override the TenantContextService.run mock so the outer call rejects
       // entirely, bypassing the catch block inside processTransaction().
-      jest.spyOn(TenantContextService, 'run').mockRejectedValue(new Error('context setup failed'));
+      (jest.spyOn(TenantContextService, 'run') as jest.SpyInstance).mockRejectedValue(
+        new Error('context setup failed'),
+      );
 
       const logSpy = jest.spyOn(service['logger'], 'log');
 

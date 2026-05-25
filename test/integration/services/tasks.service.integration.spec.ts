@@ -1,16 +1,15 @@
-import type { EventBus } from '@nestjs/cqrs';
 import { ForbiddenException } from '@nestjs/common';
+import type { EventBus } from '@nestjs/cqrs';
+import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { randomUUID } from 'node:crypto';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
+import type { AuditService } from '../../../src/modules/audit/audit.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
-import type { AuditService } from '../../../src/modules/audit/audit.service';
-import type { FinanceService } from '../../../src/modules/finance/services/finance.service';
 import type { WalletService } from '../../../src/modules/finance/services/wallet.service';
 import { TaskAssignee } from '../../../src/modules/tasks/entities/task-assignee.entity';
 import { Task } from '../../../src/modules/tasks/entities/task.entity';
@@ -18,8 +17,8 @@ import { TaskAssigneeRole } from '../../../src/modules/tasks/enums/task-assignee
 import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
 import { TaskAssigneeRepository } from '../../../src/modules/tasks/repositories/task-assignee.repository';
 import { TaskRepository } from '../../../src/modules/tasks/repositories/task.repository';
-import { TasksService } from '../../../src/modules/tasks/services/tasks.service';
 import type { TasksExportService } from '../../../src/modules/tasks/services/tasks-export.service';
+import { TasksService } from '../../../src/modules/tasks/services/tasks.service';
 import { Tenant } from '../../../src/modules/tenants/entities/tenant.entity';
 import { User } from '../../../src/modules/users/entities/user.entity';
 import { Role } from '../../../src/modules/users/enums/role.enum';
@@ -127,9 +126,6 @@ describe('TasksService Integration Tests', () => {
 
     tasksService = new TasksService(
       new TaskRepository(taskRepository),
-      {
-        transferPendingCommission: jest.fn(),
-      } as unknown as FinanceService,
       {
         moveToPayable: jest.fn(),
       } as unknown as WalletService,
@@ -281,7 +277,7 @@ describe('TasksService Integration Tests', () => {
     });
 
     await expect(
-      TenantContextService.run(tenant1, () => tasksService.listTaskAssignees(task.id, fieldStaff)),
+      TenantContextService.run(tenant1, () => (tasksService as any).listTaskAssignees(task.id, fieldStaff)),
     ).rejects.toThrow(ForbiddenException);
   });
 });

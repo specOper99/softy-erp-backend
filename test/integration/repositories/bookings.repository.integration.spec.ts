@@ -1,6 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { randomUUID } from 'node:crypto';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
@@ -117,14 +117,14 @@ describe('BookingsRepository Integration Tests', () => {
         where: { tenantId: tenant1 },
       });
       expect(tenant1Bookings).toHaveLength(1);
-      expect(tenant1Bookings[0].id).toBe(booking1.id);
+      expect(tenant1Bookings[0]!.id).toBe(booking1.id);
 
       // Verify tenant 2 can only see their booking
       const tenant2Bookings = await bookingRepository.find({
         where: { tenantId: tenant2 },
       });
       expect(tenant2Bookings).toHaveLength(1);
-      expect(tenant2Bookings[0].id).toBe(booking2.id);
+      expect(tenant2Bookings[0]!.id).toBe(booking2.id);
     });
 
     it('should enforce composite foreign key constraints', async () => {

@@ -32,6 +32,7 @@ describe('PaymentReceivedHandler', () => {
   describe('handle', () => {
     it('should send payment receipt email', async () => {
       const event: PaymentRecordedEvent = {
+        type: 'PaymentRecorded',
         bookingId: 'booking-123',
         tenantId: 'test-tenant',
         clientName: 'John Doe',
@@ -63,6 +64,7 @@ describe('PaymentReceivedHandler', () => {
       mailService.sendPaymentReceipt.mockRejectedValue(new Error('Mail error'));
 
       const event: PaymentRecordedEvent = {
+        type: 'PaymentRecorded',
         bookingId: 'booking-456',
         tenantId: 'test-tenant',
         clientName: 'Jane Doe',

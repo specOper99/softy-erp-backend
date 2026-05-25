@@ -28,7 +28,7 @@ describe('IpRateLimitGuard', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn(defaultConfigGet) as unknown as jest.Mock<any, any>,
+    get: jest.fn(defaultConfigGet) as unknown as jest.Mock,
   };
 
   const mockCacheService = {

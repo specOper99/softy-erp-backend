@@ -1,6 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { randomUUID } from 'node:crypto';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
@@ -16,19 +16,19 @@ describe('Financial Transaction Rollback Integration', () => {
   const createBookingWithRefs = async (manager: {
     save: (entityClass: unknown, entity: unknown) => Promise<unknown>;
   }): Promise<Booking> => {
-    const client = await manager.save(Client, {
+    const client = (await manager.save(Client, {
       name: `Client ${randomUUID()}`,
       email: `client-${randomUUID()}@test.com`,
       phone: '123456789',
       tenantId,
-    });
+    })) as { id: string };
 
-    const pkg = await manager.save(ServicePackage, {
+    const pkg = (await manager.save(ServicePackage, {
       name: `Package ${randomUUID()}`,
       description: 'Test',
       price: 1000,
       tenantId,
-    });
+    })) as { id: string };
 
     return manager.save(Booking, {
       clientId: client.id,
@@ -44,7 +44,7 @@ describe('Financial Transaction Rollback Integration', () => {
       refundAmount: 0,
       status: BookingStatus.DRAFT,
       tenantId,
-    });
+    }) as unknown as Booking;
   };
 
   beforeAll(async () => {
@@ -81,7 +81,9 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner.startTransaction();
 
       try {
-        const booking = await createBookingWithRefs(queryRunner.manager);
+        const booking = await createBookingWithRefs(
+          queryRunner.manager as unknown as { save: (entityClass: unknown, entity: unknown) => Promise<unknown> },
+        );
 
         await queryRunner.manager.save(Transaction, {
           type: TransactionType.INCOME,
@@ -121,7 +123,9 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner.startTransaction();
 
       try {
-        const booking = await createBookingWithRefs(queryRunner.manager);
+        const booking = await createBookingWithRefs(
+          queryRunner.manager as unknown as { save: (entityClass: unknown, entity: unknown) => Promise<unknown> },
+        );
 
         await queryRunner.manager.save(Transaction, {
           type: TransactionType.EXPENSE,
@@ -157,7 +161,9 @@ describe('Financial Transaction Rollback Integration', () => {
       await innerQueryRunner.startTransaction();
 
       try {
-        const booking = await createBookingWithRefs(outerQueryRunner.manager);
+        const booking = await createBookingWithRefs(
+          outerQueryRunner.manager as unknown as { save: (entityClass: unknown, entity: unknown) => Promise<unknown> },
+        );
 
         await outerQueryRunner.manager.save(Transaction, {
           type: TransactionType.INCOME,
@@ -168,7 +174,9 @@ describe('Financial Transaction Rollback Integration', () => {
           transactionDate: new Date(),
         });
 
-        const innerBooking = await createBookingWithRefs(innerQueryRunner.manager);
+        const innerBooking = await createBookingWithRefs(
+          innerQueryRunner.manager as unknown as { save: (entityClass: unknown, entity: unknown) => Promise<unknown> },
+        );
 
         await innerQueryRunner.manager.save(Transaction, {
           type: TransactionType.EXPENSE,
@@ -202,7 +210,9 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner1.startTransaction();
 
       try {
-        const booking = await createBookingWithRefs(queryRunner1.manager);
+        const booking = await createBookingWithRefs(
+          queryRunner1.manager as unknown as { save: (entityClass: unknown, entity: unknown) => Promise<unknown> },
+        );
 
         await queryRunner1.manager.save(Transaction, {
           type: TransactionType.INCOME,
@@ -232,7 +242,9 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner2.startTransaction();
 
       try {
-        const booking = await createBookingWithRefs(queryRunner2.manager);
+        const booking = await createBookingWithRefs(
+          queryRunner2.manager as unknown as { save: (entityClass: unknown, entity: unknown) => Promise<unknown> },
+        );
 
         await queryRunner2.manager.save(Transaction, {
           type: TransactionType.EXPENSE,
@@ -273,11 +285,16 @@ describe('Financial Transaction Rollback Integration', () => {
       await queryRunner2.startTransaction();
 
       try {
-        const booking1 = await createBookingWithRefs(queryRunner1.manager);
+        const booking1 = await createBookingWithRefs(
+          queryRunner1.manager as unknown as { save: (entityClass: unknown, entity: unknown) => Promise<unknown> },
+        );
 
         const booking2 = await createBookingWithRefs({
-          save: async (entity: unknown, data: Record<string, unknown>) => {
-            return queryRunner2.manager.save(entity as never, { ...data, tenantId: tenant2Id } as never);
+          save: async (entity: unknown, data: unknown) => {
+            return queryRunner2.manager.save(
+              entity as never,
+              { ...(data as Record<string, unknown>), tenantId: tenant2Id } as never,
+            );
           },
         });
 

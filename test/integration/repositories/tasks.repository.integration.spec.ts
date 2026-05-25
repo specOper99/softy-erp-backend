@@ -105,13 +105,13 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const task = await taskRepository.save({
+      const task = (await taskRepository.save({
         processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
         tenantId: tenant1,
-      });
+      })) as Task;
 
       // Assign task
       task.assignedUserId = user.id;
@@ -179,13 +179,13 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const task = await taskRepository.save({
+      const task = (await taskRepository.save({
         processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
         tenantId: tenant1,
-      });
+      })) as Task;
 
       // Attempt to query task from tenant2 perspective
       const result = await taskRepository.findOne({
@@ -243,13 +243,13 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const task = await taskRepository.save({
+      const task = (await taskRepository.save({
         processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
         tenantId: tenant1,
-      });
+      })) as Task;
 
       // PENDING -> ASSIGNED (skipped status check, just assignment)
       task.assignedUserId = user.id;
@@ -314,13 +314,13 @@ describe('TasksRepository Integration Tests', () => {
         tenantId: tenant1,
       });
 
-      const task = await taskRepository.save({
+      const task = (await taskRepository.save({
         processingTypeId: processingType.id,
         bookingId: booking.id,
         status: TaskStatus.PENDING,
         commissionSnapshot: 100,
         tenantId: tenant1,
-      });
+      })) as Task;
 
       // Simulate concurrent update with pessimistic write lock
       const queryRunner = dataSource.createQueryRunner();

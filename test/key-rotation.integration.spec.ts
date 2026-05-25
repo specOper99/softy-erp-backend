@@ -22,7 +22,7 @@ describe('Key Rotation Integration', () => {
   let webhookRepository: Repository<Webhook>;
 
   beforeAll(async () => {
-    dataSource = globalThis.__DATA_SOURCE__;
+    dataSource = globalThis.__DATA_SOURCE__!;
 
     if (!dataSource || !dataSource.isInitialized) {
       throw new Error('DataSource not initialized. Ensure integration setup ran.');

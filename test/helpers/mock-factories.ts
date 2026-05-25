@@ -108,7 +108,7 @@ export function createMockRepository<T extends ObjectLiteral = ObjectLiteral>():
         find: jest.fn().mockResolvedValue([]),
         save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
       }),
-    },
+    } as unknown as jest.Mock,
   };
 }
 

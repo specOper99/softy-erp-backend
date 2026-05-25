@@ -111,7 +111,7 @@ describe('Payroll Load E2E Tests', () => {
 
     // Create profiles and wallets
     for (let i = 0; i < savedUsers.length; i++) {
-      const user = savedUsers[i];
+      const user = savedUsers[i]!;
       profilesToCreate.push(
         profileRepo.create({
           userId: user.id,
