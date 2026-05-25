@@ -50,10 +50,15 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc alias set m http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
-      /usr/bin/mc mb m/${MINIO_BUCKET} --ignore-existing;
+      if [ -z \"$$MINIO_BUCKET\" ]; then echo 'ERROR: MINIO_BUCKET is not set' >&2; exit 1; fi;
+      /usr/bin/mc alias set m http://minio:9000 \"$$MINIO_ACCESS_KEY\" \"$$MINIO_SECRET_KEY\";
+      /usr/bin/mc mb \"m/$$MINIO_BUCKET\" --ignore-existing;
       exit 0;
       "
 
