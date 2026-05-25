@@ -1,0 +1,128 @@
+# ============================================================================
+# Coolify production stack: backend + postgres + redis + minio.
+# Build Pack: Docker Compose. Point Coolify at this file.
+# Secrets are injected via Coolify UI -> Environment Variables (NOT committed).
+# All services share the project network -> reach each other by service name.
+# ============================================================================
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set m http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
+      /usr/bin/mc mb m/${MINIO_BUCKET} --ignore-existing;
+      exit 0;
+      "
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # --- Database (service name, not localhost) ---
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SYNCHRONIZE: 'false'
+      # --- Cache ---
+      REDIS_URL: redis://redis:6379
+      # --- Object storage ---
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      UPLOAD_TO_MINIO: 'true'
+      # --- Required secrets (set in Coolify env) ---
+      JWT_SECRET: ${JWT_SECRET}
+      PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET}
+      PASSWORD_RESET_TOKEN_SECRET: ${PASSWORD_RESET_TOKEN_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      CURSOR_SECRET: ${CURSOR_SECRET:-}
+      # --- App ---
+      APP_NAME: ${APP_NAME:-Softy ERP}
+      COMPANY_NAME: ${COMPANY_NAME:-Softy}
+      COMPANY_URL: ${COMPANY_URL:-}
+      TRUST_PROXY: 'true'
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      # --- Telemetry off unless you deploy a collector ---
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # --- Mail ---
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASS: ${MAIL_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
+      # --- Seed (first boot only) ---
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-}
+      SEED_OPS_PASSWORD: ${SEED_OPS_PASSWORD:-}
+      SEED_TENANT_NAME: ${SEED_TENANT_NAME:-Default Organization}
+      SEED_TENANT_SLUG: ${SEED_TENANT_SLUG:-default-org}
+      SEED_EMAIL_DOMAIN: ${SEED_EMAIL_DOMAIN:-soft-y.org}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - '3000'
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
