@@ -3,6 +3,7 @@ import { join } from 'path';
 import type { DataSourceOptions } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { getDatabaseConnectionConfig } from './db-config';
+import { patchTypeOrmMigrationOrdering } from './patch-typeorm-migration-order';
 // Import all entities
 import { OutboxEvent } from '../common/entities/outbox-event.entity';
 import { AuditLog } from '../modules/audit/entities/audit-log.entity';
@@ -42,6 +43,8 @@ import { PerformanceReview } from '../modules/hr/entities/performance-review.ent
 import { ProcessingTypeEligibility } from '../modules/hr/entities/processing-type-eligibility.entity';
 import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
+
+patchTypeOrmMigrationOrdering();
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',

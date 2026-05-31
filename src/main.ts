@@ -10,6 +10,9 @@ import { ApiErrors } from './common/errors/api-errors';
 import { initTracing } from './common/telemetry/tracing';
 import { corsOriginDelegate, getCorsOriginAllowlist } from './common/utils/cors-origins.util';
 import { configureSwagger } from './config/swagger.config';
+import { patchTypeOrmMigrationOrdering } from './database/patch-typeorm-migration-order';
+
+patchTypeOrmMigrationOrdering();
 
 // Initialize OpenTelemetry tracing
 initTracing();
