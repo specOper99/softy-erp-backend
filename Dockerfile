@@ -29,6 +29,9 @@ COPY --from=builder --chown=65532:65532 /app/dist ./dist
 COPY --from=builder --chown=65532:65532 /app/node_modules ./node_modules
 COPY --from=builder --chown=65532:65532 /app/package*.json ./
 
+# Create writable logs directory for Winston file transport (production)
+RUN mkdir -p /app/logs && chown 65532:65532 /app/logs
+
 # Copy entrypoint script that runs migrations then starts the app
 COPY --chown=65532:65532 entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh

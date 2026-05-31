@@ -119,6 +119,8 @@ services:
       SEED_TENANT_NAME: ${SEED_TENANT_NAME:-Default Organization}
       SEED_TENANT_SLUG: ${SEED_TENANT_SLUG:-default-org}
       SEED_EMAIL_DOMAIN: ${SEED_EMAIL_DOMAIN:-soft-y.org}
+    volumes:
+      - logs_data:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -133,3 +135,4 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  logs_data:
