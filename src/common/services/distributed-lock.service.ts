@@ -194,22 +194,25 @@ export class DistributedLockService implements OnModuleDestroy {
    */
   async acquireWithRetry(resource: string, options: LockOptions = {}): Promise<LockResult | null> {
     const { maxRetries, retryDelay, ttl } = { ...DEFAULT_OPTIONS, ...options };
+    // totalAttempts = 1 initial attempt + maxRetries retries.
+    // Math.max ensures at least 1 attempt even when maxRetries is 0.
+    const totalAttempts = Math.max(1, maxRetries);
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
       const result = await this.acquire(resource, { ttl });
 
       if (result.acquired) {
         return result;
       }
 
-      if (attempt < maxRetries) {
+      if (attempt < totalAttempts) {
         // Exponential backoff with jitter
         const delay = retryDelay * Math.pow(2, attempt - 1) + randomInt(0, 50);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
-    this.logger.warn(`Failed to acquire lock for ${resource} after ${maxRetries} attempts`);
+    this.logger.warn(`Failed to acquire lock for ${resource} after ${totalAttempts} attempts`);
     return null;
   }
 

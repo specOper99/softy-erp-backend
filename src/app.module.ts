@@ -248,7 +248,7 @@ import { CoreModule } from './modules/core/core.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
-    consumer.apply(TenantMiddleware).forRoutes('*');
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*path');
+    consumer.apply(TenantMiddleware).forRoutes('*path');
   }
 }
