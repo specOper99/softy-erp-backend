@@ -2,6 +2,7 @@ import { registerAs } from '@nestjs/config';
 import { join } from 'path';
 import { RuntimeFailure } from '../common/errors/runtime-failure';
 import { parseEnvInt } from '../common/utils/env-int.util';
+import { getDatabaseConnectionConfig } from '../database/db-config';
 
 const parseReplicaHosts = (hostsStr: string | undefined): string[] => {
   if (!hostsStr) return [];
@@ -15,6 +16,7 @@ export default registerAs('database', () => {
   const replicaHosts = parseReplicaHosts(process.env.DB_REPLICA_HOSTS);
   const hasReplicas = replicaHosts.length > 0;
   const isProd = process.env.NODE_ENV === 'production';
+  const connectionConfig = getDatabaseConnectionConfig();
   // PERFORMANCE: Increased pool size from 50 to 150 for production
   // to prevent connection pool exhaustion under high concurrent load
   const defaultPoolSize = isProd ? 150 : 10;
@@ -45,7 +47,7 @@ export default registerAs('database', () => {
     },
   };
 
-  const masterPort = parseEnvInt(process.env.DB_PORT, 5432);
+  const masterPort = connectionConfig.port;
   const replicaPort = parseEnvInt(process.env.DB_REPLICA_PORT, masterPort);
 
   if (hasReplicas) {
@@ -53,18 +55,18 @@ export default registerAs('database', () => {
       ...baseConfig,
       replication: {
         master: {
-          host: process.env.DB_HOST,
+          host: connectionConfig.host,
           port: masterPort,
-          username: process.env.DB_USERNAME,
-          password: process.env.DB_PASSWORD,
-          database: process.env.DB_DATABASE,
+          username: connectionConfig.username,
+          password: connectionConfig.password,
+          database: connectionConfig.database,
         },
         slaves: replicaHosts.map((host) => ({
           host,
           port: replicaPort,
-          username: process.env.DB_REPLICA_USERNAME || process.env.DB_USERNAME,
-          password: process.env.DB_REPLICA_PASSWORD || process.env.DB_PASSWORD,
-          database: process.env.DB_DATABASE,
+          username: process.env.DB_REPLICA_USERNAME || connectionConfig.username,
+          password: process.env.DB_REPLICA_PASSWORD || connectionConfig.password,
+          database: connectionConfig.database,
         })),
       },
     };
@@ -72,10 +74,10 @@ export default registerAs('database', () => {
 
   return {
     ...baseConfig,
-    host: process.env.DB_HOST,
+    host: connectionConfig.host,
     port: masterPort,
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
+    username: connectionConfig.username,
+    password: connectionConfig.password,
+    database: connectionConfig.database,
   };
 });

@@ -5,6 +5,13 @@ export class TransactionReversalAndRelaxXor20260501000000 implements MigrationIn
   name = 'TransactionReversalAndRelaxXor20260501000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const [{ t }] = (await queryRunner.query(`SELECT to_regclass('public.transactions') AS t`)) as [
+      { t: string | null },
+    ];
+    if (!t) {
+      return;
+    }
+
     // 1. Drop the strict XOR CHECK constraint that required exactly one of
     //    {booking_id, task_id, payout_id}.  Manual, recurring, purchase-invoice,
     //    and reversal transactions legitimately have none of them.
@@ -17,7 +24,7 @@ export class TransactionReversalAndRelaxXor20260501000000 implements MigrationIn
     const xorConstraintRows = (await queryRunner.query(`
       SELECT conname
       FROM pg_constraint
-      WHERE conrelid = 'transactions'::regclass
+      WHERE conrelid = to_regclass('public.transactions')
         AND contype = 'c'
         AND pg_get_constraintdef(oid) LIKE '%booking_id%task_id%payout_id%'
     `)) as { conname: string }[];
@@ -28,13 +35,21 @@ export class TransactionReversalAndRelaxXor20260501000000 implements MigrationIn
     // 2. Re-add as "at most one" — zero is now allowed.
     // NOTE: purchase_invoice_id is excluded from this constraint until its FK column is added.
     // TODO: extend this constraint once purchase_invoice_id FK migration is applied.
-    await queryRunner.query(
-      `ALTER TABLE "transactions" ADD CONSTRAINT "CHK_transactions_at_most_one_parent"` +
-        ` CHECK (` +
-        `(CASE WHEN booking_id IS NOT NULL THEN 1 ELSE 0 END +` +
-        ` CASE WHEN task_id    IS NOT NULL THEN 1 ELSE 0 END +` +
-        ` CASE WHEN payout_id  IS NOT NULL THEN 1 ELSE 0 END) <= 1)`,
-    );
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'CHK_transactions_at_most_one_parent'
+        ) THEN
+          ALTER TABLE "transactions" ADD CONSTRAINT "CHK_transactions_at_most_one_parent"
+            CHECK (
+              (CASE WHEN booking_id IS NOT NULL THEN 1 ELSE 0 END +
+               CASE WHEN task_id    IS NOT NULL THEN 1 ELSE 0 END +
+               CASE WHEN payout_id  IS NOT NULL THEN 1 ELSE 0 END) <= 1
+            );
+        END IF;
+      END $$;
+    `);
 
     // 3. Add void / reversal columns.
     await queryRunner.query(
@@ -45,28 +60,53 @@ export class TransactionReversalAndRelaxXor20260501000000 implements MigrationIn
     );
 
     // 4. Foreign keys for the new columns.
-    await queryRunner.query(
-      `ALTER TABLE "transactions"` +
-        ` ADD CONSTRAINT "FK_transactions_reversal_of_id"` +
-        ` FOREIGN KEY ("reversal_of_id") REFERENCES "transactions"("id") ON DELETE RESTRICT`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "transactions"` +
-        ` ADD CONSTRAINT "FK_transactions_voided_by"` +
-        ` FOREIGN KEY ("voided_by") REFERENCES "users"("id") ON DELETE SET NULL`,
-    );
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'FK_transactions_reversal_of_id'
+        ) THEN
+          ALTER TABLE "transactions"
+            ADD CONSTRAINT "FK_transactions_reversal_of_id"
+            FOREIGN KEY ("reversal_of_id") REFERENCES "transactions"("id") ON DELETE RESTRICT;
+        END IF;
+      END $$;
+    `);
+
+    const [{ u }] = (await queryRunner.query(`SELECT to_regclass('public.users') AS u`)) as [{ u: string | null }];
+    if (u) {
+      await queryRunner.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'FK_transactions_voided_by'
+          ) THEN
+            ALTER TABLE "transactions"
+              ADD CONSTRAINT "FK_transactions_voided_by"
+              FOREIGN KEY ("voided_by") REFERENCES "users"("id") ON DELETE SET NULL;
+          END IF;
+        END $$;
+      `);
+    }
 
     // 5. Unique partial index: a transaction may be reversed at most once.
     //    Concurrent void calls will race on this constraint; the loser gets a
     //    unique-violation which the service layer translates to ConflictException.
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_transactions_reversal_of_id"` +
+      `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_transactions_reversal_of_id"` +
         ` ON "transactions" ("reversal_of_id")` +
         ` WHERE "reversal_of_id" IS NOT NULL`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    const [{ t }] = (await queryRunner.query(`SELECT to_regclass('public.transactions') AS t`)) as [
+      { t: string | null },
+    ];
+    if (!t) {
+      return;
+    }
+
     // Drop new index and FKs first.
     await queryRunner.query(`DROP INDEX IF EXISTS "UQ_transactions_reversal_of_id"`);
     await queryRunner.query(`ALTER TABLE "transactions" DROP CONSTRAINT IF EXISTS "FK_transactions_reversal_of_id"`);

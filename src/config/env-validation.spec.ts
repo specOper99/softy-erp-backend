@@ -1,6 +1,10 @@
 import 'reflect-metadata';
 import { validate } from './env-validation';
 
+const VALID_DATABASE_URL = 'postgresql://softy:db_password@db.internal:5432/softy_erp';
+const VALID_JWT_SECRET = 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6';
+const VALID_PLATFORM_JWT_SECRET = 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g0F9e8D7c6B5a4';
+
 describe('env-validation', () => {
   it('should validate valid configuration', () => {
     const config = {
@@ -41,8 +45,9 @@ describe('env-validation', () => {
   it('should enforce JWT_SECRET length in production', () => {
     const config = {
       NODE_ENV: 'production',
+      DATABASE_URL: VALID_DATABASE_URL,
       JWT_SECRET: 'short',
-      PLATFORM_JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
+      PLATFORM_JWT_SECRET: VALID_PLATFORM_JWT_SECRET,
     };
     expect(() => validate(config)).toThrow();
   });
@@ -50,9 +55,32 @@ describe('env-validation', () => {
   it('should not require TENANT_ALLOWED_DOMAINS in production', () => {
     const config = {
       NODE_ENV: 'production',
-      // High-entropy-ish string (length >= 43) to pass validateSecretStrength
-      JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
-      PLATFORM_JWT_SECRET: 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g0F9e8D7c6B5a4',
+      DATABASE_URL: VALID_DATABASE_URL,
+      JWT_SECRET: VALID_JWT_SECRET,
+      PLATFORM_JWT_SECRET: VALID_PLATFORM_JWT_SECRET,
+    };
+
+    expect(() => validate(config)).not.toThrow();
+  });
+
+  it('should require DATABASE_URL or complete DB_* config in production', () => {
+    const config = {
+      NODE_ENV: 'production',
+      JWT_SECRET: VALID_JWT_SECRET,
+      PLATFORM_JWT_SECRET: VALID_PLATFORM_JWT_SECRET,
+    };
+
+    expect(() => validate(config)).toThrow(
+      'SECURITY: DATABASE_URL or complete DB_* configuration is required in production environments.',
+    );
+  });
+
+  it('should allow DATABASE_URL in production', () => {
+    const config = {
+      NODE_ENV: 'production',
+      DATABASE_URL: VALID_DATABASE_URL,
+      JWT_SECRET: VALID_JWT_SECRET,
+      PLATFORM_JWT_SECRET: VALID_PLATFORM_JWT_SECRET,
     };
 
     expect(() => validate(config)).not.toThrow();
@@ -61,9 +89,9 @@ describe('env-validation', () => {
   it('should reject placeholder secrets in production', () => {
     const config = {
       NODE_ENV: 'production',
-      // High-entropy-ish string (length >= 43) to pass validateSecretStrength
-      JWT_SECRET: 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6',
-      PLATFORM_JWT_SECRET: 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g0F9e8D7c6B5a4',
+      DATABASE_URL: VALID_DATABASE_URL,
+      JWT_SECRET: VALID_JWT_SECRET,
+      PLATFORM_JWT_SECRET: VALID_PLATFORM_JWT_SECRET,
       DB_PASSWORD: 'change-me-local-only',
     };
 

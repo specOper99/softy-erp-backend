@@ -76,6 +76,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
       DB_SYNCHRONIZE: 'false'
+      # Entrypoint runs migrations before app boot in this deployment path.
+      DB_MIGRATIONS_RUN: 'false'
       # --- Cache ---
       REDIS_URL: redis://redis:6379
       # --- Object storage ---

@@ -14,7 +14,7 @@ The following environment variables must be configured before starting the appli
 |----------|----------|-------------|---------|
 | `NODE_ENV` | Yes | Environment mode | `production`, `development` |
 | `PORT` | No | HTTP server port (default: 3000) | `3000` |
-| `DATABASE_URL` | Yes | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
+| `DATABASE_URL` | Yes* | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
 | `JWT_SECRET` | Yes | JWT signing key (min 32 chars) | Random secure string |
 | `JWT_EXPIRES_IN` | No | Token expiration (default: 1h) | `1h`, `24h` |
 
@@ -28,7 +28,9 @@ The following environment variables must be configured before starting the appli
 | `DB_PASSWORD` | Yes* | Database password |
 | `DB_DATABASE` | Yes* | Database name |
 
-*Required if `DATABASE_URL` is not set.
+*Use either `DATABASE_URL` or the full `DB_HOST` / `DB_PORT` / `DB_USERNAME` /
+`DB_PASSWORD` / `DB_DATABASE` set. In the Coolify Docker Compose deployment,
+the bundled PostgreSQL service uses the split `DB_*` variables.
 
 ### Security & Encryption
 
@@ -75,9 +77,9 @@ The application exposes health check endpoints for Kubernetes probes:
 
 | Endpoint | Purpose | Expected Response |
 |----------|---------|-------------------|
-| `GET /health` | Combined health check | `{ status: 'ok', info: {...} }` |
-| `GET /health/live` | Liveness probe | `200 OK` if app is running |
-| `GET /health/ready` | Readiness probe | `200 OK` if dependencies ready |
+| `GET /api/v1/health` | Combined health check | `{ status: 'ok', info: {...} }` |
+| `GET /api/v1/health/live` | Liveness probe | `200 OK` if app is running |
+| `GET /api/v1/health/ready` | Readiness probe | `200 OK` if dependencies ready |
 
 ### Health Check Components
 
@@ -99,7 +101,9 @@ Before deploying to production:
 
 2. **Database**
    - [x] PostgreSQL is accessible
-   - [x] Migrations are up to date: `npm run migration:run`
+   - [x] Choose one DB config shape: `DATABASE_URL` or the full `DB_*` set
+   - [x] If using Docker or Coolify, do not override the container entrypoint; it runs migrations before app boot
+   - [x] For manual recovery, use `npm run migration:run:prod` against built artifacts or `npm run migration:run` from source
    - [x] Database user has appropriate permissions
 
 3. **External Services**
@@ -120,6 +124,18 @@ Before deploying to production:
 6. **Dependency Security**
    - [x] Run `npm audit` (or `npm audit --production`) and address high/critical issues
    - [x] If fixes are applied, re-run tests and update lockfile checks
+
+## Coolify / Docker Compose Deployments
+
+Use [backend/docs/COOLIFY_DEPLOYMENT_GUIDE.md](/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/docs/COOLIFY_DEPLOYMENT_GUIDE.md) as the primary runbook for this hosting path.
+
+Operational notes:
+
+- Point Coolify at [backend/docker-compose.coolify.yml](/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/docker-compose.coolify.yml).
+- Do not set a custom start command or entrypoint override in Coolify. The image entrypoint runs `node dist/database/migrate.js` before `node dist/main.js`.
+- In this deployment path, `DB_MIGRATIONS_RUN=false` is intentional. The entrypoint is the authoritative migration runner, and the app still checks for pending migrations at startup.
+- Check the backend container logs, not only the high-level Coolify deployment log. A healthy boot sequence includes `Waiting for PostgreSQL`, `Running database migrations`, then either `Applied ... migration(s)` or `No pending migrations.`
+- Verify liveness at `GET /api/v1/health/live` after the backend container reports startup complete.
 
 ---
 

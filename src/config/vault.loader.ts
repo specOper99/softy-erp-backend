@@ -9,6 +9,7 @@ import { toErrorMessage } from '../common/utils/error.util';
  */
 const ALLOWED_VAULT_KEYS = new Set([
   // Database
+  'DATABASE_URL',
   'DB_HOST',
   'DB_PORT',
   'DB_USERNAME',

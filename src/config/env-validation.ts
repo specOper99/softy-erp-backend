@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import type { ValidationError } from 'class-validator';
 import { IsEnum, IsIn, IsNumber, IsOptional, IsString, Matches, MinLength, validateSync } from 'class-validator';
 import { RuntimeFailure } from '../common/errors/runtime-failure';
+import { resolveDatabaseConnectionConfig } from '../database/db-config';
 
 enum NodeEnv {
   Development = 'development',
@@ -88,6 +89,10 @@ class EnvironmentVariables {
   PORT: number = 3000;
 
   // Database (used by runtime config)
+  @IsString()
+  @IsOptional()
+  DATABASE_URL?: string;
+
   @IsString()
   @IsOptional()
   DB_HOST?: string;
@@ -371,6 +376,8 @@ export function validate(config: Record<string, unknown>) {
 
   // Enhanced security enforcement for production
   if (isProd) {
+    resolveDatabaseConnectionConfig(validatedConfig as unknown as Record<string, unknown>);
+
     // Never allow disabling global rate limiting in production.
     if (validatedConfig.DISABLE_RATE_LIMITING === 'true') {
       throw new RuntimeFailure('SECURITY: DISABLE_RATE_LIMITING is forbidden in production environments.');
