@@ -1,5 +1,27 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
+async function ensureTrigramIndex(
+  queryRunner: QueryRunner,
+  table: string,
+  column: string,
+  indexName: string,
+): Promise<void> {
+  if (!(await queryRunner.hasTable(table))) {
+    console.warn(`[Migration] Skipping index ${indexName}: table "${table}" does not exist`);
+    return;
+  }
+
+  if (!(await queryRunner.hasColumn(table, column))) {
+    console.warn(`[Migration] Skipping index ${indexName}: column "${table}"."${column}" does not exist`);
+    return;
+  }
+
+  await queryRunner.query(
+    `CREATE INDEX IF NOT EXISTS "${indexName}"
+     ON "${table}" USING gin ("${column}" gin_trgm_ops)`,
+  );
+}
+
 /**
  * BE#38 — pg_trgm GIN indexes for ILIKE search performance.
  *
@@ -8,7 +30,7 @@ import type { MigrationInterface, QueryRunner } from 'typeorm';
  * use index scans for leading-wildcard patterns, which makes these queries
  * O(log n) instead of O(n).
  *
- * Columns covered:
+ * Columns covered when present:
  *   - clients.name, clients.email, clients.phone, clients.phone2
  *   - bookings.notes
  *   - service_packages.name, service_packages.description
@@ -21,50 +43,23 @@ export class AddPgTrgmIlikeIndexes20260504000000 implements MigrationInterface {
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
 
     // clients
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_clients_name_trgm"
-       ON "clients" USING gin ("name" gin_trgm_ops)`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_clients_email_trgm"
-       ON "clients" USING gin ("email" gin_trgm_ops)`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_clients_phone_trgm"
-       ON "clients" USING gin ("phone" gin_trgm_ops)`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_clients_phone2_trgm"
-       ON "clients" USING gin ("phone2" gin_trgm_ops)`,
-    );
+    await ensureTrigramIndex(queryRunner, 'clients', 'name', 'IDX_clients_name_trgm');
+    await ensureTrigramIndex(queryRunner, 'clients', 'email', 'IDX_clients_email_trgm');
+    await ensureTrigramIndex(queryRunner, 'clients', 'phone', 'IDX_clients_phone_trgm');
+    await ensureTrigramIndex(queryRunner, 'clients', 'phone2', 'IDX_clients_phone2_trgm');
 
     // bookings
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_bookings_notes_trgm"
-       ON "bookings" USING gin ("notes" gin_trgm_ops)`,
-    );
+    await ensureTrigramIndex(queryRunner, 'bookings', 'notes', 'IDX_bookings_notes_trgm');
 
     // catalog packages
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_service_packages_name_trgm"
-       ON "service_packages" USING gin ("name" gin_trgm_ops)`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_service_packages_description_trgm"
-       ON "service_packages" USING gin ("description" gin_trgm_ops)`,
-    );
+    await ensureTrigramIndex(queryRunner, 'service_packages', 'name', 'IDX_service_packages_name_trgm');
+    await ensureTrigramIndex(queryRunner, 'service_packages', 'description', 'IDX_service_packages_description_trgm');
 
     // task_types
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_task_types_name_trgm"
-       ON "task_types" USING gin ("name" gin_trgm_ops)`,
-    );
+    await ensureTrigramIndex(queryRunner, 'task_types', 'name', 'IDX_task_types_name_trgm');
 
     // tasks
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_tasks_notes_trgm"
-       ON "tasks" USING gin ("notes" gin_trgm_ops)`,
-    );
+    await ensureTrigramIndex(queryRunner, 'tasks', 'notes', 'IDX_tasks_notes_trgm');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
