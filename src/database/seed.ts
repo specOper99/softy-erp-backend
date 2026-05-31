@@ -62,17 +62,40 @@ if (missingEnvVars.length > 0) {
 }
 
 // Import entities
+import { OutboxEvent } from '../common/entities/outbox-event.entity';
+import { DailyMetrics } from '../modules/analytics/entities/daily-metrics.entity';
+import { AuditLog } from '../modules/audit/entities/audit-log.entity';
+import { EmailVerificationToken } from '../modules/auth/entities/email-verification-token.entity';
+import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
+import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { Booking } from '../modules/bookings/entities/booking.entity';
 import { Client } from '../modules/bookings/entities/client.entity';
+import { ProcessingType } from '../modules/bookings/entities/processing-type.entity';
 import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
+import { UserPreference } from '../modules/dashboard/entities/user-preference.entity';
+import { DepartmentBudget } from '../modules/finance/entities/department-budget.entity';
 import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
 import { Invoice } from '../modules/finance/entities/invoice.entity';
 import { Payout } from '../modules/finance/entities/payout.entity';
+import { PurchaseInvoice } from '../modules/finance/entities/purchase-invoice.entity';
+import { RecurringTransaction } from '../modules/finance/entities/recurring-transaction.entity';
 import { TransactionCategory } from '../modules/finance/entities/transaction-category.entity';
 import { Transaction } from '../modules/finance/entities/transaction.entity';
+import { Vendor } from '../modules/finance/entities/vendor.entity';
 import { TransactionType } from '../modules/finance/enums/transaction-type.enum';
+import { Attendance } from '../modules/hr/entities/attendance.entity';
+import { PayrollRun } from '../modules/hr/entities/payroll-run.entity';
+import { PerformanceReview } from '../modules/hr/entities/performance-review.entity';
+import { ProcessingTypeEligibility } from '../modules/hr/entities/processing-type-eligibility.entity';
 import { Profile } from '../modules/hr/entities/profile.entity';
+import { EmailTemplate } from '../modules/mail/entities/email-template.entity';
+import { NotificationPreference } from '../modules/notifications/entities/notification-preference.entity';
+import { Notification } from '../modules/notifications/entities/notification.entity';
+import { TaskAssignee } from '../modules/tasks/entities/task-assignee.entity';
+import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Task } from '../modules/tasks/entities/task.entity';
+import { TimeEntry } from '../modules/tasks/entities/time-entry.entity';
+import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
 import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Role } from '../modules/users/enums/role.enum';
@@ -96,15 +119,38 @@ const AppDataSource = new DataSource({
     Tenant,
     User,
     Profile,
-    EmployeeWallet,
-    Transaction,
-    TransactionCategory,
-    Payout,
+    PayrollRun,
     ServicePackage,
     Booking,
     Client,
-    Invoice,
+    ProcessingType,
     Task,
+    TaskAssignee,
+    TaskTemplate,
+    TimeEntry,
+    OutboxEvent,
+    Transaction,
+    TransactionCategory,
+    RecurringTransaction,
+    Payout,
+    EmployeeWallet,
+    AuditLog,
+    RefreshToken,
+    Invoice,
+    PurchaseInvoice,
+    Vendor,
+    DepartmentBudget,
+    EmailTemplate,
+    Notification,
+    NotificationPreference,
+    DailyMetrics,
+    EmailVerificationToken,
+    PasswordResetToken,
+    UserPreference,
+    Attendance,
+    PerformanceReview,
+    ProcessingTypeEligibility,
+    TenantSubscription,
   ],
   migrations: ['src/database/migrations/*.{ts,js}'],
   dropSchema: shouldDropSchema,
