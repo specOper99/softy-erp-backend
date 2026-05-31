@@ -12,6 +12,8 @@ describe('patch-typeorm-migration-order', () => {
 
   it('overrides historical timestamps when the raw suffix does not reflect dependencies', () => {
     expect(getEffectiveMigrationTimestamp('AddBookingStatusConstraints1738108524000')).toBe(1768000000100);
+    expect(getEffectiveMigrationTimestamp('AddPhone2ToClients1744243201000')).toBe(1767272597300);
+    expect(getEffectiveMigrationTimestamp('RenameAccessTokenToHash1736469350000')).toBe(1767272597301);
   });
 
   it('sorts date-based migrations after older epoch-style migrations', () => {
@@ -38,5 +40,26 @@ describe('patch-typeorm-migration-order', () => {
       .map((migration) => migration.name);
 
     expect(orderedNames).toEqual(['AddMissingBookingColumns1768000000001', 'AddBookingStatusConstraints1738108524000']);
+  });
+
+  it('sorts AddPhone2ToClients after the clients table is created', () => {
+    const orderedNames = ['AddPhone2ToClients1744243201000', 'RefactorTransactionsAndAddClients1767272597291']
+      .map((name) => ({ name, timestamp: getEffectiveMigrationTimestamp(name) }))
+      .sort((left, right) => left.timestamp - right.timestamp)
+      .map((migration) => migration.name);
+
+    expect(orderedNames).toEqual(['RefactorTransactionsAndAddClients1767272597291', 'AddPhone2ToClients1744243201000']);
+  });
+
+  it('sorts RenameAccessTokenToHash after the clients table is created', () => {
+    const orderedNames = ['RenameAccessTokenToHash1736469350000', 'RefactorTransactionsAndAddClients1767272597291']
+      .map((name) => ({ name, timestamp: getEffectiveMigrationTimestamp(name) }))
+      .sort((left, right) => left.timestamp - right.timestamp)
+      .map((migration) => migration.name);
+
+    expect(orderedNames).toEqual([
+      'RefactorTransactionsAndAddClients1767272597291',
+      'RenameAccessTokenToHash1736469350000',
+    ]);
   });
 });

@@ -8,6 +8,13 @@ const migrationTimestampOverrides = new Map<string, number>([
   // AddMissingBookingColumns1768000000001, so its effective order must follow
   // that migration even though its original suffix is older.
   ['AddBookingStatusConstraints1738108524000', 1768000000100],
+  // The clients table is introduced by RefactorTransactionsAndAddClients1767272597291,
+  // so this historical add-column migration must run immediately after it.
+  ['AddPhone2ToClients1744243201000', 1767272597300],
+  // This security migration targets legacy client token columns, but the
+  // clients table itself is introduced by RefactorTransactionsAndAddClients.
+  // Keep it after table creation and before the later auth-field migration.
+  ['RenameAccessTokenToHash1736469350000', 1767272597301],
 ]);
 
 type PatchableMigrationExecutor = typeof MigrationExecutor & {
