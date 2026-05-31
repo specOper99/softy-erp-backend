@@ -120,7 +120,7 @@ export class DistributedLockService implements OnModuleDestroy {
     const acquired = result === 'OK';
 
     if (acquired) {
-      this.logger.debug(`Lock acquired for ${resource} (token: ${lockToken.slice(0, 8)}...)`);
+      this.logger.verbose(`Lock acquired for ${resource} (token: ${lockToken.slice(0, 8)}...)`);
     }
 
     return { acquired, lockToken };
@@ -152,7 +152,7 @@ export class DistributedLockService implements OnModuleDestroy {
     const released = result === 1;
 
     if (released) {
-      this.logger.debug(`Lock released for ${resource}`);
+      this.logger.verbose(`Lock released for ${resource}`);
     } else {
       this.logger.warn(`Failed to release lock for ${resource} - wrong token or expired`);
     }
@@ -177,7 +177,7 @@ export class DistributedLockService implements OnModuleDestroy {
     const extended = result === 1;
 
     if (extended) {
-      this.logger.debug(`Lock extended for ${resource} by ${ttl}ms`);
+      this.logger.verbose(`Lock extended for ${resource} by ${ttl}ms`);
     } else {
       this.logger.warn(`Failed to extend lock for ${resource} - wrong token or expired`);
     }
