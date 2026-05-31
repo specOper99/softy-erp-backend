@@ -43,7 +43,7 @@
     "test:load:finance": "k6 run scripts/load-testing/scenarios/finance-flow.js",
     "test:load:stress": "k6 run scripts/load-testing/scenarios/stress-test.js",
     "test:load:all": "npm run test:load:auth && npm run test:load:booking && npm run test:load:finance",
-    "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
+    "seed": "node dist/database/seed.js",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
     "migration:run:prod": "node dist/database/migrate.js",

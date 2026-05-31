@@ -1,9 +1,20 @@
 import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEmail, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
-import { IsObject, ValidateNested } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { PII, SanitizeHtml } from '../../../common/decorators';
 import { Role } from '../../users/enums/role.enum';
+import { PayrollRun } from '../entities/payroll-run.entity';
 import { ContractType } from '../enums/contract-type.enum';
 
 export class BaseProfileDto {
@@ -120,6 +131,14 @@ export class PayrollRunResponseDto {
 
   @ApiProperty()
   processedAt: Date;
+}
+
+export class PayrollRunCursorResponseDto {
+  @ApiProperty({ type: () => [PayrollRun] })
+  data: PayrollRun[];
+
+  @ApiProperty({ nullable: true, type: String })
+  nextCursor: string | null;
 }
 
 export class CreateStaffUserDto {

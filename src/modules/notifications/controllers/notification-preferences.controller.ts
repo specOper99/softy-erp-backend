@@ -1,9 +1,10 @@
 import { Body, Controller, Get, ParseArrayPipe, Put, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { UpdateNotificationPreferenceDto } from '../dto/notification-preference.dto';
+import { NotificationPreference } from '../entities/notification-preference.entity';
 import { NotificationPreferencesService } from '../services/notification-preferences.service';
 
 @ApiTags('Notifications')
@@ -15,6 +16,7 @@ export class NotificationPreferencesController {
 
   @Get()
   @ApiOperation({ summary: 'Get current user notification preferences' })
+  @ApiResponse({ status: 200, type: NotificationPreference, isArray: true })
   async getUserPreferences(@CurrentUser() user: User) {
     return this.preferencesService.getUserPreferences(user.id);
   }

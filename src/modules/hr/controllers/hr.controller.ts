@@ -19,6 +19,7 @@ import { RolesGuard } from '../../../common/guards';
 import { resolveRequestedUserIdScope } from '../../../common/helpers/field-staff-user-scope.helper';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { StaffConflictService } from '../../bookings/services/staff-conflict.service';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
 import { User } from '../../users/entities/user.entity';
@@ -29,13 +30,14 @@ import {
   CreateProfileDto,
   CreateStaffDto,
   CreateStaffResponseDto,
+  PayrollRunCursorResponseDto,
   ProfileFilterDto,
   RunPayrollDto,
   UpdateProfileDto,
 } from '../dto';
+import { PayrollRun } from '../entities/payroll-run.entity';
 import { HrService } from '../services/hr.service';
 import { PayrollService } from '../services/payroll.service';
-import { StaffConflictService } from '../../bookings/services/staff-conflict.service';
 
 @ApiTags('HR')
 @ApiBearerAuth()
@@ -231,7 +233,7 @@ export class HrController {
     deprecated: true,
     description: 'Use /hr/payroll/history/cursor for better performance with large datasets.',
   })
-  @ApiResponse({ status: 200, description: 'Return payroll history list' })
+  @ApiResponse({ status: 200, description: 'Return payroll history list', type: PayrollRun, isArray: true })
   getPayrollHistory(@Query() query: PaginationDto = new PaginationDto()) {
     return this.payrollService.getPayrollHistory(query);
   }
@@ -239,7 +241,7 @@ export class HrController {
   @Get('payroll/history/cursor')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get payroll run history with cursor pagination (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Return payroll history list' })
+  @ApiResponse({ status: 200, description: 'Return payroll history list', type: PayrollRunCursorResponseDto })
   getPayrollHistoryCursor(@Query() query: CursorPaginationDto) {
     return this.payrollService.getPayrollHistoryCursor(query);
   }

@@ -24,7 +24,7 @@ import {
   StaffPerformanceDto,
   StudioKpisDto,
 } from './dto/dashboard.dto';
-import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
+import { DashboardPreferencesResponseDto, UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
 import { UserDashboardConfig } from './entities/user-preference.entity';
 
 import { ReportGeneratorService } from './services/report-generator.service';
@@ -207,7 +207,7 @@ export class DashboardController {
 
   @Get('preferences')
   @ApiOperation({ summary: 'Get user dashboard preferences' })
-  @ApiResponse({ status: 200, description: 'Dashboard preferences returned' })
+  @ApiResponse({ status: 200, description: 'Dashboard preferences returned', type: DashboardPreferencesResponseDto })
   async getPreferences(@CurrentUser() user: User): Promise<UserDashboardConfig> {
     return this.dashboardService.getUserPreferences(user.id);
   }

@@ -23,3 +23,8 @@ export class UpdateDashboardPreferencesDto {
   @ApiProperty({ type: [WidgetConfigDto] })
   widgets: WidgetConfigDto[];
 }
+
+export class DashboardPreferencesResponseDto {
+  @ApiProperty({ type: [WidgetConfigDto] })
+  widgets: WidgetConfigDto[];
+}

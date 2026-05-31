@@ -47,6 +47,7 @@ services:
 
   minio-init:
     image: minio/mc:latest
+    restart: "no"
     depends_on:
       minio:
         condition: service_healthy
@@ -119,6 +120,15 @@ services:
       SEED_TENANT_NAME: ${SEED_TENANT_NAME:-Default Organization}
       SEED_TENANT_SLUG: ${SEED_TENANT_SLUG:-default-org}
       SEED_EMAIL_DOMAIN: ${SEED_EMAIL_DOMAIN:-soft-y.org}
+    healthcheck:
+      # Override Dockerfile HEALTHCHECK with a longer start_period so Coolify
+      # does not count migration time against the retry budget and trigger
+      # premature restarts on slow first-boot or DB schema upgrades.
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/v1/health/live || exit 1']
+      interval: 15s
+      timeout: 5s
+      start_period: 180s
+      retries: 5
     volumes:
       - logs_data:/app/logs
     depends_on:

@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity, JoinColumn, ManyToOne, Unique } from 'typeorm';
 import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
 import { User } from '../../users/entities/user.entity';
@@ -6,6 +7,7 @@ import { NotificationFrequency, NotificationType } from '../enums/notification.e
 @Entity('notification_preferences')
 @Unique(['userId', 'notificationType'])
 export class NotificationPreference extends BaseTenantEntity {
+  @ApiProperty()
   @Column({ name: 'user_id' })
   userId: string;
 
@@ -13,6 +15,7 @@ export class NotificationPreference extends BaseTenantEntity {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @ApiProperty({ enum: NotificationType })
   @Column({
     type: 'enum',
     enum: NotificationType,
@@ -20,12 +23,15 @@ export class NotificationPreference extends BaseTenantEntity {
   })
   notificationType: NotificationType;
 
+  @ApiProperty()
   @Column({ name: 'email_enabled', default: true })
   emailEnabled: boolean;
 
+  @ApiProperty()
   @Column({ name: 'in_app_enabled', default: true })
   inAppEnabled: boolean;
 
+  @ApiProperty({ enum: NotificationFrequency })
   @Column({
     type: 'enum',
     enum: NotificationFrequency,
