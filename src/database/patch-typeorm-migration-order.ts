@@ -3,6 +3,12 @@ import { MigrationExecutor } from 'typeorm';
 
 const PATCH_FLAG = Symbol.for('softy.typeormMigrationTimestampPatch');
 const migrationTimestampPattern = /(\d+)$/u;
+const migrationTimestampOverrides = new Map<string, number>([
+  // This historical migration depends on columns added later by
+  // AddMissingBookingColumns1768000000001, so its effective order must follow
+  // that migration even though its original suffix is older.
+  ['AddBookingStatusConstraints1738108524000', 1768000000100],
+]);
 
 type PatchableMigrationExecutor = typeof MigrationExecutor & {
   [PATCH_FLAG]?: boolean;
@@ -37,6 +43,10 @@ export function extractFullMigrationTimestamp(migrationName: string): number {
   return timestamp;
 }
 
+export function getEffectiveMigrationTimestamp(migrationName: string): number {
+  return migrationTimestampOverrides.get(migrationName) ?? extractFullMigrationTimestamp(migrationName);
+}
+
 export function patchTypeOrmMigrationOrdering(): void {
   const patchableExecutor = MigrationExecutor as PatchableMigrationExecutor;
   if (patchableExecutor[PATCH_FLAG]) {
@@ -50,7 +60,7 @@ export function patchTypeOrmMigrationOrdering(): void {
     const migrations = originalGetMigrations.call(this);
 
     for (const migration of migrations) {
-      migration.timestamp = extractFullMigrationTimestamp(migration.name);
+      migration.timestamp = getEffectiveMigrationTimestamp(migration.name);
     }
 
     return migrations.sort((a, b) => a.timestamp - b.timestamp);

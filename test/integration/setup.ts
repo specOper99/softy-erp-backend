@@ -1,10 +1,12 @@
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
-import { normalizeMigrationNamesForTypeOrm } from '../utils/typeorm-migration-name.util';
+import { patchTypeOrmMigrationOrdering } from '../../src/database/patch-typeorm-migration-order';
 
 let postgresContainer: StartedPostgreSqlContainer;
 let dataSource: DataSource;
+
+patchTypeOrmMigrationOrdering();
 
 function readExistingDbConfig() {
   const host = process.env.DB_HOST;
@@ -75,7 +77,6 @@ export default async function globalSetup() {
   });
 
   await dataSource.initialize();
-  normalizeMigrationNamesForTypeOrm(dataSource.migrations);
   console.log('🔄 Running migrations...');
   await dataSource.runMigrations();
   console.log('✅ Migrations complete');

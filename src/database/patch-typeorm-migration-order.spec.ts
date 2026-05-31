@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { extractFullMigrationTimestamp } from './patch-typeorm-migration-order';
+import { extractFullMigrationTimestamp, getEffectiveMigrationTimestamp } from './patch-typeorm-migration-order';
 
 describe('patch-typeorm-migration-order', () => {
   it('keeps epoch-style 13-digit migration timestamps intact', () => {
@@ -8,6 +8,10 @@ describe('patch-typeorm-migration-order', () => {
 
   it('preserves full 14-digit date-based migration timestamps', () => {
     expect(extractFullMigrationTimestamp('AddRecurringTransactionRruleString20260510000000')).toBe(20260510000000);
+  });
+
+  it('overrides historical timestamps when the raw suffix does not reflect dependencies', () => {
+    expect(getEffectiveMigrationTimestamp('AddBookingStatusConstraints1738108524000')).toBe(1768000000100);
   });
 
   it('sorts date-based migrations after older epoch-style migrations', () => {
@@ -25,5 +29,14 @@ describe('patch-typeorm-migration-order', () => {
       'AddPgTrgmIlikeIndexes20260504000000',
       'AddRecurringTransactionRruleString20260510000000',
     ]);
+  });
+
+  it('sorts booking status constraints after the missing booking columns migration', () => {
+    const orderedNames = ['AddBookingStatusConstraints1738108524000', 'AddMissingBookingColumns1768000000001']
+      .map((name) => ({ name, timestamp: getEffectiveMigrationTimestamp(name) }))
+      .sort((left, right) => left.timestamp - right.timestamp)
+      .map((migration) => migration.name);
+
+    expect(orderedNames).toEqual(['AddMissingBookingColumns1768000000001', 'AddBookingStatusConstraints1738108524000']);
   });
 });

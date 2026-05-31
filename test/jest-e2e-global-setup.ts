@@ -1,8 +1,8 @@
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import * as dotenv from 'dotenv';
 import * as path from 'node:path';
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import type { DataSource } from 'typeorm';
-import { normalizeMigrationNamesForTypeOrm } from './utils/typeorm-migration-name.util';
+import { patchTypeOrmMigrationOrdering } from '../src/database/patch-typeorm-migration-order';
 
 function readExistingDbConfig() {
   const host = process.env.DB_HOST;
@@ -33,6 +33,8 @@ const jestE2eGlobalSetup = async () => {
   process.env.NODE_ENV = 'test';
   process.env.CSRF_ENABLED = 'false';
   process.env.DB_LOGGING = 'false';
+
+  patchTypeOrmMigrationOrdering();
 
   let host: string;
   let port: number;
@@ -97,8 +99,6 @@ const jestE2eGlobalSetup = async () => {
   if (!migrationDataSource.isInitialized) {
     await migrationDataSource.initialize();
   }
-
-  normalizeMigrationNamesForTypeOrm(migrationDataSource.migrations);
 
   globalThis.__DATA_SOURCE__ = migrationDataSource;
 
