@@ -4,6 +4,11 @@ export class ConvertBookingHandoverTypeToEnum20260427000000 implements Migration
   name = 'ConvertBookingHandoverTypeToEnum20260427000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const [{ b }] = (await queryRunner.query(`SELECT to_regclass('public.bookings') AS b`)) as [{ b: string | null }];
+    if (!b) {
+      return;
+    }
+
     // 1. Create the enum type (idempotent).
     await queryRunner.query(`
       DO $$
@@ -32,12 +37,15 @@ export class ConvertBookingHandoverTypeToEnum20260427000000 implements Migration
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Revert column to varchar(100).
-    await queryRunner.query(`
-      ALTER TABLE "bookings"
-      ALTER COLUMN "handover_type" TYPE varchar(100)
-      USING "handover_type"::text;
-    `);
+    const [{ b }] = (await queryRunner.query(`SELECT to_regclass('public.bookings') AS b`)) as [{ b: string | null }];
+    if (b) {
+      // Revert column to varchar(100).
+      await queryRunner.query(`
+        ALTER TABLE "bookings"
+        ALTER COLUMN "handover_type" TYPE varchar(100)
+        USING "handover_type"::text;
+      `);
+    }
 
     await queryRunner.query(`DROP TYPE IF EXISTS "public"."booking_handover_type_enum";`);
   }
