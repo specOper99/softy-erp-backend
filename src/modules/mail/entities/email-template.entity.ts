@@ -16,7 +16,7 @@ export class EmailTemplate extends BaseTenantEntity {
   @Column('jsonb', { default: [] })
   variables: string[];
 
-  @Column({ default: false })
+  @Column({ name: 'is_system', default: false })
   isSystem: boolean;
 
   @Column({ nullable: true })
