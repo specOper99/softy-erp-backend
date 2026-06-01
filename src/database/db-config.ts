@@ -138,6 +138,38 @@ export function resolveDatabaseConnectionConfig(env: EnvLike = process.env): Dat
   };
 }
 
+export function resolveReplicaConnectionConfigs(env: EnvLike = process.env): DatabaseConnectionConfig[] {
+  const replicaHosts = getEnvText(env, 'DB_REPLICA_HOSTS');
+  if (!replicaHosts) {
+    return [];
+  }
+
+  const baseConfig = resolveDatabaseConnectionConfig(env);
+  const username = getEnvText(env, 'DB_REPLICA_USERNAME') ?? baseConfig.username;
+  const password = getEnvText(env, 'DB_REPLICA_PASSWORD') ?? baseConfig.password;
+  const database = baseConfig.database;
+
+  if (!username || !password || !database) {
+    throw new RuntimeFailure(
+      'Replica database configuration requires username, password, and database. Set DB_REPLICA_* explicitly or provide complete primary DB credentials.',
+    );
+  }
+
+  const port = parsePort(getEnvText(env, 'DB_REPLICA_PORT') || String(baseConfig.port), 'DB_REPLICA_PORT');
+
+  return replicaHosts
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean)
+    .map((host) => ({
+      host,
+      port,
+      username,
+      password,
+      database,
+    }));
+}
+
 export function getDatabaseConnectionConfig(): DatabaseConnectionConfig {
   return resolveDatabaseConnectionConfig(process.env as EnvLike);
 }

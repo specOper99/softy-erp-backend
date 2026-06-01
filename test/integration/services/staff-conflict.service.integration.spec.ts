@@ -1,12 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { Repository } from 'typeorm';
-import { DataSource } from 'typeorm';
+import type { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
-import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
 import { ServicePackageRepository } from '../../../src/modules/catalog/repositories/service-package.repository';
@@ -22,6 +20,7 @@ import { Tenant } from '../../../src/modules/tenants/entities/tenant.entity';
 import { User } from '../../../src/modules/users/entities/user.entity';
 import { Role } from '../../../src/modules/users/enums/role.enum';
 import { UserRepository } from '../../../src/modules/users/repositories/user.repository';
+import { createTestDataSource } from '../../utils/create-test-datasource';
 
 describe('StaffConflictService Integration Tests', () => {
   let dataSource: DataSource;
@@ -30,7 +29,6 @@ describe('StaffConflictService Integration Tests', () => {
   let tenantRepository: Repository<Tenant>;
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
-  let packageItemRepository: Repository<PackageItem>;
   let processingTypeRepository: Repository<ProcessingType>;
   let processingTypeEligibilityRepository: Repository<ProcessingTypeEligibility>;
   let bookingRepository: Repository<Booking>;
@@ -39,19 +37,12 @@ describe('StaffConflictService Integration Tests', () => {
   let userRepository: Repository<User>;
 
   beforeAll(async () => {
-    const dbConfig = globalThis.__DB_CONFIG__!;
-    dataSource = new DataSource({
-      ...dbConfig,
-      type: 'postgres',
-      entities: ['src/**/*.entity.ts'],
-      synchronize: false,
-    });
+    dataSource = createTestDataSource();
     await dataSource.initialize();
 
     tenantRepository = dataSource.getRepository(Tenant);
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
-    packageItemRepository = dataSource.getRepository(PackageItem);
     processingTypeRepository = dataSource.getRepository(ProcessingType);
     processingTypeEligibilityRepository = dataSource.getRepository(ProcessingTypeEligibility);
     bookingRepository = dataSource.getRepository(Booking);
@@ -65,7 +56,9 @@ describe('StaffConflictService Integration Tests', () => {
       new UserRepository(userRepository),
       new TaskAssigneeRepository(taskAssigneeRepository),
       new TaskRepository(taskRepository),
-      {} as never,
+      {
+        find: jest.fn().mockResolvedValue([]),
+      } as never,
     );
   });
 
@@ -77,7 +70,7 @@ describe('StaffConflictService Integration Tests', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "task_assignees", "tasks", "bookings", "processing_type_eligibilities", "package_items", "processing_types", "service_packages", "clients", "users", "tenants" CASCADE',
+      'TRUNCATE TABLE "task_assignees", "tasks", "booking_processing_types", "bookings", "processing_type_eligibilities", "processing_types", "service_packages", "clients", "users", "tenants" CASCADE',
     );
   });
 
@@ -106,13 +99,6 @@ describe('StaffConflictService Integration Tests', () => {
       tenantId: tenant1,
     });
 
-    const processingTypeTenant1 = await processingTypeRepository.save({
-      name: 'Photography Tenant 1',
-      description: 'Tenant1 processing type',
-      defaultCommissionAmount: 0,
-      tenantId: tenant1,
-    });
-
     const packageTenant1 = await packageRepository.save({
       name: 'Tenant1 Package',
       description: 'Tenant1 package',
@@ -122,10 +108,14 @@ describe('StaffConflictService Integration Tests', () => {
       tenantId: tenant1,
     });
 
-    await packageItemRepository.save({
+    const processingTypeTenant1 = await processingTypeRepository.save({
       packageId: packageTenant1.id,
-      processingTypeId: processingTypeTenant1.id,
-      quantity: 1,
+      name: 'Photography Tenant 1',
+      description: 'Tenant1 processing type',
+      defaultCommissionAmount: 0,
+      price: 0,
+      sortOrder: 0,
+      isActive: true,
       tenantId: tenant1,
     });
 
@@ -135,19 +125,23 @@ describe('StaffConflictService Integration Tests', () => {
       tenantId: tenant1,
     });
 
-    const processingTypeTenant2 = await processingTypeRepository.save({
-      name: 'Photography Tenant 2',
-      description: 'Tenant2 processing type',
-      defaultCommissionAmount: 0,
-      tenantId: tenant2,
-    });
-
     const packageTenant2 = await packageRepository.save({
       name: 'Tenant2 Package',
       description: 'Tenant2 package',
       price: 2200,
       durationMinutes: 120,
       requiredStaffCount: 1,
+      tenantId: tenant2,
+    });
+
+    const processingTypeTenant2 = await processingTypeRepository.save({
+      packageId: packageTenant2.id,
+      name: 'Photography Tenant 2',
+      description: 'Tenant2 processing type',
+      defaultCommissionAmount: 0,
+      price: 0,
+      sortOrder: 0,
+      isActive: true,
       tenantId: tenant2,
     });
 
@@ -167,12 +161,15 @@ describe('StaffConflictService Integration Tests', () => {
       status: BookingStatus.CONFIRMED,
       totalPrice: 2200,
       subTotal: 2200,
+      discountAmount: 0,
       taxRate: 0,
       taxAmount: 0,
+      venueCost: 0,
       depositPercentage: 0,
       depositAmount: 0,
       amountPaid: 0,
       refundAmount: 0,
+      completionPercentage: 0,
       tenantId: tenant2,
     });
 

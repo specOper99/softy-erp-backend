@@ -9,10 +9,10 @@ export class PlatformUser {
   @Column()
   email: string;
 
-  @Column()
+  @Column({ name: 'full_name' })
   fullName: string;
 
-  @Column()
+  @Column({ name: 'password_hash' })
   passwordHash: string;
 
   @Column({ type: 'varchar' })
@@ -21,6 +21,6 @@ export class PlatformUser {
   @Column({ default: 'active' })
   status: string;
 
-  @Column({ default: false })
+  @Column({ name: 'mfa_enabled', default: false })
   mfaEnabled: boolean;
 }

@@ -1,8 +1,7 @@
 import type { ConfigService } from '@nestjs/config';
 import type { EventBus } from '@nestjs/cqrs';
 import { randomUUID } from 'node:crypto';
-import type { Repository } from 'typeorm';
-import { DataSource } from 'typeorm';
+import type { DataSource, Repository } from 'typeorm';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
 import type { AuditPublisher } from '../../../src/modules/audit/audit.publisher';
 import type { UpdateBookingDto } from '../../../src/modules/bookings/dto';
@@ -15,7 +14,6 @@ import { BookingStateMachineService } from '../../../src/modules/bookings/servic
 import { BookingWorkflowService } from '../../../src/modules/bookings/services/booking-workflow.service';
 import { BookingsService } from '../../../src/modules/bookings/services/bookings.service';
 import type { StaffConflictService } from '../../../src/modules/bookings/services/staff-conflict.service';
-import { PackageItem } from '../../../src/modules/catalog/entities/package-item.entity';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
 import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
@@ -27,6 +25,8 @@ import { FinanceService } from '../../../src/modules/finance/services/finance.se
 import { Task } from '../../../src/modules/tasks/entities/task.entity';
 import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
 import { Tenant } from '../../../src/modules/tenants/entities/tenant.entity';
+import { createMockMetricsFactory } from '../../helpers/mock-factories';
+import { createTestDataSource } from '../../utils/create-test-datasource';
 
 type EventBusSpy = {
   eventBus: EventBus;
@@ -44,7 +44,6 @@ describe('Booking -> Finance Integrity Integration', () => {
   let tenantRepository: Repository<Tenant>;
   let clientRepository: Repository<Client>;
   let packageRepository: Repository<ServicePackage>;
-  let packageItemRepository: Repository<PackageItem>;
   let processingTypeRepository: Repository<ProcessingType>;
   let bookingRepository: Repository<Booking>;
   let taskRepository: Repository<Task>;
@@ -122,8 +121,12 @@ describe('Booking -> Finance Integrity Integration', () => {
       eventBus,
       new BookingStateMachineService(),
       staffConflictService,
-      {} as never,
-      {} as never,
+      {
+        createInvoice: jest.fn().mockResolvedValue(undefined),
+      } as never,
+      {
+        delAvailability: jest.fn().mockResolvedValue(undefined),
+      } as never,
     );
   };
 
@@ -142,11 +145,15 @@ describe('Booking -> Finance Integrity Integration', () => {
       new BookingRepository(bookingRepository),
       {} as never,
       dataSource,
-      {} as never,
-      {} as never,
+      {
+        save: jest.fn().mockResolvedValue(undefined),
+      } as never,
+      {
+        delAvailability: jest.fn().mockResolvedValue(undefined),
+      } as never,
       staffConflictService,
       {} as never,
-      {} as never,
+      createMockMetricsFactory() as never,
       {} as never,
       {} as never,
       {} as never,
@@ -180,30 +187,31 @@ describe('Booking -> Finance Integrity Integration', () => {
       tenantId,
     });
 
-    const processingType = await processingTypeRepository.save({
-      name: `ProcessingType ${randomUUID()}`,
-      description: 'Fixture processing type',
-      defaultCommissionAmount: 75,
-      tenantId,
-    });
+    const processingTypes = await processingTypeRepository.save(
+      Array.from({ length: taskCount }, (_, index) => ({
+        packageId: servicePackage.id,
+        name: `ProcessingType ${index + 1} ${randomUUID()}`,
+        description: 'Fixture processing type',
+        defaultCommissionAmount: 75,
+        price: 0,
+        sortOrder: index,
+        isActive: true,
+        tenantId,
+      })),
+    );
 
-    await packageItemRepository.save({
-      packageId: servicePackage.id,
-      processingTypeId: processingType.id,
-      quantity: taskCount,
-      tenantId,
-    });
-
-    const booking = await bookingRepository.save({
+    const booking = bookingRepository.create({
       clientId: client.id,
       packageId: servicePackage.id,
       eventDate: new Date('2032-01-20T10:00:00.000Z'),
       startTime: '10:00',
       status: BookingStatus.DRAFT,
       subTotal,
+      discountAmount: 0,
       taxRate,
       taxAmount,
       totalPrice,
+      venueCost: 0,
       depositPercentage: 20,
       depositAmount: 220,
       amountPaid: 0,
@@ -212,31 +220,24 @@ describe('Booking -> Finance Integrity Integration', () => {
       notes: 'Initial booking fixture',
       cancelledAt: null,
       cancellationReason: null,
+      completionPercentage: 0,
       tenantId,
     });
+
+    booking.processingTypes = processingTypes;
+
+    await bookingRepository.save(booking);
 
     return { booking, taskCount };
   };
 
   beforeAll(async () => {
-    const dbConfig = globalThis.__DB_CONFIG__!;
-    dataSource = new DataSource({
-      type: 'postgres',
-      host: dbConfig.host,
-      port: dbConfig.port,
-      username: dbConfig.username,
-      password: dbConfig.password,
-      database: dbConfig.database,
-      entities: [__dirname + '/../../../src/**/*.entity.ts'],
-      synchronize: false,
-    });
-
+    dataSource = createTestDataSource();
     await dataSource.initialize();
 
     tenantRepository = dataSource.getRepository(Tenant);
     clientRepository = dataSource.getRepository(Client);
     packageRepository = dataSource.getRepository(ServicePackage);
-    packageItemRepository = dataSource.getRepository(PackageItem);
     processingTypeRepository = dataSource.getRepository(ProcessingType);
     bookingRepository = dataSource.getRepository(Booking);
     taskRepository = dataSource.getRepository(Task);
@@ -251,7 +252,7 @@ describe('Booking -> Finance Integrity Integration', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "transactions", "tasks", "bookings", "package_items", "processing_types", "service_packages", "clients", "tenants" CASCADE',
+      'TRUNCATE TABLE "booking_processing_types", "transactions", "tasks", "bookings", "processing_types", "service_packages", "clients", "tenants" CASCADE',
     );
   });
 
@@ -281,7 +282,7 @@ describe('Booking -> Finance Integrity Integration', () => {
     });
     expect(transactions).toHaveLength(1);
     expect(transactions[0]!.type).toBe(TransactionType.INCOME);
-    expect(Number(transactions[0]!.amount)).toBe(Number(booking.totalPrice));
+    expect(Number(transactions[0]!.amount)).toBe(Number(booking.depositAmount));
   });
 
   it('rolls back confirmation when finance transaction step fails', async () => {

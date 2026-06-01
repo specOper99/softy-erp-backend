@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import type { Repository } from 'typeorm';
-import { DataSource } from 'typeorm';
+import type { DataSource, Repository } from 'typeorm';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { Client } from '../../../src/modules/bookings/entities/client.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
 import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
 import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
+import { createTestDataSource } from '../../utils/create-test-datasource';
 
 describe('Financial Transaction Rollback Integration', () => {
   let dataSource: DataSource;
@@ -36,29 +36,22 @@ describe('Financial Transaction Rollback Integration', () => {
       eventDate: new Date(),
       totalPrice: 5000,
       subTotal: 5000,
+      discountAmount: 0,
       taxRate: 0,
       taxAmount: 0,
+      venueCost: 0,
       depositPercentage: 0,
       depositAmount: 0,
       amountPaid: 0,
       refundAmount: 0,
       status: BookingStatus.DRAFT,
+      completionPercentage: 0,
       tenantId,
     }) as unknown as Booking;
   };
 
   beforeAll(async () => {
-    const dbConfig = globalThis.__DB_CONFIG__!;
-    dataSource = new DataSource({
-      type: 'postgres',
-      host: dbConfig.host,
-      port: dbConfig.port,
-      username: dbConfig.username,
-      password: dbConfig.password,
-      database: dbConfig.database,
-      entities: [__dirname + '/../../../src/**/*.entity.ts'],
-      synchronize: false,
-    });
+    dataSource = createTestDataSource();
     await dataSource.initialize();
 
     transactionRepository = dataSource.getRepository(Transaction);
@@ -71,7 +64,9 @@ describe('Financial Transaction Rollback Integration', () => {
   });
 
   beforeEach(async () => {
-    await dataSource.query('TRUNCATE TABLE "transactions", "bookings" CASCADE');
+    await dataSource.query(
+      'TRUNCATE TABLE "transactions", "booking_processing_types", "bookings", "clients", "service_packages" CASCADE',
+    );
   });
 
   describe('Transaction Rollback on Error', () => {
@@ -353,13 +348,16 @@ describe('Financial Transaction Rollback Integration', () => {
           eventDate: new Date(),
           totalPrice: 5000,
           subTotal: 5000,
+          discountAmount: 0,
           taxRate: 0,
           taxAmount: 0,
+          venueCost: 0,
           depositPercentage: 0,
           depositAmount: 0,
           amountPaid: 0,
           refundAmount: 0,
           status: BookingStatus.DRAFT,
+          completionPercentage: 0,
           tenantId,
         });
 

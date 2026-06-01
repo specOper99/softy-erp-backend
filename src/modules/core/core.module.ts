@@ -14,7 +14,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { UsersModule } from '../users/users.module';
-import { SchemaContractValidatorService } from './schema-contract-validator.service';
 
 @Module({
   imports: [
@@ -34,7 +33,6 @@ import { SchemaContractValidatorService } from './schema-contract-validator.serv
     TenantsModule,
     MetricsModule,
   ],
-  providers: [SchemaContractValidatorService],
   exports: [
     AuthModule,
     UsersModule,

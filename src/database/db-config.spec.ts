@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { resolveDatabaseConnectionConfig } from './db-config';
+import { resolveDatabaseConnectionConfig, resolveReplicaConnectionConfigs } from './db-config';
 
 describe('db-config', () => {
   it('uses split DB_* configuration when all required values are present', () => {
@@ -68,5 +68,30 @@ describe('db-config', () => {
         DATABASE_URL: 'mysql://softy:secret@db.internal:3306/softy_erp',
       }),
     ).toThrow('Invalid DATABASE_URL protocol');
+  });
+
+  it('builds replica configs from DB_REPLICA_* with primary credential fallback', () => {
+    const replicas = resolveReplicaConnectionConfigs({
+      DATABASE_URL: 'postgresql://softy:super%23secret@db.internal:6543/softy_erp',
+      DB_REPLICA_HOSTS: 'replica-a.internal, replica-b.internal ',
+      DB_REPLICA_PORT: '7654',
+    });
+
+    expect(replicas).toEqual([
+      {
+        host: 'replica-a.internal',
+        port: 7654,
+        username: 'softy',
+        password: 'super#secret',
+        database: 'softy_erp',
+      },
+      {
+        host: 'replica-b.internal',
+        port: 7654,
+        username: 'softy',
+        password: 'super#secret',
+        database: 'softy_erp',
+      },
+    ]);
   });
 });

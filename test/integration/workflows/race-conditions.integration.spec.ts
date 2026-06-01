@@ -5,8 +5,7 @@
  * These tests require a real database connection (Postgres via testcontainers).
  */
 
-import type { EntityManager, Repository } from 'typeorm';
-import { DataSource } from 'typeorm';
+import type { DataSource, EntityManager, Repository } from 'typeorm';
 import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
 import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
 import { EmployeeWallet } from '../../../src/modules/finance/entities/employee-wallet.entity';
@@ -14,6 +13,7 @@ import { Task } from '../../../src/modules/tasks/entities/task.entity';
 import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
 import { User } from '../../../src/modules/users/entities/user.entity';
 import { Role } from '../../../src/modules/users/enums/role.enum';
+import { createTestDataSource } from '../../utils/create-test-datasource';
 import { seedTestDatabase } from '../../utils/seed-data';
 
 describe('Race Condition Tests', () => {
@@ -28,17 +28,7 @@ describe('Race Condition Tests', () => {
   // const TENANT_ID = 'test-tenant-race';
 
   beforeAll(async () => {
-    const dbConfig = globalThis.__DB_CONFIG__!;
-    dataSource = new DataSource({
-      type: 'postgres',
-      host: dbConfig.host,
-      port: dbConfig.port,
-      username: dbConfig.username,
-      password: dbConfig.password,
-      database: dbConfig.database,
-      entities: [__dirname + '/../../../src/**/*.entity.ts'],
-      synchronize: false,
-    });
+    dataSource = createTestDataSource();
     await dataSource.initialize();
 
     bookingRepository = dataSource.getRepository(Booking);
@@ -55,7 +45,7 @@ describe('Race Condition Tests', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE "tasks", "bookings", "clients", "package_items", "service_packages", "processing_types", "employee_wallets", "users", "tenants" CASCADE',
+      'TRUNCATE TABLE "booking_processing_types", "tasks", "bookings", "clients", "service_packages", "processing_types", "employee_wallets", "users", "tenants" CASCADE',
     );
     seeded = await seedTestDatabase(dataSource);
   });
@@ -98,13 +88,16 @@ describe('Race Condition Tests', () => {
         eventDate: new Date(),
         totalPrice: 100,
         subTotal: 100,
+        discountAmount: 0,
         taxRate: 0,
         taxAmount: 0,
+        venueCost: 0,
         depositPercentage: 0,
         depositAmount: 0,
         amountPaid: 0,
         refundAmount: 0,
         status: BookingStatus.DRAFT,
+        completionPercentage: 0,
         tenantId: seeded.tenantId,
       });
 
@@ -152,13 +145,16 @@ describe('Race Condition Tests', () => {
         eventDate: new Date(),
         totalPrice: 500,
         subTotal: 500,
+        discountAmount: 0,
         taxRate: 0,
         taxAmount: 0,
+        venueCost: 0,
         depositPercentage: 0,
         depositAmount: 0,
         amountPaid: 0,
         refundAmount: 0,
         status: BookingStatus.DRAFT,
+        completionPercentage: 0,
         tenantId: seeded.tenantId,
       });
 
@@ -208,13 +204,16 @@ describe('Race Condition Tests', () => {
         eventDate: new Date(),
         totalPrice: 1500,
         subTotal: 1500,
+        discountAmount: 0,
         taxRate: 0,
         taxAmount: 0,
+        venueCost: 0,
         depositPercentage: 0,
         depositAmount: 0,
         amountPaid: 0,
         refundAmount: 0,
         status: BookingStatus.CONFIRMED,
+        completionPercentage: 0,
         tenantId: seeded.tenantId,
       });
 
@@ -280,13 +279,16 @@ describe('Race Condition Tests', () => {
         eventDate: new Date(),
         totalPrice: 1200,
         subTotal: 1200,
+        discountAmount: 0,
         taxRate: 0,
         taxAmount: 0,
+        venueCost: 0,
         depositPercentage: 0,
         depositAmount: 0,
         amountPaid: 0,
         refundAmount: 0,
         status: BookingStatus.CONFIRMED,
+        completionPercentage: 0,
         tenantId: seeded.tenantId,
       });
 

@@ -1,20 +1,11 @@
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
+import { createTestDataSource } from '../../utils/create-test-datasource';
 
 describe('Migrations: outbox_events', () => {
   let dataSource: DataSource;
 
   beforeAll(async () => {
-    const dbConfig = globalThis.__DB_CONFIG__!;
-    dataSource = new DataSource({
-      type: 'postgres',
-      host: dbConfig.host,
-      port: dbConfig.port,
-      username: dbConfig.username,
-      password: dbConfig.password,
-      database: dbConfig.database,
-      entities: [__dirname + '/../../../src/**/*.entity.ts'],
-      synchronize: false,
-    });
+    dataSource = createTestDataSource();
     await dataSource.initialize();
   });
 

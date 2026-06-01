@@ -26,7 +26,10 @@ module.exports = {
   }),
   testTimeout: 30000, // 30s for integration tests
   maxWorkers: 1, // Run integration tests sequentially
-  forceExit: true, // Force exit after tests complete (required for testcontainers/Redis connections)
+  // forceExit is intentionally omitted: TESTCONTAINERS_RYUK_DISABLED=true (set in
+  // test:db:integration / test:integration scripts) prevents the Ryuk reaper TCP
+  // handle, and all DataSources use allowExitOnIdle:true so pg pools release the
+  // event loop after destroy(). The process now exits naturally.
   globalSetup: '<rootDir>/test/integration/setup.ts',
   globalTeardown: '<rootDir>/test/integration/teardown.ts',
   testPathIgnorePatterns: ['<rootDir>/.worktrees/', '<rootDir>/dist/'],

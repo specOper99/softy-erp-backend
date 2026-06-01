@@ -6,8 +6,8 @@ import { Client } from '../../src/modules/bookings/entities/client.entity';
 import { ProcessingType } from '../../src/modules/bookings/entities/processing-type.entity';
 import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
 import { EmployeeWallet } from '../../src/modules/finance/entities/employee-wallet.entity';
-import { Profile } from '../../src/modules/hr/entities/profile.entity';
 import { ProcessingTypeEligibility } from '../../src/modules/hr/entities/processing-type-eligibility.entity';
+import { Profile } from '../../src/modules/hr/entities/profile.entity';
 import { PlatformUser } from '../../src/modules/platform/entities/platform-user.entity';
 import { PlatformRole } from '../../src/modules/platform/enums/platform-role.enum';
 import { Tenant } from '../../src/modules/tenants/entities/tenant.entity';
@@ -214,15 +214,42 @@ export async function seedTestDatabase(dataSource: DataSource) {
     await walletRepo.update({ id: staffWallet.id }, { tenantId });
   }
 
-  // 4. Create Processing Types
+  // 4. Create Package
+  const packageName = 'Wedding Premium';
+  let pkg = await packageRepo.findOne({
+    where: { name: packageName, tenantId },
+  });
+  if (!pkg) {
+    try {
+      pkg = await packageRepo.save(
+        packageRepo.create({
+          name: packageName,
+          description: 'Full Package',
+          price: 2000,
+          tenantId,
+        }),
+      );
+    } catch {
+      pkg = await packageRepo.findOne({
+        where: { name: packageName, tenantId },
+      });
+    }
+  }
+
+  if (!pkg) {
+    throw new Error('Failed to seed/find package');
+  }
+
+  // 5. Create Processing Types
   const processingTypeName = 'Photography';
   let processingType = await processingTypeRepo.findOne({
-    where: { name: processingTypeName, tenantId },
+    where: { name: processingTypeName, tenantId, packageId: pkg.id },
   });
   if (!processingType) {
     try {
       processingType = await processingTypeRepo.save(
         processingTypeRepo.create({
+          packageId: pkg.id,
           name: processingTypeName,
           description: 'Photos',
           defaultCommissionAmount: 100,
@@ -234,7 +261,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
       );
     } catch {
       processingType = await processingTypeRepo.findOne({
-        where: { name: processingTypeName, tenantId },
+        where: { name: processingTypeName, tenantId, packageId: pkg.id },
       });
     }
   }
@@ -259,32 +286,6 @@ export async function seedTestDatabase(dataSource: DataSource) {
     }
   } catch {
     // Eligibility may already exist, continue
-  }
-
-  // 5. Create Package
-  const packageName = 'Wedding Premium';
-  let pkg = await packageRepo.findOne({
-    where: { name: packageName, tenantId },
-  });
-  if (!pkg) {
-    try {
-      pkg = await packageRepo.save(
-        packageRepo.create({
-          name: packageName,
-          description: 'Full Package',
-          price: 2000,
-          tenantId,
-        }),
-      );
-    } catch {
-      pkg = await packageRepo.findOne({
-        where: { name: packageName, tenantId },
-      });
-    }
-  }
-
-  if (!pkg) {
-    throw new Error('Failed to seed/find package');
   }
 
   // 6. Create Client

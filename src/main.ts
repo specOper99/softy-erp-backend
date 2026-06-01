@@ -11,6 +11,7 @@ import { initTracing } from './common/telemetry/tracing';
 import { corsOriginDelegate, getCorsOriginAllowlist } from './common/utils/cors-origins.util';
 import { configureSwagger } from './config/swagger.config';
 import { patchTypeOrmMigrationOrdering } from './database/patch-typeorm-migration-order';
+import { assertRuntimeSchemaCompatibility } from './database/runtime-schema-validation';
 
 patchTypeOrmMigrationOrdering();
 
@@ -166,9 +167,6 @@ async function bootstrap() {
     exposedHeaders: ['Retry-After', 'X-Correlation-ID'],
   });
 
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-
   const logger = new Logger('Bootstrap');
 
   // Check for pending database migrations at startup.
@@ -186,11 +184,16 @@ async function bootstrap() {
         logger.warn(message);
       }
     }
+
+    await assertRuntimeSchemaCompatibility(dataSource);
   } catch (error) {
     // Re-throw in production; log and continue in other environments.
     if (isProd) throw error;
     logger.warn(`Migration check failed (non-fatal in non-prod): ${toErrorMessage(error)}`);
   }
+
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
 
   logger.log(`Server running on http://localhost:${port}`);
   logger.log(`API Base: http://localhost:${port}/api/v1`);

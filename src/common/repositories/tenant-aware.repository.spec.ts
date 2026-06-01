@@ -333,6 +333,7 @@ describe('TenantAwareRepository', () => {
       const qb = {
         where,
         andWhere: jest.fn().mockReturnThis(),
+        orWhere: jest.fn().mockReturnThis(),
       };
       (mockTypeOrmRepository.createQueryBuilder as unknown as jest.Mock).mockReturnValue(qb);
 
@@ -342,6 +343,40 @@ describe('TenantAwareRepository', () => {
 
       expect(mockTypeOrmRepository.createQueryBuilder).toHaveBeenCalledWith('t');
       expect(where).toHaveBeenCalledWith('t.tenantId = :tenantId', { tenantId: 'default-tenant' });
+    });
+
+    it('should rewrite follow-up where calls to andWhere so tenant scope is preserved', () => {
+      const where = jest.fn().mockReturnThis();
+      const andWhere = jest.fn().mockReturnThis();
+      const qb = {
+        where,
+        andWhere,
+        orWhere: jest.fn().mockReturnThis(),
+      };
+      (mockTypeOrmRepository.createQueryBuilder as unknown as jest.Mock).mockReturnValue(qb);
+
+      TenantContextService.run('default-tenant', () => {
+        repository.createQueryBuilder('t').where('t.name = :name', { name: 'test' });
+      });
+
+      expect(where).toHaveBeenCalledTimes(1);
+      expect(where).toHaveBeenCalledWith('t.tenantId = :tenantId', { tenantId: 'default-tenant' });
+      expect(andWhere).toHaveBeenCalledWith('t.name = :name', { name: 'test' });
+    });
+
+    it('should block orWhere to prevent tenant scope escape', () => {
+      const qb = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orWhere: jest.fn().mockReturnThis(),
+      };
+      (mockTypeOrmRepository.createQueryBuilder as unknown as jest.Mock).mockReturnValue(qb);
+
+      expect(() => {
+        TenantContextService.run('default-tenant', () => {
+          repository.createQueryBuilder('t').orWhere('t.name = :name', { name: 'test' });
+        });
+      }).toThrow(InternalServerErrorException);
     });
   });
 

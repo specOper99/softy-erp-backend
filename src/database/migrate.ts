@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { toErrorMessage } from '../common/utils/error.util';
 import { dataSourceOptions } from './data-source';
 import { getDatabaseConnectionConfig } from './db-config';
+import { assertRuntimeSchemaCompatibility } from './runtime-schema-validation';
 
 const SOCKET_TIMEOUT_MS = 3000;
 
@@ -67,6 +68,7 @@ async function runPendingMigrationsOnce(): Promise<string[]> {
   try {
     await dataSource.initialize();
     const migrations = await dataSource.runMigrations({ transaction: 'each' });
+    await assertRuntimeSchemaCompatibility(dataSource);
     return migrations.map((migration) => migration.name);
   } finally {
     if (dataSource.isInitialized) {
