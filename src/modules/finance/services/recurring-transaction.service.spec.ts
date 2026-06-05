@@ -10,6 +10,7 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import type { PaginationDto } from '../../../common/dto/pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import type { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import type { RecurringTransaction } from '../entities/recurring-transaction.entity';
@@ -17,6 +18,7 @@ import { RecurringFrequency, RecurringStatus } from '../entities/recurring-trans
 import type { Transaction } from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionRepository } from '../repositories/recurring-transaction.repository';
+import { toRruleString } from '../utils/rrule-helper';
 import { FinanceService } from './finance.service';
 import { RecurringTransactionService } from './recurring-transaction.service';
 
@@ -30,6 +32,7 @@ describe('RecurringTransactionService', () => {
     take: jest.Mock;
     getMany: jest.Mock;
   };
+  let counterMock: { inc: jest.Mock };
 
   const mockTenantId = 'tenant-123';
   const mockRecurringTransaction = createMockRecurringTransaction({
@@ -48,6 +51,7 @@ describe('RecurringTransactionService', () => {
   }) as unknown as RecurringTransaction;
 
   beforeEach(async () => {
+    counterMock = { inc: jest.fn() };
     rawRecurringQueryBuilder = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
@@ -92,6 +96,12 @@ describe('RecurringTransactionService', () => {
             withLock: jest.fn().mockImplementation(async (_key: string, callback: () => Promise<unknown>) => {
               return callback();
             }),
+          },
+        },
+        {
+          provide: MetricsFactory,
+          useValue: {
+            getOrCreateCounter: jest.fn().mockReturnValue(counterMock),
           },
         },
       ],
@@ -294,6 +304,49 @@ describe('RecurringTransactionService', () => {
       await service.processDueTransactions();
 
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('1 succeeded, 0 failed'));
+    });
+
+    it('should not increment disagreement counter if RRULE and legacy next dates agree', async () => {
+      const rt = {
+        ...mockRecurringTransaction,
+        rruleString: toRruleString(RecurringFrequency.MONTHLY, 1, new Date('2024-01-01T00:00:00.000Z')),
+        nextRunDate: new Date('2024-01-01T00:00:00.000Z'),
+        startDate: new Date('2024-01-01T00:00:00.000Z'),
+        calculateNextRunDate: jest.fn().mockReturnValue(new Date('2024-02-01T00:00:00.000Z')),
+        save: jest.fn(),
+      } as unknown as RecurringTransaction;
+
+      rawRecurringQueryBuilder.getMany.mockResolvedValue([rt]);
+      financeService.createSystemTransaction.mockResolvedValue({ id: 'tx-ok' } as Transaction);
+      recurringRepo.save.mockImplementation(async (entity) => {
+        return entity as RecurringTransaction;
+      });
+
+      await service.processDueTransactions();
+
+      expect(counterMock.inc).not.toHaveBeenCalled();
+    });
+
+    it('should increment disagreement counter and log warn if RRULE and legacy next dates disagree', async () => {
+      const rt = {
+        ...mockRecurringTransaction,
+        rruleString: toRruleString(RecurringFrequency.MONTHLY, 1, new Date('2024-01-31T00:00:00.000Z')),
+        nextRunDate: new Date('2024-01-31T00:00:00.000Z'),
+        startDate: new Date('2024-01-31T00:00:00.000Z'),
+        calculateNextRunDate: jest.fn().mockReturnValue(new Date('2024-03-02T00:00:00.000Z')),
+        save: jest.fn(),
+      } as unknown as RecurringTransaction;
+
+      rawRecurringQueryBuilder.getMany.mockResolvedValue([rt]);
+      financeService.createSystemTransaction.mockResolvedValue({ id: 'tx-ok' } as Transaction);
+      recurringRepo.save.mockImplementation(async (entity) => entity as RecurringTransaction);
+
+      const warnSpy = jest.spyOn(service['logger'], 'warn');
+
+      await service.processDueTransactions();
+
+      expect(counterMock.inc).toHaveBeenCalledWith({ tenant_id: rt.tenantId, transaction_id: rt.id });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('RRULE disagreement'));
     });
   });
 });

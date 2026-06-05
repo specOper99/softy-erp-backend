@@ -7,10 +7,12 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { Counter } from 'prom-client';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { FINANCE } from '../constants';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringStatus, RecurringTransaction } from '../entities/recurring-transaction.entity';
-import { toRruleString } from '../utils/rrule-helper';
+import { toRruleString, nextDateFromRrule } from '../utils/rrule-helper';
 import { FinanceService } from './finance.service';
 
 import { toErrorMessage } from '../../../common/utils/error.util';
@@ -21,13 +23,21 @@ export class RecurringTransactionService {
   private readonly logger = new Logger(RecurringTransactionService.name);
   /** Lock key for recurring transaction cron job */
   private static readonly CRON_LOCK_KEY = `${FINANCE.LOCK.RECURRING_TRANSACTION}:cron`;
+  private readonly disagreementCounter: Counter<'tenant_id' | 'transaction_id'>;
 
   constructor(
     private readonly recurringRepo: RecurringTransactionRepository,
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
     private readonly distributedLockService: DistributedLockService,
-  ) {}
+    private readonly metricsFactory: MetricsFactory,
+  ) {
+    this.disagreementCounter = this.metricsFactory.getOrCreateCounter({
+      name: 'recurring_tx_rrule_disagreement_total',
+      help: 'Total number of RRULE computation disagreements',
+      labelNames: ['tenant_id', 'transaction_id'],
+    });
+  }
 
   async create(dto: CreateRecurringTransactionDto): Promise<RecurringTransaction> {
     const startDate = new Date(dto.startDate);
@@ -156,7 +166,19 @@ export class RecurringTransactionService {
 
         rt.lastRunDate = new Date();
         rt.runCount += 1;
+        const currentNext = rt.nextRunDate || rt.startDate;
         rt.nextRunDate = rt.calculateNextRunDate();
+
+        if (rt.rruleString) {
+          const rruleNext = nextDateFromRrule(rt.rruleString, currentNext);
+          if (rruleNext?.getTime() !== rt.nextRunDate.getTime()) {
+            this.logger.warn(
+              `RRULE disagreement for recurring transaction ${rt.id}: legacy=${rt.nextRunDate.toISOString()}, rrule=${rruleNext?.toISOString()}`,
+            );
+            this.disagreementCounter.inc({ tenant_id: rt.tenantId, transaction_id: rt.id });
+          }
+        }
+
         rt.failureCount = 0; // Reset failure count on success
         rt.lastError = undefined;
 

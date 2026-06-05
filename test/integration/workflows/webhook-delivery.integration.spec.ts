@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
 import { EventEmitter } from 'node:events';
 import { WebhookRepository } from '../../../src/modules/webhooks/repositories/webhook.repository';
+import { WebhookDeliveryRepository } from '../../../src/modules/webhooks/repositories/webhook-delivery.repository';
 
 import { WEBHOOK_QUEUE } from '../../../src/modules/webhooks/webhooks.types';
 import { randomUUID } from 'node:crypto';
@@ -19,6 +20,7 @@ jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(() => Promise.resolve([{ address: '1.1.1.1', family: 4 }])),
 }));
 import { Webhook } from '../../../src/modules/webhooks/entities/webhook.entity';
+import { WebhookDelivery } from '../../../src/modules/webhooks/entities/webhook-delivery.entity';
 import { WebhookService } from '../../../src/modules/webhooks/webhooks.service';
 import type { WebhookEvent } from '../../../src/modules/webhooks/webhooks.types';
 
@@ -139,7 +141,7 @@ describe('Webhook Delivery Integration', () => {
           entities: [__dirname + '/../../../src/**/*.entity.ts'],
           synchronize: false,
         }),
-        TypeOrmModule.forFeature([Webhook]),
+        TypeOrmModule.forFeature([Webhook, WebhookDelivery]),
       ],
       providers: [
         WebhookService,
@@ -148,6 +150,10 @@ describe('Webhook Delivery Integration', () => {
         {
           provide: WebhookRepository,
           useValue: new WebhookRepository(dataSource.getRepository(Webhook)),
+        },
+        {
+          provide: WebhookDeliveryRepository,
+          useValue: new WebhookDeliveryRepository(dataSource.getRepository(WebhookDelivery)),
         },
         {
           provide: getQueueToken(WEBHOOK_QUEUE),

@@ -1,22 +1,513 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Queue } from 'bullmq';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+  RequestTimeoutException,
+} from '@nestjs/common';
+import { Queue } from 'bullmq';
+import * as ipaddr from 'ipaddr.js';
+import { createHmac, randomInt, randomUUID } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
+import * as https from 'node:https';
+import { isIP } from 'node:net';
+import { SelectQueryBuilder } from 'typeorm';
+import { Webhook as StandardWebhook } from 'standardwebhooks';
+import { WEBHOOK_CONSTANTS } from '../../common/constants';
 import { EncryptionService } from '../../common/services/encryption.service';
+import { TenantContextService } from '../../common/services/tenant-context.service';
+import { DeliveryStatus, WebhookDelivery } from './entities/webhook-delivery.entity';
+import { Webhook } from './entities/webhook.entity';
+import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
 import { WebhookRepository } from './repositories/webhook.repository';
-import type { WebhookEvent } from './webhooks.types';
-import { WEBHOOK_QUEUE } from './webhooks.types';
+import { WEBHOOK_QUEUE, WebhookConfig, WebhookEvent, WebhookJobData } from './webhooks.types';
+import { toErrorMessage } from '../../common/utils/error.util';
+import { MetricsFactory } from '../../common/services/metrics.factory';
+import { Counter } from 'prom-client';
+
+type PLimit = typeof import('p-limit').default;
+type ConcurrencyLimit = ReturnType<PLimit>;
 
 @Injectable()
 export class WebhookService {
+  private readonly logger = new Logger(WebhookService.name);
+  private readonly MAX_RETRIES = WEBHOOK_CONSTANTS.MAX_RETRIES;
+  private readonly INITIAL_RETRY_DELAY = WEBHOOK_CONSTANTS.INITIAL_RETRY_DELAY;
+  private readonly WEBHOOK_TIMEOUT = WEBHOOK_CONSTANTS.TIMEOUT;
+  private readonly MIN_SECRET_LENGTH = WEBHOOK_CONSTANTS.MIN_SECRET_LENGTH;
+  private concurrencyLimitPromise?: Promise<ConcurrencyLimit>;
+  private readonly legacySignatureEmitCounter?: Counter<'tenant_id' | 'event_type'>;
+  private readonly PRIVATE_IPV4_CIDRS = [
+    '0.0.0.0/8',
+    '10.0.0.0/8',
+    '100.64.0.0/10',
+    '127.0.0.0/8',
+    '169.254.0.0/16',
+    '172.16.0.0/12',
+    '192.168.0.0/16',
+    '198.18.0.0/15',
+  ] as const;
+  private readonly PRIVATE_IPV6_CIDRS = ['::1/128', 'fe80::/10', 'fc00::/7'] as const;
+
+  private getConcurrencyLimit(): Promise<ConcurrencyLimit> {
+    if (!this.concurrencyLimitPromise) {
+      this.concurrencyLimitPromise = import('p-limit').then(({ default: pLimit }) =>
+        pLimit(WEBHOOK_CONSTANTS.MAX_CONCURRENCY),
+      );
+    }
+    return this.concurrencyLimitPromise;
+  }
+
   constructor(
     private readonly webhookRepository: WebhookRepository,
+    private readonly webhookDeliveryRepository: WebhookDeliveryRepository,
     private readonly encryptionService: EncryptionService,
-    private readonly configService: ConfigService,
-    @InjectQueue(WEBHOOK_QUEUE) private readonly queue: Queue,
-  ) {}
+    @Optional()
+    private readonly metricsFactory?: MetricsFactory,
+    @Optional()
+    @InjectQueue(WEBHOOK_QUEUE)
+    private readonly webhookQueue?: Queue<WebhookJobData>,
+  ) {
+    if (this.metricsFactory) {
+      this.legacySignatureEmitCounter = this.metricsFactory.getOrCreateCounter({
+        name: 'webhook_legacy_signature_emit_total',
+        help: 'Total number of legacy webhook signatures emitted',
+        labelNames: ['tenant_id', 'event_type'],
+      });
+    }
+  }
 
-  async registerWebhook(_dto: { url: string; secret: string; events: string[]; tenantId?: string }): Promise<void> {}
+  /**
+   * Register a webhook endpoint for a tenant (persisted in DB)
+   */
+  async registerWebhook(config: WebhookConfig): Promise<void> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
 
-  async emit(_event: WebhookEvent): Promise<void> {}
+    // URL Validation
+    let url: URL;
+    try {
+      url = new URL(config.url);
+      if (url.protocol !== 'https:') {
+        throw new Error('webhooks.invalid_protocol');
+      }
+    } catch (error) {
+      this.logger.warn(`Invalid webhook URL for tenant ${tenantId}: ${config.url} (${toErrorMessage(error)})`);
+      throw new BadRequestException('webhooks.invalid_url');
+    }
+
+    // SSRF Prevention
+    const resolvedIps = await this.validateUrlNotPrivate(url);
+
+    // Secret entropy validation
+    if (config.secret.length < this.MIN_SECRET_LENGTH) {
+      throw new BadRequestException({
+        key: 'webhooks.secret_length',
+        args: { min: this.MIN_SECRET_LENGTH },
+      });
+    }
+
+    const encryptedSecret = this.encryptionService.encrypt(config.secret);
+
+    const webhook = this.webhookRepository.create({
+      url: config.url,
+      secret: encryptedSecret,
+      events: config.events,
+      resolvedIps: resolvedIps.length > 0 ? resolvedIps : undefined,
+      ipsResolvedAt: resolvedIps.length > 0 ? new Date() : undefined,
+    });
+
+    await this.webhookRepository.save(webhook);
+    this.logger.log(`Registered and persisted webhook for tenant ${tenantId}: ${config.url}`);
+  }
+
+  /**
+   * Validate that a URL does not point to private/internal resources (SSRF prevention)
+   */
+  private async validateUrlNotPrivate(url: URL): Promise<string[]> {
+    const hostname = url.hostname;
+    const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+
+    if (
+      normalizedHostname === 'localhost' ||
+      normalizedHostname === '127.0.0.1' ||
+      normalizedHostname === '::1' ||
+      normalizedHostname === '0.0.0.0'
+    ) {
+      throw new BadRequestException('webhooks.localhost_denied');
+    }
+
+    if (isIP(normalizedHostname)) {
+      if (this.isPrivateIp(normalizedHostname)) {
+        throw new BadRequestException('webhooks.private_ip_denied');
+      }
+      return [normalizedHostname];
+    }
+
+    try {
+      const addresses = await lookup(normalizedHostname, { all: true });
+      const resolvedIps: string[] = [];
+      for (const addr of addresses) {
+        if (this.isPrivateIp(addr.address)) {
+          throw new BadRequestException('webhooks.private_ip_denied');
+        }
+        resolvedIps.push(addr.address);
+      }
+      return resolvedIps;
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.warn(`DNS lookup failed for ${normalizedHostname}: ${toErrorMessage(error)}`);
+      throw new BadRequestException('webhooks.dns_lookup_failed');
+    }
+  }
+
+  private async resolveAndValidatePublicIps(url: URL): Promise<string[]> {
+    return this.validateUrlNotPrivate(url);
+  }
+
+  private async assertDnsNotRebound(url: URL, allowlistedIps?: string[]): Promise<string> {
+    if (!allowlistedIps || allowlistedIps.length === 0) {
+      this.logger.warn(
+        `DNS-rebind check: webhook for ${url.hostname} has no pinned IPs. Delivery blocked. Re-register the webhook to pin its IP.`,
+      );
+      throw new BadRequestException('webhooks.dns_rebinding_not_pinned');
+    }
+
+    const currentIps = await this.resolveAndValidatePublicIps(url);
+    const pinnedIp = currentIps.at(0);
+    if (!pinnedIp) {
+      throw new BadRequestException('webhooks.dns_lookup_failed');
+    }
+    const allowlist = new Set(allowlistedIps);
+    for (const ip of currentIps) {
+      if (!allowlist.has(ip)) {
+        throw new BadRequestException('webhooks.dns_rebinding_blocked');
+      }
+    }
+
+    return pinnedIp;
+  }
+
+  /**
+   * Check if an IP address is in a private/reserved range
+   */
+  private isPrivateIp(ip: string): boolean {
+    try {
+      const parsedAddress = ipaddr.process(ip);
+
+      if (parsedAddress.kind() === 'ipv4') {
+        const ipv4Address = parsedAddress as ipaddr.IPv4;
+        return this.PRIVATE_IPV4_CIDRS.some((cidr) => ipv4Address.match(ipaddr.IPv4.parseCIDR(cidr)));
+      }
+
+      const ipv6Address = parsedAddress as ipaddr.IPv6;
+      return this.PRIVATE_IPV6_CIDRS.some((cidr) => ipv6Address.match(ipaddr.IPv6.parseCIDR(cidr)));
+    } catch (error) {
+      this.logger.warn(`isPrivateIp: failed to parse IP "${ip}", treating as private: ${toErrorMessage(error)}`);
+      return true;
+    }
+  }
+
+  private async postPinnedJson(
+    url: URL,
+    pinnedIp: string,
+    body: string,
+    headers: Record<string, string>,
+    signal: AbortSignal,
+  ): Promise<{ statusCode: number; statusMessage: string; responseBody: string }> {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        {
+          protocol: 'https:',
+          hostname: pinnedIp,
+          port: url.port ? Number(url.port) : 443,
+          method: 'POST',
+          path: `${url.pathname}${url.search}`,
+          headers: {
+            ...headers,
+            Host: url.host,
+            'Content-Length': Buffer.byteLength(body).toString(),
+          },
+          servername: url.hostname,
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          res.on('end', () => {
+            const statusCode = res.statusCode;
+            if (typeof statusCode !== 'number') {
+              reject(new Error('Missing response status code'));
+              return;
+            }
+            const responseBody = Buffer.concat(chunks).toString('utf8').substring(0, 10000);
+            resolve({ statusCode, statusMessage: res.statusMessage ?? '', responseBody });
+          });
+        },
+      );
+
+      const abortRequest = () => {
+        const abortError = new Error('The operation was aborted');
+        abortError.name = 'AbortError';
+        req.destroy(abortError);
+      };
+
+      if (signal.aborted) {
+        abortRequest();
+      } else {
+        signal.addEventListener('abort', abortRequest, { once: true });
+      }
+
+      req.setTimeout(this.WEBHOOK_TIMEOUT, abortRequest);
+
+      req.on('error', (error) => {
+        signal.removeEventListener('abort', abortRequest);
+        reject(error);
+      });
+
+      req.on('close', () => {
+        signal.removeEventListener('abort', abortRequest);
+      });
+
+      req.write(body);
+      req.end();
+    });
+  }
+
+  /**
+   * Emit an event to all registered webhooks for the tenant.
+   * If queue is available, jobs are enqueued for background processing.
+   * Otherwise falls back to inline delivery with concurrency limit.
+   */
+  async emit(event: WebhookEvent): Promise<void> {
+    const tenantId = event.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('common.tenant_missing');
+    }
+
+    await TenantContextService.run(tenantId, async () => {
+      const qb = this.webhookRepository.createQueryBuilder('webhook');
+      this.applyActiveEventFilter(qb, event.type);
+      const webhooks = await qb.getMany();
+
+      const deliveries = webhooks.map(async (webhook) => {
+        const rawEvents: unknown = webhook.events;
+        const webhookEvents = Array.isArray(rawEvents)
+          ? rawEvents
+          : typeof rawEvents === 'string'
+            ? rawEvents
+                .split(',')
+                .map((value: string) => value.trim())
+                .filter((value: string) => value.length > 0)
+            : [];
+
+        if (webhookEvents.length === 0) {
+          this.logger.warn(`Webhook ${webhook.id} has no events defined`);
+          return;
+        }
+
+        if (!webhookEvents.includes(event.type) && !webhookEvents.includes('*')) {
+          return;
+        }
+
+        if (this.webhookQueue) {
+          await this.webhookQueue.add(
+            `${event.type}-${webhook.id}`,
+            {
+              webhook: {
+                id: webhook.id,
+                tenantId: webhook.tenantId,
+                url: webhook.url,
+                secret: webhook.secret,
+                events: webhookEvents,
+              },
+              event,
+            },
+            {
+              attempts: 5,
+              backoff: { type: 'exponential', delay: 30000 },
+            },
+          );
+          this.logger.log(`Queued webhook ${event.type} for ${webhook.url}`);
+        } else {
+          const limit = await this.getConcurrencyLimit();
+          return limit(() => this.sendWebhookWithRetry(webhook, event));
+        }
+      });
+
+      await Promise.allSettled(deliveries);
+    });
+  }
+
+  private applyActiveEventFilter(qb: SelectQueryBuilder<Webhook>, eventType: string): void {
+    qb.andWhere('webhook.isActive = :isActive', { isActive: true });
+
+    qb.andWhere(
+      `(
+        webhook.events = :ev OR
+        webhook.events = :wc OR
+        :ev = ANY(string_to_array(COALESCE(webhook.events, ''), ',')) OR
+        :wc = ANY(string_to_array(COALESCE(webhook.events, ''), ','))
+      )`,
+      {
+        ev: eventType,
+        wc: '*',
+      },
+    );
+  }
+
+  /**
+   * Deliver webhook directly (called by processor or inline fallback)
+   */
+  async deliverWebhook(webhook: Webhook, event: WebhookEvent): Promise<void> {
+    await TenantContextService.run(webhook.tenantId, async () => {
+      const fullWebhook =
+        webhook.resolvedIps === undefined
+          ? await this.webhookRepository.findOne({
+              where: { id: webhook.id },
+            })
+          : webhook;
+
+      if (!fullWebhook) {
+        throw new NotFoundException('webhooks.not_found');
+      }
+
+      const delivery = this.webhookDeliveryRepository.create({
+        webhookId: fullWebhook.id,
+        eventType: event.type,
+        requestBody: event as unknown as Record<string, unknown>,
+        status: DeliveryStatus.PENDING,
+        maxAttempts: 1,
+      });
+      await this.webhookDeliveryRepository.save(delivery);
+
+      await this.sendWebhookOnce(fullWebhook, event, delivery);
+    });
+  }
+
+  /**
+   * Send webhook with exponential backoff retry and jitter
+   */
+  private async sendWebhookWithRetry(webhook: Webhook, event: WebhookEvent): Promise<void> {
+    const delivery = this.webhookDeliveryRepository.create({
+      webhookId: webhook.id,
+      eventType: event.type,
+      requestBody: event as unknown as Record<string, unknown>,
+      status: DeliveryStatus.PENDING,
+      maxAttempts: this.MAX_RETRIES,
+    });
+    await this.webhookDeliveryRepository.save(delivery);
+
+    for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
+      try {
+        await this.sendWebhookOnce(webhook, event, delivery);
+        return;
+      } catch (error) {
+        if (attempt === this.MAX_RETRIES - 1) {
+          const message = toErrorMessage(error);
+          this.logger.error(`Webhook delivery failed to ${webhook.url} after ${this.MAX_RETRIES} attempts: ${message}`);
+          throw error;
+        }
+        const baseDelay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+        const jitter = randomInt(0, Math.max(1, baseDelay));
+        const delay = baseDelay + jitter;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  /**
+   * Single attempt to send webhook with timeout
+   */
+  private async sendWebhookOnce(webhook: Webhook, event: WebhookEvent, delivery?: WebhookDelivery): Promise<void> {
+    const url = new URL(webhook.url);
+    if (url.protocol !== 'https:') {
+      throw new BadRequestException('webhooks.invalid_protocol');
+    }
+
+    const pinnedIp = await this.assertDnsNotRebound(url, webhook.resolvedIps ?? undefined);
+
+    const timestamp = Date.now().toString();
+    const body = JSON.stringify(event);
+
+    const decryptedSecret = this.encryptionService.isEncrypted(webhook.secret)
+      ? this.encryptionService.decrypt(webhook.secret)
+      : webhook.secret;
+
+    // Legacy Header Signature
+    const legacySignature = this.createSignature(`${timestamp}.${body}`, decryptedSecret);
+
+    // Standard Header Signature
+    const msgId = delivery ? delivery.id : randomUUID();
+    const timestampNumber = Math.floor(Date.now() / 1000);
+    const timestampDate = new Date(timestampNumber * 1000);
+    const stdWh = new StandardWebhook(decryptedSecret, { format: 'raw' });
+    const standardSignature = stdWh.sign(msgId, timestampDate, body);
+
+    // Metric Increments
+    if (this.legacySignatureEmitCounter) {
+      this.legacySignatureEmitCounter.inc({
+        tenant_id: webhook.tenantId,
+        event_type: event.type,
+      });
+    }
+
+    const sentHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Webhook-Signature': legacySignature,
+      'X-Webhook-Timestamp': timestamp,
+      'X-Webhook-Event': event.type,
+      'webhook-id': msgId,
+      'webhook-timestamp': timestampNumber.toString(),
+      'webhook-signature': standardSignature,
+      'Webhook-Signature-Deprecation': '2026-07-03',
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.WEBHOOK_TIMEOUT);
+    const startMs = Date.now();
+
+    try {
+      const response = await this.postPinnedJson(url, pinnedIp, body, sentHeaders, controller.signal);
+
+      if (response.statusCode >= 300 && response.statusCode < 400) {
+        throw new BadRequestException('webhooks.redirect_blocked');
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`);
+      }
+
+      const durationMs = Date.now() - startMs;
+      this.logger.log(`Webhook delivered to ${webhook.url} for event ${event.type}`);
+
+      if (delivery) {
+        delivery.requestHeaders = sentHeaders;
+        delivery.recordSuccess(response.statusCode, response.responseBody, durationMs);
+        await this.webhookDeliveryRepository.save(delivery);
+      }
+    } catch (error) {
+      if (delivery) {
+        const message = toErrorMessage(error);
+        delivery.requestHeaders = sentHeaders;
+        delivery.recordFailure(message);
+        await this.webhookDeliveryRepository.save(delivery);
+      }
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new RequestTimeoutException('webhooks.request_timeout');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * Create HMAC-SHA256 signature for webhook payload
+   */
+  private createSignature(payload: string, secret: string): string {
+    return createHmac('sha256', secret).update(payload).digest('hex');
+  }
 }

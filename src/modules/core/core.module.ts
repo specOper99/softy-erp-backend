@@ -14,6 +14,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { UsersModule } from '../users/users.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UsersModule } from '../users/users.module';
     AnalyticsModule,
     TenantsModule,
     MetricsModule,
+    WebhooksModule,
   ],
   exports: [
     AuthModule,
@@ -49,6 +51,7 @@ import { UsersModule } from '../users/users.module';
     AnalyticsModule,
     TenantsModule,
     MetricsModule,
+    WebhooksModule,
   ],
 })
 export class CoreModule {}

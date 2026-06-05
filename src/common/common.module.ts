@@ -4,12 +4,20 @@ import { OutboxEvent } from './entities/outbox-event.entity';
 import { FlagsService } from './flags/flags.service';
 import { CursorAuthService } from './services/cursor-auth.service';
 import { DistributedLockService } from './services/distributed-lock.service';
+import { EncryptionService } from './services/encryption.service';
 import { OutboxRelayService } from './services/outbox-relay.service';
 import { PasswordHashService } from './services/password-hash.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([OutboxEvent])],
-  providers: [OutboxRelayService, FlagsService, PasswordHashService, CursorAuthService, DistributedLockService],
+  providers: [
+    OutboxRelayService,
+    FlagsService,
+    PasswordHashService,
+    CursorAuthService,
+    DistributedLockService,
+    EncryptionService,
+  ],
   exports: [
     OutboxRelayService,
     TypeOrmModule,
@@ -17,6 +25,7 @@ import { PasswordHashService } from './services/password-hash.service';
     PasswordHashService,
     CursorAuthService,
     DistributedLockService,
+    EncryptionService,
   ],
 })
 export class CommonModule {}
