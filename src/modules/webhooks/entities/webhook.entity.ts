@@ -5,7 +5,7 @@ export class Webhook {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId: string;
 
   @Column()
@@ -17,7 +17,7 @@ export class Webhook {
   @Column()
   secret: string;
 
-  @Column({ default: true })
+  @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
   @Column('simple-array', { name: 'resolved_ips', nullable: true })
@@ -26,6 +26,6 @@ export class Webhook {
   @Column({ name: 'ips_resolved_at', type: 'timestamp', nullable: true })
   ipsResolvedAt?: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }
