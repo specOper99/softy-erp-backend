@@ -169,7 +169,6 @@ export class BookingsService {
       eventDate,
       packageId: dto.packageId,
       notes: dto.notes,
-      handoverType: dto.handoverType ?? null,
       startTime: dto.startTime ?? null,
       durationMinutes: pkg.durationMinutes,
       subTotal: pricing.subTotal,
@@ -182,7 +181,6 @@ export class BookingsService {
       depositAmount: pricing.depositAmount,
       amountPaid: 0,
       refundAmount: 0,
-      venueCost: dto.venueCost ?? 0,
       paymentStatus: PaymentStatus.UNPAID,
       locationLink: dto.locationLink ?? null,
     });
@@ -337,7 +335,7 @@ export class BookingsService {
 
     // SECURITY: Only allow limited updates on non-draft bookings
     if (existingBooking.status !== BookingStatus.DRAFT) {
-      const allowedUpdates = ['notes', 'handoverType', 'processingTypeIds'];
+      const allowedUpdates = ['notes', 'processingTypeIds'];
       const attemptedUpdates = Object.keys(dto).filter((k) => dto[k as keyof UpdateBookingDto] !== undefined);
       const disallowed = attemptedUpdates.filter((k) => !allowedUpdates.includes(k));
       if (disallowed.length > 0) {
@@ -436,9 +434,7 @@ export class BookingsService {
       if (dto.eventDate !== undefined) booking.eventDate = parseCanonicalBookingDateInput(dto.eventDate);
       if (dto.startTime !== undefined) booking.startTime = dto.startTime;
       if (dto.notes !== undefined) booking.notes = dto.notes;
-      if (dto.handoverType !== undefined) booking.handoverType = dto.handoverType;
       if (dto.locationLink !== undefined) booking.locationLink = dto.locationLink;
-      if (dto.venueCost !== undefined) booking.venueCost = dto.venueCost;
 
       // Update processing types if provided
       if (dto.processingTypeIds !== undefined) {
@@ -472,9 +468,6 @@ export class BookingsService {
     }
     if (dto.notes !== undefined) {
       allowedChanges.notes = dto.notes;
-    }
-    if (dto.handoverType !== undefined) {
-      allowedChanges.handoverType = dto.handoverType;
     }
     if (dto.processingTypeIds !== undefined) {
       allowedChanges.processingTypeIds = dto.processingTypeIds;
@@ -673,8 +666,7 @@ export class BookingsService {
     }
 
     throw new ConflictException({
-      code: 'BOOKING_STAFF_CONFLICT',
-      message: 'booking.staff_conflict تعارض',
+      code: 'booking.staff_conflict',
       details: {
         requiredStaffCount: availability.requiredStaffCount,
         eligibleCount: availability.eligibleCount,

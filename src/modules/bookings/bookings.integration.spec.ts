@@ -431,7 +431,7 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
     }
   });
 
-  it('blocks staff conflicts on create, confirm, and reschedule with BOOKING_STAFF_CONFLICT', async () => {
+  it('blocks staff conflicts on create, confirm, and reschedule with booking.staff_conflict', async () => {
     const fixture = await bootstrapTenantFixture();
     const conflictEventDate = createFutureDate(30);
 
@@ -461,11 +461,11 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
       })
       .expect(409);
 
-    expect(createConflictResponse.body.code).toBe('BOOKING_STAFF_CONFLICT');
+    expect(createConflictResponse.body.code).toBe('booking.staff_conflict');
 
     const confirmConflictResponse = await confirmBooking(fixture, bookingPendingConflictId);
     expect(confirmConflictResponse.status).toBe(409);
-    expect(confirmConflictResponse.body.code).toBe('BOOKING_STAFF_CONFLICT');
+    expect(confirmConflictResponse.body.code).toBe('booking.staff_conflict');
 
     const bookingToRescheduleId = await createBooking(fixture, {
       eventDate: createFutureDate(32),
@@ -484,7 +484,7 @@ describe('Bookings Integration - Conflict/Reschedule/Cancel', () => {
       })
       .expect(409);
 
-    expect(rescheduleConflictResponse.body.code).toBe('BOOKING_STAFF_CONFLICT');
+    expect(rescheduleConflictResponse.body.code).toBe('booking.staff_conflict');
   });
 
   it('returns deterministic availability verdict with conflict reasons', async () => {

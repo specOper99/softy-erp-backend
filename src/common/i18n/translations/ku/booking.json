@@ -35,5 +35,6 @@
   "terminal_state": "Booking is in a terminal state: {status}",
   "reject_draft_only": "تەنیا نۆرەی DRAFT دەکرێت ڕەتبکرێتەوە",
   "processing_type_package_mismatch": "یەک یان زیاتر لە جۆرەکانی پرۆسێسکردنی هەڵبژێردراو بە پاکێجی هەڵبژێردراوەوە ناگونجێن",
-  "listing_not_found": "لیستە نەدۆزرایەوە"
+  "listing_not_found": "لیستە نەدۆزرایەوە",
+  "staff_conflict": "ماوەی کاتی هەڵبژێردراو تێکەڵبوونی خشتەی کارمەندانی تێدایە. تکایە کاتێکی تر هەڵبژێرە."
 }

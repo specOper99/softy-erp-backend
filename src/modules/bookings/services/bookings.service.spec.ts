@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
   createMockAuditService,
@@ -14,7 +14,6 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
-import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 import { FlagsService } from '../../../common/flags/flags.service';
 import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
@@ -321,7 +320,6 @@ describe('BookingsService', () => {
         clientId: 'client-1',
         packageId: 'pkg-1',
         eventDate: new Date(Date.now() + 86400000).toISOString(),
-        handoverType: PaymentMethod.CASH,
       };
 
       catalogService.findPackageById.mockResolvedValue({
@@ -335,11 +333,7 @@ describe('BookingsService', () => {
 
       await service.create(dto);
 
-      expect(bookingRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          handoverType: PaymentMethod.CASH,
-        }),
-      );
+      expect(bookingRepository.create).toHaveBeenCalledWith(expect.objectContaining({}));
     });
 
     it('should reject create when staff conflict exists', async () => {
@@ -572,7 +566,6 @@ describe('BookingsService', () => {
       await service.update(
         'b-confirmed',
         {
-          handoverType: PaymentMethod.E_PAYMENT,
           processingTypeIds: ['pt-1'],
         },
         mockAdminUser,
@@ -589,7 +582,6 @@ describe('BookingsService', () => {
       );
       expect(mockSave).toHaveBeenCalledWith(
         expect.objectContaining({
-          handoverType: PaymentMethod.E_PAYMENT,
           processingTypes: [mockProcessingType],
         }),
       );

@@ -25,11 +25,7 @@ export interface BookingExportRow {
   processingTypes: string;
   firstPaymentDate: string;
   amountPaid: number;
-  handoverType: string;
-  venueCost: number;
   remainingBalance: number;
-  remainingBalanceMinusVenueCost: number;
-  totalDueWithVenueCost: number;
   paymentStatus: string;
   status: string;
   createdAt: string;

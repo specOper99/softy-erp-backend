@@ -211,7 +211,6 @@ describe('Booking -> Finance Integrity Integration', () => {
       taxRate,
       taxAmount,
       totalPrice,
-      venueCost: 0,
       depositPercentage: 20,
       depositAmount: 220,
       amountPaid: 0,

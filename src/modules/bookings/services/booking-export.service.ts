@@ -38,9 +38,7 @@ export class BookingExportService {
           'booking.notes',
           'booking.totalPrice',
           'booking.amountPaid',
-          'booking.venueCost',
           'booking.paymentStatus',
-          'booking.handoverType',
           'booking.status',
           'booking.createdAt',
           'client.name',
@@ -55,9 +53,7 @@ export class BookingExportService {
         .addGroupBy('booking.notes')
         .addGroupBy('booking.totalPrice')
         .addGroupBy('booking.amountPaid')
-        .addGroupBy('booking.venueCost')
         .addGroupBy('booking.paymentStatus')
-        .addGroupBy('booking.handoverType')
         .addGroupBy('booking.status')
         .addGroupBy('booking.createdAt')
         .addGroupBy('client.id')
@@ -116,11 +112,7 @@ export class BookingExportService {
         'processingTypes',
         'firstPaymentDate',
         'amountPaid',
-        'handoverType',
-        'venueCost',
         'remainingBalance',
-        'remainingBalanceMinusVenueCost',
-        'totalDueWithVenueCost',
         'paymentStatus',
         'status',
         'createdAt',
@@ -137,7 +129,6 @@ export class BookingExportService {
           booking_notes?: string;
           booking_total_price?: string;
           booking_amount_paid?: string;
-          booking_venue_cost?: string;
           booking_payment_status?: string;
           booking_handover_type?: string;
           booking_status?: string;
@@ -148,9 +139,7 @@ export class BookingExportService {
         const eventDate = typedRow.booking_event_date ? new Date(typedRow.booking_event_date) : null;
         const totalPrice = Number(typedRow.booking_total_price ?? 0);
         const amountPaid = Number(typedRow.booking_amount_paid ?? 0);
-        const venueCost = Number(typedRow.booking_venue_cost ?? 0);
         const remainingBalance = Math.max(0, totalPrice - amountPaid);
-        const remainingBalanceMinusVenueCost = Math.max(0, remainingBalance - venueCost);
 
         return {
           id: typedRow.booking_id ?? 'unknown',
@@ -165,11 +154,7 @@ export class BookingExportService {
           processingTypes: typedRow.processing_types ?? '',
           firstPaymentDate: typedRow.first_payment_date ? new Date(typedRow.first_payment_date).toISOString() : '',
           amountPaid,
-          handoverType: typedRow.booking_handover_type ?? '',
-          venueCost,
           remainingBalance,
-          remainingBalanceMinusVenueCost,
-          totalDueWithVenueCost: remainingBalance + venueCost,
           paymentStatus: typedRow.booking_payment_status ?? 'UNPAID',
           status: typedRow.booking_status ?? 'UNKNOWN',
           createdAt: typedRow.booking_created_at ? new Date(typedRow.booking_created_at).toISOString() : '',

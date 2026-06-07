@@ -151,20 +151,6 @@ export class BookingWorkflowService {
         await manager.save(booking);
       }
 
-      // Step 3c: Record venue cost as EXPENSE (hits P&L, does not affect client invoice)
-      const venueCost = Number(booking.venueCost) || 0;
-      let venueTx: Transaction | null = null;
-      if (venueCost > 0) {
-        venueTx = await this.financeService.createTransactionWithManager(manager, {
-          type: TransactionType.EXPENSE,
-          amount: venueCost,
-          category: 'Venue Cost',
-          bookingId: booking.id,
-          description: `Venue/hall cost for booking: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name}`,
-          transactionDate: new Date(),
-        });
-      }
-
       // Step 4: Audit Log
       await this.auditService.log({
         action: 'STATUS_CHANGE',
@@ -190,7 +176,6 @@ export class BookingWorkflowService {
         tasksCreated: createdTasks.length,
         transactionId,
         depositTx,
-        venueTx,
       };
     });
 
@@ -210,9 +195,6 @@ export class BookingWorkflowService {
     // Notify after commit so events and caches never reflect rolled-back data.
     if (result.depositTx) {
       await this.financeService.notifyTransactionCreated(result.depositTx);
-    }
-    if (result.venueTx) {
-      await this.financeService.notifyTransactionCreated(result.venueTx);
     }
 
     if (eventToPublish) {
@@ -665,8 +647,7 @@ export class BookingWorkflowService {
     }
 
     throw new ConflictException({
-      code: 'BOOKING_STAFF_CONFLICT',
-      message: 'booking.staff_conflict تعارض',
+      code: 'booking.staff_conflict',
       details: {
         requiredStaffCount: availability.requiredStaffCount,
         eligibleCount: availability.eligibleCount,

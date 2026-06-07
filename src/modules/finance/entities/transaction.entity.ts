@@ -6,17 +6,20 @@ import type { Task } from '../../tasks/entities/task.entity';
 import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
 import type { Payout } from './payout.entity';
+import type { PurchaseInvoice } from './purchase-invoice.entity';
 import type { TransactionCategory } from './transaction-category.entity';
 
 @Entity('transactions')
-// At most one of {booking_id, task_id, payout_id} may be set; zero is allowed
-// for manual, recurring, purchase-invoice, and reversal transactions.
-// NOTE: purchase_invoice_id is excluded from this check constraint until its FK column is added.
-// TODO: extend this constraint once purchase_invoice_id FK migration is applied.
+// At most one of {booking_id, task_id, payout_id, purchase_invoice_id} may be
+// set; zero is allowed for manual, recurring, and reversal transactions.
+// Reversal transactions are tracked via the separate `reversal_of_id` column,
+// which is intentionally not part of this constraint — a reversal of a
+// booking payment still has the original booking_id set plus reversal_of_id.
 @Check(
-  `(CASE WHEN "booking_id" IS NOT NULL THEN 1 ELSE 0 END +` +
-    ` CASE WHEN "task_id"    IS NOT NULL THEN 1 ELSE 0 END +` +
-    ` CASE WHEN "payout_id"  IS NOT NULL THEN 1 ELSE 0 END) <= 1`,
+  `(CASE WHEN "booking_id"          IS NOT NULL THEN 1 ELSE 0 END +` +
+    ` CASE WHEN "task_id"             IS NOT NULL THEN 1 ELSE 0 END +` +
+    ` CASE WHEN "payout_id"           IS NOT NULL THEN 1 ELSE 0 END +` +
+    ` CASE WHEN "purchase_invoice_id" IS NOT NULL THEN 1 ELSE 0 END) <= 1`,
 )
 @Index(['tenantId', 'id'], { unique: true })
 @Index(['tenantId', 'transactionDate']) // Optimized for "transactions by date within tenant"
@@ -72,6 +75,9 @@ export class Transaction extends BaseTenantEntity {
   @Column({ name: 'payout_id', type: 'uuid', nullable: true })
   payoutId: string | null;
 
+  @Column({ name: 'purchase_invoice_id', type: 'uuid', nullable: true })
+  purchaseInvoiceId: string | null;
+
   @Column({ type: 'text', nullable: true })
   description: string;
 
@@ -99,6 +105,10 @@ export class Transaction extends BaseTenantEntity {
   })
   @JoinColumn({ name: 'payout_id' })
   payout: Payout | null;
+
+  @ManyToOne('PurchaseInvoice', { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'purchase_invoice_id' })
+  purchaseInvoice: PurchaseInvoice | null;
 
   @ManyToOne('TransactionCategory', {
     nullable: true,

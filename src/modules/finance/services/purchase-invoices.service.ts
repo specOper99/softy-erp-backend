@@ -32,6 +32,11 @@ export class PurchaseInvoicesService {
         }
 
         const invoiceDate = new Date(dto.invoiceDate);
+        // 1. Create the expense transaction.  `purchaseInvoiceId` is left NULL
+        //    here because we don't have the invoice id yet — the relaxed
+        //    "at most one parent" check constraint allows zero parents, and
+        //    booking_id / task_id / payout_id are also NULL for this kind of
+        //    transaction, so the new row is well-formed.
         const transaction = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.EXPENSE,
           amount: dto.totalAmount,
@@ -41,6 +46,9 @@ export class PurchaseInvoicesService {
         });
         invoiceTx = transaction;
 
+        // 2. Persist the invoice.  The `transactionId` link (invoice → tx)
+        //    has existed since the table was created; it is the only side
+        //    that is NOT NULL on the invoice.
         const purchaseInvoice = manager.create(PurchaseInvoice, {
           tenantId,
           vendorId: vendor.id,
@@ -50,8 +58,20 @@ export class PurchaseInvoicesService {
           notes: dto.notes ?? null,
           transactionId: transaction.id,
         });
+        const savedInvoice = await manager.save(purchaseInvoice);
 
-        return manager.save(purchaseInvoice);
+        // 3. Close the loop: back-fill `transactions.purchase_invoice_id`
+        //    (tx → invoice) so the reverse composite FK and the extended
+        //    at-most-one check constraint are both satisfied.  A single
+        //    UPDATE keeps the round-trip cost negligible.
+        //    This must run inside the same DB transaction so a failure here
+        //    rolls back the invoice and the txn insert together — preserving
+        //    the atomicity guarantee in TENANT_FINANCE_REQUIREMENTS_MATRIX.md.
+        await manager.update(Transaction, transaction.id, {
+          purchaseInvoiceId: savedInvoice.id,
+        });
+
+        return savedInvoice;
       });
 
       // Notify after commit so events and caches never reflect rolled-back data.

@@ -106,8 +106,7 @@ export class BookingIntakeService {
       });
       if (!availability.ok) {
         throw new ConflictException({
-          code: 'BOOKING_STAFF_CONFLICT',
-          message: 'booking.staff_conflict',
+          code: 'booking.staff_conflict',
           details: {
             requiredStaffCount: availability.requiredStaffCount,
             eligibleCount: availability.eligibleCount,
@@ -206,7 +205,6 @@ export class BookingIntakeService {
         startTime: dto.startTime ?? undefined,
         durationMinutes: pkg.durationMinutes,
         notes: dto.notes ?? undefined,
-        handoverType: dto.handoverType ?? null,
         locationLink: dto.locationLink ?? undefined,
         subTotal: pricing.subTotal,
         discountAmount: pricing.discountAmount,
@@ -219,7 +217,6 @@ export class BookingIntakeService {
         refundAmount: 0,
         status: BookingStatus.DRAFT,
         paymentStatus: PaymentStatus.UNPAID,
-        venueCost: dto.venueCost ?? 0,
       });
 
       booking = await manager.save(Booking, booking);

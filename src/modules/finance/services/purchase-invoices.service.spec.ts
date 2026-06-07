@@ -21,6 +21,7 @@ describe('PurchaseInvoicesService', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    update: jest.Mock;
   };
 
   const dto: CreatePurchaseInvoiceDto = {
@@ -53,6 +54,7 @@ describe('PurchaseInvoicesService', () => {
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((_entity, payload) => payload),
       save: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     financeService = {
@@ -104,11 +106,26 @@ describe('PurchaseInvoicesService', () => {
         category: 'Purchase Invoice',
       }),
     );
+    // The transaction must be created WITHOUT a purchaseInvoiceId — the link
+    // is back-filled once the invoice id is known.  This keeps the
+    // at-most-one check constraint satisfied at every step of the flow.
+    expect(financeService.createTransactionWithManager).toHaveBeenCalledWith(
+      manager,
+      expect.not.objectContaining({ purchaseInvoiceId: expect.anything() }),
+    );
     expect(manager.save).toHaveBeenCalledWith(
       expect.objectContaining({
         transactionId: 'txn-1',
         invoiceNumber: dto.invoiceNumber,
       }),
+    );
+    // Reverse FK link (txn → invoice) is written as a single UPDATE so the
+    // composite FK FK_transaction_purchase_invoice_composite and the
+    // extended at-most-one check constraint are both satisfied.
+    expect(manager.update).toHaveBeenCalledWith(
+      expect.anything(),
+      'txn-1',
+      expect.objectContaining({ purchaseInvoiceId: 'pi-1' }),
     );
     expect(result.transactionId).toBe('txn-1');
   });
@@ -118,6 +135,8 @@ describe('PurchaseInvoicesService', () => {
 
     await expect(service.create(dto)).rejects.toThrow(NotFoundException);
     expect(financeService.createTransactionWithManager).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
+    expect(manager.update).not.toHaveBeenCalled();
   });
 
   it('maps duplicate invoice constraint to ConflictException', async () => {
@@ -125,5 +144,22 @@ describe('PurchaseInvoicesService', () => {
     manager.save.mockRejectedValue({ code: '23505' });
 
     await expect(service.create(dto)).rejects.toThrow(ConflictException);
+    // Reverse FK UPDATE must NOT run when the invoice insert already failed —
+    // otherwise the txn insert (and the vendor lookup) would be silently
+    // persisted without an invoice.
+    expect(manager.update).not.toHaveBeenCalled();
+  });
+
+  it('rolls back the transaction insert when the reverse FK UPDATE fails', async () => {
+    manager.findOne.mockResolvedValue({ id: 'vendor-1', tenantId: 'tenant-123', name: 'Acme Supplies' } as Vendor);
+    manager.save.mockResolvedValue({ id: 'pi-1' });
+    manager.update.mockRejectedValue(new Error('FK violation'));
+
+    await expect(service.create(dto)).rejects.toThrow('FK violation');
+    // The DB transaction wrapper handles the rollback; from the service's
+    // point of view, the error simply propagates.  The key invariant is
+    // that the post-commit notify step MUST NOT run with a partially
+    // linked transaction, which would leak the new event to dashboards.
+    expect(financeService.notifyTransactionCreated).not.toHaveBeenCalled();
   });
 });

@@ -14,7 +14,6 @@ import {
   Min,
 } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
-import { PaymentMethod } from '../../../common/enums/payment-method.enum';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { ProcessingTypeResponseDto } from './processing-type.dto';
@@ -38,15 +37,6 @@ export class CreateBookingDto {
   @SanitizeHtml()
   notes?: string;
 
-  @ApiPropertyOptional({
-    description: 'Payment receipt method for the booking',
-    enum: PaymentMethod,
-    example: PaymentMethod.CASH,
-  })
-  @IsEnum(PaymentMethod)
-  @IsOptional()
-  handoverType?: PaymentMethod;
-
   @ApiPropertyOptional({ description: 'Start time in HH:mm format', example: '14:30' })
   @Matches(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/, {
     message: 'startTime must be in HH:mm format',
@@ -69,15 +59,6 @@ export class CreateBookingDto {
   @IsOptional()
   @Min(0)
   discountAmount?: number;
-
-  @ApiPropertyOptional({
-    description: 'Venue/hall cost — recorded as an expense against P&L (does not reduce client invoice)',
-    example: 200,
-  })
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  venueCost?: number;
 
   @ApiPropertyOptional({
     description: 'Deposit percentage (0-100)',
@@ -141,15 +122,6 @@ export class UpdateBookingDto {
   notes?: string;
 
   @ApiPropertyOptional({
-    description: 'Payment receipt method for the booking',
-    enum: PaymentMethod,
-    example: PaymentMethod.E_PAYMENT,
-  })
-  @IsEnum(PaymentMethod)
-  @IsOptional()
-  handoverType?: PaymentMethod;
-
-  @ApiPropertyOptional({
     enum: BookingStatus,
     description:
       'Lifecycle transitions are workflow-only. Generic PATCH with status is rejected; use /confirm, /cancel, /complete, /reschedule endpoints.',
@@ -175,12 +147,6 @@ export class UpdateBookingDto {
   @IsOptional()
   @Min(0)
   discountAmount?: number;
-
-  @ApiPropertyOptional({ description: 'Venue/hall cost — recorded as expense on P&L (DRAFT only)', example: 200 })
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  venueCost?: number;
 
   @ApiPropertyOptional({ description: 'Deposit percentage (0-100) (DRAFT only)', example: 25 })
   @IsNumber()
@@ -298,9 +264,6 @@ export class BookingResponseDto {
   @ApiProperty({ description: 'Fixed discount amount applied' })
   discountAmount: number;
 
-  @ApiProperty({ description: 'Venue/hall cost recorded as expense' })
-  venueCost: number;
-
   @ApiProperty()
   taxRate: number;
 
@@ -312,9 +275,6 @@ export class BookingResponseDto {
 
   @ApiPropertyOptional()
   notes: string;
-
-  @ApiPropertyOptional({ description: 'Payment receipt method for the booking', enum: PaymentMethod })
-  handoverType: PaymentMethod | null;
 
   @ApiPropertyOptional({ description: 'Location map link' })
   locationLink: string | null;

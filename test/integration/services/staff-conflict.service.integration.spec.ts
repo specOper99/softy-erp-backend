@@ -164,7 +164,6 @@ describe('StaffConflictService Integration Tests', () => {
       discountAmount: 0,
       taxRate: 0,
       taxAmount: 0,
-      venueCost: 0,
       depositPercentage: 0,
       depositAmount: 0,
       amountPaid: 0,

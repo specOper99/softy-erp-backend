@@ -35,5 +35,6 @@
   "invalid_date": "Invalid date",
   "invalid_time_format": "Invalid time {time}. Use HH:mm format.",
   "skip_availability_admin_only": "Only administrators can skip the availability check",
-  "processing_type_package_mismatch": "One or more selected processing types do not belong to the chosen package"
+  "processing_type_package_mismatch": "One or more selected processing types do not belong to the chosen package",
+  "staff_conflict": "The selected time slot has a staff scheduling conflict. Please choose a different time."
 }

@@ -122,15 +122,6 @@ export class BookingIntakeDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({
-    description: 'Payment receipt method for the booking',
-    enum: PaymentMethod,
-    example: PaymentMethod.CASH,
-  })
-  @IsOptional()
-  @IsEnum(PaymentMethod)
-  handoverType?: PaymentMethod;
-
   @ApiPropertyOptional({ description: 'Tax rate percentage (0–50)', example: 15 })
   @IsOptional()
   @IsNumber()
@@ -150,15 +141,6 @@ export class BookingIntakeDto {
   @IsNumber()
   @Min(0)
   discountAmount?: number;
-
-  @ApiPropertyOptional({
-    description: 'Venue/hall cost — recorded as expense on P&L, does not reduce invoice',
-    example: 200,
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  venueCost?: number;
 
   @ApiPropertyOptional({ description: 'Google Maps or event location URL' })
   @IsOptional()

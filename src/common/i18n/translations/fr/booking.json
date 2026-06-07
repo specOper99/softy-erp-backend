@@ -35,5 +35,6 @@
   "terminal_state": "Booking is in a terminal state: {status}",
   "reject_draft_only": "Seules les réservations DRAFT peuvent être rejetées",
   "processing_type_package_mismatch": "Un ou plusieurs types de traitement sélectionnés n'appartiennent pas au forfait choisi",
-  "listing_not_found": "Annonce non trouvée"
+  "listing_not_found": "Annonce non trouvée",
+  "staff_conflict": "Le créneau horaire sélectionné a un conflit de planification du personnel. Veuillez choisir un autre horaire."
 }
