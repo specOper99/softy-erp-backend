@@ -9,11 +9,18 @@ import { NestFactory } from '@nestjs/core';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as readline from 'readline';
 import type { Repository } from 'typeorm';
+import { initializeTransactionalContext } from 'typeorm-transactional';
 import { AppModule } from '../app.module';
 import { PasswordHashService } from '../common/services/password-hash.service';
 import { toErrorMessage } from '../common/utils/error.util';
 import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
 import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
+
+// typeorm-transactional patches the DataSource's `manager` getter via CLS storage.
+// When the script boots AppModule directly (bypassing main.ts) the CLS context is
+// never installed, so the wrapped DataSource throws "No storage driver defined".
+// Install it before any DataSource is instantiated.
+initializeTransactionalContext();
 
 const rl = readline.createInterface({
   input: process.stdin,
