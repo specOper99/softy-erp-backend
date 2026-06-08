@@ -20,6 +20,7 @@ import { vaultLoader } from './config/vault.loader';
 import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import { AppCacheModule } from './common/cache/cache.module';
 import { CommonModule } from './common/common.module';
+import { PlatformModule } from './modules/platform/platform.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TypeOrmExceptionFilter } from './common/filters/typeorm-exceptions.filter';
 import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
@@ -201,6 +202,7 @@ import { CoreModule } from './modules/core/core.module';
     // Feature Modules
     CommonModule,
     CoreModule,
+    PlatformModule,
     ResilienceModule.forRoot([
       {
         name: 's3',
