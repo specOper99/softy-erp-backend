@@ -4,7 +4,7 @@
     "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo",
     "module": "commonjs",
     "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "rootDir": "./src"
   },
   "include": ["src/**/*.ts"],
