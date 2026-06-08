@@ -8,11 +8,12 @@
 import { NestFactory } from '@nestjs/core';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as readline from 'readline';
-import { Repository } from 'typeorm';
-import { AppModule } from '../../src/app.module';
-import { PasswordHashService } from '../../src/common/services/password-hash.service';
-import { PlatformUser } from '../../src/modules/platform/entities/platform-user.entity';
-import { PlatformRole } from '../../src/modules/platform/enums/platform-role.enum';
+import type { Repository } from 'typeorm';
+import { AppModule } from '../app.module';
+import { PasswordHashService } from '../common/services/password-hash.service';
+import { toErrorMessage } from '../common/utils/error.util';
+import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
+import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -24,8 +25,8 @@ function question(query: string): Promise<string> {
 }
 
 async function bootstrap() {
-  console.log('\n🚀 Platform Superadmin Creation Script\n');
-  console.log('===================================\n');
+  console.info('\n🚀 Platform Superadmin Creation Script\n');
+  console.info('===================================\n');
 
   const app = await NestFactory.createApplicationContext(AppModule);
 
@@ -67,7 +68,7 @@ async function bootstrap() {
     }
 
     // Hash password
-    console.log('\n⏳ Hashing password with Argon2id...');
+    console.info('\n⏳ Hashing password with Argon2id...');
     const passwordHash = await passwordHashService.hash(password);
 
     // Create user
@@ -78,30 +79,27 @@ async function bootstrap() {
       role: PlatformRole.SUPER_ADMIN,
       status: 'active',
       mfaEnabled: false,
-      failedLoginAttempts: 0,
-      ipAllowlist: [],
-      passwordChangedAt: new Date(),
     });
 
     await userRepository.save(admin);
 
-    console.log('\n✅ Platform Superadmin created successfully!\n');
-    console.log('User Details:');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`  ID:        ${admin.id}`);
-    console.log(`  Email:     ${admin.email}`);
-    console.log(`  Full Name: ${admin.fullName}`);
-    console.log(`  Role:      ${admin.role}`);
-    console.log(`  Status:    ${admin.status}`);
-    console.log(`  MFA:       ${admin.mfaEnabled ? 'Enabled' : 'Disabled'}`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    console.info('\n✅ Platform Superadmin created successfully!\n');
+    console.info('User Details:');
+    console.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.info(`  ID:        ${admin.id}`);
+    console.info(`  Email:     ${admin.email}`);
+    console.info(`  Full Name: ${admin.fullName}`);
+    console.info(`  Role:      ${admin.role}`);
+    console.info(`  Status:    ${admin.status}`);
+    console.info(`  MFA:       ${admin.mfaEnabled ? 'Enabled' : 'Disabled'}`);
+    console.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    console.log('📝 Next Steps:');
-    console.log('  1. Login at: POST /platform/auth/login');
-    console.log('  2. Enable MFA for enhanced security');
-    console.log('  3. Configure IP allowlist if needed\n');
+    console.info('📝 Next Steps:');
+    console.info('  1. Login at: POST /platform/auth/login');
+    console.info('  2. Enable MFA for enhanced security');
+    console.info('  3. Configure IP allowlist if needed\n');
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error);
     console.error('\n❌ Error:', message, '\n');
     process.exit(1);
   } finally {

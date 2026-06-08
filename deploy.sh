@@ -700,7 +700,7 @@ deploy_backend() {
     # Run database migrations
     if [ "$RUN_MIGRATIONS" = "true" ]; then
         log "Running database migrations..."
-        npm run migration:run || {
+        npm run migration:run:prod || {
             log_error "Database migration failed"
             exit 1
         }
@@ -766,7 +766,7 @@ deploy_docker() {
             "${DOCKER_RUN_NETWORK_ARGS[@]}" \
             "${DOCKER_RUN_ENV_OVERRIDES[@]}" \
             "$DOCKER_IMAGE" \
-            npm run migration:run || {
+            npm run migration:run:prod || {
             log_warning "Migration failed (may already be applied)"
         }
     fi

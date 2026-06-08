@@ -21,6 +21,7 @@ import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n'
 import { AppCacheModule } from './common/cache/cache.module';
 import { CommonModule } from './common/common.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { TypeOrmExceptionFilter } from './common/filters/typeorm-exceptions.filter';
 import { IpRateLimitGuard } from './common/guards/ip-rate-limit.guard';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 import { MessagePackInterceptor } from './common/interceptors/message-pack.interceptor';
@@ -236,6 +237,7 @@ import { CoreModule } from './modules/core/core.module';
     // Global filters — AllExceptionsFilter translates structured errors (code + args),
     // validation batches (validationErrors), and registered string keys.
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_FILTER, useClass: TypeOrmExceptionFilter },
 
     // Global interceptors — registration order is OUTER-to-INNER.
     // TransformInterceptor is last (innermost): it wraps the raw handler response first,
