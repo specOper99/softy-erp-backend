@@ -10,7 +10,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
 import Redis from 'ioredis';
 import { join } from 'node:path';
 import { DataSource } from 'typeorm';
-import { addTransactionalDataSource } from 'typeorm-transactional';
+import { addTransactionalDataSource, getDataSourceByName } from 'typeorm-transactional';
 import { RESILIENCE_CONSTANTS } from './common/constants';
 import { databaseConfig } from './config';
 import { validate } from './config/env-validation';
@@ -173,6 +173,8 @@ import { CoreModule } from './modules/core/core.module';
       // unchanged — the proxy is opt-in per service.
       dataSourceFactory: async (options) => {
         if (!options) throw new Error('TypeOrmModule: missing DataSource options');
+        const existing = getDataSourceByName('default');
+        if (existing) return existing;
         return addTransactionalDataSource(new DataSource(options));
       },
     }),
