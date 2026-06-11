@@ -357,6 +357,21 @@ export class BookingsService {
       }
     }
 
+    if (existingBooking.status === BookingStatus.DRAFT && (dto.eventDate || dto.startTime)) {
+      const checkStartTime = dto.startTime ?? existingBooking.startTime;
+      const checkEventDate = dto.eventDate ? parseCanonicalBookingDateInput(dto.eventDate) : existingBooking.eventDate;
+      const pkg = await this.catalogService.findPackageById(dto.packageId ?? existingBooking.packageId);
+
+      if (checkStartTime && pkg.durationMinutes > 0) {
+        await this.ensureNoStaffConflict({
+          packageId: dto.packageId ?? existingBooking.packageId,
+          eventDate: checkEventDate,
+          startTime: checkStartTime,
+          durationMinutes: pkg.durationMinutes,
+        });
+      }
+    }
+
     const { savedBooking, previousPricing } = await this.dataSource.transaction(async (manager) => {
       // Re-fetch with pessimistic lock inside transaction to prevent lost updates
       const booking = await manager.findOne(Booking, {

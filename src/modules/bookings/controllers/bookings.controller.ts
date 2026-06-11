@@ -75,7 +75,7 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   create(@Body() dto: CreateBookingDto, @CurrentUser() user: User) {
-    if (dto.skipAvailabilityCheck && user.role !== Role.ADMIN) {
+    if (dto.skipAvailabilityCheck && user.role !== Role.ADMIN && user.role !== Role.OPS_MANAGER) {
       throw new ForbiddenException('booking.skip_availability_admin_only');
     }
     return this.bookingsService.create(dto);
@@ -206,7 +206,7 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({ type: ConfirmBookingDto, required: false })
   confirm(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ConfirmBookingDto, @CurrentUser() user: User) {
-    if (dto?.skipAvailabilityCheck && user.role !== Role.ADMIN) {
+    if (dto?.skipAvailabilityCheck && user.role !== Role.ADMIN && user.role !== Role.OPS_MANAGER) {
       throw new ForbiddenException('booking.skip_availability_admin_only');
     }
     return this.bookingWorkflowService.confirmBooking(id, dto?.skipAvailabilityCheck ?? false);
@@ -219,7 +219,7 @@ export class BookingsController {
   @ApiBody({ type: RescheduleBookingDto })
   @ApiResponse({ status: 200, description: 'Booking rescheduled' })
   reschedule(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RescheduleBookingDto, @CurrentUser() user: User) {
-    if (dto?.skipAvailabilityCheck && user.role !== Role.ADMIN) {
+    if (dto?.skipAvailabilityCheck && user.role !== Role.ADMIN && user.role !== Role.OPS_MANAGER) {
       throw new ForbiddenException('booking.skip_availability_admin_only');
     }
     return this.bookingWorkflowService.rescheduleBooking(id, dto, dto?.skipAvailabilityCheck ?? false);

@@ -128,15 +128,17 @@ export class BookingWorkflowService {
 
       const createdTasks = await manager.save(Task, tasksToCreate);
 
-      // Step 3: Create deposit INCOME transaction (SRS: confirm = deposit paid)
       const depositAmount = Number(booking.depositAmount) || 0;
+      const alreadyPaid = Number(booking.amountPaid) || 0;
       let transactionId: string | null = null;
       let depositTx: Transaction | null = null;
 
-      if (depositAmount > 0) {
+      if (depositAmount > 0 && alreadyPaid < depositAmount) {
+        const remainingDeposit = depositAmount - alreadyPaid;
+
         depositTx = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.INCOME,
-          amount: depositAmount,
+          amount: remainingDeposit,
           category: 'Booking Deposit',
           bookingId: booking.id,
           description: `Deposit payment on confirm: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name}`,
@@ -145,8 +147,7 @@ export class BookingWorkflowService {
         });
         transactionId = depositTx.id;
 
-        // Step 3b: Update booking payment fields to reflect deposit paid
-        booking.amountPaid = depositAmount;
+        booking.amountPaid = alreadyPaid + remainingDeposit;
         booking.paymentStatus = booking.derivePaymentStatus();
         await manager.save(booking);
       }

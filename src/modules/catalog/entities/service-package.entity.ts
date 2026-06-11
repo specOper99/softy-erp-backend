@@ -29,4 +29,7 @@ export class ServicePackage extends BaseTenantEntity {
 
   @Column({ name: 'template_category', type: 'varchar', nullable: true })
   templateCategory: string | null;
+
+  @Column({ name: 'skip_staff_check', type: 'boolean', default: false })
+  skipStaffCheck: boolean;
 }

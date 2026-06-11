@@ -3,6 +3,7 @@ import { In, IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { ServicePackageRepository } from '../../catalog/repositories/service-package.repository';
 import { StaffAvailabilitySlotRepository } from '../../hr/repositories/staff-availability-slot.repository';
 import { ProcessingTypeEligibilityRepository } from '../../hr/repositories/processing-type-eligibility.repository';
+import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.repository';
 import { TaskRepository } from '../../tasks/repositories/task.repository';
@@ -49,6 +50,7 @@ export class StaffConflictService {
     private readonly taskAssigneeRepository: TaskAssigneeRepository,
     private readonly taskRepository: TaskRepository,
     private readonly availabilitySlotRepo: StaffAvailabilitySlotRepository,
+    private readonly processingTypeRepository: ProcessingTypeRepository,
   ) {}
 
   async checkPackageStaffAvailability(input: CheckPackageStaffAvailabilityInput): Promise<StaffAvailabilityResult> {
@@ -62,11 +64,21 @@ export class StaffConflictService {
       throw new NotFoundException('catalog.package_not_found_in_tenant');
     }
 
+    if (servicePackage.skipStaffCheck) {
+      return {
+        ok: true,
+        requiredStaffCount: 0,
+        eligibleCount: 0,
+        busyCount: 0,
+        availableCount: 0,
+      };
+    }
+
     const requiredStaffCount = servicePackage.requiredStaffCount;
     const durationMinutes = input.durationMinutes ?? servicePackage.durationMinutes;
     const requestedWindow = computeBookingWindow(input.eventDate, input.startTime, durationMinutes);
 
-    const activeProcessingTypeIds = await this.getActiveProcessingTypeIds();
+    const activeProcessingTypeIds = await this.getActiveProcessingTypeIdsForPackage(input.packageId);
     const eligibleUserIds = await this.getEligibleActiveUserIds(activeProcessingTypeIds);
     const eligibleCount = eligibleUserIds.length;
 
@@ -112,10 +124,28 @@ export class StaffConflictService {
     };
   }
 
-  private async getActiveProcessingTypeIds(): Promise<string[]> {
+  private async getActiveProcessingTypeIdsForPackage(packageId: string): Promise<string[]> {
+    const packageProcessingTypes = await this.processingTypeRepository.find({
+      where: {
+        packageId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (packageProcessingTypes.length === 0) {
+      return [];
+    }
+
+    const packagePtIds = packageProcessingTypes.map((pt) => pt.id);
+
     const eligibilities = await this.processingTypeEligibilityRepository.find({
+      where: {
+        processingTypeId: In(packagePtIds),
+      },
       select: { processingTypeId: true },
     });
+
     return Array.from(new Set(eligibilities.map((e) => e.processingTypeId)));
   }
 

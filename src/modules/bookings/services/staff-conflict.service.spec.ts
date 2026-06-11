@@ -14,6 +14,8 @@ import { TaskAssigneeRepository } from '../../tasks/repositories/task-assignee.r
 import { TaskRepository } from '../../tasks/repositories/task.repository';
 import type { User } from '../../users/entities/user.entity';
 import { UserRepository } from '../../users/repositories/user.repository';
+import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
+import type { ProcessingType } from '../entities/processing-type.entity';
 import { StaffConflictService } from './staff-conflict.service';
 
 type BusyAssignmentRecord = {
@@ -37,6 +39,7 @@ const createRawQueryBuilder = (rows: BusyAssignmentRecord[]) => {
 describe('StaffConflictService', () => {
   let service: StaffConflictService;
   let servicePackageRepo: MockRepository<ServicePackage>;
+  let processingTypeRepo: MockRepository<ProcessingType>;
   let processingTypeEligibilityRepo: MockRepository<ProcessingTypeEligibility>;
   let userRepo: MockRepository<User>;
   let taskAssigneeRepo: MockRepository<TaskAssignee>;
@@ -71,11 +74,16 @@ describe('StaffConflictService', () => {
           provide: StaffAvailabilitySlotRepository,
           useValue: createMockRepository<StaffAvailabilitySlot>(),
         },
+        {
+          provide: ProcessingTypeRepository,
+          useValue: createMockRepository<ProcessingType>(),
+        },
       ],
     }).compile();
 
     service = module.get<StaffConflictService>(StaffConflictService);
     servicePackageRepo = module.get(ServicePackageRepository);
+    processingTypeRepo = module.get(ProcessingTypeRepository);
     processingTypeEligibilityRepo = module.get(ProcessingTypeEligibilityRepository);
     userRepo = module.get(UserRepository);
     taskAssigneeRepo = module.get(TaskAssigneeRepository);
@@ -98,12 +106,18 @@ describe('StaffConflictService', () => {
       durationMinutes: 120,
       requiredStaffCount: 2,
     } as ServicePackage);
-    processingTypeEligibilityRepo.find.mockResolvedValue([
-      { userId: 'u-1' } as ProcessingTypeEligibility,
-      { userId: 'u-2' } as ProcessingTypeEligibility,
-      { userId: 'u-3' } as ProcessingTypeEligibility,
-      { userId: 'u-3' } as ProcessingTypeEligibility,
-    ]);
+    processingTypeRepo.find.mockResolvedValue([{ id: 'pt-1' } as ProcessingType, { id: 'pt-2' } as ProcessingType]);
+    processingTypeEligibilityRepo.find
+      .mockResolvedValueOnce([
+        { processingTypeId: 'pt-1' } as ProcessingTypeEligibility,
+        { processingTypeId: 'pt-2' } as ProcessingTypeEligibility,
+      ])
+      .mockResolvedValueOnce([
+        { userId: 'u-1' } as ProcessingTypeEligibility,
+        { userId: 'u-2' } as ProcessingTypeEligibility,
+        { userId: 'u-3' } as ProcessingTypeEligibility,
+        { userId: 'u-3' } as ProcessingTypeEligibility,
+      ]);
     userRepo.find.mockResolvedValue([{ id: 'u-1' } as User, { id: 'u-2' } as User, { id: 'u-3' } as User]);
 
     const assigneeQb = createRawQueryBuilder([
@@ -140,10 +154,13 @@ describe('StaffConflictService', () => {
       durationMinutes: 90,
       requiredStaffCount: 3,
     } as ServicePackage);
-    processingTypeEligibilityRepo.find.mockResolvedValue([
-      { userId: 'u-1' } as ProcessingTypeEligibility,
-      { userId: 'u-2' } as ProcessingTypeEligibility,
-    ]);
+    processingTypeRepo.find.mockResolvedValue([{ id: 'pt-1' } as ProcessingType]);
+    processingTypeEligibilityRepo.find
+      .mockResolvedValueOnce([{ processingTypeId: 'pt-1' } as ProcessingTypeEligibility])
+      .mockResolvedValueOnce([
+        { userId: 'u-1' } as ProcessingTypeEligibility,
+        { userId: 'u-2' } as ProcessingTypeEligibility,
+      ]);
     userRepo.find.mockResolvedValue([{ id: 'u-1' } as User, { id: 'u-2' } as User]);
 
     const result = await service.checkPackageStaffAvailability({
@@ -170,7 +187,10 @@ describe('StaffConflictService', () => {
       durationMinutes: 60,
       requiredStaffCount: 1,
     } as ServicePackage);
-    processingTypeEligibilityRepo.find.mockResolvedValue([{ userId: 'u-9' } as ProcessingTypeEligibility]);
+    processingTypeRepo.find.mockResolvedValue([{ id: 'pt-1' } as ProcessingType]);
+    processingTypeEligibilityRepo.find
+      .mockResolvedValueOnce([{ processingTypeId: 'pt-1' } as ProcessingTypeEligibility])
+      .mockResolvedValueOnce([{ userId: 'u-9' } as ProcessingTypeEligibility]);
     userRepo.find.mockResolvedValue([{ id: 'u-9' } as User]);
 
     const assigneeQb = createRawQueryBuilder([

@@ -188,6 +188,7 @@ export class CatalogService {
     if (dto.durationMinutes !== undefined) pkg.durationMinutes = dto.durationMinutes;
     if (dto.requiredStaffCount !== undefined) pkg.requiredStaffCount = dto.requiredStaffCount;
     if (dto.revenueAccountCode !== undefined) pkg.revenueAccountCode = dto.revenueAccountCode;
+    if (dto.skipStaffCheck !== undefined) pkg.skipStaffCheck = dto.skipStaffCheck;
     const savedPkg = await this.packageRepository.save(pkg);
 
     // Log price or status changes
@@ -215,7 +216,10 @@ export class CatalogService {
 
     // Invalidate availability cache when staffing-affecting fields change
     const availabilityAffected =
-      dto.isActive !== undefined || dto.durationMinutes !== undefined || dto.requiredStaffCount !== undefined;
+      dto.isActive !== undefined ||
+      dto.durationMinutes !== undefined ||
+      dto.requiredStaffCount !== undefined ||
+      dto.skipStaffCheck !== undefined;
     if (availabilityAffected) {
       await this.availabilityCacheOwner.delAvailabilityForPackage(tenantId, id);
     }

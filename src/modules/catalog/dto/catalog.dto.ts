@@ -47,6 +47,14 @@ export class BaseServicePackageDto {
   @IsNotEmpty()
   @IsOptional()
   revenueAccountCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'When true, skip staff availability checks for this package (e.g., venue-only packages)',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  skipStaffCheck?: boolean;
 }
 
 // ServicePackage DTOs
