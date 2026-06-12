@@ -43,6 +43,7 @@ import { PerformanceReview } from '../modules/hr/entities/performance-review.ent
 import { ProcessingTypeEligibility } from '../modules/hr/entities/processing-type-eligibility.entity';
 import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
+import { TenantLifecycleEvent } from '../modules/platform/entities/tenant-lifecycle-event.entity';
 
 patchTypeOrmMigrationOrdering();
 
@@ -85,6 +86,7 @@ export const dataSourceOptions: DataSourceOptions = {
     ProcessingTypeEligibility,
     TaskTemplate,
     TenantSubscription,
+    TenantLifecycleEvent,
   ],
   migrations: [join(__dirname, 'migrations', '[0-9]*.{ts,js}')],
   migrationsTableName: 'migrations',

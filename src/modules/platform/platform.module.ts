@@ -4,22 +4,22 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from '../../common/common.module';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import { PlatformAuthController } from './auth/controllers/platform-auth.controller';
 import { PlatformRefreshToken } from './auth/entities/platform-refresh-token.entity';
 import { PlatformJwtAuthGuard } from './auth/guards/platform-jwt-auth.guard';
 import { PlatformAuthService } from './auth/services/platform-auth.service';
 import { PlatformJwtStrategy } from './auth/strategies/platform-jwt.strategy';
+import { PlatformTenantsController } from './controllers/platform-tenants.controller';
 import { PlatformUser } from './entities/platform-user.entity';
+import { TenantLifecycleEvent } from './entities/tenant-lifecycle-event.entity';
+import { PlatformPermissionsGuard } from './guards/platform-permissions.guard';
+import { RequireReasonGuard } from './guards/require-reason.guard';
+import { PlatformTenantService } from './services/platform-tenant.service';
 
-/**
- * Platform (superadmin) module.
- *
- * Handles SaaS-level administration including superadmin authentication,
- * tenant management, and platform-wide operations.
- */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PlatformUser, PlatformRefreshToken]),
+    TypeOrmModule.forFeature([PlatformUser, PlatformRefreshToken, Tenant, TenantLifecycleEvent]),
     PassportModule.register({ defaultStrategy: 'platform-jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -34,8 +34,15 @@ import { PlatformUser } from './entities/platform-user.entity';
     }),
     CommonModule,
   ],
-  controllers: [PlatformAuthController],
-  providers: [PlatformAuthService, PlatformJwtStrategy, PlatformJwtAuthGuard],
+  controllers: [PlatformAuthController, PlatformTenantsController],
+  providers: [
+    PlatformAuthService,
+    PlatformTenantService,
+    PlatformJwtStrategy,
+    PlatformJwtAuthGuard,
+    PlatformPermissionsGuard,
+    RequireReasonGuard,
+  ],
   exports: [TypeOrmModule],
 })
 export class PlatformModule {}
