@@ -44,6 +44,10 @@ import { ProcessingTypeEligibility } from '../modules/hr/entities/processing-typ
 import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
 import { TenantLifecycleEvent } from '../modules/platform/entities/tenant-lifecycle-event.entity';
+import { ImpersonationSession } from '../modules/platform/entities/impersonation-session.entity';
+import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
+import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
+import { PlatformRefreshToken } from '../modules/platform/auth/entities/platform-refresh-token.entity';
 
 patchTypeOrmMigrationOrdering();
 
@@ -87,6 +91,10 @@ export const dataSourceOptions: DataSourceOptions = {
     TaskTemplate,
     TenantSubscription,
     TenantLifecycleEvent,
+    ImpersonationSession,
+    PlatformAuditLog,
+    PlatformUser,
+    PlatformRefreshToken,
   ],
   migrations: [join(__dirname, 'migrations', '[0-9]*.{ts,js}')],
   migrationsTableName: 'migrations',
