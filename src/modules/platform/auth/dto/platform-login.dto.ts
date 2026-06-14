@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { PII } from '../../../../common/decorators';
 
 export class PlatformLoginDto {
@@ -73,4 +73,9 @@ export class PlatformLogoutDto {
   @IsString()
   @IsNotEmpty()
   refreshToken?: string;
+
+  @ApiPropertyOptional({ description: 'Revoke all sessions for this user' })
+  @IsOptional()
+  @IsBoolean()
+  allSessions?: boolean;
 }
