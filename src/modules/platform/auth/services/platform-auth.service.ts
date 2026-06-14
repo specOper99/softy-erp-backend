@@ -126,6 +126,30 @@ export class PlatformAuthService {
     return result.affected || 0;
   }
 
+  async generateTokensForUser(userId: string, context?: PlatformRequestContext): Promise<PlatformAuthResponseDto> {
+    const user = await this.platformUserRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('auth.invalid_user');
+    }
+
+    const tokens = await this.generateTokens(user, context);
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
+    };
+  }
+
   private async generateTokens(user: PlatformUser, context?: PlatformRequestContext): Promise<PlatformTokensDto> {
     const payload = {
       sub: user.id,

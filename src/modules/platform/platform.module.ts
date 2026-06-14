@@ -19,6 +19,7 @@ import { PlatformSecurityController } from './controllers/platform-security.cont
 import { PlatformSupportController } from './controllers/platform-support.controller';
 import { PlatformTenantsController } from './controllers/platform-tenants.controller';
 import { MFAController } from './controllers/mfa.controller';
+import { MfaLoginController } from './auth/controllers/mfa-login.controller';
 import { ImpersonationSession } from './entities/impersonation-session.entity';
 import { PlatformAuditLog } from './entities/platform-audit-log.entity';
 import { PlatformUser } from './entities/platform-user.entity';
@@ -67,6 +68,7 @@ import { PlatformTenantService } from './services/platform-tenant.service';
     PlatformSupportController,
     PlatformSecurityController,
     MFAController,
+    MfaLoginController,
   ],
   providers: [
     PlatformAuthService,
