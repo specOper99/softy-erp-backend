@@ -1,10 +1,13 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
+import { Role } from '../../users/enums/role.enum';
+import { TenantsService } from '../../tenants/tenants.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
+import { UsersService } from '../../users/services/users.service';
 import {
   CreateTenantDto,
   DeleteTenantDto,
@@ -49,6 +52,9 @@ export class PlatformTenantService {
     @InjectRepository(TenantLifecycleEvent)
     private readonly lifecycleEventRepository: Repository<TenantLifecycleEvent>,
     private readonly cacheUtils: CacheUtilsService,
+    private readonly dataSource: DataSource,
+    private readonly usersService: UsersService,
+    private readonly tenantsService: TenantsService,
   ) {}
 
   private async invalidateTenantStateCache(tenantId: string): Promise<void> {
@@ -112,33 +118,62 @@ export class PlatformTenantService {
     return tenant;
   }
 
-  async createTenant(dto: CreateTenantDto, _platformUserId: string, _ipAddress: string): Promise<Tenant> {
-    const existing = await this.tenantRepository.findOne({
-      where: { slug: dto.slug },
-    });
-
-    if (existing) {
+  async createTenant(dto: CreateTenantDto, platformUserId: string, ipAddress: string): Promise<Tenant> {
+    const slugTaken = await this.tenantRepository.findOne({ where: { slug: dto.slug } });
+    if (slugTaken) {
       throw new ConflictException({
         code: 'tenants.slug_taken',
         args: { slug: dto.slug },
       });
     }
 
-    const tenant = this.tenantRepository.create({
-      name: dto.name,
-      slug: dto.slug,
-      subscriptionPlan: dto.subscriptionPlan,
-      billingEmail: dto.billingEmail,
-      status: TenantStatus.ACTIVE,
-      lastActivityAt: new Date(),
+    if (dto.initialAdmin) {
+      const existingUser = await this.usersService.findByEmailGlobal(dto.initialAdmin.email);
+      if (existingUser) {
+        throw new ConflictException({
+          code: 'auth.email_already_registered',
+          args: { email: dto.initialAdmin.email },
+        });
+      }
+    }
+
+    const result = await this.dataSource.transaction(async (manager) => {
+      const tenant = await this.tenantsService.createWithManager(manager, {
+        name: dto.name,
+        slug: dto.slug,
+        subscriptionPlan: dto.subscriptionPlan,
+      });
+
+      tenant.billingEmail = dto.billingEmail ?? null;
+      tenant.status = TenantStatus.ACTIVE;
+      tenant.lastActivityAt = new Date();
+      await manager.save(tenant);
+
+      if (dto.initialAdmin) {
+        await this.usersService.createWithManager(manager, {
+          email: dto.initialAdmin.email,
+          password: dto.initialAdmin.password,
+          role: Role.ADMIN,
+          tenantId: tenant.id,
+        });
+      }
+
+      return tenant;
     });
 
-    const saved = await this.tenantRepository.save(tenant);
-    await this.invalidateTenantStateCache(saved.id);
+    await this.invalidateTenantStateCache(result.id);
 
-    this.logger.log(`Tenant created: ${saved.id} (${saved.slug})`);
+    if (dto.initialAdmin) {
+      this.logger.warn(
+        `Tenant created with initial admin: tenant=${result.id} (${result.slug}) ` +
+          `adminEmail=${dto.initialAdmin.email} platformOperator=${platformUserId} ip=${ipAddress} ` +
+          `note=plaintext password supplied in request body and consumed; not retained`,
+      );
+    } else {
+      this.logger.log(`Tenant created: ${result.id} (${result.slug})`);
+    }
 
-    return saved;
+    return result;
   }
 
   async updateTenant(

@@ -7,7 +7,9 @@ import { CommonModule } from '../../common/common.module';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { AuthModule } from '../auth/auth.module';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { TenantsModule } from '../tenants/tenants.module';
 import { User } from '../users/entities/user.entity';
+import { UsersModule } from '../users/users.module';
 import { PlatformAuthController } from './auth/controllers/platform-auth.controller';
 import { PlatformRefreshToken } from './auth/entities/platform-refresh-token.entity';
 import { PlatformJwtAuthGuard } from './auth/guards/platform-jwt-auth.guard';
@@ -59,6 +61,8 @@ import { PlatformTenantService } from './services/platform-tenant.service';
     }),
     CommonModule,
     AuthModule,
+    UsersModule,
+    TenantsModule,
   ],
   controllers: [
     PlatformAuthController,

@@ -1,8 +1,48 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  MinLength,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
+import { PII } from '../../../common/decorators';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
+
+// Mirror of auth/dto RegisterDto password rules — keep platform-provisioned admins
+// on the same security bar as self-registered users.
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const PASSWORD_MESSAGE =
+  'Password must be at least 8 characters with uppercase, lowercase, number, and special character (@$!%*?&)';
+
+export class InitialAdminDto {
+  @ApiProperty({ example: 'owner@acme.example', description: 'Email of the first tenant admin' })
+  @IsEmail()
+  @PII()
+  email: string;
+
+  @ApiProperty({
+    example: 'MyPassword123!',
+    minLength: 8,
+    description:
+      'Plaintext password supplied by the platform operator. Hashed with Argon2id before persistence; ' +
+      'log a security warning at the call site so the plaintext is not retained.',
+  })
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @Matches(PASSWORD_REGEX, { message: PASSWORD_MESSAGE })
+  @PII()
+  password: string;
+}
 
 export class ListTenantsDto {
   @ApiPropertyOptional({ description: 'Search by name, slug, or billing email' })
@@ -72,6 +112,18 @@ export class CreateTenantDto {
   @IsOptional()
   @IsString()
   billingEmail?: string;
+
+  @ApiPropertyOptional({
+    type: InitialAdminDto,
+    description:
+      'Optional first tenant admin. When supplied, a User with role=ADMIN is created in the same ' +
+      'transaction as the tenant, so the tenant is immediately loginable. Plaintext password is ' +
+      'consumed by the service and not persisted or logged.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InitialAdminDto)
+  initialAdmin?: InitialAdminDto;
 }
 
 export class UpdateTenantDto {
