@@ -6,6 +6,7 @@ import * as crypto from 'node:crypto';
 import { Repository } from 'typeorm';
 import { PasswordHashService } from '../../../../common/services/password-hash.service';
 import { PlatformUser } from '../../entities/platform-user.entity';
+import { MFAService } from '../../services/mfa.service';
 import { PlatformAuthResponseDto, PlatformTokensDto } from '../dto';
 import { PlatformRefreshToken } from '../entities/platform-refresh-token.entity';
 
@@ -28,6 +29,7 @@ export class PlatformAuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly passwordHashService: PasswordHashService,
+    private readonly mfaService: MFAService,
   ) {
     this.accessTokenExpiresIn = this.configService.get<number>('JWT_ACCESS_EXPIRES_SECONDS', 900);
     this.refreshTokenExpiresInDays = this.configService.get<number>('JWT_REFRESH_EXPIRES_DAYS', 7);
@@ -124,6 +126,44 @@ export class PlatformAuthService {
   async revokeAllSessions(userId: string): Promise<number> {
     const result = await this.refreshTokenRepository.update({ userId, isRevoked: false }, { isRevoked: true });
     return result.affected || 0;
+  }
+
+  async verifyMfaLogin(
+    tempToken: string,
+    code: string,
+    context?: PlatformRequestContext,
+  ): Promise<PlatformAuthResponseDto> {
+    const platformSecret = this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET');
+    let userId: string;
+    try {
+      const payload = this.jwtService.verify<{ sub: string }>(tempToken, {
+        secret: platformSecret,
+        audience: 'platform',
+      });
+      userId = payload.sub;
+    } catch {
+      throw new UnauthorizedException('auth.invalid_mfa_token');
+    }
+
+    const user = await this.platformUserRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'email', 'fullName', 'role', 'status', 'mfaEnabled', 'mfaSecret'],
+    });
+
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('auth.invalid_user');
+    }
+
+    if (!user.mfaEnabled || !user.mfaSecret) {
+      throw new UnauthorizedException('auth.mfa_not_enabled');
+    }
+
+    const isValid = this.mfaService.verifyToken(user.mfaSecret, code);
+    if (!isValid) {
+      throw new UnauthorizedException('auth.invalid_mfa_code');
+    }
+
+    return this.generateTokensForUser(userId, context);
   }
 
   async generateTokensForUser(userId: string, context?: PlatformRequestContext): Promise<PlatformAuthResponseDto> {
