@@ -12,6 +12,13 @@ export interface PlatformTokenPayload {
   role: string;
 }
 
+export interface PlatformValidatedUser {
+  id: string;
+  email: string;
+  role: string;
+  aud: 'platform';
+}
+
 @Injectable()
 export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jwt') {
   constructor(
@@ -29,7 +36,7 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jw
     });
   }
 
-  async validate(payload: PlatformTokenPayload): Promise<{ id: string; email: string; role: string }> {
+  async validate(payload: PlatformTokenPayload): Promise<PlatformValidatedUser> {
     const user = await this.platformUserRepository.findOne({
       where: { id: payload.sub },
       select: ['id', 'email', 'role', 'status'],
@@ -39,6 +46,6 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, 'platform-jw
       throw new UnauthorizedException('common.unauthorized_plain');
     }
 
-    return { id: user.id, email: user.email, role: user.role };
+    return { id: user.id, email: user.email, role: user.role, aud: 'platform' };
   }
 }
