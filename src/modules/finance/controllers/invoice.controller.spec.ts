@@ -3,6 +3,8 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { Response } from 'express';
 import { DataSource } from 'typeorm';
+import { AbilityFactory } from '../../../common/authorization/ability.factory';
+import { CaslShadowMetric } from '../../../common/authorization/casl-shadow.metric';
 import { createMockInvoice } from '../../../../test/helpers/mock-factories';
 import type { Invoice } from '../entities/invoice.entity';
 import { InvoiceService } from '../services/invoice.service';
@@ -40,6 +42,13 @@ describe('InvoiceController', () => {
           },
         },
         Reflector,
+        AbilityFactory,
+        {
+          provide: CaslShadowMetric,
+          useValue: {
+            recordDisagreement: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
