@@ -69,7 +69,7 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     if (Array.isArray(where)) {
       return {
         ...options,
-        where: where.map((w) => ({ ...w, tenantId })),
+        where: where.map((w: FindOptionsWhere<T>) => ({ ...w, tenantId })),
       } as O;
     }
 
@@ -91,26 +91,21 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
     const tenantId = this.getTenantId();
 
     if (Array.isArray(entityOrEntities)) {
-      for (const entity of entityOrEntities) {
-        const typedEntity = entity as T & { tenantId: string };
-        if (!typedEntity.tenantId) {
-          typedEntity.tenantId = tenantId;
-        } else if (typedEntity.tenantId !== tenantId) {
-          throw new TenantMismatchException({
-            contextTenantId: tenantId,
-            entityTenantId: typedEntity.tenantId,
-            operation: TenantMismatchOperation.CREATE,
-            entityType: this.entityName,
-          });
-        }
-      }
+      this.applyTenantIdToEntities(entityOrEntities as T[], tenantId);
       return this.repository.save(entityOrEntities as unknown as DeepPartial<T>[], options) as Promise<E>;
     }
 
-    const entity = entityOrEntities as T & { tenantId: string };
+    this.applyTenantIdToEntity(entityOrEntities as T, tenantId);
+    return this.repository.save(entityOrEntities as T, options) as Promise<E>;
+  }
+
+  private applyTenantIdToEntity(entity: T, tenantId: string): void {
     if (!entity.tenantId) {
       entity.tenantId = tenantId;
-    } else if (entity.tenantId !== tenantId) {
+      return;
+    }
+
+    if (entity.tenantId !== tenantId) {
       throw new TenantMismatchException({
         contextTenantId: tenantId,
         entityTenantId: entity.tenantId,
@@ -118,7 +113,12 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
         entityType: this.entityName,
       });
     }
-    return this.repository.save(entity, options) as Promise<E>;
+  }
+
+  private applyTenantIdToEntities(entities: T[], tenantId: string): void {
+    for (const entity of entities) {
+      this.applyTenantIdToEntity(entity, tenantId);
+    }
   }
 
   async find(options?: FindManyOptions<T>): Promise<T[]> {

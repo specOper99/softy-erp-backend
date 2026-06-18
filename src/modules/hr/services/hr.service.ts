@@ -6,6 +6,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
+import { isPostgresUniqueViolation } from '../../../common/utils/error.util';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { BookingStatus } from '../../bookings/enums/booking-status.enum';
@@ -99,7 +100,7 @@ export class HrService {
         };
       });
     } catch (error) {
-      if ((error as { code?: string }).code === '23505') {
+      if (isPostgresUniqueViolation(error)) {
         throw new ConflictException('hr.user_or_profile_exists');
       }
 
@@ -115,7 +116,16 @@ export class HrService {
       ? [tenantId, query.start, query.end, query.userId, BookingStatus.CANCELLED, TaskStatus.CANCELLED]
       : [tenantId, query.start, query.end, BookingStatus.CANCELLED, TaskStatus.CANCELLED];
 
-    const rawRows = await this.dataSource.query(
+    type AvailabilityRawRow = {
+      user_id: string;
+      booking_id: string;
+      package_id: string;
+      event_date: Date | string;
+      start_time: string;
+      duration_minutes: number | string;
+    };
+
+    const rawRows: AvailabilityRawRow[] = await this.dataSource.query(
       `
       SELECT DISTINCT rows.user_id, rows.booking_id, rows.package_id, rows.event_date, rows.start_time, rows.duration_minutes
       FROM (
@@ -176,16 +186,7 @@ export class HrService {
 
     const windowsByAssignment = new Map<string, AvailabilityWindowDto>();
 
-    type AvailabilityRawRow = {
-      user_id: string;
-      booking_id: string;
-      package_id: string;
-      event_date: Date | string;
-      start_time: string;
-      duration_minutes: number | string;
-    };
-
-    for (const row of rawRows as AvailabilityRawRow[]) {
+    for (const row of rawRows) {
       const key = `${row.user_id}:${row.booking_id}`;
       if (windowsByAssignment.has(key)) {
         continue;
@@ -245,7 +246,7 @@ export class HrService {
         return savedProfile;
       });
     } catch (e) {
-      if ((e as { code?: string }).code === '23505') {
+      if (isPostgresUniqueViolation(e)) {
         this.logger.warn(`Profile already exists for user ${dto.userId}`);
         throw new ConflictException({
           code: 'hr.profile_exists_for_user',

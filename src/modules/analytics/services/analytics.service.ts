@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
@@ -9,7 +9,6 @@ import { RevenueByPackageEntry, RevenueByPackageRaw, TaxReportRaw } from '../../
 
 @Injectable()
 export class AnalyticsService {
-  private readonly logger = new Logger(AnalyticsService.name);
   // Cache TTL: 1 hour for financial/analytics reports
   private readonly REPORT_CACHE_TTL = 60 * 60 * 1000;
 

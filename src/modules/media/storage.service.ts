@@ -4,9 +4,9 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class StorageService {
   constructor(
-    private readonly configService: ConfigService,
+    _configService: ConfigService,
     @Inject('CIRCUIT_BREAKER_S3')
-    private readonly circuitBreaker: { fire: <T>(fn: () => T) => T },
+    _circuitBreaker: { fire: <T>(fn: () => T) => T },
   ) {}
 
   async uploadFile(

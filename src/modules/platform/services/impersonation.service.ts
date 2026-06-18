@@ -6,6 +6,7 @@ import { randomBytes } from 'crypto';
 import { createHash } from 'node:crypto';
 import { DataSource, LessThan, Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { getPgQueryRowCount, isPostgresUniqueViolation } from '../../../common/utils/error.util';
 import { User } from '../../../modules/users/entities/user.entity';
 import { StartImpersonationDto } from '../dto/support.dto';
 import { ImpersonationSession } from '../entities/impersonation-session.entity';
@@ -90,7 +91,7 @@ export class ImpersonationService {
     try {
       saved = await this.sessionRepository.save(session);
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+      if (isPostgresUniqueViolation(error)) {
         throw new ConflictException('platform.impersonation_session_exists');
       }
       throw error;
@@ -246,14 +247,14 @@ export class ImpersonationService {
     // Use a parameterised atomic JSONB array append to avoid lost-update races.
     // Two concurrent logAction calls that both read-modify-write would overwrite each other.
     const newEntry = JSON.stringify([{ action, timestamp: new Date(), endpoint, method }]);
-    const result = await this.dataSource.query(
+    const result: unknown = await this.dataSource.query(
       `UPDATE impersonation_sessions
          SET actions_performed = actions_performed || $1::jsonb
        WHERE id = $2`,
       [newEntry, sessionId],
     );
 
-    if (result[1] === 0) {
+    if (getPgQueryRowCount(result) === 0) {
       this.logger.debug(`logAction: session ${sessionId} not found or already ended`);
     }
   }

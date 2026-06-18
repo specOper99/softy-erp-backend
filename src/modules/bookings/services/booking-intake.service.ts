@@ -32,8 +32,8 @@ export class BookingIntakeService {
 
   constructor(
     private readonly dataSource: DataSource,
-    private readonly bookingRepository: BookingRepository,
-    private readonly clientRepository: ClientRepository,
+    _bookingRepository: BookingRepository,
+    _clientRepository: ClientRepository,
     private readonly catalogService: CatalogService,
     private readonly financeService: FinanceService,
     private readonly staffConflictService: StaffConflictService,

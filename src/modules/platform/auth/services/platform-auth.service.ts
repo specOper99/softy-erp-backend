@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,7 +17,6 @@ export interface PlatformRequestContext {
 
 @Injectable()
 export class PlatformAuthService {
-  private readonly logger = new Logger(PlatformAuthService.name);
   readonly accessTokenExpiresIn: number;
   readonly refreshTokenExpiresInDays: number;
 

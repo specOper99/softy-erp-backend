@@ -22,11 +22,12 @@ import { Role } from '../../modules/users/enums/role.enum';
 import { AbilityFactory, type AppAction, type AppSubject } from '../authorization/ability.factory';
 import { CaslShadowMetric } from '../authorization/casl-shadow.metric';
 import { TenantContextService } from '../services/tenant-context.service';
+import { toErrorMessage } from '../utils/error.util';
 
 export const RESOURCE_OWNERSHIP_KEY = 'resource_ownership';
 
 export interface ResourceOwnershipConfig {
-  resourceType: string;
+  resourceType: AppSubject;
   paramName: string;
   ownerField: string;
   userField?: string;
@@ -143,7 +144,7 @@ export class ResourceOwnershipGuard implements CanActivate {
       tenantId,
       clientId: user.clientId,
     });
-    const subject = config.resourceType as AppSubject;
+    const subject = config.resourceType;
     const action = ResourceOwnershipGuard.DEFAULT_ACTION;
     void action;
 
@@ -171,7 +172,7 @@ export class ResourceOwnershipGuard implements CanActivate {
       return { allowed: false, notFound: true };
     }
 
-    const resourceOwnerValue = (resource as Record<string, unknown>)[config.ownerField];
+    const resourceOwnerValue = resource[config.ownerField];
     const instance = {
       id: resourceId,
       tenantId,
@@ -208,13 +209,15 @@ export class ResourceOwnershipGuard implements CanActivate {
         return { allowed: false, notFound: true };
       }
 
-      const resourceOwnerValue = (resource as Record<string, unknown>)[config.ownerField];
+      const resourceOwnerValue = resource[config.ownerField];
       return resourceOwnerValue === userValue ? { allowed: true } : { allowed: false, reason: 'ownership_mismatch' };
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      this.logger.error(`Failed to verify ownership for ${config.resourceType} ${resourceId}: ${error}`);
+      this.logger.error(
+        `Failed to verify ownership for ${config.resourceType} ${resourceId}: ${toErrorMessage(error)}`,
+      );
       return { allowed: false, reason: 'ownership_mismatch' };
     }
   }

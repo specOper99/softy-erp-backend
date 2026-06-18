@@ -15,8 +15,7 @@ import { Counter } from 'prom-client';
 import { DataSource, Repository } from 'typeorm';
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../common/services/tenant-context.service';
-import { toErrorMessage } from '../../common/utils/error.util';
-import { TenantScopedManager } from '../../common/utils/tenant-scoped-manager';
+import { isPostgresUniqueViolation, toErrorMessage } from '../../common/utils/error.util';
 import { MailService } from '../mail/mail.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
@@ -62,7 +61,6 @@ export class AuthService {
    * consistent response times regardless of user existence.
    */
   private readonly dummyPasswordHashPromise: Promise<string>;
-  private readonly tenantTx: TenantScopedManager;
 
   constructor(
     private readonly usersService: UsersService,
@@ -80,9 +78,6 @@ export class AuthService {
     private readonly tokenBlacklistService: TokenBlacklistService,
     private readonly cacheUtils: CacheUtilsService,
   ) {
-    // Initialize TenantScopedManager
-    this.tenantTx = new TenantScopedManager(dataSource);
-
     // Generate a unique dummy hash at startup using cryptographically secure random bytes
     // This is never stored or exposed - it's solely for timing attack mitigation
     const randomPassword = crypto.randomBytes(32).toString('hex');
@@ -111,7 +106,7 @@ export class AuthService {
             slug,
           });
         } catch (error: unknown) {
-          if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+          if (isPostgresUniqueViolation(error)) {
             throw new ConflictException('tenants.tenant_exists_name_slug');
           }
           throw error;
@@ -132,7 +127,7 @@ export class AuthService {
 
       return this.generateAuthResponse(user, context);
     } catch (error: unknown) {
-      if (error instanceof Error && 'code' in error && (error as { code: string }).code === '23505') {
+      if (isPostgresUniqueViolation(error)) {
         throw new BadRequestException('auth.email_already_registered');
       }
       throw error;

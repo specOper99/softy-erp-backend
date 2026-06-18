@@ -1,3 +1,4 @@
+import type { IncomingMessage } from 'node:http';
 import { Logger, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -38,14 +39,34 @@ interface JwtPayload {
   tenantId: string;
 }
 
+function readHttpOrigin(header: unknown): string | undefined {
+  if (typeof header === 'string') {
+    return header;
+  }
+
+  if (Array.isArray(header) && typeof header[0] === 'string') {
+    return header[0];
+  }
+
+  return undefined;
+}
+
+function readHandshakeToken(auth: unknown): string | undefined {
+  if (!auth || typeof auth !== 'object' || !('token' in auth)) {
+    return undefined;
+  }
+
+  const token = auth.token;
+  return typeof token === 'string' ? token : undefined;
+}
+
 @WebSocketGateway({
   namespace: 'dashboard',
   cors: {
     origin: corsOriginDelegate(corsAllowlist),
   },
-  allowRequest: (req, callback) => {
-    const originHeader = req.headers.origin;
-    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+  allowRequest: (req: IncomingMessage, callback) => {
+    const origin = readHttpOrigin(req.headers.origin);
     if (origin === undefined) {
       return callback(null, true);
     }
@@ -59,9 +80,7 @@ interface JwtPayload {
       const ok = corsAllowlist.has(normalized);
       return callback(ok ? null : 'Origin not allowed', ok);
     } catch (error) {
-      gatewayDecoratorLogger.warn(
-        `WebSocket CORS: failed to parse origin "${origin as string}": ${toErrorMessage(error)}`,
-      );
+      gatewayDecoratorLogger.warn(`WebSocket CORS: failed to parse origin "${origin}": ${toErrorMessage(error)}`);
       return callback('Origin not allowed', false);
     }
   },
@@ -117,14 +136,15 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   private extractToken(client: AuthenticatedSocket): string | undefined {
-    if (client.handshake.auth?.token) {
-      return client.handshake.auth.token as string;
+    const authToken = readHandshakeToken(client.handshake.auth);
+    if (typeof authToken === 'string') {
+      return authToken;
     }
     if (client.handshake.headers.authorization) {
       const authHeader = client.handshake.headers.authorization;
       const parts = authHeader.split(' ');
-      if (parts.length === 2 && parts[0] === 'Bearer') {
-        return parts[1] as string;
+      if (parts.length === 2 && parts[0] === 'Bearer' && typeof parts[1] === 'string') {
+        return parts[1];
       }
     }
     return undefined;

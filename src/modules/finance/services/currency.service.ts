@@ -1,10 +1,8 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Currency } from '../enums/currency.enum';
 
 @Injectable()
 export class CurrencyService {
-  private readonly logger = new Logger(CurrencyService.name);
-
   // Hardcoded mock rates for demonstration (Base: USD)
   private readonly mockRates: Record<Currency, number> = {
     [Currency.USD]: 1.0,

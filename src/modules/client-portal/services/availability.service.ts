@@ -20,10 +20,10 @@ export interface AvailabilityResult {
 @Injectable()
 export class AvailabilityService {
   constructor(
-    private readonly cacheOwner: AvailabilityCacheOwnerService,
-    private readonly bookingRepository: BookingRepository,
-    private readonly servicePackageRepository: ServicePackageRepository,
-    private readonly tenantRepository: Repository<Tenant>,
+    _cacheOwner: AvailabilityCacheOwnerService,
+    _bookingRepository: BookingRepository,
+    _servicePackageRepository: ServicePackageRepository,
+    _tenantRepository: Repository<Tenant>,
   ) {}
 
   async checkAvailability(_tenantId: string, _packageId: string, _date: string): Promise<AvailabilityResult> {

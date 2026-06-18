@@ -298,8 +298,8 @@ export class WebhookService {
 
       const deliveries = webhooks.map(async (webhook) => {
         const rawEvents: unknown = webhook.events;
-        const webhookEvents = Array.isArray(rawEvents)
-          ? rawEvents
+        const webhookEvents: string[] = Array.isArray(rawEvents)
+          ? rawEvents.filter((value): value is string => typeof value === 'string')
           : typeof rawEvents === 'string'
             ? rawEvents
                 .split(',')

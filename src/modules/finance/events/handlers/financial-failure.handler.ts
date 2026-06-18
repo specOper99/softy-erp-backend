@@ -10,7 +10,7 @@ export class ReconciliationFailedHandler implements IEventHandler<FinancialRecon
   private readonly reconciliationFailuresTotal: Counter<string>;
 
   constructor(private readonly metricsFactory: MetricsFactory) {
-    this.reconciliationFailuresTotal = metricsFactory.getOrCreateCounter({
+    this.reconciliationFailuresTotal = this.metricsFactory.getOrCreateCounter({
       name: 'softy_finance_reconciliation_failures_total',
       help: 'Total number of financial reconciliation failures',
       labelNames: ['tenant_id'],

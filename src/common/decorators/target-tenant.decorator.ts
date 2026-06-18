@@ -1,6 +1,11 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { createParamDecorator, ForbiddenException } from '@nestjs/common';
 import { isUUID } from 'class-validator';
+import type { Request } from 'express';
+
+interface TargetTenantRequest extends Request {
+  targetTenantId?: string;
+}
 
 /**
  * TargetTenant Decorator
@@ -24,9 +29,10 @@ import { isUUID } from 'class-validator';
  * }
  * ```
  */
-export const TargetTenant = createParamDecorator((data: unknown, ctx: ExecutionContext): string => {
-  const request = ctx.switchToHttp().getRequest();
-  const tenantId = request.params?.tenantId || request.query?.tenantId;
+export const TargetTenant = createParamDecorator((_data: unknown, ctx: ExecutionContext): string => {
+  const request = ctx.switchToHttp().getRequest<TargetTenantRequest>();
+  const rawTenantId = request.params?.tenantId ?? request.query?.tenantId;
+  const tenantId = typeof rawTenantId === 'string' ? rawTenantId : undefined;
 
   if (!tenantId) {
     throw new ForbiddenException('platform.target_tenant_required');

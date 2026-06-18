@@ -127,7 +127,7 @@ describe('TasksRepository Integration Tests', () => {
       expect(assignedTask?.assignedUserId).toBe(user.id);
 
       // Access Promise property
-      const loadedUser = await assignedTask?.assignedUser;
+      const loadedUser = assignedTask?.assignedUser;
       expect(loadedUser).toBeDefined();
       expect(loadedUser?.email).toBe('user@test.com');
     });

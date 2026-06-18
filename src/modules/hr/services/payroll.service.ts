@@ -8,7 +8,7 @@ import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
-import { toErrorMessage } from '../../../common/utils/error.util';
+import { toErrorMessage, isPostgresUniqueViolation } from '../../../common/utils/error.util';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { AuditPublisher } from '../../audit/audit.publisher';
@@ -38,11 +38,11 @@ export class PayrollService {
     private readonly profileRepository: ProfileRepository,
     private readonly payrollRunRepository: PayrollRunRepository,
     private readonly payoutRepository: PayoutRepository,
-    private readonly financeService: FinanceService,
+    _financeService: FinanceService,
     private readonly walletService: WalletService,
-    private readonly mailService: MailService,
+    _mailService: MailService,
     private readonly auditService: AuditPublisher,
-    private readonly dataSource: DataSource,
+    dataSource: DataSource,
     private readonly tenantsService: TenantsService,
     private readonly distributedLockService: DistributedLockService,
   ) {
@@ -375,7 +375,7 @@ export class PayrollService {
           } catch (error) {
             // Unique index violation on idempotency_key: a concurrent run committed
             // first and won the race. Treat this as a successful skip, not a failure.
-            if (error instanceof QueryFailedError && (error as QueryFailedError & { code?: string }).code === '23505') {
+            if (error instanceof QueryFailedError && isPostgresUniqueViolation(error)) {
               this.logger.log(`Concurrent idempotency collision for ${idempotencyKey}, skipping`);
               return null;
             }
@@ -390,7 +390,7 @@ export class PayrollService {
     if (rejected.length > 0) {
       const allReasons = rejected
         .map((r, i) => {
-          const reason = r.reason;
+          const reason: unknown = r.reason;
           return `[${i + 1}] ${toErrorMessage(reason)}`;
         })
         .join('; ');

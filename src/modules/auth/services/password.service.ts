@@ -20,7 +20,7 @@ export class PasswordService {
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
     private readonly mailService: MailService,
-    private readonly tokenService: TokenService,
+    _tokenService: TokenService,
     private readonly passwordHashService: PasswordHashService,
     private readonly configService: ConfigService,
   ) {}

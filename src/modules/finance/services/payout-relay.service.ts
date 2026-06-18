@@ -7,6 +7,7 @@ import { TenantAwareRepository } from '../../../common/repositories/tenant-aware
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
+import { isRecord, readRecordString } from '../../../common/utils/error.util';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
 import { TenantsService } from '../../tenants/tenants.service';
 import { FINANCE } from '../constants';
@@ -29,7 +30,7 @@ export class PayoutRelayService {
     private readonly paymentGatewayService: MockPaymentGatewayService,
     private readonly walletService: WalletService,
     private readonly financeService: FinanceService,
-    private readonly dataSource: DataSource,
+    dataSource: DataSource,
     private readonly distributedLockService: DistributedLockService,
     private readonly tenantsService: TenantsService,
   ) {
@@ -126,21 +127,18 @@ export class PayoutRelayService {
     payout: Payout,
   ): { userId: string; employeeName: string; bankAccount: string; referenceId: string } | null {
     const metadataUnknown: unknown = payout.metadata;
-    if (!metadataUnknown || typeof metadataUnknown !== 'object') return null;
+    if (!isRecord(metadataUnknown)) return null;
 
-    const metadata = metadataUnknown as Record<string, unknown>;
+    const userId = readRecordString(metadataUnknown, 'userId');
+    const bankAccount = readRecordString(metadataUnknown, 'bankAccount');
+    const referenceId = readRecordString(metadataUnknown, 'referenceId');
+    const employeeName = readRecordString(metadataUnknown, 'employeeName');
 
-    const userId = metadata.userId;
-    const bankAccount = metadata.bankAccount;
-    const referenceId = metadata.referenceId;
-    const employeeName = metadata.employeeName;
+    if (!userId || userId.length === 0) return null;
+    if (!bankAccount || bankAccount.length === 0) return null;
 
-    if (typeof userId !== 'string' || userId.length === 0) return null;
-    if (typeof bankAccount !== 'string' || bankAccount.length === 0) return null;
-
-    const finalReferenceId =
-      typeof referenceId === 'string' && referenceId.length > 0 ? referenceId : `PAYOUT-${payout.id}`;
-    const finalEmployeeName = typeof employeeName === 'string' && employeeName.length > 0 ? employeeName : 'Employee';
+    const finalReferenceId = referenceId && referenceId.length > 0 ? referenceId : `PAYOUT-${payout.id}`;
+    const finalEmployeeName = employeeName && employeeName.length > 0 ? employeeName : 'Employee';
 
     return {
       userId,

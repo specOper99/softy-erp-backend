@@ -1,13 +1,12 @@
-import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TENANT_REPO_TRANSACTION_CATEGORY } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
+import { isPostgresUniqueViolation } from '../../../common/utils/error.util';
 import { CreateTransactionCategoryDto, UpdateTransactionCategoryDto } from '../dto/transaction-category.dto';
 import { TransactionCategory } from '../entities/transaction-category.entity';
 
 @Injectable()
 export class TransactionCategoriesService {
-  private readonly logger = new Logger(TransactionCategoriesService.name);
-
   constructor(
     @Inject(TENANT_REPO_TRANSACTION_CATEGORY)
     private readonly categoryRepository: TenantAwareRepository<TransactionCategory>,
@@ -44,7 +43,7 @@ export class TransactionCategoriesService {
     try {
       return await this.categoryRepository.save(category);
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+      if (isPostgresUniqueViolation(error)) {
         throw new ConflictException('finance.category_name_already_exists');
       }
       throw error;
@@ -87,7 +86,7 @@ export class TransactionCategoriesService {
     try {
       return await this.categoryRepository.save(category);
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
+      if (isPostgresUniqueViolation(error)) {
         throw new ConflictException('finance.category_name_already_exists');
       }
       throw error;

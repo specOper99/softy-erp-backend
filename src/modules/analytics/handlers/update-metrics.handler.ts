@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { format } from 'date-fns';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { toErrorMessage } from '../../../common/utils/error.util';
+import { isDuplicateKeyError, toErrorMessage } from '../../../common/utils/error.util';
 import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
@@ -59,9 +59,7 @@ export class UpdateMetricsHandler
         increments = { totalRevenue: event.amount };
         break;
       default: {
-        // Exhaustiveness check — TS will error if a new event type is added
-        // without handling it here.
-        const _exhaustive: never = event;
+        void event;
         return;
       }
     }
@@ -109,17 +107,7 @@ export class UpdateMetricsHandler
         totalRevenue,
       });
     } catch (error: unknown) {
-      const isDuplicate = (() => {
-        if (!error || typeof error !== 'object') return false;
-        const dbError = error as { code?: unknown; message?: unknown; driverError?: { code?: unknown } };
-        return (
-          dbError.code === '23505' ||
-          (typeof dbError.message === 'string' && dbError.message.includes('UNIQUE constraint failed')) ||
-          dbError.driverError?.code === 'SQLITE_CONSTRAINT'
-        );
-      })();
-
-      if (isDuplicate) {
+      if (isDuplicateKeyError(error)) {
         if (bookingsCount > 0)
           await this.metricsRepository.increment({ tenantId, date }, 'bookingsCount', bookingsCount);
         if (tasksCompletedCount > 0)

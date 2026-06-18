@@ -177,7 +177,7 @@ export class ReactivateTenantDto {
 
 export class DeleteTenantDto {
   @ApiPropertyOptional({ description: 'Reason for deletion (min 10 chars)', minLength: 10 })
-  @ValidateIf((o) => !!o.reason)
+  @ValidateIf((o: DeleteTenantDto) => !!o.reason)
   @IsString()
   reason?: string;
 

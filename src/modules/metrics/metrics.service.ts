@@ -15,25 +15,25 @@ export class MetricsService {
   readonly dbQueryDuration: Histogram<string>;
 
   constructor(private readonly metricsFactory: MetricsFactory) {
-    this.httpRequestsTotal = metricsFactory.getOrCreateCounter({
+    this.httpRequestsTotal = this.metricsFactory.getOrCreateCounter({
       name: 'softy_http_requests_total',
       help: 'Total number of HTTP requests',
       labelNames: ['method', 'path', 'status'],
     });
 
-    this.httpRequestDuration = metricsFactory.getOrCreateHistogram({
+    this.httpRequestDuration = this.metricsFactory.getOrCreateHistogram({
       name: 'softy_http_request_duration_seconds',
       help: 'HTTP request duration in seconds',
       labelNames: ['method', 'path'],
       buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
     });
 
-    this.activeConnections = metricsFactory.getOrCreateGauge({
+    this.activeConnections = this.metricsFactory.getOrCreateGauge({
       name: 'softy_active_connections',
       help: 'Number of active connections',
     });
 
-    this.dbQueryDuration = metricsFactory.getOrCreateHistogram({
+    this.dbQueryDuration = this.metricsFactory.getOrCreateHistogram({
       name: 'softy_db_query_duration_seconds',
       help: 'Database query duration in seconds',
       labelNames: ['operation'],

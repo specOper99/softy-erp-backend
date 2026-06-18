@@ -69,7 +69,9 @@ export class DashboardService {
         case ReportPeriod.YEAR:
           start.setFullYear(start.getFullYear() - 1);
           break;
+        case ReportPeriod.CUSTOM:
         case ReportPeriod.MONTH:
+        case undefined:
         default:
           start.setMonth(start.getMonth() - 1);
           break;

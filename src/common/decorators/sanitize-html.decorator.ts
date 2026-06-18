@@ -8,7 +8,7 @@ export interface SanitizeHtmlOptions {
 }
 
 export function SanitizeHtml(options?: SanitizeHtmlOptions): PropertyDecorator {
-  return Transform(({ value }: TransformFnParams) => {
+  return Transform(({ value }: TransformFnParams): unknown => {
     if (typeof value !== 'string') {
       return value;
     }

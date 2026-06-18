@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { parseISO } from 'date-fns';
+import { parseISO, isValid } from 'date-fns';
 import type { Response } from 'express';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
@@ -40,7 +40,7 @@ export class TasksService {
     dataSource: DataSource,
     private readonly eventBus: EventBus,
     private readonly tasksExportService: TasksExportService,
-    private readonly taskAssigneeRepository: TaskAssigneeRepository,
+    _taskAssigneeRepository: TaskAssigneeRepository,
   ) {
     this.tenantTx = new TenantScopedManager(dataSource);
   }
@@ -106,14 +106,16 @@ export class TasksService {
     }
 
     if (filter.dueDateStart && filter.dueDateEnd) {
+      const start = this.parseFilterDate(filter.dueDateStart);
+      const end = this.parseFilterDate(filter.dueDateEnd);
       qb.andWhere('task.dueDate BETWEEN :start AND :end', {
-        start: parseISO(filter.dueDateStart),
-        end: parseISO(filter.dueDateEnd),
+        start,
+        end,
       });
     } else if (filter.dueDateStart) {
-      qb.andWhere('task.dueDate >= :start', { start: parseISO(filter.dueDateStart) });
+      qb.andWhere('task.dueDate >= :start', { start: this.parseFilterDate(filter.dueDateStart) });
     } else if (filter.dueDateEnd) {
-      qb.andWhere('task.dueDate <= :end', { end: parseISO(filter.dueDateEnd) });
+      qb.andWhere('task.dueDate <= :end', { end: this.parseFilterDate(filter.dueDateEnd) });
     }
 
     if (filter.search) {
@@ -429,5 +431,13 @@ export class TasksService {
     }
 
     return task;
+  }
+
+  private parseFilterDate(value: string): Date {
+    const date = parseISO(value);
+    if (!isValid(date)) {
+      throw new BadRequestException('tasks.invalid_due_date_filter');
+    }
+    return date;
   }
 }
