@@ -11,19 +11,29 @@ import {
   SetMetadata,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { ApiErrorResponses, Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantQuotaGuard } from '../../tenants/guards/tenant-quota.guard';
 import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
-import { CreateUserDto, UpdateUserDto, UserFilterDto } from '../dto';
+import { CreateUserDto, UpdateUserDto, UserCursorResponseDto, UserFilterDto, UserResponseDto } from '../dto';
 import { Role } from '../enums/role.enum';
 import { UsersService } from '../services/users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
+@ApiExtraModels(UserResponseDto, UserCursorResponseDto)
 @ApiErrorResponses('UNAUTHORIZED', 'FORBIDDEN', 'TOO_MANY_REQUESTS')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard, TenantQuotaGuard)
@@ -38,7 +48,7 @@ export class UsersController {
     description:
       'Tenant Admin can create users within the current tenant only. Recommended roles for studio staff management are OPS_MANAGER, FIELD_STAFF, and CLIENT.',
   })
-  @ApiResponse({ status: 201, description: 'User created successfully' })
+  @ApiResponse({ status: 201, description: 'User created successfully', type: UserResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid input or duplicate email' })
   @ApiResponse({ status: 403, description: 'MFA required or insufficient permissions' })
   @SetMetadata('quotaResource', 'max_users')
@@ -53,7 +63,7 @@ export class UsersController {
     deprecated: true,
     description: 'Use /users/cursor for better performance with large datasets.',
   })
-  @ApiResponse({ status: 200, description: 'Return all users' })
+  @ApiOkResponse({ description: 'Return all users', type: UserResponseDto, isArray: true })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiQuery({ name: 'role', enum: Role, required: false })
@@ -73,13 +83,17 @@ export class UsersController {
     summary: 'Get all users with cursor pagination',
     description: 'Returns users from current tenant only. Supports role, isActive and search filters.',
   })
-  @ApiResponse({ status: 200, description: 'Return paginated users' })
+  @ApiOkResponse({
+    description: 'Return paginated users',
+    schema: { $ref: getSchemaPath(UserCursorResponseDto) },
+  })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'role', enum: Role, required: false })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive'] })
   @ApiQuery({ name: 'search', required: false, type: String })
   findAllCursor(@Query() query: UserFilterDto) {
     return this.usersService.findAllCursor(query);
@@ -87,7 +101,7 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
-  @ApiResponse({ status: 200, description: 'User retrieved' })
+  @ApiOkResponse({ description: 'User retrieved', type: UserResponseDto })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'common.user_not_found' })
@@ -99,7 +113,7 @@ export class UsersController {
   @Roles(Role.ADMIN)
   @MfaRequired()
   @ApiOperation({ summary: 'Update user (Admin only, MFA required)' })
-  @ApiResponse({ status: 200, description: 'User updated' })
+  @ApiResponse({ status: 200, description: 'User updated', type: UserResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Insufficient permissions or MFA missing' })

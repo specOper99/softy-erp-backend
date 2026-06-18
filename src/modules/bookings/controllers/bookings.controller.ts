@@ -13,7 +13,19 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiProduces,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
@@ -26,8 +38,10 @@ import {
   BookingAvailabilityQueryDto,
   BookingAvailabilityResponseDto,
   BookingCursorFilterDto,
+  BookingCursorResponseDto,
   BookingExportFilterDto,
   BookingFilterDto,
+  BookingResponseDto,
   CancelBookingDto,
   ConfirmBookingDto,
   CreateBookingDto,
@@ -46,6 +60,7 @@ import { BookingWorkflowService } from '../services/booking-workflow.service';
 
 @ApiTags('Bookings')
 @ApiBearerAuth()
+@ApiExtraModels(BookingResponseDto, BookingCursorResponseDto)
 @ApiErrorResponses(
   'BAD_REQUEST',
   'UNAUTHORIZED',
@@ -96,7 +111,7 @@ export class BookingsController {
   @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiQuery({ name: 'packageId', required: false, type: String })
   @ApiQuery({ name: 'clientId', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Return all bookings' })
+  @ApiOkResponse({ description: 'Return all bookings', type: BookingResponseDto, isArray: true })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAll(@Query() query: BookingFilterDto, @CurrentUser() user: User) {
@@ -117,7 +132,10 @@ export class BookingsController {
   @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiQuery({ name: 'packageId', required: false, type: String })
   @ApiQuery({ name: 'clientId', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Return bookings' })
+  @ApiOkResponse({
+    description: 'Return bookings',
+    schema: { $ref: getSchemaPath(BookingCursorResponseDto) },
+  })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   findAllCursor(@Query() query: BookingCursorFilterDto, @CurrentUser() user: User) {
@@ -133,7 +151,8 @@ export class BookingsController {
   @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiQuery({ name: 'packageId', required: false, type: String })
   @ApiQuery({ name: 'clientId', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'CSV file download' })
+  @ApiProduces('text/csv')
+  @ApiOkResponse({ description: 'CSV file download', schema: { type: 'string', format: 'binary' } })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   exportBookings(@Query() filters: BookingExportFilterDto, @Res() res: Response) {
@@ -161,7 +180,7 @@ export class BookingsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get booking by ID' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
-  @ApiResponse({ status: 200, description: 'Booking details' })
+  @ApiOkResponse({ description: 'Booking details', type: BookingResponseDto })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'bookings.not_found' })

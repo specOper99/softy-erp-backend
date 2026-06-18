@@ -1,5 +1,5 @@
-# Build stage
-FROM node:lts-alpine AS builder
+# Build stage — pin Node 22 (see backend/.nvmrc, RUNBOOK.md)
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 

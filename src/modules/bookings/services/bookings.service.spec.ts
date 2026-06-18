@@ -689,6 +689,44 @@ describe('BookingsService', () => {
     });
   });
 
+  describe('tenant isolation', () => {
+    it('scopes findAllCursor queries to current tenant', async () => {
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      const paginateSpy = jest
+        .spyOn(CursorPaginationHelper, 'paginate')
+        .mockResolvedValue({ data: [], nextCursor: null } as never);
+
+      await service.findAllCursor({ limit: 10 } as never);
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('booking.tenantId = :tenantId', { tenantId: 'tenant-123' });
+      paginateSpy.mockRestore();
+    });
+
+    it('scopes findOne to current tenant and rejects cross-tenant ids', async () => {
+      const queryBuilder = {
+        andWhere: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoinAndMapMany: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+
+      bookingRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      await expect(service.findOne('other-tenant-booking-id')).rejects.toThrow();
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('booking.id = :id AND booking.tenantId = :tenantId', {
+        id: 'other-tenant-booking-id',
+        tenantId: 'tenant-123',
+      });
+    });
+  });
+
   describe('remove', () => {
     it('writes an audit log entry with the reason on successful deletion', async () => {
       const draftBooking = createMockBooking({

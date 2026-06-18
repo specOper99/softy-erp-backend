@@ -2,6 +2,35 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { SanitizeHtml } from '../../../common/decorators';
 
+export class ClientResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  email?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  phone?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  phone2?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  notes?: string | null;
+
+  @ApiProperty({ type: [String] })
+  tags: string[];
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
 export class CreateClientDto {
   @ApiProperty({ description: 'Client full name', example: 'Ahmed Ali' })
   @IsString()

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { SelectQueryBuilder } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
@@ -11,6 +12,7 @@ import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import { ClonePackageDto, CreateServicePackageDto, PackageFilterDto, UpdateServicePackageDto } from '../dto';
 import { ServicePackage } from '../entities/service-package.entity';
+import { PackagePriceChangedEvent } from '../events/package-price-changed.event';
 import { ServicePackageRepository } from '../repositories/service-package.repository';
 
 @Injectable()
@@ -20,6 +22,7 @@ export class CatalogService {
     private readonly auditService: AuditPublisher,
     private readonly cacheUtils: CacheUtilsService,
     private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
+    private readonly eventBus: EventBus,
   ) {}
 
   // Cache TTLs in milliseconds
@@ -190,6 +193,13 @@ export class CatalogService {
     if (dto.revenueAccountCode !== undefined) pkg.revenueAccountCode = dto.revenueAccountCode;
     if (dto.skipStaffCheck !== undefined) pkg.skipStaffCheck = dto.skipStaffCheck;
     const savedPkg = await this.packageRepository.save(pkg);
+
+    if (dto.price !== undefined && dto.price !== oldValues.price) {
+      const tenantId = TenantContextService.getTenantIdOrThrow();
+      this.eventBus.publish(
+        new PackagePriceChangedEvent(id, tenantId, Number(oldValues.price), Number(savedPkg.price), savedPkg.name),
+      );
+    }
 
     // Log price or status changes
     if (dto.price !== undefined || dto.isActive !== undefined || dto.name !== undefined) {

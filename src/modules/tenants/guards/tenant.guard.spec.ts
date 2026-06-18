@@ -103,6 +103,17 @@ describe('TenantGuard', () => {
       expect(() => guard.canActivate(mockExecutionContext)).toThrow('common.tenant_missing');
     });
 
+    it('should use cached tenant status when available', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue('tenant-123');
+      cache.get.mockResolvedValue({ status: TenantStatus.ACTIVE });
+
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+      expect(tenantsService.findOne).not.toHaveBeenCalled();
+    });
+
     it('should check both handler and class for SkipTenant', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
 

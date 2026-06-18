@@ -12,18 +12,29 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiProduces,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Role } from '../../users/enums/role.enum';
 import { ClientFilterDto } from '../dto/client-filter.dto';
-import { CreateClientDto, UpdateClientDto, UpdateClientTagsDto } from '../dto/client.dto';
+import { ClientResponseDto, CreateClientDto, UpdateClientDto, UpdateClientTagsDto } from '../dto/client.dto';
 import { ClientsService } from '../services/clients.service';
 
 @ApiTags('Clients')
 @ApiBearerAuth()
+@ApiExtraModels(ClientResponseDto)
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ClientsController {
@@ -33,6 +44,7 @@ export class ClientsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Create a new client' })
   @ApiBody({ type: CreateClientDto })
+  @ApiCreatedResponse({ description: 'Client created', type: ClientResponseDto })
   create(@Body() dto: CreateClientDto) {
     return this.clientsService.create(dto);
   }
@@ -43,6 +55,7 @@ export class ClientsController {
   @ApiQuery({ name: 'tags', required: false, type: String, description: 'Comma-separated tag filter' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiOkResponse({ description: 'Return all clients', type: ClientResponseDto, isArray: true })
   findAll(
     @Query() query: ClientFilterDto,
     @Query('tags', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
@@ -54,12 +67,15 @@ export class ClientsController {
   @Get('export')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Export clients to CSV' })
+  @ApiProduces('text/csv')
+  @ApiOkResponse({ description: 'CSV file download', schema: { type: 'string', format: 'binary' } })
   exportClients(@Res() res: Response) {
     return this.clientsService.exportToCSV(res);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get client by ID' })
+  @ApiOkResponse({ description: 'Client details', type: ClientResponseDto })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.clientsService.findById(id);
   }
@@ -68,6 +84,7 @@ export class ClientsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update client details' })
   @ApiBody({ type: UpdateClientDto })
+  @ApiOkResponse({ description: 'Client updated', type: ClientResponseDto })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateClientDto) {
     return this.clientsService.update(id, dto);
   }
@@ -83,6 +100,7 @@ export class ClientsController {
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update client tags' })
   @ApiBody({ type: UpdateClientTagsDto })
+  @ApiOkResponse({ description: 'Client tags updated', type: ClientResponseDto })
   updateTags(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateClientTagsDto) {
     return this.clientsService.updateTags(id, dto.tags);
   }

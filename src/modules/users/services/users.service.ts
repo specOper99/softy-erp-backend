@@ -107,6 +107,7 @@ export class UsersService {
   }
 
   async findAll(query: UserFilterDto = new UserFilterDto()): Promise<User[]> {
+    this.normalizeUserFilters(query);
     const qb = this.userRepository.createQueryBuilder('user');
 
     qb.leftJoinAndMapOne(
@@ -136,6 +137,7 @@ export class UsersService {
   }
 
   async findAllCursor(query: UserFilterDto): Promise<{ data: User[]; nextCursor: string | null }> {
+    this.normalizeUserFilters(query);
     const limit = query.limit || 20;
 
     const qb = this.userRepository.createQueryBuilder('user');
@@ -370,5 +372,13 @@ export class UsersService {
     }
 
     return result.valid;
+  }
+
+  private normalizeUserFilters(query: UserFilterDto): void {
+    if (query.isActive !== undefined || query.status === undefined) {
+      return;
+    }
+
+    query.isActive = query.status === 'active';
   }
 }

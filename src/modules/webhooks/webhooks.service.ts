@@ -211,6 +211,10 @@ export class WebhookService {
     }
   }
 
+  /**
+   * Outbound webhook POST with DNS-pinned IP and custom SSRF controls (GAP-SE-003).
+   * `request-filtering-agent` was evaluated and removed — pinning + private-CIDR checks here are sufficient.
+   */
   private async postPinnedJson(
     url: URL,
     pinnedIp: string,
@@ -436,7 +440,9 @@ export class WebhookService {
       ? this.encryptionService.decrypt(webhook.secret)
       : webhook.secret;
 
-    // Legacy Header Signature
+    // Legacy X-Webhook-* headers — deprecated 2026-07-03 (GAP-SE-004 / T-101).
+    // Consumers must migrate to Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature).
+    // Removal target: after deprecation window closes on 2026-07-03.
     const legacySignature = this.createSignature(`${timestamp}.${body}`, decryptedSecret);
 
     // Standard Header Signature
@@ -454,8 +460,12 @@ export class WebhookService {
       });
     }
 
+    // Legacy headers (GAP-SE-004): remove after 2026-07-03 deprecation window; Standard Webhooks headers are canonical.
+    // GAP-SE-004: Legacy X-Webhook-* headers retained until 2026-07-03 for consumer migration.
+    // Standard headers: webhook-id, webhook-timestamp, webhook-signature.
     const sentHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      // Legacy X-Webhook-* headers: deprecated 2026-07-03 — remove after consumer migration (GAP-SE-004 / T-101).
       'X-Webhook-Signature': legacySignature,
       'X-Webhook-Timestamp': timestamp,
       'X-Webhook-Event': event.type,

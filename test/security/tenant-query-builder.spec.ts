@@ -77,6 +77,31 @@ describe('Tenant scoping in QueryBuilder usages', () => {
     }
   });
 
+  it('TenantAwareRepository exposes stream and aggregate query builders', () => {
+    const repoFile = path.join(__dirname, '..', '..', 'src', 'common', 'repositories', 'tenant-aware.repository.ts');
+    const content = fs.readFileSync(repoFile, 'utf8');
+
+    expect(content).toContain('createStreamQueryBuilder');
+    expect(content).toContain('createAggregateQueryBuilder');
+  });
+
+  it('migrated finance/task services use TenantAware repository classes', () => {
+    const targets = [
+      path.join(__dirname, '..', '..', 'src', 'modules', 'tasks', 'services', 'tasks-export.service.ts'),
+      path.join(__dirname, '..', '..', 'src', 'modules', 'tasks', 'services', 'time-entries.service.ts'),
+      path.join(__dirname, '..', '..', 'src', 'modules', 'finance', 'services', 'purchase-invoices.service.ts'),
+      path.join(__dirname, '..', '..', 'src', 'modules', 'finance', 'services', 'payout-relay.service.ts'),
+      path.join(__dirname, '..', '..', 'src', 'modules', 'finance', 'services', 'vendors.service.ts'),
+      path.join(__dirname, '..', '..', 'src', 'modules', 'finance', 'services', 'transaction-categories.service.ts'),
+    ];
+
+    for (const file of targets) {
+      const content = fs.readFileSync(file, 'utf8');
+      expect(content).not.toMatch(/@InjectRepository\(/);
+      expect(content).toMatch(/Repository/);
+    }
+  });
+
   it('has no dangling package event contract file after decommission', () => {
     const eventFile = path.join(__dirname, '..', '..', 'src', 'modules', 'catalog', 'events', 'package.events.ts');
     expect(fs.existsSync(eventFile)).toBe(false);

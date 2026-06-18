@@ -6,6 +6,13 @@ import { BatchSpanProcessor, ConsoleSpanExporter } from '@opentelemetry/sdk-trac
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { toErrorMessage } from '../utils/error.util';
 
+/**
+ * Coolify / OTLP (OB-003): Tracing is off by default (OTEL_ENABLED=false in compose).
+ * To enable, deploy an OTLP collector on the Coolify network and set:
+ *   OTEL_ENABLED=true
+ *   OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector>:4318/v1/traces
+ * Full collector stack is optional — this module only exports spans when enabled.
+ */
 const isTracingEnabled = process.env.OTEL_ENABLED === 'true';
 
 let sdk: NodeSDK | null = null;

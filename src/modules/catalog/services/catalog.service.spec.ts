@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { SelectQueryBuilder } from 'typeorm';
@@ -13,6 +14,7 @@ import type { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AuditPublisher } from '../../audit/audit.publisher';
 import type { CreateServicePackageDto, UpdateServicePackageDto } from '../dto';
 import type { ServicePackage } from '../entities/service-package.entity';
+import { PackagePriceChangedEvent } from '../events/package-price-changed.event';
 import { ServicePackageRepository } from '../repositories/service-package.repository';
 import { CatalogService } from './catalog.service';
 
@@ -21,6 +23,7 @@ describe('CatalogService', () => {
   let packageRepo: jest.Mocked<ServicePackageRepository>;
   let auditService: jest.Mocked<AuditPublisher>;
   let cacheUtils: jest.Mocked<CacheUtilsService>;
+  let eventBus: jest.Mocked<EventBus>;
 
   const mockTenantId = 'tenant-123';
   const mockPackage = createMockServicePackage({
@@ -63,6 +66,10 @@ describe('CatalogService', () => {
             delAvailabilityForPackage: jest.fn().mockResolvedValue(undefined),
           },
         },
+        {
+          provide: EventBus,
+          useValue: { publish: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -70,6 +77,7 @@ describe('CatalogService', () => {
     packageRepo = module.get(ServicePackageRepository);
     auditService = module.get(AuditPublisher);
     cacheUtils = module.get(CacheUtilsService);
+    eventBus = module.get(EventBus);
 
     mockTenantContext(mockTenantId);
 
@@ -198,6 +206,7 @@ describe('CatalogService', () => {
 
       expect(auditService.log).toHaveBeenCalled();
       expect(cacheUtils.del).toHaveBeenCalled();
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(PackagePriceChangedEvent));
       expect(result.price).toBe(6000);
     });
   });

@@ -1,12 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
 import pLimit from 'p-limit';
-import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
+import { DataSource, LessThanOrEqual } from 'typeorm';
+import { TENANT_REPO_PAYOUT } from '../../../common/constants/tenant-repo.tokens';
+import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
+import { TenantsService } from '../../tenants/tenants.service';
 import { FINANCE } from '../constants';
 import { Payout } from '../entities/payout.entity';
 import { Transaction } from '../entities/transaction.entity';
@@ -19,25 +21,21 @@ import { WalletService } from './wallet.service';
 export class PayoutRelayService {
   private readonly logger = new Logger(PayoutRelayService.name);
   private readonly tenantTx: TenantScopedManager;
-  /** Lock key for payout relay cron job */
   private static readonly CRON_LOCK_KEY = `${FINANCE.LOCK.PAYOUT_PROCESSING}:relay`;
 
   constructor(
-    @InjectRepository(Payout)
-    private readonly payoutRepository: Repository<Payout>,
+    @Inject(TENANT_REPO_PAYOUT)
+    private readonly payoutRepository: TenantAwareRepository<Payout>,
     private readonly paymentGatewayService: MockPaymentGatewayService,
     private readonly walletService: WalletService,
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
     private readonly distributedLockService: DistributedLockService,
+    private readonly tenantsService: TenantsService,
   ) {
     this.tenantTx = new TenantScopedManager(dataSource);
   }
 
-  /**
-   * Periodic job to process pending payouts.
-   * Runs every minute.
-   */
   @Cron(CronExpression.EVERY_MINUTE)
   async processPendingPayouts(): Promise<void> {
     const result = await this.distributedLockService.withLock(
@@ -47,8 +45,8 @@ export class PayoutRelayService {
         return true;
       },
       {
-        ttl: FINANCE.TIME.ONE_MINUTE_MS, // 1 minute lock TTL matches cron interval
-        maxRetries: 0, // Don't retry - let next cron tick handle it
+        ttl: FINANCE.TIME.ONE_MINUTE_MS,
+        maxRetries: 0,
       },
     );
 
@@ -58,23 +56,34 @@ export class PayoutRelayService {
   }
 
   async processBatch(): Promise<void> {
-    const payouts = await this.payoutRepository.find({
-      where: {
-        status: PayoutStatus.PENDING,
-        payoutDate: LessThanOrEqual(new Date()),
-      },
-      take: FINANCE.BATCH.DEFAULT_BATCH_SIZE,
-      order: { payoutDate: 'ASC' },
-    });
+    const tenants = await this.tenantsService.findAll();
+    const tenantLimit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
 
-    if (payouts.length === 0) {
-      return;
-    }
+    await Promise.allSettled(
+      tenants.map((tenant) =>
+        tenantLimit(async () => {
+          await TenantContextService.run(tenant.id, async () => {
+            const payouts = await this.payoutRepository.find({
+              where: {
+                status: PayoutStatus.PENDING,
+                payoutDate: LessThanOrEqual(new Date()),
+              },
+              take: FINANCE.BATCH.DEFAULT_BATCH_SIZE,
+              order: { payoutDate: 'ASC' },
+            });
 
-    this.logger.log(`Found ${payouts.length} pending payouts to process`);
+            if (payouts.length === 0) {
+              return;
+            }
 
-    const limit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
-    await Promise.allSettled(payouts.map((payout) => limit(() => this.processSinglePayout(payout))));
+            this.logger.log(`Tenant ${tenant.id}: found ${payouts.length} pending payouts to process`);
+
+            const payoutLimit = pLimit(FINANCE.BATCH.MAX_CONCURRENCY);
+            await Promise.allSettled(payouts.map((payout) => payoutLimit(() => this.processSinglePayout(payout))));
+          });
+        }),
+      ),
+    );
   }
 
   private async processSinglePayout(payout: Payout): Promise<void> {
@@ -149,7 +158,6 @@ export class PayoutRelayService {
         payout.notes = `${payout.notes || ''} | TxnRef: ${transactionReference}`;
         await manager.save(payout);
 
-        // Create ERP Transaction
         payoutTx = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.PAYROLL,
           amount: Number(payout.amount),
@@ -158,11 +166,8 @@ export class PayoutRelayService {
           description: `Payroll payout completed. Ref: ${transactionReference}`,
           transactionDate: new Date(),
         });
-
-        // No need to touch Wallet here, as balance was zeroed in the initial Payroll run.
       });
 
-      // Notify after commit so events and caches never reflect rolled-back data.
       if (payoutTx) {
         await this.financeService.notifyTransactionCreated(payoutTx);
       }

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { CombinedPaginationDto } from '../../../common/dto/combined-pagination.dto';
 import { PII } from '../../../common/decorators';
 import { Role } from '../enums/role.enum';
@@ -66,6 +66,14 @@ export class UserResponseDto {
   updatedAt: Date;
 }
 
+export class UserCursorResponseDto {
+  @ApiProperty({ type: [UserResponseDto] })
+  data: UserResponseDto[];
+
+  @ApiPropertyOptional({ nullable: true })
+  nextCursor: string | null;
+}
+
 export class UserFilterDto extends CombinedPaginationDto {
   @ApiPropertyOptional({
     enum: Role,
@@ -84,6 +92,15 @@ export class UserFilterDto extends CombinedPaginationDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Filter by user status (active or inactive)',
+    enum: ['active', 'inactive'],
+    example: 'active',
+  })
+  @IsOptional()
+  @IsIn(['active', 'inactive'])
+  status?: 'active' | 'inactive';
 
   @ApiPropertyOptional({
     description: 'Search in user email',

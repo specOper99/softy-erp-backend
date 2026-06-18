@@ -1,6 +1,7 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { TENANT_REPO_PURCHASE_INVOICE } from '../../../common/constants/tenant-repo.tokens';
+import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CreatePurchaseInvoiceDto } from '../dto';
 import { PurchaseInvoice, Vendor } from '../entities';
@@ -11,8 +12,8 @@ import { FinanceService } from './finance.service';
 @Injectable()
 export class PurchaseInvoicesService {
   constructor(
-    @InjectRepository(PurchaseInvoice)
-    private readonly purchaseInvoiceRepository: Repository<PurchaseInvoice>,
+    @Inject(TENANT_REPO_PURCHASE_INVOICE)
+    private readonly purchaseInvoiceRepository: TenantAwareRepository<PurchaseInvoice>,
     private readonly financeService: FinanceService,
     private readonly dataSource: DataSource,
   ) {}
@@ -32,11 +33,6 @@ export class PurchaseInvoicesService {
         }
 
         const invoiceDate = new Date(dto.invoiceDate);
-        // 1. Create the expense transaction.  `purchaseInvoiceId` is left NULL
-        //    here because we don't have the invoice id yet — the relaxed
-        //    "at most one parent" check constraint allows zero parents, and
-        //    booking_id / task_id / payout_id are also NULL for this kind of
-        //    transaction, so the new row is well-formed.
         const transaction = await this.financeService.createTransactionWithManager(manager, {
           type: TransactionType.EXPENSE,
           amount: dto.totalAmount,
@@ -46,9 +42,6 @@ export class PurchaseInvoicesService {
         });
         invoiceTx = transaction;
 
-        // 2. Persist the invoice.  The `transactionId` link (invoice → tx)
-        //    has existed since the table was created; it is the only side
-        //    that is NOT NULL on the invoice.
         const purchaseInvoice = manager.create(PurchaseInvoice, {
           tenantId,
           vendorId: vendor.id,
@@ -60,13 +53,6 @@ export class PurchaseInvoicesService {
         });
         const savedInvoice = await manager.save(purchaseInvoice);
 
-        // 3. Close the loop: back-fill `transactions.purchase_invoice_id`
-        //    (tx → invoice) so the reverse composite FK and the extended
-        //    at-most-one check constraint are both satisfied.  A single
-        //    UPDATE keeps the round-trip cost negligible.
-        //    This must run inside the same DB transaction so a failure here
-        //    rolls back the invoice and the txn insert together — preserving
-        //    the atomicity guarantee in TENANT_FINANCE_REQUIREMENTS_MATRIX.md.
         await manager.update(Transaction, transaction.id, {
           purchaseInvoiceId: savedInvoice.id,
         });
@@ -74,7 +60,6 @@ export class PurchaseInvoicesService {
         return savedInvoice;
       });
 
-      // Notify after commit so events and caches never reflect rolled-back data.
       await this.financeService.notifyTransactionCreated(invoiceTx!);
 
       return this.findById(createdInvoice.id);
@@ -87,18 +72,15 @@ export class PurchaseInvoicesService {
   }
 
   async findAll(): Promise<PurchaseInvoice[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.purchaseInvoiceRepository.find({
-      where: { tenantId },
       relations: ['vendor', 'transaction'],
       order: { invoiceDate: 'DESC', createdAt: 'DESC' },
     });
   }
 
   async findById(id: string): Promise<PurchaseInvoice> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const purchaseInvoice = await this.purchaseInvoiceRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: ['vendor', 'transaction'],
     });
 

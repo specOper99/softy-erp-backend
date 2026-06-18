@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6.3.0
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
       
@@ -67,6 +67,14 @@ jobs:
       - name: Check Tenant Async Boundary
         run: npm run check:tenant-async-boundary
 
+      - name: Validate Prometheus monitoring configs
+        run: |
+          if ! command -v promtool >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq prometheus
+          fi
+          bash ./scripts/validate-prometheus-config.sh
+
   test:
     name: Test
     runs-on: [self-hosted, linux, x64, docker]
@@ -104,7 +112,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6.3.0
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
       
@@ -159,7 +167,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6.3.0
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
       
@@ -176,10 +184,10 @@ jobs:
           path: dist/
 
   docker:
-    name: Build Docker Image
+    name: Build Coolify Docker image
     runs-on: [self-hosted, linux, x64, docker]
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v6.0.2
         with:

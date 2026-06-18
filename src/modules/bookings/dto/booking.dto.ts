@@ -16,7 +16,10 @@ import {
 import { SanitizeHtml } from '../../../common/decorators';
 import { PaymentStatus } from '../../finance/enums/payment-status.enum';
 import { BookingStatus } from '../enums/booking-status.enum';
+import { ClientResponseDto } from './client.dto';
 import { ProcessingTypeResponseDto } from './processing-type.dto';
+
+export { ClientResponseDto };
 
 export class CreateBookingDto {
   @ApiProperty({ description: 'Client ID' })
@@ -200,23 +203,6 @@ export class RescheduleBookingDto {
   skipAvailabilityCheck?: boolean;
 }
 
-export class ClientResponseDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty()
-  name: string;
-
-  @ApiProperty()
-  email: string;
-
-  @ApiProperty()
-  phone: string;
-
-  @ApiPropertyOptional()
-  notes?: string;
-}
-
 export class BookingResponseDto {
   @ApiProperty()
   id: string;
@@ -290,6 +276,14 @@ export class BookingResponseDto {
 
   @ApiProperty()
   createdAt: Date;
+}
+
+export class BookingCursorResponseDto {
+  @ApiProperty({ type: [BookingResponseDto] })
+  data: BookingResponseDto[];
+
+  @ApiProperty({ nullable: true, type: String })
+  nextCursor: string | null;
 }
 
 export class ConfirmBookingResponseDto {

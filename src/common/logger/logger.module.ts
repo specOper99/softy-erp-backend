@@ -1,3 +1,19 @@
+/**
+ * T-105 (nestjs-pino migration) — DEFERRED. Full migration touches logger.module,
+ * main.ts, correlation-id.middleware, request-context (18 callers), and
+ * log-sanitizer. See HANDOFF_PLAN.md T-105.
+ *
+ * Coolify logging strategy (current): Winston Console transport emits JSON to
+ * stdout in production — Coolify captures container logs. Optional LOKI_HOST
+ * pushes to Grafana Loki. File transports write to /app/logs (volume-mounted).
+ * After Pino cutover: stdout JSON only; coordinate Grafana query field renames.
+ */
+/**
+ * T-105 (HANDOFF_PLAN): Migrate Winston → nestjs-pino.
+ * - Prod: JSON to stdout only (Coolify log viewer; drop file transports).
+ * - Keep correlationId / userId fields stable for Loki/Grafana queries.
+ * - Enable Loki via LOKI_HOST when optional Loki stack is deployed (see RUNBOOK.md).
+ */
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';

@@ -151,7 +151,6 @@
     "prom-client": "^15.1.3",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
-    "request-filtering-agent": "^3.2.0",
     "rrule": "^2.8.1",
     "rxjs": "^7.8.2",
     "sanitize-html": "^2.17.2",
@@ -238,12 +237,11 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(uuid|p-limit|yocto-queue|request-filtering-agent)/)"
+      "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
     ],
     "moduleNameMapper": {
       "^p-retry$": "<rootDir>/../test/__mocks__/p-retry.ts",
-      "^file-type$": "<rootDir>/../test/__mocks__/file-type.ts",
-      "^request-filtering-agent$": "<rootDir>/../test/__mocks__/request-filtering-agent.ts"
+      "^file-type$": "<rootDir>/../test/__mocks__/file-type.ts"
     },
     "coverageProvider": "v8",
     "collectCoverageFrom": [

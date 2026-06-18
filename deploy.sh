@@ -4,7 +4,11 @@
 # Softy ERP - Backend Production Deployment Script
 # Generated: 2026-01-25
 # Compatible: Linux & macOS
-# 
+#
+# DEPRECATED for production: use Coolify + backend/docker-compose.coolify.yml.
+# See RUNBOOK.md. Bare-metal (--bare-metal) and PM2 startup paths below are
+# legacy only. Prefer Docker Compose on Coolify for new deployments.
+#
 # This script automates the complete backend deployment process. It handles:
 # - Interactive .env configuration wizard
 # - Pre-deployment checks
@@ -952,6 +956,9 @@ start_service() {
         log "Service managed by $DEPLOYMENT_TYPE, skipping bare-metal startup"
         return 0
     fi
+
+    # DEPRECATED: PM2 bare-metal startup — production uses Coolify (RUNBOOK.md).
+    log_warning "PM2 bare-metal startup is deprecated. Use Coolify Docker Compose for production."
     
     log_section "STARTING BACKEND SERVICE"
     
@@ -1190,6 +1197,8 @@ main() {
     
     case "$DEPLOYMENT_TYPE" in
         bare-metal)
+            # DEPRECATED: bare-metal + PM2 path — use Coolify (RUNBOOK.md).
+            log_warning "bare-metal deployment is deprecated. Prefer Coolify + docker-compose.coolify.yml."
             deploy_backend
             create_admin
             start_service
@@ -1305,7 +1314,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --configure         Run interactive .env configuration wizard only"
             echo ""
             echo "Deployment Types:"
-            echo "  --bare-metal        Deploy directly on server (default)"
+            echo "  --bare-metal        Deploy directly on server (DEPRECATED — use Coolify)"
             echo "  --docker            Build and deploy as Docker container"
             echo "  --kubernetes, --k8s Deploy to Kubernetes cluster"
             echo ""

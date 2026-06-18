@@ -1,10 +1,10 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import type { MockRepository } from '../../../../test/helpers/mock-factories';
 import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { TransactionCategory } from '../entities/transaction-category.entity';
+import { TENANT_REPO_TRANSACTION_CATEGORY } from '../../../common/constants/tenant-repo.tokens';
+import type { TransactionCategory } from '../entities/transaction-category.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { TransactionCategoriesService } from './transaction-categories.service';
 
@@ -47,7 +47,7 @@ describe('TransactionCategoriesService', () => {
       providers: [
         TransactionCategoriesService,
         {
-          provide: getRepositoryToken(TransactionCategory),
+          provide: TENANT_REPO_TRANSACTION_CATEGORY,
           useValue: repository,
         },
       ],
@@ -66,7 +66,6 @@ describe('TransactionCategoriesService', () => {
 
       expect(result).toEqual([mockCategory, mockCategory2]);
       expect(repository.find).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-123' },
         order: { name: 'ASC' },
         relations: ['parent', 'children'],
       });
@@ -89,7 +88,7 @@ describe('TransactionCategoriesService', () => {
 
       expect(result).toEqual(mockCategory);
       expect(repository.findOne).toHaveBeenCalledWith({
-        where: { id: 'category-uuid-123', tenantId: 'tenant-123' },
+        where: { id: 'category-uuid-123' },
         relations: ['parent', 'children'],
       });
     });

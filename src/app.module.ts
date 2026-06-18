@@ -18,6 +18,7 @@ import { vaultLoader } from './config/vault.loader';
 
 // Common imports
 import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
+import { AuthorizationModule } from './common/authorization/authorization.module';
 import { AppCacheModule } from './common/cache/cache.module';
 import { CommonModule } from './common/common.module';
 import { PlatformModule } from './modules/platform/platform.module';
@@ -31,6 +32,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { QueueModule } from './common/queue/queue.module';
+import { MfaRequiredGuard } from './modules/auth/guards/mfa-required.guard';
 import { TenantGuard } from './modules/tenants/guards/tenant.guard';
 import { TenantMiddleware } from './modules/tenants/middleware/tenant.middleware';
 
@@ -202,6 +204,7 @@ import { CoreModule } from './modules/core/core.module';
     }),
 
     // Feature Modules
+    AuthorizationModule,
     CommonModule,
     CoreModule,
     PlatformModule,
@@ -237,6 +240,7 @@ import { CoreModule } from './modules/core/core.module';
     // Graceful shutdown handler
 
     { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: MfaRequiredGuard },
 
     // Global filters — AllExceptionsFilter translates structured errors (code + args),
     // validation batches (validationErrors), and registered string keys.

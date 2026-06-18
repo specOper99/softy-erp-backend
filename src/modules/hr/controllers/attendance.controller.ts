@@ -13,7 +13,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiExtraModels, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { isUUID } from 'class-validator';
 import { ApiErrorResponses, CurrentUser } from '../../../common/decorators';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -22,13 +32,18 @@ import { resolveRequestedUserIdScope } from '../../../common/helpers/field-staff
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
-import { CreateAttendanceDto, ListAttendanceDto, UpdateAttendanceDto } from '../dto/attendance.dto';
+import {
+  CreateAttendanceDto,
+  AttendanceResponseDto,
+  ListAttendanceDto,
+  UpdateAttendanceDto,
+} from '../dto/attendance.dto';
 import { AttendanceService } from '../services/attendance.service';
 import { toErrorMessage } from '../../../common/utils/error.util';
 
 @ApiTags('HR Attendance')
 @ApiBearerAuth()
-@ApiExtraModels(ListAttendanceDto)
+@ApiExtraModels(AttendanceResponseDto, ListAttendanceDto)
 @ApiErrorResponses('BAD_REQUEST', 'UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'UNPROCESSABLE_ENTITY', 'TOO_MANY_REQUESTS')
 @Controller('hr/attendance')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,7 +55,7 @@ export class AttendanceController {
   @Post()
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Create attendance record' })
-  @ApiResponse({ status: 201, description: 'Attendance created' })
+  @ApiCreatedResponse({ description: 'Attendance created', type: AttendanceResponseDto })
   @ApiBody({ type: CreateAttendanceDto })
   create(@Body() createAttendanceDto: CreateAttendanceDto, @CurrentUser() user: User) {
     if (user.role === Role.FIELD_STAFF) {
@@ -63,7 +78,7 @@ export class AttendanceController {
   @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Attendance list returned' })
+  @ApiOkResponse({ description: 'Attendance list returned', type: AttendanceResponseDto, isArray: true })
   findAll(@Query() query: ListAttendanceDto = new ListAttendanceDto(), @CurrentUser() user: User) {
     if (user.role === Role.FIELD_STAFF) {
       const scopedUserId = resolveRequestedUserIdScope(user);
@@ -78,7 +93,7 @@ export class AttendanceController {
   @Get(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get attendance by ID' })
-  @ApiResponse({ status: 200, description: 'Attendance returned' })
+  @ApiOkResponse({ description: 'Attendance returned', type: AttendanceResponseDto })
   @ApiResponse({ status: 404, description: 'Attendance not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     const attendance = await this.attendanceService.findOne(id);
@@ -99,7 +114,7 @@ export class AttendanceController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Update attendance record' })
-  @ApiResponse({ status: 200, description: 'Attendance updated' })
+  @ApiOkResponse({ description: 'Attendance updated', type: AttendanceResponseDto })
   @ApiBody({ type: UpdateAttendanceDto })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateAttendanceDto: UpdateAttendanceDto) {
     return this.attendanceService.update(id, updateAttendanceDto);

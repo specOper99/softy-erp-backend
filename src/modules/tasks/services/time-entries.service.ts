@@ -1,6 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { TENANT_REPO_TIME_ENTRY } from '../../../common/constants/tenant-repo.tokens';
+import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
@@ -11,17 +12,15 @@ import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
 @Injectable()
 export class TimeEntriesService {
   constructor(
-    @InjectRepository(TimeEntry)
-    private readonly timeEntryRepository: Repository<TimeEntry>,
+    @Inject(TENANT_REPO_TIME_ENTRY)
+    private readonly timeEntryRepository: TenantAwareRepository<TimeEntry>,
     private readonly dataSource: DataSource,
   ) {}
 
   async startTimer(userId: string, dto: StartTimeEntryDto): Promise<TimeEntry> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    // [C-05] Race Condition Fix: Use pessimistic locking to prevent concurrent timer starts
     return this.dataSource.transaction(async (manager) => {
-      // Acquire exclusive lock on existing running timer (if any)
       const activeTimer = await manager
         .createQueryBuilder(TimeEntry, 'entry')
         .where('entry.userId = :userId', { userId })
@@ -58,9 +57,8 @@ export class TimeEntriesService {
   }
 
   async stopTimer(userId: string, id: string, dto?: StopTimeEntryDto): Promise<TimeEntry> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const timeEntry = await this.timeEntryRepository.findOne({
-      where: { id, userId, tenantId },
+      where: { id, userId },
     });
 
     if (!timeEntry) {
@@ -88,11 +86,9 @@ export class TimeEntriesService {
   }
 
   async getActiveTimer(userId: string): Promise<TimeEntry | null> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.timeEntryRepository.findOne({
       where: {
         userId,
-        tenantId,
         status: TimeEntryStatus.RUNNING,
       },
       relations: ['task'],
@@ -100,20 +96,18 @@ export class TimeEntriesService {
   }
 
   async getTaskTimeEntries(taskId: string): Promise<TimeEntry[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.timeEntryRepository.find({
-      where: { taskId, tenantId },
+      where: { taskId },
       order: { startTime: 'DESC' },
       relations: ['user'],
-      take: 1000, // [Safety] Prevent unbounded result set
+      take: 1000,
     });
   }
 
   async update(user: User, id: string, dto: UpdateTimeEntryDto): Promise<TimeEntry> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const isAdmin = user.role === Role.ADMIN || user.role === Role.OPS_MANAGER;
     const timeEntry = await this.timeEntryRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
     });
 
     if (!timeEntry) {
@@ -141,8 +135,7 @@ export class TimeEntriesService {
   }
 
   async delete(id: string): Promise<void> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-    const result = await this.timeEntryRepository.delete({ id, tenantId });
+    const result = await this.timeEntryRepository.delete({ id });
     if (result.affected === 0) {
       throw new NotFoundException('time_entries.not_found');
     }

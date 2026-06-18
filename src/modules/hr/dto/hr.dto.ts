@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { PII, SanitizeHtml } from '../../../common/decorators';
+import { PaginationMetaDto } from '../../../common/dto/paginated-response.dto';
 import { Role } from '../../users/enums/role.enum';
 import { PayrollRun } from '../entities/payroll-run.entity';
 import { ContractType } from '../enums/contract-type.enum';
@@ -117,6 +118,22 @@ export class ProfileResponseDto extends OmitType(BaseProfileDto, ['hireDate']) {
 
   @ApiPropertyOptional()
   hireDate: Date | null;
+}
+
+export class ProfilePaginatedResponseDto {
+  @ApiProperty({ type: [ProfileResponseDto] })
+  data: ProfileResponseDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta: PaginationMetaDto;
+}
+
+export class ProfileCursorResponseDto {
+  @ApiProperty({ type: [ProfileResponseDto] })
+  data: ProfileResponseDto[];
+
+  @ApiProperty({ nullable: true, type: String })
+  nextCursor: string | null;
 }
 
 export class PayrollRunResponseDto {

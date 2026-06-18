@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { LessThan, LessThanOrEqual, Repository } from 'typeorm';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { Payout } from '../entities/payout.entity';
 import { PayoutStatus } from '../enums/payout-status.enum';
@@ -12,6 +12,20 @@ export class PayoutRepository extends TenantAwareRepository<Payout> {
     repository: Repository<Payout>,
   ) {
     super(repository);
+  }
+
+  /**
+   * Find pending payouts ready for relay processing within the current tenant.
+   */
+  async findPendingForRelay(limit: number): Promise<Payout[]> {
+    return this.find({
+      where: {
+        status: PayoutStatus.PENDING,
+        payoutDate: LessThanOrEqual(new Date()),
+      },
+      take: limit,
+      order: { payoutDate: 'ASC' },
+    });
   }
 
   /**

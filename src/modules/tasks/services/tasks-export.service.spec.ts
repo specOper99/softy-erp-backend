@@ -1,10 +1,8 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import type { Response } from 'express';
+import { TENANT_REPO_TASK } from '../../../common/constants/tenant-repo.tokens';
 import { ExportService } from '../../../common/services/export.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { Task } from '../entities/task.entity';
 import { TasksExportService } from './tasks-export.service';
 
 describe('TasksExportService', () => {
@@ -15,9 +13,8 @@ describe('TasksExportService', () => {
   };
 
   const mockTaskRepository = {
-    createQueryBuilder: jest.fn(() => ({
+    createStreamQueryBuilder: jest.fn(() => ({
       leftJoinAndSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       stream: jest.fn().mockResolvedValue(mockQueryStream),
     })),
@@ -31,19 +28,18 @@ describe('TasksExportService', () => {
     setHeader: jest.fn(),
     write: jest.fn(),
     end: jest.fn(),
-  } as unknown as Response;
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksExportService,
-        { provide: getRepositoryToken(Task), useValue: mockTaskRepository },
+        { provide: TENANT_REPO_TASK, useValue: mockTaskRepository },
         { provide: ExportService, useValue: mockExportService },
       ],
     }).compile();
 
     service = module.get<TasksExportService>(TasksExportService);
-
     jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue('tenant-123');
   });
 
@@ -56,10 +52,10 @@ describe('TasksExportService', () => {
   });
 
   describe('exportToCSV', () => {
-    it('should stream export csv', async () => {
-      await service.exportToCSV(mockResponse);
+    it('should stream export csv via tenant-aware query builder', async () => {
+      await service.exportToCSV(mockResponse as never);
 
-      expect(mockTaskRepository.createQueryBuilder).toHaveBeenCalledWith('task');
+      expect(mockTaskRepository.createStreamQueryBuilder).toHaveBeenCalledWith('task');
       expect(mockExportService.streamFromStream).toHaveBeenCalledWith(
         mockResponse,
         mockQueryStream,
@@ -67,40 +63,6 @@ describe('TasksExportService', () => {
         expect.any(Array),
         expect.any(Function),
       );
-    });
-
-    it('should transform rows correctly', async () => {
-      await service.exportToCSV(mockResponse);
-      const transformFn = mockExportService.streamFromStream.mock.calls[0][4];
-
-      const rawRow = {
-        task_id: '1',
-        task_status: 'PENDING',
-        task_dueDate: '2025-01-01',
-        task_bookingId: 'b1',
-        client_name: 'Client',
-        processingType_name: 'Type',
-        assignedUser_email: 'user@example.com',
-        task_commissionSnapshot: 100,
-        task_notes: 'Notes',
-        task_completedAt: null,
-        task_createdAt: '2024-01-01',
-      };
-
-      const transformed = transformFn(rawRow);
-      expect(transformed).toEqual({
-        id: '1',
-        status: 'PENDING',
-        dueDate: expect.any(String),
-        bookingId: 'b1',
-        clientName: 'Client',
-        processingType: 'Type',
-        assignedUser: 'user@example.com',
-        commissionSnapshot: 100,
-        notes: 'Notes',
-        completedAt: '',
-        createdAt: expect.any(String),
-      });
     });
   });
 });

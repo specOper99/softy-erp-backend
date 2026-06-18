@@ -3,6 +3,38 @@ import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from '
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AttendanceStatus, LeaveType } from '../entities/attendance.entity';
 
+export class AttendanceResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ format: 'uuid' })
+  userId: string;
+
+  @ApiProperty({ description: 'Attendance date' })
+  date: Date;
+
+  @ApiPropertyOptional({ description: 'Check-in timestamp' })
+  checkIn?: Date | null;
+
+  @ApiPropertyOptional({ description: 'Check-out timestamp' })
+  checkOut?: Date | null;
+
+  @ApiProperty({ enum: AttendanceStatus })
+  status: AttendanceStatus;
+
+  @ApiPropertyOptional({ enum: LeaveType })
+  leaveType?: LeaveType | null;
+
+  @ApiPropertyOptional()
+  notes?: string | null;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
 export class BaseAttendanceDto {
   @ApiPropertyOptional({ description: 'Check-in timestamp (ISO 8601)' })
   @IsOptional()

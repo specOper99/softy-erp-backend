@@ -1,6 +1,14 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CommonModule } from '../../common/common.module';
+import {
+  TENANT_REPO_PAYOUT,
+  TENANT_REPO_PURCHASE_INVOICE,
+  TENANT_REPO_TRANSACTION_CATEGORY,
+  TENANT_REPO_VENDOR,
+} from '../../common/constants/tenant-repo.tokens';
+import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { Booking } from '../bookings/entities/booking.entity';
 import { BookingRepository } from '../bookings/repositories/booking.repository';
@@ -29,7 +37,9 @@ import { InvoiceRepository } from './repositories/invoice.repository';
 import { PayoutRepository } from './repositories/payout.repository';
 import { PurchaseInvoiceRepository } from './repositories/purchase-invoice.repository';
 import { RecurringTransactionRepository } from './repositories/recurring-transaction.repository';
+import { TransactionCategoryRepository } from './repositories/transaction-category.repository';
 import { TransactionRepository } from './repositories/transaction.repository';
+import { VendorRepository } from './repositories/vendor.repository';
 import { WalletRepository } from './repositories/wallet.repository';
 import { CurrencyService } from './services/currency.service';
 import { FinanceService } from './services/finance.service';
@@ -100,11 +110,33 @@ import { PayoutRelayService } from './services/payout-relay.service';
     PayoutRelayService,
     PayoutRepository,
     PurchaseInvoiceRepository,
+    VendorRepository,
+    TransactionCategoryRepository,
     MockPaymentGatewayService,
     PayoutConsistencyCron,
     BookingUpdatedHandler,
     ReconciliationFailedHandler,
     BookingPriceChangedHandler,
+    {
+      provide: TENANT_REPO_PURCHASE_INVOICE,
+      useFactory: (repo: Repository<PurchaseInvoice>) => new TenantAwareRepository(repo),
+      inject: [getRepositoryToken(PurchaseInvoice)],
+    },
+    {
+      provide: TENANT_REPO_PAYOUT,
+      useFactory: (repo: Repository<Payout>) => new TenantAwareRepository(repo),
+      inject: [getRepositoryToken(Payout)],
+    },
+    {
+      provide: TENANT_REPO_VENDOR,
+      useFactory: (repo: Repository<Vendor>) => new TenantAwareRepository(repo),
+      inject: [getRepositoryToken(Vendor)],
+    },
+    {
+      provide: TENANT_REPO_TRANSACTION_CATEGORY,
+      useFactory: (repo: Repository<TransactionCategory>) => new TenantAwareRepository(repo),
+      inject: [getRepositoryToken(TransactionCategory)],
+    },
   ],
   exports: [
     FinanceService,

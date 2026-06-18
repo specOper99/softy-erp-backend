@@ -1,10 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import type { MockRepository } from '../../../../test/helpers/mock-factories';
 import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
-import { Vendor } from '../entities';
+import { TENANT_REPO_VENDOR } from '../../../common/constants/tenant-repo.tokens';
+import type { Vendor } from '../entities';
 import { VendorsService } from './vendors.service';
 
 describe('VendorsService', () => {
@@ -30,7 +30,7 @@ describe('VendorsService', () => {
       providers: [
         VendorsService,
         {
-          provide: getRepositoryToken(Vendor),
+          provide: TENANT_REPO_VENDOR,
           useValue: repository,
         },
       ],
@@ -51,7 +51,6 @@ describe('VendorsService', () => {
 
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: 'tenant-123',
         name: 'Acme Supplies',
       }),
     );
@@ -64,7 +63,6 @@ describe('VendorsService', () => {
     const result = await service.findAll();
 
     expect(repository.find).toHaveBeenCalledWith({
-      where: { tenantId: 'tenant-123' },
       order: { name: 'ASC', createdAt: 'DESC' },
     });
     expect(result).toEqual([mockVendor]);

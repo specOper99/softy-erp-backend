@@ -1,8 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { TENANT_REPO_TIME_ENTRY } from '../../../common/constants/tenant-repo.tokens';
 import { DataSource } from 'typeorm';
 import {
   createMockDataSource,
@@ -13,13 +12,14 @@ import {
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
 import type { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
-import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
+import type { TimeEntry } from '../entities/time-entry.entity';
+import { TimeEntryStatus } from '../entities/time-entry.entity';
 import { TimeEntriesService } from './time-entries.service';
 import type { User } from '../../users/entities/user.entity';
 
 describe('TimeEntriesService', () => {
   let service: TimeEntriesService;
-  let timeEntryRepo: jest.Mocked<Repository<TimeEntry>>;
+  let timeEntryRepo: ReturnType<typeof createMockRepository<TimeEntry>>;
   let mockDataSource: ReturnType<typeof createMockDataSource>;
 
   const mockTenantId = 'tenant-123';
@@ -58,7 +58,7 @@ describe('TimeEntriesService', () => {
       providers: [
         TimeEntriesService,
         {
-          provide: getRepositoryToken(TimeEntry),
+          provide: TENANT_REPO_TIME_ENTRY,
           useValue: createMockRepository<TimeEntry>(),
         },
         {
@@ -69,7 +69,7 @@ describe('TimeEntriesService', () => {
     }).compile();
 
     service = module.get<TimeEntriesService>(TimeEntriesService);
-    timeEntryRepo = module.get(getRepositoryToken(TimeEntry));
+    timeEntryRepo = module.get(TENANT_REPO_TIME_ENTRY);
 
     mockTenantContext(mockTenantId);
   });
@@ -203,7 +203,6 @@ describe('TimeEntriesService', () => {
       expect(timeEntryRepo.findOne).toHaveBeenCalledWith({
         where: {
           userId: mockUserId,
-          tenantId: mockTenantId,
           status: TimeEntryStatus.RUNNING,
         },
         relations: ['task'],
@@ -227,7 +226,7 @@ describe('TimeEntriesService', () => {
       const result = await service.getTaskTimeEntries('task-123');
 
       expect(timeEntryRepo.find).toHaveBeenCalledWith({
-        where: { taskId: 'task-123', tenantId: mockTenantId },
+        where: { taskId: 'task-123' },
         order: { startTime: 'DESC' },
         relations: ['user'],
         take: 1000,
@@ -270,7 +269,6 @@ describe('TimeEntriesService', () => {
 
       expect(timeEntryRepo.delete).toHaveBeenCalledWith({
         id: 'entry-123',
-        tenantId: mockTenantId,
       });
     });
 

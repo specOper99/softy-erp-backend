@@ -11,7 +11,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -31,7 +41,10 @@ import {
   CreateStaffDto,
   CreateStaffResponseDto,
   PayrollRunCursorResponseDto,
+  ProfileCursorResponseDto,
   ProfileFilterDto,
+  ProfilePaginatedResponseDto,
+  ProfileResponseDto,
   RunPayrollDto,
   UpdateProfileDto,
 } from '../dto';
@@ -41,6 +54,7 @@ import { PayrollService } from '../services/payroll.service';
 
 @ApiTags('HR')
 @ApiBearerAuth()
+@ApiExtraModels(ProfileResponseDto, ProfilePaginatedResponseDto, ProfileCursorResponseDto)
 @ApiErrorResponses(
   'BAD_REQUEST',
   'UNAUTHORIZED',
@@ -97,7 +111,10 @@ export class HrController {
   @ApiQuery({ name: 'status', required: false, type: String })
   @ApiQuery({ name: 'department', required: false, type: String })
   @ApiQuery({ name: 'contractType', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Return filtered profiles with pagination meta' })
+  @ApiOkResponse({
+    description: 'Return filtered profiles with pagination meta',
+    schema: { $ref: getSchemaPath(ProfilePaginatedResponseDto) },
+  })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async findAllProfilesWithFilters(@Query() query: ProfileFilterDto) {
@@ -116,7 +133,10 @@ export class HrController {
   @ApiQuery({ name: 'status', required: false, type: String })
   @ApiQuery({ name: 'department', required: false, type: String })
   @ApiQuery({ name: 'contractType', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Return filtered profiles with cursor pagination' })
+  @ApiOkResponse({
+    description: 'Return filtered profiles with cursor pagination',
+    schema: { $ref: getSchemaPath(ProfileCursorResponseDto) },
+  })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async findAllProfilesWithFiltersCursor(@Query() query: ProfileFilterDto) {
@@ -126,7 +146,10 @@ export class HrController {
   @Get('profiles/cursor/no-filters')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all profiles with cursor pagination (no filters)' })
-  @ApiResponse({ status: 200, description: 'Return profiles list' })
+  @ApiOkResponse({
+    description: 'Return profiles list',
+    schema: { $ref: getSchemaPath(ProfileCursorResponseDto) },
+  })
   findAllProfilesCursor(@Query() query: CursorPaginationDto) {
     return this.hrService.findAllProfilesCursor(query);
   }
@@ -179,7 +202,7 @@ export class HrController {
   @Get('profiles/:id')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get profile by ID' })
-  @ApiResponse({ status: 200, description: 'Return profile detail' })
+  @ApiOkResponse({ description: 'Return profile detail', type: ProfileResponseDto })
   @ApiResponse({ status: 404, description: 'Profile not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.hrService.findProfileById(id);
@@ -188,7 +211,7 @@ export class HrController {
   @Get('profiles/user/:userId')
   @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get profile by user ID' })
-  @ApiResponse({ status: 200, description: 'Return profile detail' })
+  @ApiOkResponse({ description: 'Return profile detail', type: ProfileResponseDto })
   @ApiResponse({ status: 404, description: 'Profile not found' })
   findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.hrService.findProfileByUserId(userId);
@@ -233,7 +256,7 @@ export class HrController {
     deprecated: true,
     description: 'Use /hr/payroll/history/cursor for better performance with large datasets.',
   })
-  @ApiResponse({ status: 200, description: 'Return payroll history list', type: PayrollRun, isArray: true })
+  @ApiOkResponse({ description: 'Return payroll history list', type: PayrollRun, isArray: true })
   getPayrollHistory(@Query() query: PaginationDto = new PaginationDto()) {
     return this.payrollService.getPayrollHistory(query);
   }
@@ -241,7 +264,7 @@ export class HrController {
   @Get('payroll/history/cursor')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get payroll run history with cursor pagination (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Return payroll history list', type: PayrollRunCursorResponseDto })
+  @ApiOkResponse({ description: 'Return payroll history list', type: PayrollRunCursorResponseDto })
   getPayrollHistoryCursor(@Query() query: CursorPaginationDto) {
     return this.payrollService.getPayrollHistoryCursor(query);
   }

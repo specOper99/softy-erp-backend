@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { Role } from '../../modules/users/enums/role.enum';
 import { AbilityFactory } from './ability.factory';
 
@@ -19,18 +20,29 @@ describe('AbilityFactory', () => {
 
   it('restricts FIELD_STAFF to read/update Task and read Booking', () => {
     const ability = factory.build({ ...baseUser, role: Role.FIELD_STAFF });
-    expect(ability.can('read', 'Task')).toBe(true);
-    expect(ability.can('update', 'Task')).toBe(true);
+    expect(ability.can('read', subject('Task', { assignedUserId: 'u1', tenantId: 't1' }))).toBe(true);
+    expect(ability.can('update', subject('Task', { assignedUserId: 'u1', tenantId: 't1' }))).toBe(true);
     expect(ability.can('delete', 'Task')).toBe(false);
-    expect(ability.can('read', 'Booking')).toBe(true);
+    expect(ability.can('read', subject('Booking', { tenantId: 't1' }))).toBe(true);
     expect(ability.can('update', 'Booking')).toBe(false);
   });
 
   it('restricts CLIENT to read on Booking and Invoice only', () => {
     const ability = factory.build({ ...baseUser, role: Role.CLIENT });
-    expect(ability.can('read', 'Booking')).toBe(true);
-    expect(ability.can('read', 'Invoice')).toBe(true);
+    expect(ability.can('read', subject('Booking', { tenantId: 't1' }))).toBe(true);
+    expect(ability.can('read', subject('Invoice', { tenantId: 't1' }))).toBe(true);
     expect(ability.can('update', 'Booking')).toBe(false);
     expect(ability.can('manage', 'Webhook')).toBe(false);
+  });
+
+  it('scopes FIELD_STAFF task updates to assigned user', () => {
+    const ability = factory.build({ ...baseUser, role: Role.FIELD_STAFF });
+    expect(ability.can('update', subject('Task', { assignedUserId: 'u1', tenantId: 't1' }))).toBe(true);
+    expect(ability.can('update', subject('Task', { assignedUserId: 'other', tenantId: 't1' }))).toBe(false);
+  });
+
+  it('maps entity names to CASL subjects for shadow comparisons', () => {
+    expect(factory.mapResourceType('Invoice')).toBe('Invoice');
+    expect(factory.mapResourceType('UnknownEntity')).toBeNull();
   });
 });

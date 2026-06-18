@@ -9,6 +9,7 @@ import { Webhook } from './entities/webhook.entity';
 import { WebhookProcessor } from './processors/webhook.processor';
 import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
 import { WebhookRepository } from './repositories/webhook.repository';
+import { PackagePriceChangedWebhookHandler } from './handlers/package-price-changed.handler';
 import { WebhookService } from './webhooks.service';
 import { WEBHOOK_QUEUE } from './webhooks.types';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -33,6 +34,7 @@ const backgroundJobsEnabled = areBackgroundJobsEnabled();
     WebhookService,
     WebhookRepository,
     WebhookDeliveryRepository,
+    PackagePriceChangedWebhookHandler,
     ...(backgroundJobsEnabled ? [WebhookProcessor] : []),
   ],
   exports: [WebhookService],

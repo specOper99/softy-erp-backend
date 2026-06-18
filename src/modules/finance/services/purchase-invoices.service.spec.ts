@@ -1,13 +1,13 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { TENANT_REPO_PURCHASE_INVOICE } from '../../../common/constants/tenant-repo.tokens';
 import type { MockRepository } from '../../../../test/helpers/mock-factories';
 import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
 import type { CreatePurchaseInvoiceDto } from '../dto';
 import type { Vendor } from '../entities';
-import { PurchaseInvoice } from '../entities';
+import type { PurchaseInvoice } from '../entities';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from './finance.service';
 import { PurchaseInvoicesService } from './purchase-invoices.service';
@@ -72,7 +72,7 @@ describe('PurchaseInvoicesService', () => {
       providers: [
         PurchaseInvoicesService,
         {
-          provide: getRepositoryToken(PurchaseInvoice),
+          provide: TENANT_REPO_PURCHASE_INVOICE,
           useValue: repository,
         },
         {

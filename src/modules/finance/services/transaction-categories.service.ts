@@ -1,7 +1,6 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { TENANT_REPO_TRANSACTION_CATEGORY } from '../../../common/constants/tenant-repo.tokens';
+import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { CreateTransactionCategoryDto, UpdateTransactionCategoryDto } from '../dto/transaction-category.dto';
 import { TransactionCategory } from '../entities/transaction-category.entity';
 
@@ -10,29 +9,20 @@ export class TransactionCategoriesService {
   private readonly logger = new Logger(TransactionCategoriesService.name);
 
   constructor(
-    @InjectRepository(TransactionCategory)
-    private readonly categoryRepository: Repository<TransactionCategory>,
+    @Inject(TENANT_REPO_TRANSACTION_CATEGORY)
+    private readonly categoryRepository: TenantAwareRepository<TransactionCategory>,
   ) {}
 
-  /**
-   * Find all categories for the current tenant
-   */
   async findAll(): Promise<TransactionCategory[]> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     return this.categoryRepository.find({
-      where: { tenantId },
       order: { name: 'ASC' },
       relations: ['parent', 'children'],
     });
   }
 
-  /**
-   * Find a category by ID
-   */
   async findById(id: string): Promise<TransactionCategory> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     const category = await this.categoryRepository.findOne({
-      where: { id, tenantId },
+      where: { id },
       relations: ['parent', 'children'],
     });
 
@@ -43,24 +33,17 @@ export class TransactionCategoriesService {
     return category;
   }
 
-  /**
-   * Create a new category
-   */
   async create(dto: CreateTransactionCategoryDto): Promise<TransactionCategory> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const category = this.categoryRepository.create({
       name: dto.name,
       description: dto.description,
       applicableType: dto.applicableType,
       parentId: dto.parentId,
-      tenantId,
     });
 
     try {
       return await this.categoryRepository.save(category);
     } catch (error: unknown) {
-      // Handle unique constraint violation (PostgreSQL error code 23505)
       if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
         throw new ConflictException('finance.category_name_already_exists');
       }
@@ -68,21 +51,16 @@ export class TransactionCategoriesService {
     }
   }
 
-  /**
-   * Update an existing category
-   */
   async update(id: string, dto: UpdateTransactionCategoryDto): Promise<TransactionCategory> {
     const category = await this.findById(id);
 
-    // Handle parent validation - prevent circular reference
     if (dto.parentId) {
       if (dto.parentId === id) {
         throw new ConflictException('finance.category_circular_reference');
       }
 
-      // Check if parent exists and belongs to same tenant
       const parent = await this.categoryRepository.findOne({
-        where: { id: dto.parentId, tenantId: category.tenantId },
+        where: { id: dto.parentId },
       });
 
       if (!parent) {
@@ -90,7 +68,6 @@ export class TransactionCategoriesService {
       }
     }
 
-    // Apply updates
     if (dto.name !== undefined) {
       category.name = dto.name;
     }
@@ -110,7 +87,6 @@ export class TransactionCategoriesService {
     try {
       return await this.categoryRepository.save(category);
     } catch (error: unknown) {
-      // Handle unique constraint violation (PostgreSQL error code 23505)
       if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === '23505') {
         throw new ConflictException('finance.category_name_already_exists');
       }
@@ -118,16 +94,11 @@ export class TransactionCategoriesService {
     }
   }
 
-  /**
-   * Delete a category (soft delete by setting isActive to false)
-   * Actually deletes the record since we don't have soft delete implemented
-   */
   async delete(id: string): Promise<void> {
     const category = await this.findById(id);
 
-    // Check if category has children
     const children = await this.categoryRepository.count({
-      where: { parentId: id, tenantId: category.tenantId },
+      where: { parentId: id },
     });
 
     if (children > 0) {

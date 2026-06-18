@@ -1,29 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Inject, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
-import { Repository } from 'typeorm';
+import { TENANT_REPO_TASK } from '../../../common/constants/tenant-repo.tokens';
+import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { ExportService } from '../../../common/services/export.service';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { Task } from '../entities/task.entity';
 
 @Injectable()
 export class TasksExportService {
   constructor(
-    @InjectRepository(Task)
-    private readonly taskRepository: Repository<Task>,
+    @Inject(TENANT_REPO_TASK)
+    private readonly taskRepository: TenantAwareRepository<Task>,
     private readonly exportService: ExportService,
   ) {}
 
   async exportToCSV(res: Response): Promise<void> {
-    const tenantId = TenantContextService.getTenantIdOrThrow();
-
     const queryStream = await this.taskRepository
-      .createQueryBuilder('task')
+      .createStreamQueryBuilder('task')
       .leftJoinAndSelect('task.booking', 'booking')
       .leftJoinAndSelect('booking.client', 'client')
       .leftJoinAndSelect('task.processingType', 'processingType')
       .leftJoinAndSelect('task.assignedUser', 'assignedUser')
-      .where('task.tenantId = :tenantId', { tenantId })
       .orderBy('task.createdAt', 'DESC')
       .stream();
 

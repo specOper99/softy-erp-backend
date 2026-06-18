@@ -1,11 +1,11 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { TENANT_REPO_PAYOUT } from '../../../common/constants/tenant-repo.tokens';
 import { DistributedLockService } from '../../../common/services/distributed-lock.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MockPaymentGatewayService } from '../../hr/services/payment-gateway.service';
-import { Payout } from '../entities/payout.entity';
+import { TenantsService } from '../../tenants/tenants.service';
 import { PayoutStatus } from '../enums/payout-status.enum';
 import { FinanceService } from './finance.service';
 import { PayoutRelayService } from './payout-relay.service';
@@ -47,56 +47,45 @@ describe('PayoutRelayService', () => {
     notifyTransactionCreated: jest.fn().mockResolvedValue(undefined),
   };
 
-  const mockQueryRunner = {
-    connect: jest.fn(),
-    startTransaction: jest.fn(),
-    commitTransaction: jest.fn(),
-    rollbackTransaction: jest.fn(),
-    release: jest.fn(),
-    manager: {
-      save: jest.fn(),
-    },
-  };
-
   const mockDataSource = {
     query: jest.fn().mockResolvedValue([{ locked: true }]),
-    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    createQueryRunner: jest.fn(),
   };
 
   const mockDistributedLockService = {
-    withLock: jest.fn().mockImplementation(async (_key: string, callback: () => Promise<unknown>) => {
-      return callback();
-    }),
+    withLock: jest.fn().mockImplementation(async (_key: string, callback: () => Promise<unknown>) => callback()),
+  };
+
+  const mockTenantsService = {
+    findAll: jest.fn().mockResolvedValue([{ id: 'tenant-123' }]),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayoutRelayService,
-        {
-          provide: getRepositoryToken(Payout),
-          useValue: mockPayoutRepository,
-        },
+        { provide: TENANT_REPO_PAYOUT, useValue: mockPayoutRepository },
         { provide: MockPaymentGatewayService, useValue: mockPaymentGatewayService },
         { provide: WalletService, useValue: mockWalletService },
         { provide: FinanceService, useValue: mockFinanceService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: DistributedLockService, useValue: mockDistributedLockService },
+        { provide: TenantsService, useValue: mockTenantsService },
       ],
     }).compile();
 
     service = module.get<PayoutRelayService>(PayoutRelayService);
 
     jest.clearAllMocks();
-    jest.spyOn(TenantContextService, 'run').mockImplementation((_, cb) => {
-      return cb();
-    });
+    jest.spyOn(TenantContextService, 'run').mockImplementation((_, cb) => cb());
   });
 
   describe('processPendingPayouts', () => {
     it('should process pending payouts successfully', async () => {
       await service.processPendingPayouts();
 
+      expect(mockTenantsService.findAll).toHaveBeenCalled();
+      expect(mockPayoutRepository.find).toHaveBeenCalled();
       expect(mockPaymentGatewayService.triggerPayout).toHaveBeenCalledWith({
         employeeName: 'John Doe',
         bankAccount: '1234567890',
@@ -110,7 +99,6 @@ describe('PayoutRelayService', () => {
 
       await service.processPendingPayouts();
 
-      // Verify gateway was attempted
       expect(mockPaymentGatewayService.triggerPayout).toHaveBeenCalled();
     });
 
@@ -119,7 +107,6 @@ describe('PayoutRelayService', () => {
 
       await service.processPendingPayouts();
 
-      // Should not attempt gateway trigger if metadata is missing
       expect(mockPaymentGatewayService.triggerPayout).not.toHaveBeenCalled();
     });
   });
