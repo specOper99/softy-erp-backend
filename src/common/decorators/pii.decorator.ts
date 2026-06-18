@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 
+export { PII_FIELD_PATTERNS } from '../constants/sensitive-log-keys';
+
 /**
  * Decorator to mark fields containing Personally Identifiable Information (PII).
  * Fields marked with @PII() will be masked in logs by the LogSanitizer.
@@ -32,41 +34,6 @@ export function PII(): PropertyDecorator {
     }
   };
 }
-
-/**
- * List of common PII field names that should always be masked in logs,
- * even without the @PII decorator.
- */
-export const PII_FIELD_PATTERNS = [
-  'email',
-  'phone',
-  'ssn',
-  'social_security',
-  'creditcard',
-  'credit_card',
-  'cardnumber',
-  'card_number',
-  'password',
-  'passwordhash',
-  'password_hash',
-  'secret',
-  'token',
-  'apikey',
-  'api_key',
-  'accesstoken',
-  'access_token',
-  'refreshtoken',
-  'refresh_token',
-  'authorization',
-  'bearer',
-  'ipaddress',
-  'ip_address',
-  'dob',
-  'dateofbirth',
-  'date_of_birth',
-  'birthdate',
-  'birth_date',
-];
 
 /**
  * Get the list of PII-marked field names from a class constructor.

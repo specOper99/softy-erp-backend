@@ -22,7 +22,7 @@ import {
   SelectQueryBuilder,
   UpdateResult,
 } from 'typeorm';
-import { TenantMismatchException, TenantMismatchOperation } from '../exceptions/domain.exceptions';
+import { TenantMismatchException, TenantMismatchOperation } from '../exceptions/tenant-mismatch.exception';
 import { TenantContextService } from '../services/tenant-context.service';
 
 @Injectable()

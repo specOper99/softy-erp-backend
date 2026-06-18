@@ -1,12 +1,11 @@
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'node:crypto';
-import * as OTPAuth from 'otpauth';
 import { toDataURL } from 'qrcode';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
+import { buildTotp, createTotpSecret, verifyTotpToken } from '../../../common/utils/totp.util';
 import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { MfaResponseDto } from '../dto';
-import { toErrorMessage } from '../../../common/utils/error.util';
 
 @Injectable()
 export class MfaService {
@@ -18,15 +17,8 @@ export class MfaService {
   ) {}
 
   async generateMfaSecret(user: User): Promise<MfaResponseDto> {
-    const secret = new OTPAuth.Secret({ size: 20 });
-    const totp = new OTPAuth.TOTP({
-      issuer: 'softY ERP',
-      label: user.email,
-      algorithm: 'SHA1',
-      digits: 6,
-      period: 30,
-      secret: secret,
-    });
+    const secret = createTotpSecret();
+    const totp = buildTotp(secret, { issuer: 'softY ERP', label: user.email });
     const otpauthUrl = totp.toString();
     const qrCodeUrl = await toDataURL(otpauthUrl);
 
@@ -45,20 +37,9 @@ export class MfaService {
       throw new BadRequestException('auth.mfa_setup_not_started');
     }
 
-    let isValid: boolean;
-    try {
-      const totp = new OTPAuth.TOTP({
-        secret: OTPAuth.Secret.fromBase32(userWithSecret.mfaSecret),
-        algorithm: 'SHA1',
-        digits: 6,
-        period: 30,
-      });
-      const delta = totp.validate({ token: code, window: 1 });
-      isValid = delta !== null;
-    } catch (error) {
-      this.logger.warn(`TOTP validation error during MFA enable for user ${user.id}: ${toErrorMessage(error)}`);
-      throw new UnauthorizedException('auth.invalid_mfa_code');
-    }
+    const isValid = verifyTotpToken(userWithSecret.mfaSecret, code, (message) =>
+      this.logger.warn(`TOTP validation error during MFA enable for user ${user.id}: ${message}`),
+    );
 
     if (!isValid) {
       throw new UnauthorizedException('auth.invalid_mfa_code');
@@ -130,18 +111,6 @@ export class MfaService {
   }
 
   verifyTotp(secret: string, token: string): boolean {
-    try {
-      const totp = new OTPAuth.TOTP({
-        secret: OTPAuth.Secret.fromBase32(secret),
-        algorithm: 'SHA1',
-        digits: 6,
-        period: 30,
-      });
-      const delta = totp.validate({ token, window: 1 });
-      return delta !== null;
-    } catch (error) {
-      this.logger.debug(`TOTP verification failed: ${toErrorMessage(error)}`);
-      return false;
-    }
+    return verifyTotpToken(secret, token, (message) => this.logger.debug(message));
   }
 }

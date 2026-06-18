@@ -1,13 +1,11 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'node:crypto';
-import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
 import { Repository } from 'typeorm';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
+import { buildTotp, createTotpSecret, verifyTotpToken } from '../../../common/utils/totp.util';
 import { PlatformUser } from '../entities/platform-user.entity';
-import { toErrorMessage } from '../../../common/utils/error.util';
 
 export interface MFASetupResponse {
   secret: string;
@@ -38,20 +36,8 @@ export class MFAService {
    * Generate MFA secret and QR code for user
    */
   async setupMFA(userId: string, userEmail: string): Promise<MFASetupResponse> {
-    // Generate secret
-    const secret = new OTPAuth.Secret({ size: 20 });
-
-    // Generate TOTP instance
-    const totp = new OTPAuth.TOTP({
-      issuer: this.APP_NAME,
-      label: userEmail,
-      algorithm: 'SHA1',
-      digits: 6,
-      period: 30,
-      secret: secret,
-    });
-
-    // Generate OTP auth URL
+    const secret = createTotpSecret();
+    const totp = buildTotp(secret, { issuer: this.APP_NAME, label: userEmail });
     const otpauth = totp.toString();
 
     // Generate QR code
@@ -73,20 +59,7 @@ export class MFAService {
    * Verify MFA token
    */
   verifyToken(secret: string, token: string): boolean {
-    try {
-      // Verify TOTP token with 30-second window
-      const totp = new OTPAuth.TOTP({
-        secret: OTPAuth.Secret.fromBase32(secret),
-        algorithm: 'SHA1',
-        digits: 6,
-        period: 30,
-      });
-      const delta = totp.validate({ token, window: 1 });
-      return delta !== null;
-    } catch (error) {
-      this.logger.error(`MFA verification failed: ${toErrorMessage(error)}`);
-      return false;
-    }
+    return verifyTotpToken(secret, token, (message) => this.logger.error(message));
   }
 
   /**
@@ -203,10 +176,13 @@ export class MFAService {
   async disableMfa(userId: string, password: string): Promise<void> {
     const user = await this.getUserWithFields(userId, ['passwordHash', 'mfaEnabled']);
 
-    // Verify password before disabling MFA
-    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordMatches) {
+    const verification = await this.passwordHashService.verifyAndUpgrade(user.passwordHash, password);
+    if (!verification.valid) {
       throw new UnauthorizedException('auth.incorrect_password_mfa_disable');
+    }
+
+    if (verification.upgraded && verification.newHash) {
+      user.passwordHash = verification.newHash;
     }
 
     user.mfaEnabled = false;
