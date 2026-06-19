@@ -22,6 +22,7 @@ describe('PlatformAuthService', () => {
   };
   let passwordHashService: { verify: jest.Mock };
   let jwtService: { sign: jest.Mock; verify: jest.Mock };
+  let mfaService: { verifyToken: jest.Mock };
 
   const activeUser: PlatformUser = {
     id: 'platform-user-1',
@@ -49,6 +50,9 @@ describe('PlatformAuthService', () => {
       sign: jest.fn().mockReturnValue('platform-access-token'),
       verify: jest.fn(),
     };
+    mfaService = {
+      verifyToken: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -64,7 +68,7 @@ describe('PlatformAuthService', () => {
           },
         },
         { provide: PasswordHashService, useValue: passwordHashService },
-        { provide: MFAService, useValue: { verifyToken: jest.fn() } },
+        { provide: MFAService, useValue: mfaService },
       ],
     }).compile();
 
@@ -142,6 +146,29 @@ describe('PlatformAuthService', () => {
 
     expect(refreshTokenRepository.update).toHaveBeenCalledWith(expect.objectContaining({ userId: activeUser.id }), {
       isRevoked: true,
+    });
+  });
+
+  describe('verifyMfaLogin', () => {
+    it('verifies MFA and returns tokens', async () => {
+      const mfaEnabledUser = { ...activeUser, mfaEnabled: true, mfaSecret: 'secret' };
+      platformUserRepository.findOne.mockResolvedValue(mfaEnabledUser);
+      jwtService.verify.mockReturnValue({ sub: mfaEnabledUser.id });
+      mfaService.verifyToken.mockReturnValue(true);
+
+      const result = await service.verifyMfaLogin('temp-token', '123456');
+
+      expect(result.accessToken).toBe('platform-access-token');
+      expect(result.user.id).toBe(mfaEnabledUser.id);
+    });
+
+    it('rejects if MFA code is invalid', async () => {
+      const mfaEnabledUser = { ...activeUser, mfaEnabled: true, mfaSecret: 'secret' };
+      platformUserRepository.findOne.mockResolvedValue(mfaEnabledUser);
+      jwtService.verify.mockReturnValue({ sub: mfaEnabledUser.id });
+      mfaService.verifyToken.mockReturnValue(false);
+
+      await expect(service.verifyMfaLogin('temp-token', 'wrong-code')).rejects.toThrow(UnauthorizedException);
     });
   });
 });
