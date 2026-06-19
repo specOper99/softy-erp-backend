@@ -15,5 +15,6 @@
   "booking_cancelled": "Cannot complete task: the associated booking has been cancelled",
   "complete_no_assignee": "Cannot complete task: no user assigned",
   "not_assigned": "Task is not assigned",
-  "modify_forbidden": "Not allowed to modify this task"
+  "modify_forbidden": "Not allowed to modify this task",
+  "invalid_due_date_filter": "Invalid due date filter value. Use ISO 8601 date format."
 }

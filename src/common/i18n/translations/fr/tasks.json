@@ -15,5 +15,6 @@
   "booking_cancelled": "Impossible de terminer la tâche : la réservation associée a été annulée",
   "complete_no_assignee": "Impossible de terminer la tâche : aucun utilisateur affecté",
   "not_assigned": "La tâche n'est pas affectée",
-  "modify_forbidden": "Modification de cette tâche non autorisée"
+  "modify_forbidden": "Modification de cette tâche non autorisée",
+  "invalid_due_date_filter": "Valeur de filtre de date d'échéance invalide. Utilisez le format ISO 8601."
 }
