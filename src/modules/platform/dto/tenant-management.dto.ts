@@ -113,17 +113,25 @@ export class CreateTenantDto {
   @IsString()
   billingEmail?: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     type: InitialAdminDto,
     description:
-      'Optional first tenant admin. When supplied, a User with role=ADMIN is created in the same ' +
-      'transaction as the tenant, so the tenant is immediately loginable. Plaintext password is ' +
-      'consumed by the service and not persisted or logged.',
+      'First tenant admin. A User with role=ADMIN is created in the same transaction as the tenant. ' +
+      'Plaintext password is consumed by the service and not persisted or logged.',
   })
-  @IsOptional()
   @ValidateNested()
   @Type(() => InitialAdminDto)
-  initialAdmin?: InitialAdminDto;
+  initialAdmin: InitialAdminDto;
+
+  @ApiPropertyOptional({ description: 'Subscription start date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  subscriptionStartedAt?: string;
+
+  @ApiPropertyOptional({ description: 'Subscription end date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  subscriptionEndsAt?: string;
 }
 
 export class UpdateTenantDto {

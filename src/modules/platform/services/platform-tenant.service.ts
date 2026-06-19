@@ -61,6 +61,37 @@ export class PlatformTenantService {
     await this.cacheUtils.del(`tenant:state:${tenantId}`);
   }
 
+  private tenantSnapshot(tenant: Tenant): Record<string, unknown> {
+    return {
+      status: tenant.status,
+      name: tenant.name,
+      subscriptionPlan: tenant.subscriptionPlan,
+      deletionScheduledAt: tenant.deletionScheduledAt,
+      subscriptionStartedAt: tenant.subscriptionStartedAt,
+      subscriptionEndsAt: tenant.subscriptionEndsAt,
+    };
+  }
+
+  private async recordLifecycleEvent(params: {
+    tenantId: string;
+    eventType: string;
+    triggeredBy: string | null;
+    reason?: string | null;
+    previousState?: Record<string, unknown> | null;
+    newState?: Record<string, unknown> | null;
+  }): Promise<void> {
+    const event = this.lifecycleEventRepository.create({
+      tenantId: params.tenantId,
+      eventType: params.eventType,
+      triggeredBy: params.triggeredBy,
+      triggeredByType: 'platform_user',
+      reason: params.reason ?? null,
+      previousState: params.previousState ?? null,
+      newState: params.newState ?? null,
+    });
+    await this.lifecycleEventRepository.save(event);
+  }
+
   async listTenants(dto: ListTenantsDto): Promise<{ tenants: Tenant[]; total: number }> {
     const qb = this.tenantRepository.createQueryBuilder('tenant');
 
@@ -127,14 +158,12 @@ export class PlatformTenantService {
       });
     }
 
-    if (dto.initialAdmin) {
-      const existingUser = await this.usersService.findByEmailGlobal(dto.initialAdmin.email);
-      if (existingUser) {
-        throw new ConflictException({
-          code: 'auth.email_already_registered',
-          args: { email: dto.initialAdmin.email },
-        });
-      }
+    const existingUser = await this.usersService.findByEmailGlobal(dto.initialAdmin.email);
+    if (existingUser) {
+      throw new ConflictException({
+        code: 'auth.email_already_registered',
+        args: { email: dto.initialAdmin.email },
+      });
     }
 
     const result = await this.dataSource.transaction(async (manager) => {
@@ -147,31 +176,39 @@ export class PlatformTenantService {
       tenant.billingEmail = dto.billingEmail ?? null;
       tenant.status = TenantStatus.ACTIVE;
       tenant.lastActivityAt = new Date();
+      if (dto.subscriptionStartedAt) {
+        tenant.subscriptionStartedAt = new Date(dto.subscriptionStartedAt);
+      }
+      if (dto.subscriptionEndsAt) {
+        tenant.subscriptionEndsAt = new Date(dto.subscriptionEndsAt);
+      }
       await manager.save(tenant);
 
-      if (dto.initialAdmin) {
-        await this.usersService.createWithManager(manager, {
-          email: dto.initialAdmin.email,
-          password: dto.initialAdmin.password,
-          role: Role.ADMIN,
-          tenantId: tenant.id,
-        });
-      }
+      await this.usersService.createWithManager(manager, {
+        email: dto.initialAdmin.email,
+        password: dto.initialAdmin.password,
+        role: Role.ADMIN,
+        tenantId: tenant.id,
+      });
 
       return tenant;
     });
 
     await this.invalidateTenantStateCache(result.id);
 
-    if (dto.initialAdmin) {
-      this.logger.warn(
-        `Tenant created with initial admin: tenant=${result.id} (${result.slug}) ` +
-          `adminEmail=${dto.initialAdmin.email} platformOperator=${platformUserId} ip=${ipAddress} ` +
-          `note=plaintext password supplied in request body and consumed; not retained`,
-      );
-    } else {
-      this.logger.log(`Tenant created: ${result.id} (${result.slug})`);
-    }
+    await this.recordLifecycleEvent({
+      tenantId: result.id,
+      eventType: 'tenant.created',
+      triggeredBy: platformUserId,
+      reason: null,
+      newState: this.tenantSnapshot(result),
+    });
+
+    this.logger.warn(
+      `Tenant created with initial admin: tenant=${result.id} (${result.slug}) ` +
+        `adminEmail=${dto.initialAdmin.email} platformOperator=${platformUserId} ip=${ipAddress} ` +
+        `note=plaintext password supplied in request body and consumed; not retained`,
+    );
 
     return result;
   }
@@ -179,11 +216,12 @@ export class PlatformTenantService {
   async updateTenant(
     tenantId: string,
     dto: UpdateTenantDto,
-    _platformUserId: string,
+    platformUserId: string,
     _ipAddress: string,
-    _reason: string,
+    reason: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
+    const previousState = this.tenantSnapshot(tenant);
 
     if (dto.name !== undefined) tenant.name = dto.name;
     if (dto.subscriptionPlan !== undefined) tenant.subscriptionPlan = dto.subscriptionPlan;
@@ -193,6 +231,15 @@ export class PlatformTenantService {
 
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
+
+    await this.recordLifecycleEvent({
+      tenantId: updated.id,
+      eventType: 'tenant.updated',
+      triggeredBy: platformUserId,
+      reason,
+      previousState,
+      newState: this.tenantSnapshot(updated),
+    });
 
     this.logger.log(`Tenant updated: ${updated.id} (${updated.slug})`);
 
@@ -206,6 +253,7 @@ export class PlatformTenantService {
     _ipAddress: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
+    const previousState = this.tenantSnapshot(tenant);
 
     if (tenant.status === TenantStatus.SUSPENDED) {
       throw new ConflictException('tenants.suspended_already');
@@ -228,6 +276,15 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    await this.recordLifecycleEvent({
+      tenantId: updated.id,
+      eventType: 'tenant.suspended',
+      triggeredBy: platformUserId,
+      reason: dto.reason,
+      previousState,
+      newState: this.tenantSnapshot(updated),
+    });
+
     this.logger.warn(`Tenant suspended: ${updated.id} (${updated.slug}) - ${dto.reason}`);
 
     return updated;
@@ -236,10 +293,11 @@ export class PlatformTenantService {
   async reactivateTenant(
     tenantId: string,
     dto: ReactivateTenantDto,
-    _platformUserId: string,
+    platformUserId: string,
     _ipAddress: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
+    const previousState = this.tenantSnapshot(tenant);
 
     if (tenant.status === TenantStatus.ACTIVE) {
       throw new ConflictException('tenants.active_already');
@@ -255,18 +313,37 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    await this.recordLifecycleEvent({
+      tenantId: updated.id,
+      eventType: 'tenant.reactivated',
+      triggeredBy: platformUserId,
+      reason: dto.reason,
+      previousState,
+      newState: this.tenantSnapshot(updated),
+    });
+
     this.logger.log(`Tenant reactivated: ${updated.id} (${updated.slug}) - ${dto.reason}`);
 
     return updated;
   }
 
-  async lockTenant(tenantId: string, reason: string, _platformUserId: string, _ipAddress: string): Promise<Tenant> {
+  async lockTenant(tenantId: string, reason: string, platformUserId: string, _ipAddress: string): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
+    const previousState = this.tenantSnapshot(tenant);
 
     tenant.status = TenantStatus.LOCKED;
 
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
+
+    await this.recordLifecycleEvent({
+      tenantId: updated.id,
+      eventType: 'tenant.locked',
+      triggeredBy: platformUserId,
+      reason,
+      previousState,
+      newState: this.tenantSnapshot(updated),
+    });
 
     this.logger.warn(`Tenant LOCKED: ${updated.id} (${updated.slug}) - ${reason}`);
 
@@ -276,11 +353,12 @@ export class PlatformTenantService {
   async deleteTenant(
     tenantId: string,
     dto: DeleteTenantDto,
-    _platformUserId: string,
+    platformUserId: string,
     _ipAddress: string,
-    _reason: string,
+    reason: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
+    const previousState = this.tenantSnapshot(tenant);
 
     tenant.status = TenantStatus.PENDING_DELETION;
 
@@ -291,6 +369,16 @@ export class PlatformTenantService {
     }
 
     const updated = await this.tenantRepository.save(tenant);
+    await this.invalidateTenantStateCache(updated.id);
+
+    await this.recordLifecycleEvent({
+      tenantId: updated.id,
+      eventType: 'tenant.deletion_scheduled',
+      triggeredBy: platformUserId,
+      reason,
+      previousState,
+      newState: this.tenantSnapshot(updated),
+    });
 
     this.logger.warn(
       `Tenant deletion scheduled: ${updated.id} (${updated.slug}) for ${String(updated.deletionScheduledAt)}`,

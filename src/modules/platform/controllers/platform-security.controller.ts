@@ -235,7 +235,12 @@ Resolves the oldest active ADMIN user for the tenant and triggers the same flow 
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
     return TenantContextService.run(tenantId, async () =>
       this.securityService.initiateDataExport(
-        { tenantId, exportType: 'gdpr', reason: dto.reason },
+        {
+          tenantId,
+          exportType: 'gdpr',
+          reason: dto.reason,
+          dataCategories: dto.dataCategories,
+        },
         req.user.userId,
         ipAddress,
       ),
@@ -274,9 +279,10 @@ Resolves the oldest active ADMIN user for the tenant and triggers the same flow 
     @Request() req: PlatformSecurityRequest,
   ) {
     const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
+    const scheduleDate = dto.hardDelete ? new Date() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     return TenantContextService.run(tenantId, async () =>
       this.securityService.initiateDataDeletion(
-        { tenantId, scheduleDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), reason: dto.reason },
+        { tenantId, scheduleDate, reason: dto.reason, hardDelete: dto.hardDelete },
         req.user.userId,
         ipAddress,
       ),

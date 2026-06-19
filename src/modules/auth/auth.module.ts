@@ -45,14 +45,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
             privateKey,
             signOptions: {
               algorithm: 'RS256',
-              expiresIn: configService.get<number>('auth.jwtAccessExpires'),
+              expiresIn: configService.get<number>('auth.jwtAccessExpiresSeconds'),
             },
           };
         }
         return {
           secret: configService.get<string>('auth.jwtSecret'),
           signOptions: {
-            expiresIn: configService.get<number>('auth.jwtAccessExpires'),
+            expiresIn: configService.get<number>('auth.jwtAccessExpiresSeconds'),
           },
         };
       },

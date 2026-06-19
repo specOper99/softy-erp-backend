@@ -39,6 +39,8 @@ import { TenantMiddleware } from './modules/tenants/middleware/tenant.middleware
 // Feature module imports
 import { ResilienceModule } from './common/resilience/resilience.module';
 import authConfig from './config/auth.config';
+import bookingConfig from './config/booking.config';
+import { financeConfig } from './config';
 import { CoreModule } from './modules/core/core.module';
 
 @Module({
@@ -49,7 +51,7 @@ import { CoreModule } from './modules/core/core.module';
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [vaultLoader, databaseConfig, authConfig],
+      load: [vaultLoader, databaseConfig, authConfig, financeConfig, bookingConfig],
       validate,
     }),
 

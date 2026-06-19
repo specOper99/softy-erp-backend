@@ -94,6 +94,16 @@ describe('TenantMiddleware', () => {
       });
     });
 
+    it('should skip JWT verification for platform routes', async () => {
+      Object.defineProperty(req, 'path', { value: '/api/v1/platform/tenants', configurable: true });
+      setAuthHeader('Bearer platform-token');
+
+      await middleware.use(req as unknown as Request, res, next);
+
+      expect(mockJwtService.verify).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
+    });
+
     it('should extract tenantId from JWT', async () => {
       setAuthHeader('Bearer token');
       mockJwtService.verify.mockReturnValue({ tenantId: 'tenant-1' });

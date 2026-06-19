@@ -8,6 +8,7 @@ import { PasswordHashService } from '../../../common/services/password-hash.serv
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { PasswordService } from '../../auth/services/password.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 import { Role } from '../../users/enums/role.enum';
 import { User } from '../../users/entities/user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
@@ -36,12 +37,14 @@ interface DataExportDto {
   tenantId: string;
   exportType: 'full' | 'gdpr' | 'audit';
   reason: string;
+  dataCategories?: string[];
 }
 
 interface DataDeletionDto {
   tenantId: string;
   scheduleDate: Date;
   reason: string;
+  hardDelete?: boolean;
 }
 
 /**
@@ -237,6 +240,7 @@ export class PlatformSecurityService {
       additionalContext: {
         exportId,
         exportType: dto.exportType,
+        dataCategories: dto.dataCategories,
         estimatedCompletionTime,
       },
     });
@@ -274,6 +278,7 @@ export class PlatformSecurityService {
   ): Promise<{ scheduledDate: Date; cancellationDeadline: Date }> {
     const tenant = await this.getTenantOrThrow(dto.tenantId);
 
+    tenant.status = TenantStatus.PENDING_DELETION;
     tenant.deletionScheduledAt = dto.scheduleDate;
 
     await this.tenantRepository.save(tenant);
@@ -290,6 +295,7 @@ export class PlatformSecurityService {
       ipAddress,
       additionalContext: {
         scheduledDate: dto.scheduleDate,
+        hardDelete: dto.hardDelete ?? false,
         operation: 'schedule_deletion',
       },
     });

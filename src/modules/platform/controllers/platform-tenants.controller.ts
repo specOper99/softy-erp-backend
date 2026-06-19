@@ -27,6 +27,7 @@ import {
   SuspendTenantDto,
   UpdateTenantDto,
 } from '../dto/tenant-management.dto';
+import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 import { PlatformPermission } from '../enums/platform-permission.enum';
 import { PlatformJwtAuthGuard } from '../auth/guards/platform-jwt-auth.guard';
 import { PlatformPermissionsGuard } from '../guards/platform-permissions.guard';
@@ -55,7 +56,7 @@ export class PlatformTenantsController {
   @RequirePlatformPermissions(PlatformPermission.TENANTS_READ)
   @ApiOperation({ summary: 'List all tenants' })
   @ApiQuery({ name: 'search', required: false, description: 'Search by name, slug, or email' })
-  @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'SUSPENDED', 'GRACE_PERIOD', 'LOCKED'] })
+  @ApiQuery({ name: 'status', required: false, enum: TenantStatus })
   @ApiQuery({ name: 'plan', required: false, enum: ['FREE', 'PRO', 'ENTERPRISE'] })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Max 100' })
   @ApiQuery({ name: 'offset', required: false, type: Number })

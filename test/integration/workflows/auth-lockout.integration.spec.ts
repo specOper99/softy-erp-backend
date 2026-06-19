@@ -179,7 +179,7 @@ describe('Auth Lockout Integration', () => {
               if (key === 'LOCKOUT_MAX_ATTEMPTS') return 3; // Lockout after 3 attempts
               if (key === 'LOCKOUT_DURATION_SECONDS') return 2; // Short lockout for test
               if (key === 'LOCKOUT_WINDOW_SECONDS') return 60;
-              if (key === 'auth.jwtAccessExpires') return 900;
+              if (key === 'auth.jwtAccessExpiresSeconds') return 900;
               if (key === 'auth.jwtRefreshExpires') return 7;
               if (key === 'JWT_SECRET') return 'test-secret';
               return defaultVal;

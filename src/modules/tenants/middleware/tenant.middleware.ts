@@ -29,6 +29,11 @@ export class TenantMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, _res: Response, next: NextFunction) {
+    const path = req.path ?? req.url?.split('?')[0] ?? '';
+    if (path.startsWith('/api/v1/platform') || path.startsWith('/api/v1/health')) {
+      return next();
+    }
+
     // 1. Try to get Tenant ID and User ID from JWT (Authenticated requests)
     const ctx = this.extractContextFromJwt(req);
 

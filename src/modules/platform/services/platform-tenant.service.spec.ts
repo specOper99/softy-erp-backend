@@ -35,6 +35,7 @@ describe('PlatformTenantService.createTenant', () => {
     slug: 'acme-studio',
     subscriptionPlan: 'FREE' as never,
     billingEmail: 'billing@acme.example',
+    initialAdmin: { email: 'owner@acme.example', password: TEST_PASSWORD },
     ...overrides,
   });
 
@@ -65,6 +66,9 @@ describe('PlatformTenantService.createTenant', () => {
       transaction: jest.fn().mockImplementation(async (cb) => cb(mockManager)),
     };
 
+    lifecycleRepo.create.mockImplementation((entity) => entity);
+    lifecycleRepo.save.mockImplementation((entity) => Promise.resolve({ id: 'event-uuid', ...entity }));
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PlatformTenantService,
@@ -80,19 +84,22 @@ describe('PlatformTenantService.createTenant', () => {
     service = module.get(PlatformTenantService);
   });
 
-  it('creates a tenant without an initial admin', async () => {
+  it('creates a tenant with required initial admin and records lifecycle event', async () => {
     tenantRepo.findOne.mockResolvedValue(null);
 
     const result = await service.createTenant(buildDto(), 'platform-op-1', '127.0.0.1');
 
     expect(result.id).toBe('tenant-uuid');
     expect(result.status).toBe(TenantStatus.ACTIVE);
-    expect(tenantsService.createWithManager).toHaveBeenCalledWith(
+    expect(usersService.createWithManager).toHaveBeenCalledWith(
       mockManager,
-      expect.objectContaining({ name: 'Acme Studio', slug: 'acme-studio' }),
+      expect.objectContaining({
+        email: 'owner@acme.example',
+        role: Role.ADMIN,
+        tenantId: 'tenant-uuid',
+      }),
     );
-    expect(usersService.findByEmailGlobal).not.toHaveBeenCalled();
-    expect(usersService.createWithManager).not.toHaveBeenCalled();
+    expect(lifecycleRepo.save).toHaveBeenCalled();
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-uuid');
   });

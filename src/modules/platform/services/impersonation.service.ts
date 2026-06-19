@@ -116,10 +116,10 @@ export class ImpersonationService {
         tenantId,
         impersonatedBy: platformUserId,
         impersonationSessionId: saved.id,
-        aud: 'tenant', // Impersonation uses tenant context
       },
       {
         expiresIn: '4h', // Shorter expiry for impersonation
+        audience: tenantId,
         ...signingOptions,
       },
     );

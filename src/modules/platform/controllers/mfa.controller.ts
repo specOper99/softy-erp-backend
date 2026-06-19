@@ -1,6 +1,17 @@
 import { SkipTenant } from '../../tenants/decorators/skip-tenant.decorator';
 
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Post,
+  Request,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireContext } from '../../../common/decorators/context.decorator';
 import { ContextType } from '../../../common/enums/context-type.enum';
@@ -117,13 +128,13 @@ export class MFAController {
     const user = await this.mfaService.getUserById(userId);
 
     if (!user || !user.mfaSecret) {
-      throw new Error('MFA not set up');
+      throw new BadRequestException('MFA not set up');
     }
 
     const isValid = this.mfaService.verifyToken(user.mfaSecret, dto.code);
 
     if (!isValid) {
-      throw new Error('auth.invalid_mfa_code');
+      throw new BadRequestException('auth.invalid_mfa_code');
     }
 
     // Enable MFA
