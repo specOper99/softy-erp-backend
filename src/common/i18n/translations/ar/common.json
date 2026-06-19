@@ -15,7 +15,7 @@
   "invalid_tenant_query_parameters": "معاملات استعلام المستأجر غير صالحة",
   "too_many_ids": "عدد كبير جداً من المعرفات في الطلب",
   "cross_tenant_operation_denied": "تم رفض العملية بين المستأجرين",
-  "tenant_mismatch": "Tenant mismatch: operation denied",
+  "tenant_mismatch": "العملية {operation} على {target} غير مسموحة في سياق هذا المستأجر",
   "unauthorized_plain": "غير مصرح",
   "authentication_required": "المصادقة مطلوبة",
   "invalid_resource_id": "معرف المورد غير صالح",
@@ -23,5 +23,8 @@
   "too_many_requests_blocked": "طلبات كثيرة جداً. تم الحظر لمدة {seconds} ثانية.",
   "field_staff_own_records": "يمكن للموظفين الميدانيين الوصول إلى سجلاتهم الخاصة فقط",
   "not_allowed": "غير مسموح",
-  "user_context_required": "سياق المستخدم مطلوب"
+  "user_context_required": "سياق المستخدم مطلوب",
+  "resource_exists": "هذا المورد موجود بالفعل.",
+  "invalid_reference": "المورد المرتبط غير موجود أو المرجع غير صالح.",
+  "missing_field": "حقل مطلوب مفقود."
 }

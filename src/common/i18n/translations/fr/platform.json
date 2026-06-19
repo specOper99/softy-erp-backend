@@ -12,5 +12,6 @@
   "permissions_missing": "Permissions requises manquantes : {permissions}",
   "role_required": "Rôle de plateforme requis",
   "reason_required": "Une raison détaillée (minimum 10 caractères) est requise pour cette opération",
-  "end_time_before_start": "L'heure de fin ne peut pas être antérieure à l'heure de début"
+  "end_time_before_start": "L'heure de fin ne peut pas être antérieure à l'heure de début",
+  "tenant_admin_not_found": "Aucun administrateur actif trouvé pour ce locataire."
 }

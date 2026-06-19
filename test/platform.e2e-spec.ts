@@ -185,6 +185,20 @@ describe('Platform E2E Tests', () => {
   });
 
   describe('Security - Force Password Reset', () => {
+    it('should force tenant admin password reset with reason', () => {
+      return request(app.getHttpServer())
+        .post(`/api/v1/platform/security/tenants/${testTenantId}/admin-password-reset`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .send({
+          reason: 'Tenant admin locked out - support ticket #4321',
+        })
+        .expect(200)
+        .expect((res: Response) => {
+          expect(res.body.data).toHaveProperty('userId', testTenantUserId);
+          expect(res.body.data).toHaveProperty('email');
+        });
+    });
+
     it('should force password reset with reason', () => {
       return request(app.getHttpServer())
         .post(`/api/v1/platform/security/tenants/${testTenantId}/users/${testTenantUserId}/force-password-reset`)

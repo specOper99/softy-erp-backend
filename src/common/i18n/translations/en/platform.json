@@ -12,5 +12,6 @@
   "role_required": "Platform role required",
   "reason_required": "A detailed reason (minimum 10 characters) is required for this operation",
   "end_time_before_start": "End time cannot be earlier than start time",
-  "impersonation_session_ended_success": "Impersonation session ended"
+  "impersonation_session_ended_success": "Impersonation session ended",
+  "tenant_admin_not_found": "No active admin user found for this tenant."
 }

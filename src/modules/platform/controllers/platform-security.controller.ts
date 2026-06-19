@@ -54,6 +54,50 @@ interface PlatformSecurityRequest {
 export class PlatformSecurityController {
   constructor(private readonly securityService: PlatformSecurityService) {}
 
+  @Post('tenants/:tenantId/admin-password-reset')
+  @PlatformAdmin()
+  @RequirePlatformPermissions(PlatformPermission.SECURITY_FORCE_PASSWORD_RESET)
+  @RequireReason()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Force password reset for tenant admin',
+    description: `Force the primary tenant admin to reset their password on next login.
+
+**Required Permission:** \`platform:security:force-password-reset\`
+**Allowed Roles:** SUPER_ADMIN, SECURITY_ADMIN
+
+Resolves the oldest active ADMIN user for the tenant and triggers the same flow as user-specific force reset.
+
+**⚠️ Security Operation:** Requires reason for audit trail`,
+  })
+  @ApiParam({ name: 'tenantId', description: 'Tenant UUID', format: 'uuid' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset initiated for tenant admin',
+    schema: {
+      type: 'object',
+      properties: {
+        userId: { type: 'string', format: 'uuid' },
+        email: { type: 'string', format: 'email' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Tenant or admin user not found' })
+  async forceTenantAdminPasswordReset(
+    @TargetTenant() tenantId: string,
+    @Body() dto: ForcePasswordResetDto,
+    @Request() req: PlatformSecurityRequest,
+  ) {
+    const ipAddress: string = req.ip ?? req.connection?.remoteAddress ?? 'unknown';
+    return TenantContextService.run(tenantId, async () =>
+      this.securityService.forceTenantAdminPasswordReset(
+        { tenantId, reason: dto.reason, notifyUser: dto.notifyUser },
+        req.user.userId,
+        ipAddress,
+      ),
+    );
+  }
+
   @Post('tenants/:tenantId/users/:userId/force-password-reset')
   @PlatformAdmin()
   @RequirePlatformPermissions(PlatformPermission.SECURITY_FORCE_PASSWORD_RESET)

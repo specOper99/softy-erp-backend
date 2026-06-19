@@ -1,4 +1,4 @@
 {
-  "not_found": "User not found",
-  "duplicate_email": "This email is already registered"
+  "not_found": "المستخدم غير موجود",
+  "duplicate_email": "هذا البريد الإلكتروني مسجل بالفعل"
 }

@@ -15,7 +15,7 @@
   "invalid_tenant_query_parameters": "Paramètres de requête de locataire invalides",
   "too_many_ids": "Trop d'identifiants dans la requête",
   "cross_tenant_operation_denied": "Opération inter-locataires refusée",
-  "tenant_mismatch": "Tenant mismatch: operation denied",
+  "tenant_mismatch": "L'opération {operation} sur {target} n'est pas autorisée pour ce locataire",
   "unauthorized_plain": "Non autorisé",
   "authentication_required": "Authentification requise",
   "invalid_resource_id": "Identifiant de ressource invalide",
@@ -23,5 +23,8 @@
   "too_many_requests_blocked": "Trop de requêtes. Bloqué pendant {seconds} secondes.",
   "field_staff_own_records": "Le personnel de terrain ne peut accéder qu'à ses propres enregistrements",
   "not_allowed": "Non autorisé",
-  "user_context_required": "Contexte utilisateur requis"
+  "user_context_required": "Contexte utilisateur requis",
+  "resource_exists": "Cette ressource existe déjà.",
+  "invalid_reference": "Ressource liée introuvable ou référence invalide.",
+  "missing_field": "Un champ obligatoire est manquant."
 }

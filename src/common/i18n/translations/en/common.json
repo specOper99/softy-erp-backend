@@ -23,5 +23,8 @@
   "too_many_requests_blocked": "Too many requests. Blocked for {seconds} seconds.",
   "field_staff_own_records": "Field staff can only access their own records",
   "not_allowed": "Not allowed",
-  "user_context_required": "User context is required"
+  "user_context_required": "User context is required",
+  "resource_exists": "This resource already exists.",
+  "invalid_reference": "Related resource not found or invalid reference.",
+  "missing_field": "A required field is missing."
 }

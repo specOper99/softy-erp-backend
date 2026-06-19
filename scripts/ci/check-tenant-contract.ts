@@ -215,6 +215,10 @@ const SKIP_TENANT_METHOD_CONTRACTS: Record<string, SkipTenantMethodContract[]> =
     { methodName: 'getTenantHealth', tenantScopedCallPatterns: [/this\.analyticsService\.getTenantHealth\s*\(/] },
   ],
   'src/modules/platform/controllers/platform-security.controller.ts': [
+    {
+      methodName: 'forceTenantAdminPasswordReset',
+      tenantScopedCallPatterns: [/this\.securityService\.forceTenantAdminPasswordReset\s*\(/],
+    },
     { methodName: 'forcePasswordReset', tenantScopedCallPatterns: [/this\.securityService\.forcePasswordReset\s*\(/] },
     { methodName: 'revokeSessions', tenantScopedCallPatterns: [/this\.securityService\.revokeAllSessions\s*\(/] },
     { methodName: 'updateIpAllowlist', tenantScopedCallPatterns: [/this\.securityService\.updateIpAllowlist\s*\(/] },

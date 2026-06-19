@@ -6,6 +6,7 @@ import { PasswordHashService } from '../../../common/services/password-hash.serv
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { PasswordService } from '../../auth/services/password.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { Role } from '../../users/enums/role.enum';
 import { User } from '../../users/entities/user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { PlatformAuditService } from './platform-audit.service';
@@ -60,6 +61,41 @@ describe('PlatformSecurityService', () => {
     }).compile();
 
     service = module.get(PlatformSecurityService);
+  });
+
+  it('forceTenantAdminPasswordReset resolves primary admin and reuses forcePasswordReset', async () => {
+    tenantRepository.findOne.mockResolvedValue({ id: tenantId } as Tenant);
+    userRepository.findOne
+      .mockResolvedValueOnce({ ...user, role: Role.ADMIN, isActive: true } as User)
+      .mockResolvedValueOnce(user);
+
+    const result = await service.forceTenantAdminPasswordReset(
+      { tenantId, reason: 'Support ticket #42' },
+      platformUserId,
+      ipAddress,
+    );
+
+    expect(result).toEqual({ userId: user.id, email: user.email });
+    expect(userRepository.findOne).toHaveBeenNthCalledWith(1, {
+      where: { tenantId, role: Role.ADMIN, isActive: true },
+      order: { createdAt: 'ASC' },
+    });
+    expect(passwordHashService.hash).toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: PlatformAction.FORCE_PASSWORD_RESET,
+        targetEntityId: user.id,
+      }),
+    );
+  });
+
+  it('forceTenantAdminPasswordReset rejects when tenant has no active admin', async () => {
+    tenantRepository.findOne.mockResolvedValue({ id: tenantId } as Tenant);
+    userRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.forceTenantAdminPasswordReset({ tenantId, reason: 'Support ticket #42' }, platformUserId, ipAddress),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('forcePasswordReset updates password, revokes sessions, and audits', async () => {

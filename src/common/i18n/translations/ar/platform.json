@@ -12,5 +12,6 @@
   "permissions_missing": "أذونات مطلوبة مفقودة: {permissions}",
   "role_required": "دور المنصة مطلوب",
   "reason_required": "سبب مفصل (10 أحرف على الأقل) مطلوب لهذه العملية",
-  "end_time_before_start": "وقت الانتهاء لا يمكن أن يكون قبل وقت البدء"
+  "end_time_before_start": "وقت الانتهاء لا يمكن أن يكون قبل وقت البدء",
+  "tenant_admin_not_found": "لم يتم العثور على مستخدم مسؤول نشط لهذا المستأجر."
 }

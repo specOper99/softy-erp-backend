@@ -8,6 +8,7 @@ import { PasswordHashService } from '../../../common/services/password-hash.serv
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { PasswordService } from '../../auth/services/password.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { Role } from '../../users/enums/role.enum';
 import { User } from '../../users/entities/user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { PlatformAuditService } from './platform-audit.service';
@@ -61,6 +62,31 @@ export class PlatformSecurityService {
     private readonly passwordHashService: PasswordHashService,
     private readonly passwordService: PasswordService,
   ) {}
+
+  async forceTenantAdminPasswordReset(
+    dto: Omit<ForcePasswordResetDto, 'userId'> & { tenantId: string },
+    platformUserId: string,
+    ipAddress: string,
+  ): Promise<{ userId: string; email: string }> {
+    await this.getTenantOrThrow(dto.tenantId);
+
+    const admin = await this.userRepository.findOne({
+      where: { tenantId: dto.tenantId, role: Role.ADMIN, isActive: true },
+      order: { createdAt: 'ASC' },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('platform.tenant_admin_not_found');
+    }
+
+    await this.forcePasswordReset(
+      { tenantId: dto.tenantId, userId: admin.id, reason: dto.reason, notifyUser: dto.notifyUser },
+      platformUserId,
+      ipAddress,
+    );
+
+    return { userId: admin.id, email: admin.email };
+  }
 
   async forcePasswordReset(dto: ForcePasswordResetDto, platformUserId: string, ipAddress: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: dto.userId, tenantId: dto.tenantId } });
