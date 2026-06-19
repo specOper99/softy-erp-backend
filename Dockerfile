@@ -3,9 +3,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (lockfile generated with npm@11 — see package.json packageManager)
 COPY package*.json ./
-RUN HUSKY=0 npm ci --include=dev
+RUN corepack enable \
+    && corepack prepare npm@11.12.1 --activate \
+    && HUSKY=0 npm ci --include=dev
 
 # Copy source and build
 COPY . .
