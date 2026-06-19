@@ -9,7 +9,7 @@ import * as path from 'node:path';
  */
 
 describe('SQL Injection Prevention', () => {
-  const srcDir = path.join(__dirname, '..', '..', 'src');
+  const srcDir = path.join(__dirname, '..', '..');
 
   function walk(dir: string, acc: string[] = []): string[] {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -23,17 +23,8 @@ describe('SQL Injection Prevention', () => {
     return acc;
   }
 
-  // Safe patterns for template literals in SQL context
-  const SAFE_ALIAS_PATTERNS = [
-    /\$\{alias\}\./, // ${alias}.fieldName - table aliasing
-    /\$\{prefix\}\./, // ${prefix}.fieldName - table prefixing
-    /\$\{dateFieldStr\}/, // ${dateFieldStr} - internal field reference
-  ];
-
-  // Unsafe pattern: string interpolation in addSelect with quoted values
+  const SAFE_ALIAS_PATTERNS = [/\$\{alias\}\./, /\$\{prefix\}\./, /\$\{dateFieldStr\}/];
   const UNSAFE_ADDSELECT_INTERPOLATION = /\.addSelect\s*\(\s*`[^`]*'\$\{[^}]+\}'[^`]*`/;
-
-  // Unsafe pattern: string interpolation in WHERE clauses (excluding safe aliases)
   const UNSAFE_WHERE_INTERPOLATION = /\.(where|andWhere|orWhere)\s*\(\s*`[^`]*\$\{[^}]+\}[^`]*`/;
 
   function isSafeInterpolation(line: string): boolean {
@@ -76,7 +67,6 @@ describe('SQL Injection Prevention', () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (line && UNSAFE_WHERE_INTERPOLATION.test(line) && !isSafeInterpolation(line)) {
-          // Skip known safe files
           if (file.includes('tenant-aware.repository.ts')) continue;
           if (file.includes('cursor-pagination.helper.ts')) continue;
           if (file.includes('profile.repository.ts')) continue;
@@ -106,24 +96,19 @@ describe('SQL Injection Prevention', () => {
       }
     }
 
-    // Verify we have query builder usage in the codebase
     expect(queryBuilderFiles.length).toBeGreaterThan(0);
 
-    // All should use :paramName syntax when filtering
     for (const file of queryBuilderFiles) {
       const content = fs.readFileSync(file, 'utf8');
 
-      // Check for properly parameterized WHERE clauses
       if (content.includes('.where(') || content.includes('.andWhere(')) {
-        // Should contain :paramName patterns
-        const hasParameterizedQueries = /:[\w]+/.test(content);
-        expect(hasParameterizedQueries).toBe(true);
+        expect(/:[\w]+/.test(content)).toBe(true);
       }
     }
   });
 
   it('should have a running SQL safety CI check script', () => {
-    const scriptPath = path.join(__dirname, '..', '..', 'scripts', 'ci', 'check-raw-queries.ts');
+    const scriptPath = path.join(__dirname, '..', '..', '..', 'scripts', 'ci', 'check-raw-queries.ts');
     expect(fs.existsSync(scriptPath)).toBe(true);
   });
 });

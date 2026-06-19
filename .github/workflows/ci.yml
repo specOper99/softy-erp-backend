@@ -28,8 +28,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
       
-      - name: Install dependencies
-        run: npm ci
+      - name: Verify lockfile with npm 10.9.8 (deployment parity)
+        run: HUSKY=0 npx -y npm@10.9.8 ci --include=dev
       
       - name: Run linter
         run: npm run lint:check
@@ -132,6 +132,23 @@ jobs:
           VAULT_ENABLED: 'false'
           DISABLE_RATE_LIMITING: 'true'
 
+      - name: Run integration tests
+        run: npm run test:integration -- --runInBand
+        env:
+          NODE_ENV: test
+          INTEGRATION_USE_EXISTING_DB: 'true'
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+          JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+          PLATFORM_JWT_SECRET: test-platform-jwt-secret-minimum-32-chars-here
+          VAULT_ENABLED: 'false'
+          DISABLE_RATE_LIMITING: 'true'
+
       - name: Run E2E tests
         run: npm run test:e2e
         env:
@@ -150,6 +167,13 @@ jobs:
           VAULT_ENABLED: 'false'
           DISABLE_RATE_LIMITING: 'true'
           E2E_USE_EXISTING_DB: 'true'
+
+      - name: Run pact tests
+        run: npm run test:pact
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+          PLATFORM_JWT_SECRET: test-platform-jwt-secret-minimum-32-chars-here
 
   build:
     name: Build

@@ -15,6 +15,7 @@ const mockConfigService = {
   }),
 };
 
+// Renamed to *.integration.spec.ts so jest.integration.config.js picks it up.
 describe('Key Rotation Integration', () => {
   let dataSource: DataSource;
   let rotationService: KeyRotationService;
@@ -30,6 +31,7 @@ describe('Key Rotation Integration', () => {
 
     webhookRepository = dataSource.getRepository('Webhook') as Repository<Webhook>;
     encryptionService = new EncryptionService(mockConfigService as unknown as ConfigService);
+    await encryptionService.onModuleInit();
     rotationService = new KeyRotationService(webhookRepository, encryptionService);
   });
 
@@ -54,6 +56,7 @@ describe('Key Rotation Integration', () => {
       },
     } as unknown as ConfigService;
     const oldEncryptionService = new EncryptionService(oldConfigMock);
+    await oldEncryptionService.onModuleInit();
 
     const originalSecret = 'my-super-secret-api-key';
     const v1Encrypted = oldEncryptionService.encrypt(originalSecret);

@@ -78,8 +78,13 @@ describe('LogSanitizer', () => {
 
     const result = sanitizeObject(obj) as Circular;
     expect(result.name).toBe('circular');
-    // It should hit MAX_DEPTH at level 11
-    // Our mock structure: depth 0 (root), 1 (self), 2 (self.self)...
-    // The implementation returns '[MAX_DEPTH]' for depth > 10.
+
+    let current: unknown = result.self;
+    for (let depth = 0; depth < 10; depth += 1) {
+      expect(current).toBeDefined();
+      expect(typeof current).toBe('object');
+      current = (current as Circular).self;
+    }
+    expect(current).toBe('[MAX_DEPTH]');
   });
 });

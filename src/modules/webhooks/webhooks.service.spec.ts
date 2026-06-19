@@ -12,7 +12,7 @@ import { WEBHOOK_QUEUE, type WebhookEvent } from './webhooks.types';
 import * as https from 'node:https';
 import { EventEmitter } from 'node:events';
 import { Webhook as StandardWebhook } from 'standardwebhooks';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { lookup } from 'node:dns/promises';
 
 jest.mock('node:https');
@@ -242,6 +242,145 @@ describe('WebhookService Unit Tests', () => {
       // Verify signature parses and validates payload correctly
       const verifiedPayload = stdWh.verify(payloadString, verifyHeaders);
       expect(verifiedPayload).toEqual(event);
+    });
+  });
+
+  describe('emit', () => {
+    const event: WebhookEvent = {
+      type: 'booking.created',
+      tenantId,
+      payload: { id: 'booking-1' },
+      timestamp: new Date().toISOString(),
+    };
+
+    it('rejects events without tenantId', async () => {
+      await expect(service.emit({ ...event, tenantId: '' })).rejects.toThrow(BadRequestException);
+    });
+
+    it('queues delivery when a webhook queue is configured', async () => {
+      const queueAdd = jest.fn().mockResolvedValue(undefined);
+      const qb = {
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            id: 'wh-1',
+            tenantId,
+            url: 'https://example.com/hook',
+            secret: 'enc_secret',
+            events: ['booking.created'],
+          },
+        ]),
+      };
+      webhookRepository.createQueryBuilder.mockReturnValue(qb as any);
+
+      const queuedModule: TestingModule = await Test.createTestingModule({
+        providers: [
+          WebhookService,
+          { provide: WebhookRepository, useValue: webhookRepository },
+          { provide: WebhookDeliveryRepository, useValue: webhookDeliveryRepository },
+          { provide: EncryptionService, useValue: encryptionService },
+          { provide: MetricsFactory, useValue: metricsFactory },
+          { provide: getQueueToken(WEBHOOK_QUEUE), useValue: { add: queueAdd } },
+        ],
+      }).compile();
+
+      const queuedService = queuedModule.get(WebhookService);
+      jest.spyOn(TenantContextService, 'run').mockImplementation(async (_tenantId, callback) => callback());
+
+      await queuedService.emit(event);
+
+      expect(queueAdd).toHaveBeenCalledWith(
+        `booking.created-wh-1`,
+        expect.objectContaining({ event }),
+        expect.objectContaining({ attempts: 5 }),
+      );
+    });
+
+    it('skips webhooks that do not subscribe to the event', async () => {
+      const deliverSpy = jest.spyOn(service, 'deliverWebhook').mockResolvedValue(undefined);
+      const qb = {
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            id: 'wh-1',
+            tenantId,
+            url: 'https://example.com/hook',
+            secret: 'enc_secret',
+            events: ['invoice.paid'],
+          },
+        ]),
+      };
+      webhookRepository.createQueryBuilder.mockReturnValue(qb as any);
+      jest.spyOn(TenantContextService, 'run').mockImplementation(async (_tenantId, callback) => callback());
+
+      await service.emit(event);
+
+      expect(deliverSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deliverWebhook error paths', () => {
+    const event: WebhookEvent = {
+      type: 'booking.created',
+      tenantId,
+      payload: { id: 'booking-1' },
+      timestamp: new Date().toISOString(),
+    };
+
+    it('throws NotFound when webhook record is missing', async () => {
+      webhookRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.deliverWebhook({ id: 'missing', tenantId, url: 'https://example.com/hook' } as Webhook, event),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('blocks delivery when webhook has no pinned IPs', async () => {
+      const webhook = {
+        id: 'wh-1',
+        tenantId,
+        url: 'https://example.com/hook',
+        secret: 'enc_super-secret-key-32-chars-long-length',
+        events: ['booking.created'],
+      } as Webhook;
+      webhookRepository.findOne.mockResolvedValue(webhook);
+
+      await expect(service.deliverWebhook(webhook, event)).rejects.toThrow(BadRequestException);
+    });
+
+    it('records failure for non-2xx responses', async () => {
+      const webhook = new Webhook();
+      webhook.id = 'wh-1';
+      webhook.tenantId = tenantId;
+      webhook.url = 'https://example.com/hook';
+      webhook.secret = 'enc_super-secret-key-32-chars-long-length';
+      webhook.resolvedIps = ['1.1.1.1'];
+      webhookRepository.findOne.mockResolvedValue(webhook);
+
+      jest.spyOn(https, 'request').mockImplementation(((
+        _options: unknown,
+        callback: (res: MockIncomingMessage) => void,
+      ) => {
+        const req = new MockClientRequest();
+        req.end = function () {
+          const res = new MockIncomingMessage(500, 'Internal Server Error');
+          callback(res);
+          setImmediate(() => {
+            res.emit('end');
+            this.emit('close');
+          });
+          return this;
+        };
+        return req as any;
+      }) as typeof https.request);
+
+      await expect(service.deliverWebhook(webhook, event)).rejects.toThrow('HTTP 500');
+
+      expect(webhookDeliveryRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          errorMessage: expect.stringContaining('HTTP 500'),
+        }),
+      );
     });
   });
 });
