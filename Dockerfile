@@ -3,15 +3,14 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies (lockfile generated with npm@11 — see package.json packageManager)
+# Install dependencies (lockfile must stay compatible with npm 10+ — see package.json packageManager)
 COPY package*.json ./
-RUN corepack enable \
-    && corepack prepare npm@11.12.1 --activate \
-    && HUSKY=0 npm ci --include=dev
+RUN npm install -g npm@11.12.1 \
+    && HUSKY=0 NODE_ENV=development npm ci --include=dev
 
 # Copy source and build
 COPY . .
-RUN npm run build
+RUN NODE_ENV=development npm run build
 
 # Prune dev dependencies
 RUN npm prune --omit=dev && npm pkg delete devDependencies scripts.prepare
