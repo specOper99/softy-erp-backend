@@ -18,6 +18,7 @@ import { RolesGuard } from '../../../common/guards';
 import { IDEMPOTENCY_HEADER, IdempotencyInterceptor, Idempotent } from '../../../common/interceptors';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { Role } from '../../users/enums/role.enum';
 import {
   BudgetReportQueryDto,
@@ -33,7 +34,7 @@ import { FinancialReportService } from '../services/financial-report.service';
 @ApiTags('Finance - Transactions')
 @ApiBearerAuth()
 @Controller('transactions')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard)
 export class TransactionsController {
   constructor(
     private readonly financeService: FinanceService,

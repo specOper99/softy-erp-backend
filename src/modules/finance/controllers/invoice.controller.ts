@@ -5,13 +5,14 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { ResourceOwnership, ResourceOwnershipGuard, RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { Role } from '../../users/enums/role.enum';
 import { InvoiceService } from '../services/invoice.service';
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
 @Controller('invoices')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard)
 @MfaRequired()
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}

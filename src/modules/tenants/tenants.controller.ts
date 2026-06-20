@@ -17,6 +17,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantContextService } from '../../common/services/tenant-context.service';
 import { MfaRequired } from '../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../auth/guards/mfa-required.guard';
 import { Role } from '../users/enums/role.enum';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { StudioSettingsResponseDto, UpdateStudioSettingsDto } from './dto/studio-settings.dto';
@@ -36,7 +37,7 @@ import { TenantsService } from './tenants.service';
   'TOO_MANY_REQUESTS',
 )
 @Controller('tenants')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

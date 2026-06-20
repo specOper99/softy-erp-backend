@@ -7,6 +7,7 @@ import { PdfUtils } from '../../../common/utils/pdf.utils';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { ReportGeneratorService } from '../../dashboard/services/report-generator.service';
 import { Role } from '../../users/enums/role.enum';
 import { FinancialReportFilterDto } from '../dto/financial-report.dto';
@@ -16,7 +17,7 @@ import { FinancialReportService } from '../services/financial-report.service';
 
 @ApiTags('Financial Reports')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard)
 @Roles(Role.ADMIN)
 @MfaRequired()
 @Controller('finance/reports')

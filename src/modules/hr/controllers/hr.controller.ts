@@ -29,6 +29,7 @@ import { RolesGuard } from '../../../common/guards';
 import { resolveRequestedUserIdScope } from '../../../common/helpers/field-staff-user-scope.helper';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { StaffConflictService } from '../../bookings/services/staff-conflict.service';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
@@ -65,7 +66,7 @@ import { PayrollService } from '../services/payroll.service';
   'TOO_MANY_REQUESTS',
 )
 @Controller('hr')
-@UseGuards(JwtAuthGuard, RolesGuard, SubscriptionGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard, SubscriptionGuard)
 @RequireSubscription(SubscriptionPlan.PRO)
 export class HrController {
   constructor(

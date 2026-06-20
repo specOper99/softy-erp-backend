@@ -18,6 +18,7 @@ import type {
 } from '../dto/statement.dto';
 import { FinancialReportService } from '../services/financial-report.service';
 import { FinancialReportController } from './financial-report.controller';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 
 describe('FinancialReportController', () => {
   let controller: FinancialReportController;
@@ -103,7 +104,10 @@ describe('FinancialReportController', () => {
         },
         Reflector,
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<FinancialReportController>(FinancialReportController);
     financialReportService = module.get(FinancialReportService);
@@ -305,7 +309,10 @@ describe('FinancialReportController', () => {
           },
           Reflector,
         ],
-      }).compile();
+      })
+        .overrideGuard(MfaRequiredGuard)
+        .useValue({ canActivate: () => true })
+        .compile();
       reflector = module.get<Reflector>(Reflector);
       guard = new RolesGuard(reflector);
     });

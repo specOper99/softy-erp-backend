@@ -25,6 +25,7 @@ import { ApiErrorResponses, Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { TenantQuotaGuard } from '../../tenants/guards/tenant-quota.guard';
 import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
 import { CreateUserDto, UpdateUserDto, UserCursorResponseDto, UserFilterDto, UserResponseDto } from '../dto';
@@ -36,7 +37,7 @@ import { UsersService } from '../services/users.service';
 @ApiExtraModels(UserResponseDto, UserCursorResponseDto)
 @ApiErrorResponses('UNAUTHORIZED', 'FORBIDDEN', 'TOO_MANY_REQUESTS')
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard, TenantQuotaGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard, TenantQuotaGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

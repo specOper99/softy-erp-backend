@@ -4,6 +4,7 @@ import { Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { Role } from '../../users/enums/role.enum';
 import { CreatePurchaseInvoiceDto } from '../dto';
 import { PurchaseInvoicesService } from '../services/purchase-invoices.service';
@@ -11,7 +12,7 @@ import { PurchaseInvoicesService } from '../services/purchase-invoices.service';
 @ApiTags('Finance - Purchase Invoices')
 @ApiBearerAuth()
 @Controller('finance/purchase-invoices')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class PurchaseInvoicesController {
   constructor(private readonly purchaseInvoicesService: PurchaseInvoicesService) {}

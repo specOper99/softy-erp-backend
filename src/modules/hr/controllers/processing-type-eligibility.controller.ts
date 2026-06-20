@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { ApiErrorResponses, Roles } from '../../../common/decorators';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
 import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
 import { Role } from '../../users/enums/role.enum';
@@ -19,7 +20,7 @@ import { RolesGuard } from '../../../common/guards';
 @ApiBearerAuth()
 @ApiErrorResponses('BAD_REQUEST', 'UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT', 'UNPROCESSABLE_ENTITY')
 @Controller('hr/processing-type-eligibility')
-@UseGuards(JwtAuthGuard, RolesGuard, SubscriptionGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard, SubscriptionGuard)
 @RequireSubscription(SubscriptionPlan.PRO)
 export class ProcessingTypeEligibilityController {
   constructor(private readonly service: ProcessingTypeEligibilityService) {}

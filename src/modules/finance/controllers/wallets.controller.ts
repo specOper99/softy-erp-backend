@@ -7,14 +7,14 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { MFA_REQUIRED_KEY } from '../../auth/guards/mfa-required.guard';
+import { MFA_REQUIRED_KEY, MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { Role } from '../../users/enums/role.enum';
 import { WalletService } from '../services/wallet.service';
 
 @ApiTags('Finance - Wallets')
 @ApiBearerAuth()
 @Controller('wallets')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard)
 @MfaRequired()
 export class WalletsController {
   constructor(private readonly walletService: WalletService) {}

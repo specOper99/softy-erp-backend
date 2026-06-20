@@ -6,6 +6,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { Role } from '../../users/enums/role.enum';
 import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from '../dto/recurring-transaction.dto';
 import { RecurringTransactionService } from '../services/recurring-transaction.service';
@@ -13,7 +14,7 @@ import { RecurringTransactionService } from '../services/recurring-transaction.s
 @ApiTags('Recurring Transactions')
 @ApiBearerAuth()
 @Controller('finance/recurring-transactions')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard)
 @MfaRequired()
 export class RecurringTransactionController {
   constructor(private readonly recurringTransactionService: RecurringTransactionService) {}
