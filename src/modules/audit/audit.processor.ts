@@ -8,9 +8,6 @@ import { TenantContextService } from '../../common/services/tenant-context.servi
 import { toErrorMessage } from '../../common/utils/error.util';
 import { AuditLog } from './entities/audit-log.entity';
 
-/**
- * Data structure for audit log queue job payload.
- */
 interface AuditLogJobData {
   tenantId: string;
   action: string;
@@ -28,6 +25,8 @@ interface AuditLogJobData {
   durationMs?: number;
 }
 
+type BullmqJob = Parameters<WorkerHost['process']>[0];
+
 @Processor('audit-queue')
 export class AuditProcessor extends WorkerHost {
   private readonly logger = new Logger(AuditProcessor.name);
@@ -39,15 +38,16 @@ export class AuditProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<AuditLogJobData, void, string>): Promise<void> {
+  async process(job: BullmqJob, _token?: string): Promise<void> {
     if (job.name === 'log') {
-      const tenantId = typeof job.data.tenantId === 'string' ? job.data.tenantId.trim() : '';
+      const data = job.data as AuditLogJobData;
+      const tenantId = typeof data.tenantId === 'string' ? data.tenantId.trim() : '';
       if (tenantId === '') {
         job.discard();
         throw new RuntimeFailure('Invalid audit job payload: tenantId is required');
       }
 
-      return TenantContextService.run(tenantId, () => this.handleLog(job.data));
+      return TenantContextService.run(tenantId, () => this.handleLog(data));
     }
   }
 

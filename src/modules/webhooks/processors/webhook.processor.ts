@@ -1,12 +1,13 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
 import { Webhook } from '../entities/webhook.entity';
 import { WebhookService } from '../webhooks.service';
 import { WEBHOOK_QUEUE, WebhookJobData } from '../webhooks.types';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { toErrorMessage } from '../../../common/utils/error.util';
+
+type BullmqJob = Parameters<WorkerHost['process']>[0];
 
 /**
  * Webhook processor for handling background webhook delivery.
@@ -20,8 +21,8 @@ export class WebhookProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<WebhookJobData>): Promise<void> {
-    const { webhook, event } = job.data;
+  async process(job: BullmqJob, _token?: string): Promise<void> {
+    const { webhook, event } = job.data as WebhookJobData;
     this.logger.log(`Processing webhook job ${job.id}: ${event.type} to ${webhook.url}`);
 
     const tenantId = webhook.tenantId ?? event.tenantId;

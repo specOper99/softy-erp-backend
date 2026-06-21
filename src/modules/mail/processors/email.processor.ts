@@ -1,11 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
 import { MailService } from '../mail.service';
 import { EMAIL_QUEUE, EmailJobData } from '../mail.types';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { toErrorMessage } from '../../../common/utils/error.util';
+
+type BullmqJob = Parameters<WorkerHost['process']>[0];
 
 /**
  * Email processor for handling background email jobs.
@@ -19,17 +20,18 @@ export class EmailProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<EmailJobData>): Promise<void> {
-    this.logger.log(`Processing email job ${job.id}: ${job.data.type} `);
+  async process(job: BullmqJob, _token?: string): Promise<void> {
+    const jobData = job.data as EmailJobData;
+    this.logger.log(`Processing email job ${job.id}: ${jobData.type} `);
 
     // Extract tenantId from job payload (new format: job.data.data.tenantId).
     // Keep a backwards-compatible fallback for legacy payloads that placed tenantId at job.data.tenantId.
     let tenantId = '';
-    const tenantIdFromData = (job.data.data as unknown as { tenantId?: unknown }).tenantId;
+    const tenantIdFromData = (jobData.data as unknown as { tenantId?: unknown }).tenantId;
     if (typeof tenantIdFromData === 'string' && tenantIdFromData.trim() !== '') {
       tenantId = tenantIdFromData.trim();
     } else {
-      const tenantIdFromEnvelope = (job.data as unknown as { tenantId?: unknown }).tenantId;
+      const tenantIdFromEnvelope = (jobData as unknown as { tenantId?: unknown }).tenantId;
       if (typeof tenantIdFromEnvelope === 'string' && tenantIdFromEnvelope.trim() !== '') {
         tenantId = tenantIdFromEnvelope.trim();
       }
@@ -42,67 +44,67 @@ export class EmailProcessor extends WorkerHost {
 
     await TenantContextService.run(tenantId, async () => {
       try {
-        switch (job.data.type) {
+        switch (jobData.type) {
           case 'booking-confirmation':
             await this.mailService.sendBookingConfirmation({
-              ...job.data.data,
-              eventDate: new Date(job.data.data.eventDate),
+              ...jobData.data,
+              eventDate: new Date(jobData.data.eventDate),
             });
             break;
 
           case 'task-assignment':
             await this.mailService.sendTaskAssignment({
-              ...job.data.data,
-              eventDate: new Date(job.data.data.eventDate),
+              ...jobData.data,
+              eventDate: new Date(jobData.data.eventDate),
             });
             break;
 
           case 'payroll':
             await this.mailService.sendPayrollNotification({
-              ...job.data.data,
-              payrollDate: new Date(job.data.data.payrollDate),
+              ...jobData.data,
+              payrollDate: new Date(jobData.data.payrollDate),
             });
             break;
 
           case 'password-reset':
-            await this.mailService.sendPasswordReset(job.data.data);
+            await this.mailService.sendPasswordReset(jobData.data);
             break;
 
           case 'email-verification':
-            await this.mailService.sendEmailVerification(job.data.data);
+            await this.mailService.sendEmailVerification(jobData.data);
             break;
 
           case 'new-device-login':
             await this.mailService.sendNewDeviceLogin({
-              ...job.data.data,
-              time: new Date(job.data.data.time),
+              ...jobData.data,
+              time: new Date(jobData.data.time),
             });
             break;
 
           case 'suspicious-activity':
             await this.mailService.sendSuspiciousActivityAlert({
-              ...job.data.data,
-              time: new Date(job.data.data.time),
+              ...jobData.data,
+              time: new Date(jobData.data.time),
             });
             break;
 
           case 'booking-cancellation':
             await this.mailService.sendCancellationEmail({
-              ...job.data.data,
-              eventDate: new Date(job.data.data.eventDate),
-              cancelledAt: new Date(job.data.data.cancelledAt),
+              ...jobData.data,
+              eventDate: new Date(jobData.data.eventDate),
+              cancelledAt: new Date(jobData.data.cancelledAt),
             });
             break;
 
           case 'payment-receipt':
             await this.mailService.sendPaymentReceipt({
-              ...job.data.data,
-              eventDate: new Date(job.data.data.eventDate),
+              ...jobData.data,
+              eventDate: new Date(jobData.data.eventDate),
             });
             break;
 
           default:
-            this.logger.warn(`Unknown email job type: ${(job.data as EmailJobData).type} `);
+            this.logger.warn(`Unknown email job type: ${(jobData as EmailJobData).type} `);
         }
 
         this.logger.log(`Email job ${job.id} completed successfully`);
