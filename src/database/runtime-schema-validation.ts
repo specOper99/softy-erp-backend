@@ -1,7 +1,10 @@
 import { Client } from 'pg';
 import type { DataSource, EntityMetadata } from 'typeorm';
 import { RuntimeFailure } from '../common/errors/runtime-failure';
+import { assertEnumCompatibility } from './enum-sync';
 import { resolveReplicaConnectionConfigs } from './db-config';
+
+export { assertEnumCompatibility } from './enum-sync';
 
 type Queryable = {
   query: (sql: string, parameters?: readonly unknown[]) => Promise<unknown[]>;
@@ -27,6 +30,9 @@ type ReplicaTarget = {
   password: string;
   database: string;
 };
+
+// Deferred until subscriptions table split — see docs/SUBSCRIPTIONS_ARCHITECTURE.md
+const SCHEMA_VALIDATION_EXCLUDED_TABLES = new Set(['subscriptions']);
 
 function getTableKey(schema: string, table: string): string {
   return `${schema}.${table}`;
@@ -57,7 +63,7 @@ export function collectExpectedSchema(entityMetadatas: readonly EntityMetadata[]
 
     const schema = metadata.schema ?? 'public';
     const table = metadata.tableName;
-    if (!table) {
+    if (!table || SCHEMA_VALIDATION_EXCLUDED_TABLES.has(table)) {
       continue;
     }
 
@@ -162,14 +168,12 @@ export async function assertRuntimeSchemaCompatibility(dataSource: DataSource): 
   const masterQueryRunner = dataSource.createQueryRunner('master');
   try {
     await masterQueryRunner.connect();
-    await assertQueryableSchemaMatches(
-      {
-        query: (sql, parameters) =>
-          masterQueryRunner.query(sql, parameters as unknown[] | undefined) as Promise<unknown[]>,
-      },
-      'master',
-      expectedSchema,
-    );
+    const masterQueryable = {
+      query: (sql: string, parameters?: readonly unknown[]) =>
+        masterQueryRunner.query(sql, parameters as unknown[] | undefined) as Promise<unknown[]>,
+    };
+    await assertQueryableSchemaMatches(masterQueryable, 'master', expectedSchema);
+    await assertEnumCompatibility(dataSource.entityMetadatas, masterQueryable, 'master');
   } finally {
     await masterQueryRunner.release();
   }

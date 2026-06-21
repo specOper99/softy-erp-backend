@@ -48,6 +48,7 @@ import { ImpersonationSession } from '../modules/platform/entities/impersonation
 import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
 import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
 import { PlatformRefreshToken } from '../modules/platform/auth/entities/platform-refresh-token.entity';
+import { PrivacyRequest } from '../modules/privacy/entities/privacy-request.entity';
 
 patchTypeOrmMigrationOrdering();
 
@@ -95,6 +96,7 @@ export const dataSourceOptions: DataSourceOptions = {
     PlatformAuditLog,
     PlatformUser,
     PlatformRefreshToken,
+    PrivacyRequest,
   ],
   migrations: [join(__dirname, 'migrations', '[0-9]*.{ts,js}')],
   migrationsTableName: 'migrations',
