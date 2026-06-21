@@ -1,2 +1,13 @@
-npm run openapi:commit
+# Backend pre-commit: only operate on the backend repo.
+#
+# OpenAPI export + frontend contract sync (npm run openapi:commit) was removed
+# from this hook: it reached into the sibling ../frontend repo and mutated it on
+# every commit (api:sync:local, api:coverage, generate:capabilities), which is
+# fragile and breaks for anyone without the frontend checked out.
+#
+# OpenAPI drift is already enforced in CI ("Check OpenAPI export drift" in
+# .github/workflows/ci.yml). When you change the API surface, regenerate the
+# contract explicitly before committing:
+#   npm run openapi:export      # backend cache + frontend openapi.remote.json
+#   npm run openapi:commit      # also runs the full frontend contract sync
 npx lint-staged

@@ -37,6 +37,13 @@ jobs:
       - name: Run type-check
         run: npm run type-check
 
+      - name: Check circular dependencies
+        run: npm run lint:circular
+
+      - name: Check unused files & dependencies (knip)
+        run: npm run knip
+        continue-on-error: true # Report-only for now: backend has pre-existing unused files/deps
+
       - name: Check SQL Safety
         run: npm run check:sql-safety
 
@@ -55,6 +62,11 @@ jobs:
       - name: Check Platform Tenant Body Contract
         run: npm run check:platform-tenant-body
 
+      - name: Check OpenAPI export drift
+        run: |
+          npm run openapi:export
+          git diff --exit-code ../frontend/src/api/openapi.remote.json
+
       - name: Check Event Contract
         run: npm run check:event-contract
 
@@ -63,6 +75,24 @@ jobs:
 
       - name: Check Tenant Async Boundary
         run: npm run check:tenant-async-boundary
+
+      - name: Check i18n locale parity
+        run: npm run check:i18n-parity
+
+      - name: Check API error keys
+        run: npm run check:api-error-keys
+
+      - name: Check production build config
+        run: npm run check:build-production-config
+
+      - name: Check migration policy
+        run: npm run check:migration-policy
+
+      - name: Check config key safety
+        run: npm run check:config-keys
+
+      - name: Check platform tenant lifecycle completeness
+        run: npm run check:lifecycle-completeness
 
       - name: Validate Prometheus monitoring configs
         run: |
@@ -116,6 +146,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Run migrations
+        run: npm run migration:run
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+
+      - name: Check enum sync
+        run: npm run check:enum-sync
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+
       - name: Run tests
         run: npm run test -- --runInBand
         env:

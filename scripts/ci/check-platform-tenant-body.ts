@@ -10,7 +10,8 @@ type RuleId =
   | 'BODY_DECORATOR_TENANT_ID'
   | 'BODY_PARAM_NAMED_TENANT_ID'
   | 'BODY_DTO_CONTAINS_TENANT_ID'
-  | 'BODY_PARAM_READS_TENANT_ID';
+  | 'BODY_PARAM_READS_TENANT_ID'
+  | 'CREATE_TENANT_INITIAL_ADMIN_OPTIONAL';
 
 interface Violation {
   file: string;
@@ -369,6 +370,59 @@ function buildReport(violations: Violation[], scannedControllerCount: number): s
   return `${lines.join('\n')}\n`;
 }
 
+function scanCreateTenantDtoInitialAdmin(): Violation[] {
+  const relativePath = 'src/modules/platform/dto/tenant-management.dto.ts';
+  const absolutePath = path.join(process.cwd(), relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    return [];
+  }
+
+  const content = fs.readFileSync(absolutePath, 'utf-8');
+  const classBody = findClassBody(content, 'CreateTenantDto');
+  if (!classBody) {
+    return [
+      {
+        file: relativePath,
+        line: 1,
+        rule: 'CREATE_TENANT_INITIAL_ADMIN_OPTIONAL',
+        message: 'CreateTenantDto class not found.',
+        content: 'export class CreateTenantDto',
+      },
+    ];
+  }
+
+  const initialAdminMatch = classBody.match(
+    /((?:@[A-Za-z]+\([^)]*\)\s*)*)@ValidateNested\(\)\s*@Type\(\(\)\s*=>\s*InitialAdminDto\)\s*initialAdmin:\s*InitialAdminDto;/,
+  );
+  if (!initialAdminMatch) {
+    return [
+      {
+        file: relativePath,
+        line: getLineNumberForIndex(content, content.indexOf('export class CreateTenantDto')),
+        rule: 'CREATE_TENANT_INITIAL_ADMIN_OPTIONAL',
+        message: 'CreateTenantDto.initialAdmin field definition not found.',
+        content: 'initialAdmin: InitialAdminDto',
+      },
+    ];
+  }
+
+  const decoratorBlock = initialAdminMatch[1] ?? '';
+  if (/@IsOptional\s*\(\s*\)/.test(decoratorBlock)) {
+    const index = content.indexOf('initialAdmin: InitialAdminDto');
+    return [
+      {
+        file: relativePath,
+        line: getLineNumberForIndex(content, index),
+        rule: 'CREATE_TENANT_INITIAL_ADMIN_OPTIONAL',
+        message: 'CreateTenantDto.initialAdmin must be required (remove @IsOptional).',
+        content: 'initialAdmin: InitialAdminDto',
+      },
+    ];
+  }
+
+  return [];
+}
+
 function main(): void {
   const platformDir = path.join(process.cwd(), 'src', 'modules', 'platform');
   if (!fs.existsSync(platformDir)) {
@@ -388,6 +442,8 @@ function main(): void {
     const absolutePath = path.join(process.cwd(), relativePath);
     violations = violations.concat(scanControllerFile(absolutePath, relativePath, cache));
   }
+
+  violations = violations.concat(scanCreateTenantDtoInitialAdmin());
 
   const dedupedViolations = sortViolations(dedupeViolations(violations));
   const reportPath = path.join(process.cwd(), REPORT_FILE_NAME);

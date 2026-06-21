@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/database/migrations/**'
       - 'src/**/*.entity.ts'
+      - 'src/**/enums/*.enum.ts'
 
 jobs:
   migration-check:
@@ -64,10 +65,34 @@ jobs:
           DB_SYNCHRONIZE: false
           DB_LOGGING: true
 
+      - name: Check enum sync
+        run: npm run check:enum-sync
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+
+      - name: Assert runtime schema compatibility
+        run: npm run check:runtime-schema
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+
       - name: Run Migrations (Revert)
         run: |
           echo "🔙 Testing migration revert..."
-          npm run migration:revert || echo "No migrations to revert"
+          npm run migration:revert
         env:
           NODE_ENV: test
           DB_HOST: localhost

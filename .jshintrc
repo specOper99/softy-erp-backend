@@ -1,6 +1,0 @@
-{
-  "esversion": 11,
-  "node": true,
-  "module": true,
-  "predef": ["__ENV", "__VU", "__ITER"]
-}
