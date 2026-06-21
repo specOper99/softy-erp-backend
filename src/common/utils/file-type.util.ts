@@ -6,7 +6,6 @@ type FileTypeLoader = () => Promise<{ fileTypeFromBuffer: (buffer: Buffer) => Pr
  * Exposed as a static property so unit tests can substitute a synchronous stub
  * without requiring `--experimental-vm-modules`.
  */
-
 const defaultLoader: FileTypeLoader = () => import('file-type') as ReturnType<FileTypeLoader>;
 
 export class FileTypeUtil {

@@ -7,6 +7,6 @@
     "ignoreDeprecations": "5.0",
     "rootDir": "./src"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["node_modules", "test", "dist", "scripts", "**/*spec.ts"]
 }
