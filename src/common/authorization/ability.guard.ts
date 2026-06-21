@@ -1,18 +1,12 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, SetMetadata } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { User } from '../../modules/users/entities/user.entity';
-import { AbilityFactory, type AppAction, type AppSubject } from '../authorization/ability.factory';
+import { AbilityFactory } from '../authorization/ability.factory';
+import { CHECK_ABILITY_KEY, type CheckAbilityMetadata } from './check-ability.decorator';
 
-export const CHECK_ABILITY_KEY = 'check_ability';
-
-export interface CheckAbilityMeta {
-  action: AppAction;
-  subject: AppSubject;
-}
-
-export const CheckAbility = (action: AppAction, subject: AppSubject) =>
-  SetMetadata(CHECK_ABILITY_KEY, { action, subject } satisfies CheckAbilityMeta);
+export { CheckAbility, CHECK_ABILITY_KEY } from './check-ability.decorator';
+export type { CheckAbilityMetadata as CheckAbilityMeta } from './check-ability.decorator';
 
 interface RequestWithUser extends Request {
   user?: User & { clientId?: string };
@@ -29,7 +23,7 @@ export class AbilityGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const meta = this.reflector.get<CheckAbilityMeta>(CHECK_ABILITY_KEY, context.getHandler());
+    const meta = this.reflector.get<CheckAbilityMetadata>(CHECK_ABILITY_KEY, context.getHandler());
     if (!meta) {
       return true;
     }
