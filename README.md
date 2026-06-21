@@ -190,7 +190,9 @@ npm run lint               # Lint code with ESLint
 Automated security scanning is integrated into the CI/CD pipeline:
 
 - **npm audit**: Scans for critical vulnerabilities in dependencies (fails build on critical findings)
-- **Snyk**: Deep dependency analysis with severity thresholds (requires `SNYK_TOKEN` in GitHub secrets)
+- **TruffleHog**: Secret scanning across the repository history
+- **Trivy**: Container image vulnerability scanning (CRITICAL/HIGH)
+- **Checkov**: IaC security scanning (Dockerfile, Helm, Kubernetes)
 - **Security reports**: Generated as GitHub Actions artifacts
 
 Run manually:
@@ -317,7 +319,7 @@ MFA Recovery codes are stored as **bcrypt hashes** (jsonb column) instead of pla
 - [x] Configure health checks with appropriate timeouts
 - [x] Set up log aggregation and retention policies
 - [x] Run security scans: `npm audit --audit-level=critical`
-- [x] Review dependency updates monthly via Snyk
+- [x] Review dependency updates monthly via `npm audit` and Dependabot
 
 #### Data Isolation Best Practices
 

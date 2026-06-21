@@ -46,6 +46,7 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   const isProd = process.env.NODE_ENV === 'production';
+  const requiresStrictSchemaValidation = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
   const swaggerEnabled = process.env.ENABLE_SWAGGER === 'true';
 
   // When behind a reverse proxy (e.g., Kubernetes ingress), enable proxy trust so req.ip is correct.
@@ -171,14 +172,14 @@ async function bootstrap() {
 
   // Check for pending database migrations at startup.
   // Booting against a stale schema produces confusing DB errors at runtime instead
-  // of a clear startup failure. In production we throw; in other environments we warn.
+  // of a clear startup failure. In production and staging we throw; in other environments we warn.
   try {
     const dataSource = app.get(DataSource);
     const pending = await dataSource.showMigrations();
     if (pending) {
       const message =
         'PENDING DATABASE MIGRATIONS DETECTED. Run migrations before serving traffic to avoid schema mismatch errors.';
-      if (isProd) {
+      if (requiresStrictSchemaValidation) {
         throw new Error(message);
       } else {
         logger.warn(message);
@@ -187,8 +188,12 @@ async function bootstrap() {
 
     await assertRuntimeSchemaCompatibility(dataSource);
   } catch (error) {
-    // Re-throw in production; log and continue in other environments.
-    if (isProd) throw error;
+    if (requiresStrictSchemaValidation) {
+      logger.error(
+        `Schema validation failed in ${nodeEnv}: ${toErrorMessage(error)}. Run migrations and verify enum labels before serving traffic.`,
+      );
+      throw error;
+    }
     logger.warn(`Migration check failed (non-fatal in non-prod): ${toErrorMessage(error)}`);
   }
 
