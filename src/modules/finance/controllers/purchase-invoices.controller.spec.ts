@@ -2,6 +2,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { PurchaseInvoicesController } from './purchase-invoices.controller';
 import { PurchaseInvoicesService } from '../services/purchase-invoices.service';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 
 describe('PurchaseInvoicesController', () => {
   let controller: PurchaseInvoicesController;
@@ -26,7 +27,10 @@ describe('PurchaseInvoicesController', () => {
           useValue: service,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<PurchaseInvoicesController>(PurchaseInvoicesController);
   });

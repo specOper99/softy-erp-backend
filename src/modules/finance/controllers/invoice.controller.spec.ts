@@ -8,6 +8,7 @@ import { CaslShadowMetric } from '../../../common/authorization/casl-shadow.metr
 import { createMockInvoice } from '../../../../test/helpers/mock-factories';
 import type { Invoice } from '../entities/invoice.entity';
 import { InvoiceService } from '../services/invoice.service';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { InvoiceController } from './invoice.controller';
 
 describe('InvoiceController', () => {
@@ -50,7 +51,10 @@ describe('InvoiceController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<InvoiceController>(InvoiceController);
     invoiceService = module.get(InvoiceService);

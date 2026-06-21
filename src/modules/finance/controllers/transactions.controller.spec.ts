@@ -8,6 +8,7 @@ import { TransactionFilterDto } from '../dto';
 import type { TransactionCursorQueryDto } from '../dto/finance.dto';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { FinanceService } from '../services/finance.service';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { FinancialReportService } from '../services/financial-report.service';
 import { TransactionsController } from './transactions.controller';
 
@@ -53,7 +54,10 @@ describe('TransactionsController', () => {
         },
         Reflector,
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<TransactionsController>(TransactionsController);
     service = module.get<FinanceService>(FinanceService);

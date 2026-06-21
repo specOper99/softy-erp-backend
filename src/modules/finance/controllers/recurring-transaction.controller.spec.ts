@@ -8,6 +8,7 @@ import type { RecurringTransaction } from '../entities/recurring-transaction.ent
 import { RecurringFrequency, RecurringStatus } from '../entities/recurring-transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { RecurringTransactionService } from '../services/recurring-transaction.service';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { RecurringTransactionController } from './recurring-transaction.controller';
 
 describe('RecurringTransactionController', () => {
@@ -38,7 +39,10 @@ describe('RecurringTransactionController', () => {
         },
         Reflector,
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<RecurringTransactionController>(RecurringTransactionController);
     service = module.get(RecurringTransactionService);

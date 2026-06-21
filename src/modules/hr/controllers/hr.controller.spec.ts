@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { StaffConflictService } from '../../bookings/services/staff-conflict.service';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { TenantsService } from '../../tenants/tenants.service';
 import type { User } from '../../users/entities/user.entity';
 import { Role } from '../../users/enums/role.enum';
@@ -63,7 +64,10 @@ describe('HrController', () => {
         },
         Reflector,
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<HrController>(HrController);
     service = module.get<HrService>(HrService);

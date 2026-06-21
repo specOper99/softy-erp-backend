@@ -5,6 +5,7 @@ import { Tenant } from '../../tenants/entities/tenant.entity';
 import type { UserFilterDto } from '../dto';
 import { Role } from '../enums/role.enum';
 import { UsersService } from '../services/users.service';
+import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { UsersController } from './users.controller';
 
 describe('UsersController', () => {
@@ -31,7 +32,10 @@ describe('UsersController', () => {
         },
         { provide: getRepositoryToken(Tenant), useValue: {} },
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<UsersController>(UsersController);
     service = module.get<UsersService>(UsersService);

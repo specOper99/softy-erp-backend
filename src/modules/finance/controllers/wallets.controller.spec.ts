@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
-import { MFA_REQUIRED_KEY } from '../../auth/guards/mfa-required.guard';
+import { MFA_REQUIRED_KEY, MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
 import { Role } from '../../users/enums/role.enum';
 import { createMockEmployeeWallet } from '../../../../test/helpers/mock-factories';
 import { WalletService } from '../services/wallet.service';
@@ -27,7 +27,10 @@ describe('WalletsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<WalletsController>(WalletsController);
     service = module.get<WalletService>(WalletService);
@@ -96,7 +99,10 @@ describe('WalletsController', () => {
             },
           },
         ],
-      }).compile();
+      })
+        .overrideGuard(MfaRequiredGuard)
+        .useValue({ canActivate: () => true })
+        .compile();
       reflector = module.get<Reflector>(Reflector);
       guard = new RolesGuard(reflector);
     });

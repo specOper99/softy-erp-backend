@@ -5,6 +5,7 @@ import { TenantContextService } from '../../common/services/tenant-context.servi
 import type { CreateTenantDto } from './dto/create-tenant.dto';
 import type { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantsController } from './tenants.controller';
+import { MfaRequiredGuard } from '../auth/guards/mfa-required.guard';
 import { TenantsService } from './tenants.service';
 
 describe('TenantsController', () => {
@@ -39,7 +40,10 @@ describe('TenantsController', () => {
           useValue: mockService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(MfaRequiredGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<TenantsController>(TenantsController);
     service = module.get<TenantsService>(TenantsService);
