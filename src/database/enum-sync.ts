@@ -20,6 +20,7 @@ export type EnumExpectation = {
 const PG_ENUM_NAME_OVERRIDES: Readonly<Record<string, string>> = {
   'bookings.payment_status': 'payment_status_enum',
   'tenants.base_currency': 'currency_enum',
+  'tenants.subscriptionPlan': 'tenants_subscriptionplan_enum',
   'payouts.currency': 'currency_enum',
   'transactions.currency': 'currency_enum',
   'recurring_transactions.type': 'transactions_type_enum',
@@ -42,6 +43,24 @@ export function resolvePgEnumName(tableName: string, columnName: string, explici
 
   const overrideKey = `${tableName}.${columnName}`;
   return PG_ENUM_NAME_OVERRIDES[overrideKey] ?? `${tableName}_${columnName}_enum`;
+}
+
+function lookupPgEnumLabels(
+  pgEnumName: string,
+  pgLabelsByEnumName: ReadonlyMap<string, ReadonlySet<string>>,
+): { labels: ReadonlySet<string>; resolvedName: string } | undefined {
+  const direct = pgLabelsByEnumName.get(pgEnumName);
+  if (direct) {
+    return { labels: direct, resolvedName: pgEnumName };
+  }
+
+  const lowerName = pgEnumName.toLowerCase();
+  const lowered = pgLabelsByEnumName.get(lowerName);
+  if (lowered) {
+    return { labels: lowered, resolvedName: lowerName };
+  }
+
+  return undefined;
 }
 
 export function collectEnumExpectations(entityMetadatas: readonly EntityMetadata[]): EnumExpectation[] {
@@ -90,16 +109,16 @@ export function findMissingEnumLabels(
   const missing: string[] = [];
 
   for (const expectation of expectations) {
-    const pgLabels = pgLabelsByEnumName.get(expectation.pgEnumName);
-    if (!pgLabels) {
+    const pgEnum = lookupPgEnumLabels(expectation.pgEnumName, pgLabelsByEnumName);
+    if (!pgEnum) {
       missing.push(`${expectation.table}.${expectation.column}: PostgreSQL enum "${expectation.pgEnumName}" not found`);
       continue;
     }
 
     for (const tsValue of expectation.tsValues) {
-      if (!pgLabels.has(tsValue)) {
+      if (!pgEnum.labels.has(tsValue)) {
         missing.push(
-          `${expectation.table}.${expectation.column}: TS value "${tsValue}" missing from PostgreSQL enum "${expectation.pgEnumName}"`,
+          `${expectation.table}.${expectation.column}: TS value "${tsValue}" missing from PostgreSQL enum "${pgEnum.resolvedName}"`,
         );
       }
     }

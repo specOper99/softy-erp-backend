@@ -26,6 +26,7 @@ describe('enum-sync', () => {
   it('resolves pg enum names with overrides and convention fallback', () => {
     expect(resolvePgEnumName('bookings', 'payment_status')).toBe('payment_status_enum');
     expect(resolvePgEnumName('tenants', 'base_currency')).toBe('currency_enum');
+    expect(resolvePgEnumName('tenants', 'subscriptionPlan')).toBe('tenants_subscriptionplan_enum');
     expect(resolvePgEnumName('payouts', 'currency')).toBe('currency_enum');
     expect(resolvePgEnumName('transactions', 'currency')).toBe('currency_enum');
     expect(resolvePgEnumName('recurring_transactions', 'type')).toBe('transactions_type_enum');
@@ -67,6 +68,23 @@ describe('enum-sync', () => {
     expect(findMissingEnumLabels(expectations, new Map())).toEqual([
       'bookings.status: PostgreSQL enum "bookings_status_enum" not found',
     ]);
+  });
+
+  it('matches legacy lowercase PostgreSQL enum type names', () => {
+    const expectations: EnumExpectation[] = [
+      {
+        table: 'tenants',
+        column: 'subscriptionPlan',
+        pgEnumName: 'tenants_subscriptionPlan_enum',
+        tsValues: ['FREE', 'PRO'],
+      },
+    ];
+
+    const pgLabels = new Map<string, Set<string>>([
+      ['tenants_subscriptionplan_enum', new Set(['FREE', 'PRO', 'ENTERPRISE'])],
+    ]);
+
+    expect(findMissingEnumLabels(expectations, pgLabels)).toEqual([]);
   });
 
   it('collects enum expectations from entity metadata fixtures', () => {
