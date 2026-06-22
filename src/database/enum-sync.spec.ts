@@ -26,6 +26,11 @@ describe('enum-sync', () => {
   it('resolves pg enum names with overrides and convention fallback', () => {
     expect(resolvePgEnumName('bookings', 'payment_status')).toBe('payment_status_enum');
     expect(resolvePgEnumName('tenants', 'base_currency')).toBe('currency_enum');
+    expect(resolvePgEnumName('payouts', 'currency')).toBe('currency_enum');
+    expect(resolvePgEnumName('transactions', 'currency')).toBe('currency_enum');
+    expect(resolvePgEnumName('recurring_transactions', 'type')).toBe('transactions_type_enum');
+    expect(resolvePgEnumName('task_templates', 'default_status')).toBe('tasks_status_enum');
+    expect(resolvePgEnumName('transaction_categories', 'applicableType')).toBe('transactions_type_enum');
     expect(resolvePgEnumName('privacy_requests', 'status', 'privacy_requests_status_enum')).toBe(
       'privacy_requests_status_enum',
     );

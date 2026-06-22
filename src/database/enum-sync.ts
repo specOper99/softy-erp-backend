@@ -20,6 +20,12 @@ export type EnumExpectation = {
 const PG_ENUM_NAME_OVERRIDES: Readonly<Record<string, string>> = {
   'bookings.payment_status': 'payment_status_enum',
   'tenants.base_currency': 'currency_enum',
+  'payouts.currency': 'currency_enum',
+  'transactions.currency': 'currency_enum',
+  'recurring_transactions.type': 'transactions_type_enum',
+  'recurring_transactions.currency': 'currency_enum',
+  'task_templates.default_status': 'tasks_status_enum',
+  'transaction_categories.applicableType': 'transactions_type_enum',
 };
 
 // Deferred until subscriptions table split — see docs/SUBSCRIPTIONS_ARCHITECTURE.md
