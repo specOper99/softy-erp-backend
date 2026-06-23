@@ -139,6 +139,22 @@ describe('MFA E2E Tests', () => {
     expect(userTenantId).toBeDefined();
   });
 
+  it('1b. FREE-plan tenant can access MFA enrollment (no subscription gate)', async () => {
+    const tenantResponse = await request(app.getHttpServer())
+      .get('/api/v1/tenants')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Host', `${userTenantId}.example.com`)
+      .expect(200);
+
+    expect(tenantResponse.body.data[0]?.subscriptionPlan).toBe('FREE');
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/mfa/generate')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Host', `${userTenantId}.example.com`)
+      .expect(201);
+  });
+
   it('2. Generate MFA Secret', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/mfa/generate')

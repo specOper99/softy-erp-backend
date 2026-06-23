@@ -43,7 +43,7 @@ export class MfaRequiredGuard implements CanActivate {
 
     if (this.requiredRoles.includes(user.role)) {
       if (!user.isMfaEnabled) {
-        throw new ForbiddenException('auth.mfa_required_enable');
+        throw new ForbiddenException({ code: 'auth.mfa_required_enable' });
       }
     }
 

@@ -126,7 +126,12 @@ describe('MfaRequiredGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-      expect(() => guard.canActivate(context)).toThrow('auth.mfa_required_enable');
+      try {
+        guard.canActivate(context);
+      } catch (error) {
+        const response = (error as ForbiddenException).getResponse() as { code: string };
+        expect(response.code).toBe('auth.mfa_required_enable');
+      }
     });
   });
 });

@@ -15,9 +15,11 @@
   - Algorithm: HS256 (ensure no "none" alg is accepted).
 
 ### 1.2 Multi-Factor Authentication (MFA)
-- **Requirement**: Admins and sensitive roles should enable MFA.
+- **Availability**: MFA enrollment (`POST /auth/mfa/generate`, `enable`, `disable`, recovery codes) is available on **all subscription tiers** (FREE, PRO, ENTERPRISE). It is never gated by `SubscriptionGuard`.
+- **Requirement**: Studio `ADMIN` users must enable MFA before performing sensitive operations marked with `@MfaRequired()` (finance writes, user management, tenant settings). Configurable via `MFA_REQUIRED_ROLES` (default: `ADMIN`).
 - **Provider**: TOTP-based (Google Authenticator, Authy).
 - **Recovery**: Backup codes are generated upon MFA setup.
+- **Plan separation**: PRO/ENTERPRISE module gates (HR, analytics) use `SubscriptionGuard` independently of MFA. A `403 tenants.upgrade_required` is a billing/plan issue, not an MFA enrollment issue.
 
 ### 1.3 Account Security
 - **Lockout Policy**: Accounts are locked for 15 minutes after 5 failed login attempts.

@@ -101,6 +101,6 @@ describe('MfaRequiredGuard integration', () => {
       })
       .expect(403);
 
-    expect(response.body.message).toBe('auth.mfa_required_enable');
+    expect(response.body.code).toBe('auth.mfa_required_enable');
   });
 });
