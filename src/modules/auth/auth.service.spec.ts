@@ -256,6 +256,8 @@ describe('AuthService - Comprehensive Tests', () => {
 
     jest.clearAllMocks();
 
+    mockTenantsService.findOne.mockResolvedValue(mockTenant);
+
     jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
   });
 

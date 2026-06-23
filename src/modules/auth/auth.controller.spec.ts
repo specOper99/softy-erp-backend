@@ -52,6 +52,15 @@ describe('AuthController', () => {
             logoutAllSessions: jest.fn().mockResolvedValue(1),
             getActiveSessions: jest.fn().mockResolvedValue([]),
             validateUser: jest.fn().mockResolvedValue(mockUser),
+            getCurrentUserProfile: jest.fn().mockResolvedValue({
+              id: mockUser.id,
+              email: mockUser.email,
+              role: mockUser.role,
+              isActive: mockUser.isActive,
+              isMfaEnabled: false,
+              tenantId: 'tenant-123',
+              tenantSlug: 'test-tenant',
+            }),
           },
         },
         {
@@ -176,9 +185,10 @@ describe('AuthController', () => {
   });
 
   describe('getCurrentUser', () => {
-    it('should return simplified user object', () => {
-      const result = controller.getCurrentUser(mockUser);
+    it('should return simplified user object', async () => {
+      const result = await controller.getCurrentUser(mockUser);
       expect(result.email).toBe(mockUser.email);
+      expect(result.tenantSlug).toBe('test-tenant');
     });
   });
   describe('getSessions', () => {

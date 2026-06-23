@@ -91,6 +91,7 @@ export class AuthResponseDto {
     email: string;
     role: string;
     tenantId: string;
+    tenantSlug: string;
   };
 }
 

@@ -21,4 +21,7 @@ export class CurrentUserDto {
 
   @ApiProperty({ description: 'Tenant the user belongs to', format: 'uuid' })
   tenantId: string;
+
+  @ApiProperty({ description: 'URL-safe tenant identifier used for frontend routing' })
+  tenantSlug: string;
 }

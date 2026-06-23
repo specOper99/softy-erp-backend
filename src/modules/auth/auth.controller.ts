@@ -347,15 +347,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current user info' })
   @ApiOkResponse({ description: 'Authenticated user information', type: CurrentUserDto })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
-  getCurrentUser(@CurrentUser() user: User): CurrentUserDto {
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      isActive: user.isActive,
-      isMfaEnabled: user.isMfaEnabled,
-      tenantId: user.tenantId,
-    };
+  async getCurrentUser(@CurrentUser() user: User): Promise<CurrentUserDto> {
+    return this.authService.getCurrentUserProfile(user);
   }
 
   @Post('forgot-password')

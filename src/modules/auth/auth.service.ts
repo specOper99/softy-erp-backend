@@ -437,20 +437,44 @@ export class AuthService {
     });
   }
 
+  async getCurrentUserProfile(user: User): Promise<{
+    id: string;
+    email: string;
+    role: string;
+    isActive: boolean;
+    isMfaEnabled: boolean;
+    tenantId: string;
+    tenantSlug: string;
+  }> {
+    const tenant = await this.tenantsService.findOne(user.tenantId);
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      isMfaEnabled: user.isMfaEnabled,
+      tenantId: user.tenantId,
+      tenantSlug: tenant.slug,
+    };
+  }
+
   private async generateAuthResponse(
     user: User,
     context?: RequestContext,
     rememberMe?: boolean,
   ): Promise<AuthResponseDto> {
     const tokens = await this.generateSessionTokens(user, context, rememberMe);
+    const profile = await this.getCurrentUserProfile(user);
 
     return {
       ...tokens,
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        tenantId: user.tenantId,
+        id: profile.id,
+        email: profile.email,
+        role: profile.role,
+        tenantId: profile.tenantId,
+        tenantSlug: profile.tenantSlug,
       },
     };
   }
