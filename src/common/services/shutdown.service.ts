@@ -9,14 +9,11 @@ export class ShutdownService implements OnApplicationShutdown {
 
   async onApplicationShutdown(signal?: string): Promise<void> {
     this.logger.log(`Received shutdown signal: ${signal}`);
-
-    // Close database connection
     if (this.dataSource.isInitialized) {
       this.logger.log('Closing database connection...');
       await this.dataSource.destroy();
       this.logger.log('Database connection closed.');
     }
-
     this.logger.log('Graceful shutdown complete.');
   }
 }

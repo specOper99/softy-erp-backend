@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
-import { toErrorMessage } from '../../../common/utils/error.util';
 import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
 import { MailService } from '../mail.service';
+import { runMailDispatch } from '../../../common/utils/event-dispatch.util';
 
 @EventsHandler(PaymentRecordedEvent)
 export class PaymentReceivedHandler implements IEventHandler<PaymentRecordedEvent> {
@@ -10,23 +10,24 @@ export class PaymentReceivedHandler implements IEventHandler<PaymentRecordedEven
 
   constructor(private readonly mailService: MailService) {}
 
-  async handle(event: PaymentRecordedEvent) {
-    this.logger.log(`Handling PaymentRecordedEvent for booking: ${event.bookingId}`);
-
-    try {
-      await this.mailService.sendPaymentReceipt({
-        clientName: event.clientName,
-        to: event.clientEmail,
-        bookingId: event.bookingId,
-        eventDate: event.eventDate,
-        amount: event.amount,
-        paymentMethod: event.paymentMethod,
-        reference: event.reference,
-        totalPrice: event.totalPrice,
-        amountPaid: event.amountPaid,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send payment receipt for ${event.bookingId}: ${toErrorMessage(error)}`);
-    }
+  handle(event: PaymentRecordedEvent): Promise<void> {
+    return runMailDispatch(
+      this.logger,
+      'Handling PaymentRecordedEvent for booking',
+      event.bookingId,
+      'payment receipt',
+      () =>
+        this.mailService.sendPaymentReceipt({
+          clientName: event.clientName,
+          to: event.clientEmail,
+          bookingId: event.bookingId,
+          eventDate: event.eventDate,
+          amount: event.amount,
+          paymentMethod: event.paymentMethod,
+          reference: event.reference,
+          totalPrice: event.totalPrice,
+          amountPaid: event.amountPaid,
+        }),
+    );
   }
 }

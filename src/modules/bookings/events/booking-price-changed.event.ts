@@ -1,14 +1,6 @@
 import type { IEvent } from '@nestjs/cqrs';
 
-/**
- * BookingPriceChangedEvent
- *
- * Published when a booking's price or tax is modified after creation.
- * Triggers financial reconciliation to adjust existing transactions.
- *
- * This is separate from BookingUpdatedEvent to ensure financial
- * side effects are handled explicitly and not on every update.
- */
+/** Separate from BookingUpdatedEvent so financial reconciliation runs only on price/tax changes. */
 export class BookingPriceChangedEvent implements IEvent {
   constructor(
     public readonly bookingId: string,
@@ -22,17 +14,11 @@ export class BookingPriceChangedEvent implements IEvent {
     public readonly reason?: string,
   ) {}
 
-  /**
-   * Calculate the total price delta for reconciliation
-   */
   get priceDelta(): number {
     return this.newTotalPrice - this.oldTotalPrice;
   }
 
-  /**
-   * Check if reconciliation is needed (price actually changed)
-   */
   get requiresReconciliation(): boolean {
-    return Math.abs(this.priceDelta) > 0.01; // Allow for floating point precision
+    return Math.abs(this.priceDelta) > 0.01;
   }
 }

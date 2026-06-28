@@ -84,10 +84,6 @@ export class UpdateMetricsHandler
       totalRevenue?: number;
     },
   ) {
-    // Upsert logic
-    // We can use a raw query or try-catch insert/update.
-    // Postgres supports ON CONFLICT.
-
     const {
       bookingsCount = 0,
       tasksCompletedCount = 0,
@@ -107,18 +103,17 @@ export class UpdateMetricsHandler
         totalRevenue,
       });
     } catch (error: unknown) {
-      if (isDuplicateKeyError(error)) {
-        if (bookingsCount > 0)
-          await this.metricsRepository.increment({ tenantId, date }, 'bookingsCount', bookingsCount);
-        if (tasksCompletedCount > 0)
-          await this.metricsRepository.increment({ tenantId, date }, 'tasksCompletedCount', tasksCompletedCount);
-        if (activeClientsCount > 0)
-          await this.metricsRepository.increment({ tenantId, date }, 'activeClientsCount', activeClientsCount);
-        if (cancellationsCount > 0)
-          await this.metricsRepository.increment({ tenantId, date }, 'cancellationsCount', cancellationsCount);
-        if (totalRevenue > 0) await this.metricsRepository.increment({ tenantId, date }, 'totalRevenue', totalRevenue);
-      } else {
-        throw error;
+      if (!isDuplicateKeyError(error)) throw error;
+
+      const counterUpdates: Array<[keyof typeof increments, number]> = [
+        ['bookingsCount', bookingsCount],
+        ['tasksCompletedCount', tasksCompletedCount],
+        ['activeClientsCount', activeClientsCount],
+        ['cancellationsCount', cancellationsCount],
+        ['totalRevenue', totalRevenue],
+      ];
+      for (const [field, value] of counterUpdates) {
+        if (value > 0) await this.metricsRepository.increment({ tenantId, date }, field, value);
       }
     }
   }

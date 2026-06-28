@@ -1,13 +1,5 @@
 import type { IEvent } from '@nestjs/cqrs';
 
-/**
- * Event fired when a new booking is created.
- * This event triggers:
- * - Dashboard metrics updates
- * - Notification to assigned staff
- * - Webhook notifications to external systems
- * - Analytics tracking
- */
 export class BookingCreatedEvent implements IEvent {
   constructor(
     public readonly bookingId: string,

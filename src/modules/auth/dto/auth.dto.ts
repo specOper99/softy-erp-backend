@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 import { PII } from '../../../common/decorators';
 
-// Password must have: 8+ chars, uppercase, lowercase, number, special char
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 const PASSWORD_MESSAGE =
   'Password must be at least 8 characters with uppercase, lowercase, number, and special character (@$!%*?&)';
@@ -17,7 +16,6 @@ export class LoginDto {
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @PII()
-  // Note: Don't apply regex validation on login - it reveals password rules
   password: string;
 
   @ApiPropertyOptional({ description: 'Extend session duration (30 days)' })

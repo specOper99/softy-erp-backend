@@ -12,6 +12,7 @@ const LIFECYCLE_MUTATION_METHODS: ReadonlyArray<{ controllerMethod: string; serv
   { controllerMethod: 'reactivateTenant', serviceMethod: 'reactivateTenant' },
   { controllerMethod: 'lockTenant', serviceMethod: 'lockTenant' },
   { controllerMethod: 'deleteTenant', serviceMethod: 'deleteTenant' },
+  { controllerMethod: 'cancelScheduledDeletion', serviceMethod: 'cancelScheduledDeletion' },
 ];
 
 function fail(message: string): never {

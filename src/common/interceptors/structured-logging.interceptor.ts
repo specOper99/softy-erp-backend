@@ -20,12 +20,6 @@ interface LogContext {
   body?: unknown;
 }
 
-/**
- * Structured JSON logging interceptor.
- * Logs all HTTP requests/responses in JSON format with correlation IDs.
- * Integrates with the CorrelationIdMiddleware for request tracing.
- * Sanitizes PII from request bodies.
- */
 @Injectable()
 export class StructuredLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
@@ -54,19 +48,13 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
       ip: getClientIp(request, this.trustProxyHeaders, (message) => this.logger.warn(message)) ?? undefined,
     };
 
-    // Log sanitized body for non-GET requests, exclude binary (file uploads)
-    // We assume JSON/Form data. If multipart, body might be complex/large, so explicit checks help.
     const body = request.body as Record<string, unknown>;
     if (request.method !== 'GET' && body && Object.keys(body).length > 0) {
       logContext.body = LogSanitizer.sanitize(body);
     }
 
-    // Extract user ID from JWT if available
-    // Safe access to user property which might be added by middleware
     const reqWithUser = request as { user?: { sub?: string } };
-    if (reqWithUser.user?.sub) {
-      logContext.userId = reqWithUser.user.sub;
-    }
+    if (reqWithUser.user?.sub) logContext.userId = reqWithUser.user.sub;
 
     return next.handle().pipe(
       tap({
@@ -91,24 +79,12 @@ export class StructuredLoggingInterceptor implements NestInterceptor {
       timestamp: new Date().toISOString(),
       level: error ? 'error' : 'info',
       ...context,
-      ...(error && {
-        error: {
-          name: error.name,
-          message: error.message,
-        },
-      }),
+      ...(error && { error: { name: error.name, message: error.message } }),
     };
 
-    // Output as JSON for log aggregators (ELK, CloudWatch, etc.)
-    if (error) {
-      this.logger.error(JSON.stringify(logEntry));
-    } else if (context.duration && context.duration > 1000) {
-      // Warn for slow requests
-      this.logger.warn(JSON.stringify(logEntry));
-    } else {
-      this.logger.log(JSON.stringify(logEntry));
-    }
+    const payload = JSON.stringify(logEntry);
+    if (error) this.logger.error(payload);
+    else if (context.duration && context.duration > 1000) this.logger.warn(payload);
+    else this.logger.log(payload);
   }
-
-  // getClientIp implemented in common util
 }

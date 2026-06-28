@@ -8,9 +8,6 @@ interface RequestWithReason {
   validatedReason?: string;
 }
 
-/**
- * Guard to enforce reason requirement for sensitive operations
- */
 @Injectable()
 export class RequireReasonGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -20,10 +17,7 @@ export class RequireReasonGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-
-    if (!requireReason) {
-      return true;
-    }
+    if (!requireReason) return true;
 
     const request = context.switchToHttp().getRequest<RequestWithReason>();
     const reason = request.body?.reason ?? request.query?.reason;
@@ -33,7 +27,6 @@ export class RequireReasonGuard implements CanActivate {
     }
 
     request.validatedReason = reason.trim();
-
     return true;
   }
 }

@@ -1,13 +1,5 @@
 import type { IEvent } from '@nestjs/cqrs';
 
-/**
- * Event fired when a new client is created.
- * This event triggers:
- * - CRM sync to external systems
- * - Welcome notification/email
- * - Analytics tracking
- * - Webhook notifications
- */
 export class ClientCreatedEvent implements IEvent {
   constructor(
     public readonly clientId: string,
@@ -25,12 +17,6 @@ export class ClientCreatedEvent implements IEvent {
   }
 }
 
-/**
- * Event fired when a client is updated.
- * This event triggers:
- * - CRM sync to external systems
- * - Webhook notifications with changes
- */
 export class ClientUpdatedEvent implements IEvent {
   constructor(
     public readonly clientId: string,
@@ -40,13 +26,6 @@ export class ClientUpdatedEvent implements IEvent {
   ) {}
 }
 
-/**
- * Event fired when a client is deleted.
- * This event triggers:
- * - CRM sync to external systems (deletion)
- * - Cleanup of related data
- * - Webhook notifications
- */
 export class ClientDeletedEvent implements IEvent {
   constructor(
     public readonly clientId: string,

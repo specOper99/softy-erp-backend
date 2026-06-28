@@ -10,13 +10,13 @@ export class AttendanceResponseDto {
   @ApiProperty({ format: 'uuid' })
   userId: string;
 
-  @ApiProperty({ description: 'Attendance date' })
+  @ApiProperty()
   date: Date;
 
-  @ApiPropertyOptional({ description: 'Check-in timestamp' })
+  @ApiPropertyOptional()
   checkIn?: Date | null;
 
-  @ApiPropertyOptional({ description: 'Check-out timestamp' })
+  @ApiPropertyOptional()
   checkOut?: Date | null;
 
   @ApiProperty({ enum: AttendanceStatus })
@@ -36,68 +36,68 @@ export class AttendanceResponseDto {
 }
 
 export class BaseAttendanceDto {
-  @ApiPropertyOptional({ description: 'Check-in timestamp (ISO 8601)' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   checkIn?: string;
 
-  @ApiPropertyOptional({ description: 'Check-out timestamp (ISO 8601)' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   checkOut?: string;
 
-  @ApiPropertyOptional({ enum: AttendanceStatus, description: 'Attendance status for the day' })
+  @ApiPropertyOptional({ enum: AttendanceStatus })
   @IsOptional()
   @IsEnum(AttendanceStatus)
   status?: AttendanceStatus;
 
-  @ApiPropertyOptional({ enum: LeaveType, description: 'Leave type when status is LEAVE/SICK/etc.' })
+  @ApiPropertyOptional({ enum: LeaveType })
   @IsOptional()
   @IsEnum(LeaveType)
   leaveType?: LeaveType;
 
-  @ApiPropertyOptional({ description: 'Optional attendance notes' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   notes?: string;
 }
 
 export class CreateAttendanceDto extends BaseAttendanceDto {
-  @ApiProperty({ format: 'uuid', description: 'Employee user ID' })
+  @ApiProperty({ format: 'uuid' })
   @IsNotEmpty()
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ description: 'Attendance date (ISO 8601 date)', example: '2026-02-18' })
+  @ApiProperty({ example: '2026-02-18' })
   @IsNotEmpty()
   @IsDateString()
   date: string;
 }
 
 export class UpdateAttendanceDto extends PartialType(BaseAttendanceDto) {
-  @ApiPropertyOptional({ format: 'uuid', description: 'Approver user ID' })
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
   approvedBy?: string;
 
-  @ApiPropertyOptional({ description: 'Approval timestamp (ISO 8601)' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   approvedAt?: string;
 }
 
 export class ListAttendanceDto extends PaginationDto {
-  @ApiPropertyOptional({ format: 'uuid', description: 'Filter attendance by employee user ID' })
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
   userId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter attendance from date (ISO 8601)' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
-  @ApiPropertyOptional({ description: 'Filter attendance to date (ISO 8601)' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   endDate?: string;

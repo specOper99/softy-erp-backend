@@ -8,11 +8,11 @@ import { PasswordHashService } from '../../../common/services/password-hash.serv
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { PasswordService } from '../../auth/services/password.service';
 import { Tenant } from '../../tenants/entities/tenant.entity';
-import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 import { Role } from '../../users/enums/role.enum';
 import { User } from '../../users/entities/user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { PlatformAuditService } from './platform-audit.service';
+import { PlatformTenantService } from './platform-tenant.service';
 
 interface ForcePasswordResetDto {
   tenantId: string;
@@ -64,6 +64,7 @@ export class PlatformSecurityService {
     private readonly auditService: PlatformAuditService,
     private readonly passwordHashService: PasswordHashService,
     private readonly passwordService: PasswordService,
+    private readonly tenantService: PlatformTenantService,
   ) {}
 
   async forceTenantAdminPasswordReset(
@@ -275,15 +276,16 @@ export class PlatformSecurityService {
     dto: DataDeletionDto,
     platformUserId: string,
     ipAddress: string,
-  ): Promise<{ scheduledDate: Date; cancellationDeadline: Date }> {
-    const tenant = await this.getTenantOrThrow(dto.tenantId);
+  ): Promise<{ scheduledDate: Date; cancellationDeadline: Date; executedImmediately: boolean }> {
+    const scheduledTenant = await this.tenantService.scheduleTenantDeletion(
+      dto.tenantId,
+      dto.scheduleDate,
+      platformUserId,
+      dto.reason,
+      ipAddress,
+    );
 
-    tenant.status = TenantStatus.PENDING_DELETION;
-    tenant.deletionScheduledAt = dto.scheduleDate;
-
-    await this.tenantRepository.save(tenant);
-
-    const cancellationDeadline = subDays(dto.scheduleDate, 1);
+    const executedImmediately = scheduledTenant === null;
 
     await this.auditService.log({
       platformUserId,
@@ -296,17 +298,21 @@ export class PlatformSecurityService {
       additionalContext: {
         scheduledDate: dto.scheduleDate,
         hardDelete: dto.hardDelete ?? false,
-        operation: 'schedule_deletion',
+        executedImmediately,
+        operation: executedImmediately ? 'execute_deletion' : 'schedule_deletion',
       },
     });
 
     this.logger.warn(
-      `Data deletion scheduled for tenant ${dto.tenantId} on ${dto.scheduleDate.toISOString()} by platform user ${platformUserId}`,
+      executedImmediately
+        ? `Data deletion executed immediately for tenant ${dto.tenantId} by platform user ${platformUserId}`
+        : `Data deletion scheduled for tenant ${dto.tenantId} on ${dto.scheduleDate.toISOString()} by platform user ${platformUserId}`,
     );
 
     return {
       scheduledDate: dto.scheduleDate,
-      cancellationDeadline,
+      cancellationDeadline: executedImmediately ? dto.scheduleDate : subDays(dto.scheduleDate, 1),
+      executedImmediately,
     };
   }
 

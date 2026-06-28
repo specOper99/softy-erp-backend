@@ -132,6 +132,11 @@ export class CreateTenantDto {
   @IsOptional()
   @IsDateString()
   subscriptionEndsAt?: string;
+
+  @ApiPropertyOptional({ description: 'Trial end date (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  trialEndsAt?: string;
 }
 
 export class UpdateTenantDto {
@@ -157,6 +162,33 @@ export class UpdateTenantDto {
   @ApiPropertyOptional({ description: 'Custom metadata' })
   @IsOptional()
   metadata?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description: 'Subscription start date (ISO 8601). Pass null to clear.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o: UpdateTenantDto) => o.subscriptionStartedAt !== null)
+  @IsDateString()
+  subscriptionStartedAt?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Subscription end date (ISO 8601). Pass null to clear.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o: UpdateTenantDto) => o.subscriptionEndsAt !== null)
+  @IsDateString()
+  subscriptionEndsAt?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Trial end date (ISO 8601). Pass null to clear.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o: UpdateTenantDto) => o.trialEndsAt !== null)
+  @IsDateString()
+  trialEndsAt?: string | null;
 }
 
 export class SuspendTenantDto {
@@ -193,4 +225,15 @@ export class DeleteTenantDto {
   @IsOptional()
   @IsDateString()
   scheduleFor?: string;
+}
+
+export class CancelDeletionDto {
+  @ApiPropertyOptional({
+    description: 'Reason for cancelling scheduled deletion (optional when sent via query)',
+    minLength: 10,
+  })
+  @ValidateIf((o: CancelDeletionDto) => o.reason !== undefined)
+  @IsString()
+  @MinLength(10)
+  reason?: string;
 }

@@ -46,8 +46,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     private readonly i18nService: I18nService,
   ) {}
 
-  /** Languages for which we have translation files. */
-  private static readonly SUPPORTED_LANGUAGES = new Set<string>(['en', 'ar', 'ku', 'fr']);
+  /** Languages with translation files. */
+  private static readonly SUPPORTED_LANGUAGES = new Set(['en', 'ar', 'ku', 'fr']);
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -58,10 +58,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const correlationId = this.resolveCorrelationId(request);
     response.setHeader('X-Correlation-ID', correlationId);
 
-    // Primary: nestjs-i18n context (set by the i18n interceptor for route-handler requests).
-    // Fallback: read Accept-Language header directly, which is always present in the raw
-    // request — this covers exceptions thrown inside guards/middleware before the i18n
-    // interceptor has had a chance to run.
     const i18nLang = I18nContext.current(host)?.lang;
     const lang = i18nLang ?? this.resolveLanguageFromHeader(request.headers['accept-language'] as string | undefined);
 
@@ -72,32 +68,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const resolved = this.resolveHttpException(exception, lang);
-      message = resolved.message;
-      codeOut = resolved.code;
-      fieldErrors = resolved.errors;
-    } else if (exception instanceof Error) {
-      status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = translateApiErrorMessage(this.i18nService, 'common.internal_error', undefined, lang, this.logger);
-
-      this.logger.error({
-        message: 'Unhandled exception',
-        correlationId,
-        error: exception.message,
-        stack: isProduction ? undefined : exception.stack,
-        path: request.url,
-        method: request.method,
-        ipAddress: request.ip,
-      });
+      ({ message, code: codeOut, errors: fieldErrors } = this.resolveHttpException(exception, lang));
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = translateApiErrorMessage(this.i18nService, 'common.internal_error', undefined, lang, this.logger);
-
       this.logger.error({
-        message: 'Unknown exception type',
+        message: exception instanceof Error ? 'Unhandled exception' : 'Unknown exception type',
         correlationId,
+        ...(exception instanceof Error && {
+          error: exception.message,
+          stack: isProduction ? undefined : exception.stack,
+        }),
         path: request.url,
         method: request.method,
+        ...(exception instanceof Error && { ipAddress: request.ip }),
       });
     }
 
@@ -109,12 +93,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
     };
-    if (codeOut) {
-      errorResponse.code = codeOut;
-    }
-    if (fieldErrors && fieldErrors.length > 0) {
-      errorResponse.errors = fieldErrors;
-    }
+    if (codeOut) errorResponse.code = codeOut;
+    if (fieldErrors?.length) errorResponse.errors = fieldErrors;
 
     response.status(status).json(errorResponse);
   }
@@ -185,9 +165,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return this.resolvePlainStringMessage(line, lang);
   }
 
-  /**
-   * If the string is a registered i18n leaf key, translate it; otherwise return as-is (legacy English).
-   */
   private resolvePlainStringMessage(s: string, lang: string): string {
     const keyMap: Record<string, string> = {
       'An unexpected error occurred. Please try again later.': 'common.internal_error',
@@ -195,28 +172,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
       'Unknown exception': 'common.internal_error',
     };
     const mapped = keyMap[s];
-    if (mapped) {
-      return translateApiErrorMessage(this.i18nService, mapped, undefined, lang, this.logger);
-    }
+    if (mapped) return translateApiErrorMessage(this.i18nService, mapped, undefined, lang, this.logger);
 
     const registered = getRegisteredApiErrorKeys();
-    if (registered.has(s)) {
-      return translateApiErrorMessage(this.i18nService, s, undefined, lang, this.logger);
-    }
-
+    if (registered.has(s)) return translateApiErrorMessage(this.i18nService, s, undefined, lang, this.logger);
     return s;
   }
 
-  /**
-   * Parse a raw Accept-Language header value (e.g. "ar,en-US;q=0.9") into the
-   * first supported language code, falling back to "en".
-   */
   private resolveLanguageFromHeader(acceptLanguage: string | undefined): string {
     if (!acceptLanguage) return 'en';
     for (const part of acceptLanguage.split(',')) {
       const raw = (part.split(';')[0] ?? '').trim().toLowerCase();
       if (AllExceptionsFilter.SUPPORTED_LANGUAGES.has(raw)) return raw;
-      // Also accept region tags like "ar-SA" → "ar"
       const base = raw.split('-')[0] ?? '';
       if (AllExceptionsFilter.SUPPORTED_LANGUAGES.has(base)) return base;
     }

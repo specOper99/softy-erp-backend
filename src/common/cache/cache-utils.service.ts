@@ -3,11 +3,16 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
 import pLimit from 'p-limit';
 
-/**
- * Maximum concurrent cache operations to prevent resource exhaustion.
- * This prevents DoS conditions when invalidating large key sets.
- */
 const MAX_CACHE_CONCURRENCY = 50;
+
+interface RedisClient {
+  incr: (key: string) => Promise<number>;
+  expire: (key: string, seconds: number) => Promise<number>;
+}
+
+interface KeysStore {
+  keys: (pattern: string) => Promise<string[]>;
+}
 
 @Injectable()
 export class CacheUtilsService {
@@ -26,10 +31,7 @@ export class CacheUtilsService {
   }
 
   async acquireLock(lockKey: string, ttlMs: number): Promise<boolean> {
-    const existing = await this.cacheManager.get(lockKey);
-    if (existing) {
-      return false;
-    }
+    if (await this.cacheManager.get(lockKey)) return false;
     await this.cacheManager.set(lockKey, Date.now(), ttlMs);
     return true;
   }
@@ -39,10 +41,7 @@ export class CacheUtilsService {
   }
 
   async withLock<T>(lockKey: string, ttlMs: number, fn: () => Promise<T>): Promise<T | null> {
-    const acquired = await this.acquireLock(lockKey, ttlMs);
-    if (!acquired) {
-      return null;
-    }
+    if (!(await this.acquireLock(lockKey, ttlMs))) return null;
     try {
       return await fn();
     } finally {
@@ -50,31 +49,15 @@ export class CacheUtilsService {
     }
   }
 
-  /**
-   * Atomically increment a counter key and set its TTL (on first creation).
-   * Uses Redis INCR when available for true atomicity; falls back to a
-   * lock-guarded get/set on other stores.
-   */
+  /** Atomic INCR with TTL (Redis) or lock-guarded fallback. */
   async increment(key: string, ttlMs: number): Promise<number> {
-    // Attempt to use Redis native INCR for true atomicity.
-    interface RedisClient {
-      incr: (key: string) => Promise<number>;
-      expire: (key: string, seconds: number) => Promise<number>;
-    }
-    interface RedisStore {
-      client?: RedisClient;
-    }
-    const store = (this.cacheManager as { store?: RedisStore }).store;
-    if (store?.client?.incr) {
-      const next = await store.client.incr(key);
-      if (next === 1) {
-        // Key just created — set the expiry once.
-        await store.client.expire(key, Math.ceil(ttlMs / 1000));
-      }
+    const redis = (this.cacheManager as { store?: { client?: RedisClient } }).store?.client;
+    if (redis?.incr) {
+      const next = await redis.incr(key);
+      if (next === 1) await redis.expire(key, Math.ceil(ttlMs / 1000));
       return next;
     }
 
-    // Fallback: serialise with a short-lived lock.
     const lockKey = `${key}:incr_lock`;
     let result = 1;
     await this.withLock(lockKey, Math.min(ttlMs, 5000), async () => {
@@ -85,29 +68,13 @@ export class CacheUtilsService {
     return result;
   }
 
-  /**
-   * Delete all cache keys matching a pattern.
-   * Note: Pattern matching requires Redis store with keys() support.
-   */
   async invalidateByPattern(pattern: string): Promise<number> {
-    // Type definition for stores that support keys() method (e.g., Redis)
-    interface KeysStore {
-      keys: (pattern: string) => Promise<string[]>;
-    }
+    const store = (this.cacheManager as { store?: Partial<KeysStore> }).store;
+    if (!store?.keys) return 0;
 
-    const cacheWithStore = this.cacheManager as { store?: Partial<KeysStore> };
-    const store = cacheWithStore.store;
-
-    if (!store || typeof store.keys !== 'function') {
-      // Memory store doesn't support pattern matching
-      return 0;
-    }
-
-    const keys: string[] = await store.keys(pattern);
+    const keys = await store.keys(pattern);
     if (keys.length === 0) return 0;
 
-    // Bounded concurrency prevents resource exhaustion (DoS) on large key sets.
-    // Errors swallowed: best-effort invalidation, return successful count.
     const limit = pLimit(MAX_CACHE_CONCURRENCY);
     const results = await Promise.all(
       keys.map((key) =>
@@ -122,10 +89,6 @@ export class CacheUtilsService {
     return results.filter(Boolean).length;
   }
 
-  /**
-   * Invalidate all cache entries for a specific tenant.
-   * Uses pattern matching to find tenant-scoped keys.
-   */
   async invalidateTenantCache(tenantId: string): Promise<number> {
     return this.invalidateByPattern(`*:${tenantId}:*`);
   }

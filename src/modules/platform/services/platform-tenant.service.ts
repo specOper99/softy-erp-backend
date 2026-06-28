@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
@@ -9,6 +9,7 @@ import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 import { UsersService } from '../../users/services/users.service';
 import {
+  CancelDeletionDto,
   CreateTenantDto,
   DeleteTenantDto,
   ListTenantsDto,
@@ -17,6 +18,9 @@ import {
   UpdateTenantDto,
 } from '../dto/tenant-management.dto';
 import { TenantLifecycleEvent } from '../entities/tenant-lifecycle-event.entity';
+import { TenantDeletionExecutorService } from './tenant-deletion-executor.service';
+
+const DEFAULT_DELETION_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface TenantMetricsResponse {
   id: string;
@@ -55,7 +59,17 @@ export class PlatformTenantService {
     private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
     private readonly tenantsService: TenantsService,
+    private readonly deletionExecutor: TenantDeletionExecutorService,
   ) {}
+
+  private assertDeletableStatus(tenant: Tenant): void {
+    if (tenant.status === TenantStatus.PENDING_DELETION) {
+      throw new ConflictException('tenants.deletion_already_scheduled');
+    }
+    if (tenant.status === TenantStatus.DELETED) {
+      throw new ConflictException('tenants.already_deleted');
+    }
+  }
 
   private async invalidateTenantStateCache(tenantId: string): Promise<void> {
     await this.cacheUtils.del(`tenant:state:${tenantId}`);
@@ -69,7 +83,35 @@ export class PlatformTenantService {
       deletionScheduledAt: tenant.deletionScheduledAt,
       subscriptionStartedAt: tenant.subscriptionStartedAt,
       subscriptionEndsAt: tenant.subscriptionEndsAt,
+      trialEndsAt: tenant.trialEndsAt,
     };
+  }
+
+  private parseOptionalDate(value: string | null | undefined): Date | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    return new Date(value);
+  }
+
+  private assertSubscriptionDateOrder(startedAt: Date | null, endsAt: Date | null): void {
+    if (startedAt && endsAt && endsAt < startedAt) {
+      throw new BadRequestException('tenants.subscription_end_before_start');
+    }
+  }
+
+  private applyOptionalSubscriptionDates(
+    tenant: Tenant,
+    dto: Pick<UpdateTenantDto, 'subscriptionStartedAt' | 'subscriptionEndsAt' | 'trialEndsAt'>,
+  ): void {
+    const startedAt = this.parseOptionalDate(dto.subscriptionStartedAt);
+    const endsAt = this.parseOptionalDate(dto.subscriptionEndsAt);
+    const trialEndsAt = this.parseOptionalDate(dto.trialEndsAt);
+
+    if (startedAt !== undefined) tenant.subscriptionStartedAt = startedAt;
+    if (endsAt !== undefined) tenant.subscriptionEndsAt = endsAt;
+    if (trialEndsAt !== undefined) tenant.trialEndsAt = trialEndsAt;
+
+    this.assertSubscriptionDateOrder(tenant.subscriptionStartedAt, tenant.subscriptionEndsAt);
   }
 
   private async recordLifecycleEvent(params: {
@@ -182,6 +224,10 @@ export class PlatformTenantService {
       if (dto.subscriptionEndsAt) {
         tenant.subscriptionEndsAt = new Date(dto.subscriptionEndsAt);
       }
+      if (dto.trialEndsAt) {
+        tenant.trialEndsAt = new Date(dto.trialEndsAt);
+      }
+      this.assertSubscriptionDateOrder(tenant.subscriptionStartedAt, tenant.subscriptionEndsAt);
       await manager.save(tenant);
 
       await this.usersService.createWithManager(manager, {
@@ -228,6 +274,7 @@ export class PlatformTenantService {
     if (dto.billingEmail !== undefined) tenant.billingEmail = dto.billingEmail;
     if (dto.quotas !== undefined) tenant.quotas = dto.quotas;
     if (dto.metadata !== undefined) tenant.metadata = dto.metadata;
+    this.applyOptionalSubscriptionDates(tenant, dto);
 
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
@@ -299,8 +346,20 @@ export class PlatformTenantService {
     const tenant = await this.getTenant(tenantId);
     const previousState = this.tenantSnapshot(tenant);
 
-    if (tenant.status === TenantStatus.ACTIVE) {
+    if (tenant.status === TenantStatus.DELETED) {
+      throw new ConflictException('tenants.already_deleted');
+    }
+
+    if (tenant.status === TenantStatus.ACTIVE && tenant.deletionScheduledAt == null) {
       throw new ConflictException('tenants.active_already');
+    }
+
+    if (
+      tenant.status === TenantStatus.PENDING_DELETION &&
+      tenant.deletionScheduledAt &&
+      tenant.deletionScheduledAt.getTime() <= Date.now()
+    ) {
+      throw new BadRequestException('tenants.deletion_cancellation_window_closed');
     }
 
     tenant.status = TenantStatus.ACTIVE;
@@ -308,6 +367,7 @@ export class PlatformTenantService {
     tenant.suspendedBy = null;
     tenant.suspensionReason = null;
     tenant.gracePeriodEndsAt = null;
+    tenant.deletionScheduledAt = null;
     tenant.lastActivityAt = new Date();
 
     const updated = await this.tenantRepository.save(tenant);
@@ -350,23 +410,19 @@ export class PlatformTenantService {
     return updated;
   }
 
-  async deleteTenant(
+  async scheduleTenantDeletion(
     tenantId: string,
-    dto: DeleteTenantDto,
+    scheduleDate: Date,
     platformUserId: string,
-    _ipAddress: string,
     reason: string,
-  ): Promise<Tenant> {
+    ipAddress = 'system',
+  ): Promise<Tenant | null> {
     const tenant = await this.getTenant(tenantId);
+    this.assertDeletableStatus(tenant);
     const previousState = this.tenantSnapshot(tenant);
 
     tenant.status = TenantStatus.PENDING_DELETION;
-
-    if (dto.scheduleFor) {
-      tenant.deletionScheduledAt = new Date(dto.scheduleFor);
-    } else {
-      tenant.deletionScheduledAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    }
+    tenant.deletionScheduledAt = scheduleDate;
 
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
@@ -383,6 +439,71 @@ export class PlatformTenantService {
     this.logger.warn(
       `Tenant deletion scheduled: ${updated.id} (${updated.slug}) for ${String(updated.deletionScheduledAt)}`,
     );
+
+    if (scheduleDate.getTime() <= Date.now()) {
+      const deleted = await this.deletionExecutor.executeScheduledDeletion(tenantId, platformUserId, ipAddress);
+      if (deleted) {
+        return null;
+      }
+    }
+
+    return updated;
+  }
+
+  async deleteTenant(
+    tenantId: string,
+    dto: DeleteTenantDto,
+    platformUserId: string,
+    ipAddress: string,
+    reason: string,
+  ): Promise<Tenant> {
+    const scheduleDate = dto.scheduleFor ? new Date(dto.scheduleFor) : new Date(Date.now() + DEFAULT_DELETION_GRACE_MS);
+
+    const result = await this.scheduleTenantDeletion(tenantId, scheduleDate, platformUserId, reason, ipAddress);
+    if (!result) {
+      throw new NotFoundException({
+        code: 'platform.tenant_not_found',
+        args: { tenantId },
+      });
+    }
+
+    return result;
+  }
+
+  async cancelScheduledDeletion(
+    tenantId: string,
+    dto: CancelDeletionDto,
+    platformUserId: string,
+    _ipAddress: string,
+    reason: string,
+  ): Promise<Tenant> {
+    const tenant = await this.getTenant(tenantId);
+    const previousState = this.tenantSnapshot(tenant);
+
+    if (tenant.status !== TenantStatus.PENDING_DELETION) {
+      throw new ConflictException('tenants.deletion_not_scheduled');
+    }
+
+    if (!tenant.deletionScheduledAt || tenant.deletionScheduledAt.getTime() <= Date.now()) {
+      throw new BadRequestException('tenants.deletion_cancellation_window_closed');
+    }
+
+    tenant.status = TenantStatus.ACTIVE;
+    tenant.deletionScheduledAt = null;
+
+    const updated = await this.tenantRepository.save(tenant);
+    await this.invalidateTenantStateCache(updated.id);
+
+    await this.recordLifecycleEvent({
+      tenantId: updated.id,
+      eventType: 'tenant.deletion_cancelled',
+      triggeredBy: platformUserId,
+      reason,
+      previousState,
+      newState: this.tenantSnapshot(updated),
+    });
+
+    this.logger.log(`Tenant deletion cancelled: ${updated.id} (${updated.slug}) - ${reason}`);
 
     return updated;
   }

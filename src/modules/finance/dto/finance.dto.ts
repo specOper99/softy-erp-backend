@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 import {
   IsDateString,
   IsEnum,
@@ -18,23 +18,14 @@ import { Currency } from '../enums/currency.enum';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { allowsNegativeIncomeForRefundOrReversal } from '../utils/transaction-rule.util';
 
-// Transaction DTOs
 @ValidatorConstraint({ name: 'negativeAmountRefundOrReversal', async: false })
 class NegativeAmountRefundOrReversalConstraint implements ValidatorConstraintInterface {
   validate(amount: number, args?: ValidationArguments): boolean {
-    if (amount >= 0) {
-      return true;
-    }
-
+    if (amount >= 0) return true;
     const dto = args?.object as CreateTransactionDto | undefined;
-    if (!dto) {
-      return false;
-    }
-    return allowsNegativeIncomeForRefundOrReversal({
-      type: dto.type,
-      category: dto.category,
-      bookingId: dto.bookingId,
-    });
+    return dto
+      ? allowsNegativeIncomeForRefundOrReversal({ type: dto.type, category: dto.category, bookingId: dto.bookingId })
+      : false;
   }
 
   defaultMessage(): string {
@@ -47,8 +38,7 @@ class AtMostOneParentIdConstraint implements ValidatorConstraintInterface {
   validate(_value: unknown, args?: ValidationArguments): boolean {
     const dto = args?.object as CreateTransactionDto | undefined;
     if (!dto) return true;
-    const set = [dto.bookingId, dto.taskId, dto.payoutId].filter(Boolean).length;
-    return set <= 1;
+    return [dto.bookingId, dto.taskId, dto.payoutId].filter(Boolean).length <= 1;
   }
 
   defaultMessage(): string {
@@ -77,10 +67,7 @@ export class CreateTransactionDto {
   @IsOptional()
   department?: string;
 
-  // bookingId is the primary / first-validated field for AtMostOneParentIdConstraint.
-  // When more than one parent ID is set the validation error is reported on this field.
-  // If the field order here ever changes, update defaultMessage() accordingly so error
-  // messages stay consistent.
+  /** Primary field for AtMostOneParentIdConstraint error reporting. */
   @ApiPropertyOptional()
   @IsUUID()
   @IsOptional()
@@ -105,12 +92,12 @@ export class CreateTransactionDto {
   @SanitizeHtml()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Payment method used for this transaction', example: 'E_PAYMENT' })
+  @ApiPropertyOptional({ example: 'E_PAYMENT' })
   @IsString()
   @IsOptional()
   paymentMethod?: string;
 
-  @ApiPropertyOptional({ description: 'Receipt, external transaction, or manual payment reference' })
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   @SanitizeHtml()
@@ -169,17 +156,16 @@ export class TransactionResponseDto {
   @ApiProperty()
   createdAt: Date;
 
-  @ApiPropertyOptional({ description: 'ID of the original transaction this row reverses, if any' })
+  @ApiPropertyOptional()
   reversalOfId: string | null;
 
-  @ApiPropertyOptional({ description: 'Timestamp when this transaction was voided' })
+  @ApiPropertyOptional()
   voidedAt: Date | null;
 
-  @ApiPropertyOptional({ description: 'User ID of the admin who voided this transaction' })
+  @ApiPropertyOptional()
   voidedBy: string | null;
 }
 
-// Wallet DTOs
 export class WalletResponseDto {
   @ApiProperty()
   id: string;
@@ -195,6 +181,28 @@ export class WalletResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+}
+
+class TransactionQueryFields {
+  @ApiPropertyOptional({ enum: TransactionType })
+  @IsEnum(TransactionType)
+  @IsOptional()
+  type?: TransactionType;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  bookingId?: string;
 }
 
 export class TransactionFilterDto extends PaginationDto {
@@ -213,39 +221,18 @@ export class TransactionFilterDto extends PaginationDto {
   @IsOptional()
   endDate?: string;
 
-  @ApiPropertyOptional({ description: 'Filter transactions by booking ID' })
+  @ApiPropertyOptional()
   @IsUUID()
   @IsOptional()
   bookingId?: string;
 }
 
-export class TransactionCursorQueryDto extends CursorPaginationDto {
-  @ApiPropertyOptional({ enum: TransactionType })
-  @IsEnum(TransactionType)
-  @IsOptional()
-  type?: TransactionType;
-
-  @ApiPropertyOptional()
-  @IsDateString()
-  @IsOptional()
-  startDate?: string;
-
-  @ApiPropertyOptional()
-  @IsDateString()
-  @IsOptional()
-  endDate?: string;
-
-  @ApiPropertyOptional({ description: 'Filter transactions by booking ID' })
-  @IsUUID()
-  @IsOptional()
-  bookingId?: string;
-}
+export class TransactionCursorQueryDto extends IntersectionType(CursorPaginationDto, TransactionQueryFields) {}
 
 export class VoidTransactionDto {
   @ApiPropertyOptional({ example: 'Duplicate entry — client paid twice' })
   @IsOptional()
   @IsString()
-  @IsOptional()
   @SanitizeHtml()
   reason?: string;
 }

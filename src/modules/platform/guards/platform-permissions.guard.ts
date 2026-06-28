@@ -9,9 +9,6 @@ interface PlatformUser {
   role?: PlatformRole;
 }
 
-/**
- * Permission mapping from roles to permissions
- */
 const ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[]> = {
   [PlatformRole.SUPER_ADMIN]: Object.values(PlatformPermission),
   [PlatformRole.SUPPORT_ADMIN]: [
@@ -57,9 +54,6 @@ const ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[]> = {
   ],
 };
 
-/**
- * Guard to check platform permissions based on role
- */
 @Injectable()
 export class PlatformPermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -70,9 +64,7 @@ export class PlatformPermissionsGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredPermissions || requiredPermissions.length === 0) {
-      return true;
-    }
+    if (!requiredPermissions?.length) return true;
 
     const request = context.switchToHttp().getRequest<{ user?: PlatformUser }>();
     const user = request.user;
@@ -84,10 +76,7 @@ export class PlatformPermissionsGuard implements CanActivate {
     }
 
     const userPermissions = ROLE_PERMISSIONS[userRole] ?? [];
-
-    const hasPermission = requiredPermissions.every((permission) => userPermissions.includes(permission));
-
-    if (!hasPermission) {
+    if (!requiredPermissions.every((permission) => userPermissions.includes(permission))) {
       throw new ForbiddenException({
         code: 'platform.permissions_missing',
         args: { permissions: requiredPermissions.join(', ') },

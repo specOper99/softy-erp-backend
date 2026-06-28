@@ -277,7 +277,11 @@ describe('Platform E2E Tests', () => {
         .send({
           reason: 'GDPR right to be forgotten request #4321',
         })
-        .expect(202);
+        .expect(202)
+        .expect((res: Response) => {
+          expect(res.body.data).toHaveProperty('scheduledDate');
+          expect(res.body.data).toHaveProperty('cancellationDeadline');
+        });
     });
   });
 

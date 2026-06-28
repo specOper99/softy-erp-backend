@@ -1,14 +1,5 @@
 import type { IEvent } from '@nestjs/cqrs';
 
-/**
- * Event fired when a new user is created.
- * This event triggers:
- * - Profile creation in HR module
- * - Welcome email sending
- * - Wallet initialization if applicable
- * - Analytics tracking
- * - Webhook notifications
- */
 export class UserCreatedEvent implements IEvent {
   constructor(
     public readonly userId: string,
@@ -20,12 +11,6 @@ export class UserCreatedEvent implements IEvent {
   ) {}
 }
 
-/**
- * Event fired when a user is updated.
- * This event triggers:
- * - Profile sync if name/email changed
- * - Webhook notifications with changes
- */
 export class UserUpdatedEvent implements IEvent {
   constructor(
     public readonly userId: string,

@@ -7,93 +7,51 @@ export interface CounterConfig {
   labelNames?: string[];
 }
 
-export interface HistogramConfig {
-  name: string;
-  help: string;
-  labelNames?: string[];
+export interface HistogramConfig extends CounterConfig {
   buckets?: number[];
 }
 
-export interface GaugeConfig {
-  name: string;
-  help: string;
-  labelNames?: string[];
-}
+export type GaugeConfig = CounterConfig;
 
-/**
- * Injectable factory for creating Prometheus metrics.
- * Handles idempotent registration to avoid duplicate metric errors in tests and hot-reload scenarios.
- *
- * @example
- * ```typescript
- * constructor(private readonly metricsFactory: MetricsFactory) {
- *   this.requestCounter = metricsFactory.getOrCreateCounter({
- *     name: 'http_requests_total',
- *     help: 'Total HTTP requests',
- *     labelNames: ['method', 'path'],
- *   });
- * }
- * ```
- */
+/** Idempotent Prometheus metric factory (safe for tests / hot-reload). */
 @Injectable()
 export class MetricsFactory {
-  /**
-   * Get an existing counter or create a new one if it doesn't exist.
-   */
+  private getOrCreate<M>(name: string, create: () => M): M {
+    const existing = register.getSingleMetric(name);
+    return existing ? (existing as M) : create();
+  }
+
   getOrCreateCounter<T extends string = string>(config: CounterConfig): Counter<T> {
-    const existing = register.getSingleMetric(config.name);
-    if (existing) {
-      return existing as Counter<T>;
-    }
-    return new Counter<T>({
-      name: config.name,
-      help: config.help,
-      labelNames: (config.labelNames ?? []) as T[],
-    });
+    return this.getOrCreate(
+      config.name,
+      () => new Counter<T>({ name: config.name, help: config.help, labelNames: (config.labelNames ?? []) as T[] }),
+    );
   }
 
-  /**
-   * Get an existing histogram or create a new one if it doesn't exist.
-   */
   getOrCreateHistogram<T extends string = string>(config: HistogramConfig): Histogram<T> {
-    const existing = register.getSingleMetric(config.name);
-    if (existing) {
-      return existing as Histogram<T>;
-    }
-    return new Histogram<T>({
-      name: config.name,
-      help: config.help,
-      labelNames: (config.labelNames ?? []) as T[],
-      buckets: config.buckets,
-    });
+    return this.getOrCreate(
+      config.name,
+      () =>
+        new Histogram<T>({
+          name: config.name,
+          help: config.help,
+          labelNames: (config.labelNames ?? []) as T[],
+          buckets: config.buckets,
+        }),
+    );
   }
 
-  /**
-   * Get an existing gauge or create a new one if it doesn't exist.
-   */
   getOrCreateGauge<T extends string = string>(config: GaugeConfig): Gauge<T> {
-    const existing = register.getSingleMetric(config.name);
-    if (existing) {
-      return existing as Gauge<T>;
-    }
-    return new Gauge<T>({
-      name: config.name,
-      help: config.help,
-      labelNames: (config.labelNames ?? []) as T[],
-    });
+    return this.getOrCreate(
+      config.name,
+      () => new Gauge<T>({ name: config.name, help: config.help, labelNames: (config.labelNames ?? []) as T[] }),
+    );
   }
 
-  /**
-   * Clear all metrics from the registry.
-   * Useful for test cleanup.
-   */
   clearAllMetrics(): void {
     register.clear();
   }
 
-  /**
-   * Remove a specific metric from the registry.
-   */
   removeMetric(name: string): void {
     register.removeSingleMetric(name);
   }

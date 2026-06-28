@@ -253,37 +253,20 @@ export class EncryptionService implements OnModuleInit {
 
   needsReencryption(ciphertext: string): boolean {
     const parts = ciphertext.split(':');
-    if (parts.length === 5) {
-      // v2+ per-row format: version:rowSalt:iv:tag:cipher
-      const [version] = parts;
-      return version !== this.currentVersion;
-    }
-    if (parts.length === 4) {
-      const [version] = parts;
-      return version !== this.currentVersion;
-    }
+    if (parts.length === 5 || parts.length === 4) return parts[0] !== this.currentVersion;
     return true;
   }
 
   reencrypt(ciphertext: string): string {
-    if (!this.needsReencryption(ciphertext)) {
-      return ciphertext;
-    }
-    const plaintext = this.decrypt(ciphertext);
-    return this.encrypt(plaintext);
+    if (!this.needsReencryption(ciphertext)) return ciphertext;
+    return this.encrypt(this.decrypt(ciphertext));
   }
 
-  /**
-   * Async wrapper for encrypt. Uses setImmediate to yield to the event loop
-   * between the encrypt call and the promise resolution — this does NOT offload
-   * CPU work to a worker thread; it only defers execution by one tick.
-   * For truly non-blocking encryption consider running in a worker_thread.
-   */
-  async encryptAsync(plaintext: string): Promise<string> {
+  private defer<T>(fn: () => T): Promise<T> {
     return new Promise((resolve, reject) => {
       setImmediate(() => {
         try {
-          resolve(this.encrypt(plaintext));
+          resolve(fn());
         } catch (error) {
           reject(error instanceof Error ? error : new Error(String(error)));
         }
@@ -291,34 +274,15 @@ export class EncryptionService implements OnModuleInit {
     });
   }
 
-  /**
-   * Async version of decrypt - offloads to next event loop tick
-   * to prevent blocking during intensive crypto operations.
-   */
-  async decryptAsync(ciphertext: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      setImmediate(() => {
-        try {
-          resolve(this.decrypt(ciphertext));
-        } catch (error) {
-          reject(error instanceof Error ? error : new Error(String(error)));
-        }
-      });
-    });
+  encryptAsync(plaintext: string): Promise<string> {
+    return this.defer(() => this.encrypt(plaintext));
   }
 
-  /**
-   * Async version of reencrypt - for background key rotation tasks.
-   */
-  async reencryptAsync(ciphertext: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      setImmediate(() => {
-        try {
-          resolve(this.reencrypt(ciphertext));
-        } catch (error) {
-          reject(error instanceof Error ? error : new Error(String(error)));
-        }
-      });
-    });
+  decryptAsync(ciphertext: string): Promise<string> {
+    return this.defer(() => this.decrypt(ciphertext));
+  }
+
+  reencryptAsync(ciphertext: string): Promise<string> {
+    return this.defer(() => this.reencrypt(ciphertext));
   }
 }

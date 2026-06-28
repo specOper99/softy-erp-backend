@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { runGuardedDispatch } from '../../../common/utils/event-dispatch.util';
 import { UserDeactivatedEvent } from '../../users/events/user-deactivated.event';
 import { TokenService } from '../services/token.service';
-import { toErrorMessage } from '../../../common/utils/error.util';
 
 @EventsHandler(UserDeactivatedEvent)
 export class UserDeactivatedHandler implements IEventHandler<UserDeactivatedEvent> {
@@ -10,12 +10,16 @@ export class UserDeactivatedHandler implements IEventHandler<UserDeactivatedEven
 
   constructor(private readonly tokenService: TokenService) {}
 
-  async handle(event: UserDeactivatedEvent): Promise<void> {
-    try {
-      const revoked = await this.tokenService.revokeAllUserTokens(event.userId);
-      this.logger.log(`Revoked ${revoked} refresh tokens for deactivated user ${event.userId}`);
-    } catch (error) {
-      this.logger.error(`Failed to revoke tokens for deactivated user ${event.userId}: ${toErrorMessage(error)}`);
-    }
+  handle(event: UserDeactivatedEvent): Promise<void> {
+    return runGuardedDispatch(
+      this.logger,
+      {
+        failureMessage: `Failed to revoke tokens for deactivated user ${event.userId}`,
+      },
+      async () => {
+        const revoked = await this.tokenService.revokeAllUserTokens(event.userId);
+        this.logger.log(`Revoked ${revoked} refresh tokens for deactivated user ${event.userId}`);
+      },
+    );
   }
 }

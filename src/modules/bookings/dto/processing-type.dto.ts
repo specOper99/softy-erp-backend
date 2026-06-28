@@ -3,39 +3,39 @@ import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Mi
 import { SanitizeHtml } from '../../../common/decorators';
 
 export class CreateProcessingTypeDto {
-  @ApiProperty({ description: 'Parent service package ID' })
+  @ApiProperty()
   @IsUUID()
   packageId: string;
 
-  @ApiProperty({ description: 'Processing type name', example: 'Raw Edit' })
+  @ApiProperty({ example: 'Raw Edit' })
   @IsString()
   @MaxLength(100)
   name: string;
 
-  @ApiPropertyOptional({ description: 'Optional description' })
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   @SanitizeHtml()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Sort order for display (lower = first)', default: 0 })
+  @ApiPropertyOptional({ default: 0 })
   @IsInt()
   @Min(0)
   @IsOptional()
   sortOrder?: number;
 
-  @ApiPropertyOptional({ description: 'Whether this type is selectable on bookings', default: true })
+  @ApiPropertyOptional({ default: true })
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'Additional price added to booking total', default: 0 })
+  @ApiPropertyOptional({ default: 0 })
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @IsOptional()
   price?: number;
 
-  @ApiPropertyOptional({ description: 'Default commission amount for tasks of this type', default: 0 })
+  @ApiPropertyOptional({ default: 0 })
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @IsOptional()

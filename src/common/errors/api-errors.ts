@@ -23,34 +23,44 @@ export interface ApiErrorBody {
   [API_VALIDATION_ERRORS]?: ApiValidationErrorItem[];
 }
 
+type ExceptionCtor = new (response: ApiErrorBody) => HttpException;
+
 function body(code: string, args?: ApiErrorArgsRecord): ApiErrorBody {
   return args ? { [API_ERROR_CODE]: code, [API_ERROR_ARGS]: args } : { [API_ERROR_CODE]: code };
 }
 
-/** Factory for consistent structured API errors (code + args only; message is resolved in AllExceptionsFilter). */
+/** Structured API errors — message resolved in AllExceptionsFilter. */
 export class ApiErrors {
+  private static ex(ctor: ExceptionCtor, code: string, args?: ApiErrorArgsRecord): HttpException {
+    return new ctor(body(code, args));
+  }
+
   static badRequest(code: string, args?: ApiErrorArgsRecord): HttpException {
-    return new BadRequestException(body(code, args));
+    return ApiErrors.ex(BadRequestException, code, args);
   }
 
   static unauthorized(code: string, args?: ApiErrorArgsRecord): HttpException {
-    return new UnauthorizedException(body(code, args));
+    return ApiErrors.ex(UnauthorizedException, code, args);
   }
 
   static forbidden(code: string, args?: ApiErrorArgsRecord): HttpException {
-    return new ForbiddenException(body(code, args));
+    return ApiErrors.ex(ForbiddenException, code, args);
   }
 
   static notFound(code: string, args?: ApiErrorArgsRecord): HttpException {
-    return new NotFoundException(body(code, args));
+    return ApiErrors.ex(NotFoundException, code, args);
   }
 
   static conflict(code: string, args?: ApiErrorArgsRecord): HttpException {
-    return new ConflictException(body(code, args));
+    return ApiErrors.ex(ConflictException, code, args);
   }
 
   static unprocessable(code: string, args?: ApiErrorArgsRecord): UnprocessableEntityException {
-    return new UnprocessableEntityException(body(code, args));
+    return ApiErrors.ex(UnprocessableEntityException, code, args) as UnprocessableEntityException;
+  }
+
+  static internal(code: string, args?: ApiErrorArgsRecord): InternalServerErrorException {
+    return ApiErrors.ex(InternalServerErrorException, code, args) as InternalServerErrorException;
   }
 
   static validation(items: ApiValidationErrorItem[]): BadRequestException {
@@ -58,9 +68,5 @@ export class ApiErrors {
       [API_ERROR_CODE]: 'validation.failed',
       [API_VALIDATION_ERRORS]: items,
     });
-  }
-
-  static internal(code: string, args?: ApiErrorArgsRecord): InternalServerErrorException {
-    return new InternalServerErrorException(body(code, args));
   }
 }

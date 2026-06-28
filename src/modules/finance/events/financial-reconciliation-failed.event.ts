@@ -25,9 +25,7 @@ export class FinancialReconciliationFailedEvent implements IEvent {
     public readonly failedAt: Date,
   ) {}
 
-  /**
-   * Unique key for deduplication in retry queues
-   */
+  /** Unique key for deduplication in retry queues */
   get deduplicationKey(): string {
     return `reconciliation:${this.bookingId}:${this.failedAt.getTime()}`;
   }

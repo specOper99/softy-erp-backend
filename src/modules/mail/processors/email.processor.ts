@@ -8,10 +8,6 @@ import { toErrorMessage } from '../../../common/utils/error.util';
 
 type BullmqJob = Parameters<WorkerHost['process']>[0];
 
-/**
- * Email processor for handling background email jobs.
- * Processes jobs from the 'email' queue with automatic retries.
- */
 @Processor(EMAIL_QUEUE)
 export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);

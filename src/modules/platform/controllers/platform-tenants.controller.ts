@@ -20,6 +20,7 @@ import { PlatformContextGuard } from '../../../common/guards/platform-context.gu
 import { RequirePlatformPermissions } from '../decorators/platform-permissions.decorator';
 import { RequireReason } from '../decorators/require-reason.decorator';
 import {
+  CancelDeletionDto,
   CreateTenantDto,
   DeleteTenantDto,
   ListTenantsDto,
@@ -153,6 +154,28 @@ export class PlatformTenantsController {
     @Req() req: PlatformTenantRequest,
   ) {
     return this.tenantService.deleteTenant(id, dto, req.user.id, req.ip, req.validatedReason ?? '');
+  }
+
+  @Post(':id/cancel-deletion')
+  @RequirePlatformPermissions(PlatformPermission.TENANTS_DELETE)
+  @RequireReason()
+  @UseGuards(RequireReasonGuard)
+  @ApiOperation({ summary: 'Cancel scheduled tenant deletion' })
+  @ApiParam({ name: 'id', description: 'Tenant UUID' })
+  @ApiResponse({ status: 200, description: 'Deletion cancelled' })
+  @ApiResponse({ status: 409, description: 'Deletion not scheduled' })
+  async cancelScheduledDeletion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelDeletionDto,
+    @Req() req: PlatformTenantRequest,
+  ) {
+    return this.tenantService.cancelScheduledDeletion(
+      id,
+      dto,
+      req.user.id,
+      req.ip,
+      req.validatedReason ?? dto.reason ?? '',
+    );
   }
 
   @Get(':id/metrics')

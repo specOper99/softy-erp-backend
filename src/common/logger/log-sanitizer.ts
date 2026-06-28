@@ -1,69 +1,36 @@
-/**
- * Log Sanitizer - Redacts sensitive data from log output
- * Includes PII (Personally Identifiable Information) patterns
- */
 import * as winston from 'winston';
 import { SENSITIVE_KEYS } from '../constants/sensitive-log-keys';
 
 const REDACTED = '[REDACTED]';
+const JWT_PATTERN = /^eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*$/;
+const TOKEN_PATTERN = /^[A-Za-z0-9+/=_-]+$/;
 
-/**
- * Check if a key should be redacted
- */
-function isSensitiveKey(key: string): boolean {
-  const lowerKey = key.toLowerCase();
-  return SENSITIVE_KEYS.some((sensitive) => lowerKey.includes(sensitive.toLowerCase()));
-}
+const isSensitiveKey = (key: string) =>
+  SENSITIVE_KEYS.some((sensitive) => key.toLowerCase().includes(sensitive.toLowerCase()));
 
-/**
- * Recursively sanitize an object, redacting sensitive values
- */
 export function sanitizeObject(obj: unknown, depth = 0): unknown {
-  // Prevent infinite recursion
-  if (depth > 10) {
-    return '[MAX_DEPTH]';
-  }
-
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
+  if (depth > 10) return '[MAX_DEPTH]';
+  if (obj == null) return obj;
 
   if (typeof obj === 'string') {
-    // Redact tokens that look like JWTs
-    if (obj.match(/^eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*$/)) {
-      return REDACTED;
-    }
-    // Redact base64-encoded strings that might be tokens (64+ chars)
-    if (obj.length > 64 && obj.match(/^[A-Za-z0-9+/=_-]+$/)) {
-      return REDACTED;
-    }
+    if (JWT_PATTERN.test(obj) || (obj.length > 64 && TOKEN_PATTERN.test(obj))) return REDACTED;
     return obj;
   }
 
-  if (Array.isArray(obj)) {
-    return obj.map((item) => sanitizeObject(item, depth + 1));
-  }
+  if (Array.isArray(obj)) return obj.map((item) => sanitizeObject(item, depth + 1));
 
   if (typeof obj === 'object') {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (isSensitiveKey(key)) {
-        sanitized[key] = REDACTED;
-      } else {
-        sanitized[key] = sanitizeObject(value, depth + 1);
-      }
-    }
-    return sanitized;
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, value]) => [
+        key,
+        isSensitiveKey(key) ? REDACTED : sanitizeObject(value, depth + 1),
+      ]),
+    );
   }
 
   return obj;
 }
 
-/**
- * Winston format transformer that sanitizes logs
- */
 export function sanitizeFormat(): winston.Logform.Format {
-  return winston.format((info) => {
-    return sanitizeObject(info) as winston.Logform.TransformableInfo;
-  })();
+  return winston.format((info) => sanitizeObject(info) as winston.Logform.TransformableInfo)();
 }

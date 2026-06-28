@@ -1,6 +1,7 @@
 import type { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
-import { decodeCursor, encodeCursor } from './cursor.utils';
+import { clampPageLimit } from '../dto/pagination.helpers';
 import { RuntimeFailure } from '../errors/runtime-failure';
+import { decodeCursor, encodeCursor } from './cursor.utils';
 
 export interface EntityWithTimestamps {
   createdAt: Date;
@@ -48,8 +49,7 @@ export class CursorPaginationHelper {
   ): Promise<CursorPaginationResult<T>> {
     const { cursor, limit = 20, alias, filters } = options;
 
-    const rawLimit = Number.isFinite(limit) ? Math.trunc(limit) : 20;
-    const effectiveLimit = Math.max(1, Math.min(100, rawLimit));
+    const effectiveLimit = clampPageLimit(limit);
 
     CursorPaginationHelper.assertSafeIdentifier(alias, 'alias');
     CursorPaginationHelper.assertSafeIdentifier(dateField, 'dateField');

@@ -41,7 +41,6 @@ export class ExportQueryDto extends ReportQueryDto {
   format?: ExportFormat = ExportFormat.CSV;
 }
 
-// Response DTOs
 export class RevenueSummaryDto {
   @ApiProperty()
   month: string;
@@ -130,7 +129,6 @@ export class DashboardKpiDto {
 }
 
 export class StudioKpisDto {
-  // Bookings
   @ApiProperty()
   totalBookings: number;
 
@@ -143,7 +141,6 @@ export class StudioKpisDto {
   @ApiProperty()
   todayBookings: number;
 
-  // Tasks
   @ApiProperty()
   totalTasks: number;
 
@@ -156,7 +153,6 @@ export class StudioKpisDto {
   @ApiProperty()
   todayTasks: number;
 
-  // Staff
   @ApiProperty()
   totalStaff: number;
 
@@ -166,18 +162,15 @@ export class StudioKpisDto {
   @ApiProperty()
   onLeaveStaff: number;
 
-  // Revenue
   @ApiProperty()
   totalRevenue: number;
 
   @ApiProperty()
   monthlyRevenue: number;
 
-  // Notifications
   @ApiProperty()
   unreadNotifications: number;
 
-  // Timestamp
   @ApiProperty()
   generatedAt: Date;
 }

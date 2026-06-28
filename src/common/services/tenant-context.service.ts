@@ -1,10 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-/**
- * Static utility class for tenant context propagation using AsyncLocalStorage.
- * Not injectable - use static methods directly: TenantContextService.getTenantId()
- */
+/** Tenant + user context via AsyncLocalStorage (static, not injectable). */
 export class TenantContextService {
   private static readonly storage = new AsyncLocalStorage<string>();
   private static readonly userStorage = new AsyncLocalStorage<string>();
@@ -13,11 +10,6 @@ export class TenantContextService {
     return this.storage.run(tenantId, callback);
   }
 
-  /**
-   * Run a callback with both tenantId and userId in context.
-   * Use this from middleware/guards after verifying the JWT so that
-   * services can call getCurrentUserIdOrNull() to get the acting user.
-   */
   static runWithUser<T>(tenantId: string, userId: string, callback: () => T): T {
     return this.storage.run(tenantId, () => this.userStorage.run(userId, callback));
   }
@@ -28,9 +20,7 @@ export class TenantContextService {
 
   static getTenantIdOrThrow(): string {
     const tenantId = this.getTenantId();
-    if (!tenantId) {
-      throw new BadRequestException('common.tenant_missing');
-    }
+    if (!tenantId) throw new BadRequestException('common.tenant_missing');
     return tenantId;
   }
 

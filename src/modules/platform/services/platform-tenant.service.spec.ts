@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -10,9 +10,10 @@ import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/enums/tenant-status.enum';
 import { Role } from '../../users/enums/role.enum';
 import { UsersService } from '../../users/services/users.service';
-import type { CreateTenantDto } from '../dto/tenant-management.dto';
+import type { CreateTenantDto, UpdateTenantDto } from '../dto/tenant-management.dto';
 import { TenantLifecycleEvent } from '../entities/tenant-lifecycle-event.entity';
 import { PlatformTenantService } from './platform-tenant.service';
+import { TenantDeletionExecutorService } from './tenant-deletion-executor.service';
 
 const TEST_PASSWORD = 'KeepTesting123!';
 
@@ -78,6 +79,7 @@ describe('PlatformTenantService.createTenant', () => {
         { provide: DataSource, useValue: dataSource },
         { provide: UsersService, useValue: usersService },
         { provide: TenantsService, useValue: tenantsService },
+        { provide: TenantDeletionExecutorService, useValue: {} },
       ],
     }).compile();
 
@@ -166,5 +168,95 @@ describe('PlatformTenantService.createTenant', () => {
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(usersService.createWithManager).not.toHaveBeenCalled();
     expect(cacheUtils.del).not.toHaveBeenCalled();
+  });
+});
+
+describe('PlatformTenantService.updateTenant', () => {
+  let service: PlatformTenantService;
+  let tenantRepo: ReturnType<typeof createMockRepository>;
+  let lifecycleRepo: ReturnType<typeof createMockRepository>;
+  let cacheUtils: { del: jest.Mock };
+
+  const existingTenant = {
+    id: 'tenant-uuid',
+    name: 'Acme Studio',
+    slug: 'acme-studio',
+    subscriptionPlan: 'FREE',
+    billingEmail: 'billing@acme.example',
+    subscriptionStartedAt: new Date('2026-01-01'),
+    subscriptionEndsAt: new Date('2026-02-01'),
+    trialEndsAt: null,
+    status: TenantStatus.ACTIVE,
+    deletionScheduledAt: null,
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    tenantRepo = createMockRepository();
+    lifecycleRepo = createMockRepository();
+    cacheUtils = { del: jest.fn().mockResolvedValue(undefined) };
+
+    tenantRepo.findOne.mockResolvedValue(existingTenant);
+    tenantRepo.save.mockImplementation((entity) => Promise.resolve(entity));
+    lifecycleRepo.create.mockImplementation((entity) => entity);
+    lifecycleRepo.save.mockImplementation((entity) => Promise.resolve({ id: 'event-uuid', ...entity }));
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PlatformTenantService,
+        { provide: getRepositoryToken(Tenant), useValue: tenantRepo },
+        { provide: getRepositoryToken(TenantLifecycleEvent), useValue: lifecycleRepo },
+        { provide: CacheUtilsService, useValue: cacheUtils },
+        { provide: DataSource, useValue: { transaction: jest.fn() } },
+        { provide: UsersService, useValue: {} },
+        { provide: TenantsService, useValue: {} },
+        { provide: TenantDeletionExecutorService, useValue: {} },
+      ],
+    }).compile();
+
+    service = module.get(PlatformTenantService);
+  });
+
+  it('updates subscription dates and trial end', async () => {
+    const dto: UpdateTenantDto = {
+      subscriptionStartedAt: '2026-03-01',
+      subscriptionEndsAt: '2026-04-01',
+      trialEndsAt: '2026-03-15',
+    };
+
+    const result = await service.updateTenant('tenant-uuid', dto, 'platform-op-1', '127.0.0.1', 'Plan change');
+
+    expect(result.subscriptionStartedAt).toEqual(new Date('2026-03-01'));
+    expect(result.subscriptionEndsAt).toEqual(new Date('2026-04-01'));
+    expect(result.trialEndsAt).toEqual(new Date('2026-03-15'));
+    expect(lifecycleRepo.save).toHaveBeenCalled();
+    expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-uuid');
+  });
+
+  it('clears subscription dates when null is provided', async () => {
+    const dto: UpdateTenantDto = {
+      subscriptionStartedAt: null,
+      subscriptionEndsAt: null,
+      trialEndsAt: null,
+    };
+
+    const result = await service.updateTenant('tenant-uuid', dto, 'platform-op-1', '127.0.0.1', 'Clear dates');
+
+    expect(result.subscriptionStartedAt).toBeNull();
+    expect(result.subscriptionEndsAt).toBeNull();
+    expect(result.trialEndsAt).toBeNull();
+  });
+
+  it('rejects when subscription end is before start', async () => {
+    const dto: UpdateTenantDto = {
+      subscriptionStartedAt: '2026-05-01',
+      subscriptionEndsAt: '2026-04-01',
+    };
+
+    await expect(
+      service.updateTenant('tenant-uuid', dto, 'platform-op-1', '127.0.0.1', 'Invalid dates'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tenantRepo.save).not.toHaveBeenCalled();
   });
 });

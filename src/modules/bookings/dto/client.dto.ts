@@ -32,27 +32,27 @@ export class ClientResponseDto {
 }
 
 export class CreateClientDto {
-  @ApiProperty({ description: 'Client full name', example: 'Ahmed Ali' })
+  @ApiProperty({ example: 'Ahmed Ali' })
   @IsString()
   @IsNotEmpty()
   @SanitizeHtml()
   name: string;
 
-  @ApiProperty({ description: 'Client email address', example: 'ahmed@example.com' })
+  @ApiProperty({ example: 'ahmed@example.com' })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ description: 'Client phone number', example: '+9647701234567' })
+  @ApiProperty({ example: '+9647701234567' })
   @IsString()
   @IsNotEmpty()
   phone: string;
 
-  @ApiPropertyOptional({ description: 'Secondary phone number / WhatsApp', example: '+9647709876543' })
+  @ApiPropertyOptional({ example: '+9647709876543' })
   @IsString()
   @IsOptional()
   phone2?: string;
 
-  @ApiPropertyOptional({ description: 'Optional notes about the client' })
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   @SanitizeHtml()
@@ -63,10 +63,7 @@ export class UpdateClientTagsDto {
   @IsArray()
   @IsString({ each: true })
   @MaxLength(50, { each: true })
-  @ApiProperty({
-    example: ['VIP', 'Wedding', 'Corporate'],
-    description: 'Array of tags for client categorization',
-  })
+  @ApiProperty({ example: ['VIP', 'Wedding', 'Corporate'] })
   tags: string[];
 }
 
@@ -74,50 +71,42 @@ export class UpdateClientDto {
   @IsString()
   @IsOptional()
   @SanitizeHtml()
-  @ApiProperty({ required: false, description: 'Client name' })
+  @ApiPropertyOptional()
   name?: string;
 
   @IsEmail()
   @IsOptional()
-  @ApiProperty({ required: false, description: 'Client email address' })
+  @ApiPropertyOptional()
   email?: string;
 
   @IsString()
   @IsOptional()
-  @ApiProperty({ required: false, description: 'Client phone number' })
+  @ApiPropertyOptional()
   phone?: string;
 
   @IsString()
   @IsOptional()
-  @ApiProperty({ required: false, description: 'Secondary phone number / WhatsApp' })
+  @ApiPropertyOptional()
   phone2?: string;
 
   @IsString()
   @IsOptional()
   @SanitizeHtml()
-  @ApiProperty({ required: false, description: 'Notes about the client' })
+  @ApiPropertyOptional()
   notes?: string;
 
   @IsArray()
-  @IsOptional()
   @IsString({ each: true })
   @MaxLength(50, { each: true })
-  @ApiProperty({
-    required: false,
-    example: ['VIP', 'Wedding', 'Corporate'],
-    description: 'Array of tags for client categorization',
-  })
+  @IsOptional()
+  @ApiPropertyOptional({ example: ['VIP', 'Wedding', 'Corporate'] })
   tags?: string[];
 
+  @ApiPropertyOptional({ example: { email: true, inApp: true } })
   @IsOptional()
-  @ApiProperty({
-    required: false,
-    description: 'Notification preferences for the client portal',
-    example: { email: true, inApp: true },
-  })
   notificationPreferences?: {
-    email: boolean;
-    inApp: boolean;
+    email?: boolean;
+    inApp?: boolean;
     marketing?: boolean;
     reminders?: boolean;
     updates?: boolean;

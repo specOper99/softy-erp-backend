@@ -23,16 +23,12 @@ export class WalletBalanceUpdatedEvent implements IEvent {
     public readonly relatedPayoutId?: string,
   ) {}
 
-  /**
-   * Calculate the balance change amount
-   */
+  /** Calculate the balance change amount */
   get balanceDelta(): number {
     return this.newBalance - this.oldBalance;
   }
 
-  /**
-   * Check if change is significant (> $10)
-   */
+  /** Check if change is significant (> $10) */
   get isSignificantChange(): boolean {
     return Math.abs(this.balanceDelta) >= 10;
   }

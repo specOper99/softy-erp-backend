@@ -24,8 +24,6 @@ export class DashboardWalletBalanceHandler implements IEventHandler<WalletBalanc
   async handle(event: WalletBalanceUpdatedEvent): Promise<void> {
     await TenantContextService.run(event.tenantId, async () => {
       try {
-        // Broadcast wallet balance changes as REVENUE metric updates
-        // MetricsUpdateData accepts any key-value pairs
         const updateData: Record<string, unknown> = {
           userId: event.userId,
           balanceType: event.balanceType,
@@ -48,7 +46,6 @@ export class DashboardWalletBalanceHandler implements IEventHandler<WalletBalanc
           `Failed to broadcast wallet update for user ${event.userId}`,
           error instanceof Error ? error.stack : error,
         );
-        // Don't throw - broadcast failure shouldn't block wallet operations
       }
     });
   }

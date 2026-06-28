@@ -5,30 +5,27 @@ import { TransactionType } from '../enums/transaction-type.enum';
 export class CreateTransactionCategoryDto {
   @IsString()
   @IsNotEmpty()
-  @ApiProperty({ description: 'Category name' })
+  @ApiProperty()
   name: string;
 
   @IsString()
   @IsOptional()
-  @ApiPropertyOptional({ description: 'Category description' })
+  @ApiPropertyOptional()
   description?: string;
 
   @IsEnum(TransactionType)
   @IsOptional()
-  @ApiPropertyOptional({
-    enum: TransactionType,
-    description: 'If set, category only applies to this transaction type',
-  })
+  @ApiPropertyOptional({ enum: TransactionType })
   applicableType?: TransactionType;
 
   @IsUUID()
   @IsOptional()
-  @ApiPropertyOptional({ description: 'Parent category ID for hierarchy' })
+  @ApiPropertyOptional()
   parentId?: string;
 }
 
 export class UpdateTransactionCategoryDto extends PartialType(CreateTransactionCategoryDto) {
   @IsOptional()
-  @ApiPropertyOptional({ description: 'Whether category is active' })
+  @ApiPropertyOptional()
   isActive?: boolean;
 }

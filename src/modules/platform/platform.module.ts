@@ -34,6 +34,9 @@ import { PlatformAnalyticsService } from './services/platform-analytics.service'
 import { PlatformAuditService } from './services/platform-audit.service';
 import { PlatformSecurityService } from './services/platform-security.service';
 import { PlatformTenantService } from './services/platform-tenant.service';
+import { TenantDeletionCron } from './cron/tenant-deletion.cron';
+import { TenantDeletionExecutorService } from './services/tenant-deletion-executor.service';
+import { TenantPurgeService } from './services/tenant-purge.service';
 
 @Module({
   imports: [
@@ -80,6 +83,9 @@ import { PlatformTenantService } from './services/platform-tenant.service';
     PlatformAnalyticsService,
     PlatformAuditService,
     PlatformSecurityService,
+    TenantPurgeService,
+    TenantDeletionExecutorService,
+    TenantDeletionCron,
     ImpersonationService,
     MFAService,
     PlatformJwtStrategy,

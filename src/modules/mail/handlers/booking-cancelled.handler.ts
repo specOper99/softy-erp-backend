@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
-import { toErrorMessage } from '../../../common/utils/error.util';
 import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
 import { MailService } from '../mail.service';
+import { runMailDispatch } from '../../../common/utils/event-dispatch.util';
 
 @EventsHandler(BookingCancelledEvent)
 export class BookingCancelledHandler implements IEventHandler<BookingCancelledEvent> {
@@ -10,24 +10,25 @@ export class BookingCancelledHandler implements IEventHandler<BookingCancelledEv
 
   constructor(private readonly mailService: MailService) {}
 
-  async handle(event: BookingCancelledEvent) {
-    this.logger.log(`Handling BookingCancelledEvent for booking: ${event.bookingId}`);
-
-    try {
-      await this.mailService.sendCancellationEmail({
-        clientName: event.clientName,
-        to: event.clientEmail,
-        bookingId: event.bookingId,
-        eventDate: event.eventDate,
-        cancelledAt: event.cancelledAt,
-        daysBeforeEvent: event.daysBeforeEvent,
-        cancellationReason: event.cancellationReason,
-        amountPaid: event.amountPaid,
-        refundAmount: event.refundAmount,
-        refundPercentage: event.refundPercentage,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send cancellation email for ${event.bookingId}: ${toErrorMessage(error)}`);
-    }
+  handle(event: BookingCancelledEvent): Promise<void> {
+    return runMailDispatch(
+      this.logger,
+      'Handling BookingCancelledEvent for booking',
+      event.bookingId,
+      'cancellation email',
+      () =>
+        this.mailService.sendCancellationEmail({
+          clientName: event.clientName,
+          to: event.clientEmail,
+          bookingId: event.bookingId,
+          eventDate: event.eventDate,
+          cancelledAt: event.cancelledAt,
+          daysBeforeEvent: event.daysBeforeEvent,
+          cancellationReason: event.cancellationReason,
+          amountPaid: event.amountPaid,
+          refundAmount: event.refundAmount,
+          refundPercentage: event.refundPercentage,
+        }),
+    );
   }
 }

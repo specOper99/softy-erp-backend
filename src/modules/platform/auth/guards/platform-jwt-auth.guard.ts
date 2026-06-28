@@ -21,9 +21,7 @@ export class PlatformJwtAuthGuard extends AuthGuard('platform-jwt') {
 
     if (!user) {
       const reason = info && typeof info === 'object' ? (info as { message?: string }).message : undefined;
-      if (reason) {
-        this.logger.debug(`Platform JWT auth denied: ${reason}`);
-      }
+      if (reason) this.logger.debug(`Platform JWT auth denied: ${reason}`);
       throw new UnauthorizedException('common.unauthorized_plain');
     }
 

@@ -6,19 +6,10 @@ import { pipeline } from 'node:stream/promises';
 
 @Injectable()
 export class ExportService {
-  /**
-   * Sanitize filename to prevent HTTP header injection.
-   * Removes special characters that could be used for response splitting.
-   */
   private sanitizeFilename(filename: string): string {
     return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 
-  /**
-   * Stream CSV data from a Node Readable (e.g. TypeORM stream) to an
-   * Express response. Memory-efficient for large exports; backpressure
-   * and error/cleanup handled by `stream/promises.pipeline`.
-   */
   async streamFromStream<T = unknown>(
     res: Response,
     dataStream: Readable,
@@ -32,27 +23,24 @@ export class ExportService {
     const stringifier = createCsvStringifier({ header: true, columns: fields });
 
     try {
-      if (transformFn) {
-        const mapper = new Transform({
-          objectMode: true,
-          transform(chunk, _enc, cb) {
-            try {
-              cb(null, transformFn(chunk as T));
-            } catch (err) {
-              cb(err as Error);
-            }
-          },
-        });
-        await pipeline(dataStream, mapper, stringifier, res);
-      } else {
-        await pipeline(dataStream, stringifier, res);
-      }
+      const source = transformFn
+        ? dataStream.pipe(
+            new Transform({
+              objectMode: true,
+              transform(chunk, _enc, cb) {
+                try {
+                  cb(null, transformFn(chunk as T));
+                } catch (err) {
+                  cb(err as Error);
+                }
+              },
+            }),
+          )
+        : dataStream;
+      await pipeline(source, stringifier, res);
     } catch (err) {
-      if (!res.headersSent) {
-        res.status(500).end();
-      } else {
-        res.end();
-      }
+      if (!res.headersSent) res.status(500).end();
+      else res.end();
       throw err;
     }
   }

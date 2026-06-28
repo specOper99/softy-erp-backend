@@ -130,11 +130,15 @@ export class ClientsService {
       client.tags = dto.tags;
     }
     if (dto.notificationPreferences !== undefined) {
+      const mergedNotificationPreferences = {
+        ...client.notificationPreferences,
+        ...dto.notificationPreferences,
+      };
       changes['notificationPreferences'] = {
         old: client.notificationPreferences,
-        new: dto.notificationPreferences,
+        new: mergedNotificationPreferences,
       };
-      client.notificationPreferences = dto.notificationPreferences;
+      client.notificationPreferences = mergedNotificationPreferences;
     }
 
     const savedClient = await this.clientRepository.save(client);

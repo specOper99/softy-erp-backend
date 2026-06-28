@@ -1,52 +1,30 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { clampPageLimit, pageToSkip } from './pagination.helpers';
 
-/**
- * Combined pagination DTO supporting both offset and cursor pagination.
- *
- * This DTO allows endpoints to support both pagination strategies:
- * - Offset pagination (deprecated): Use `page` and `limit` or `skip` and `take`
- * - Cursor pagination (recommended): Use `cursor` and `limit`
- *
- * The service layer determines which strategy to use based on the endpoint.
- */
+/** Supports offset (`page`/`skip` + `limit`) and cursor (`cursor` + `limit`) pagination. */
 export class CombinedPaginationDto {
-  // Cursor pagination fields
-  @ApiPropertyOptional({
-    description: 'Cursor string for next page (base64 encoded)',
-  })
+  @ApiPropertyOptional({ description: 'Cursor string for next page (base64 encoded)' })
   @IsOptional()
   @IsString()
   cursor?: string;
 
-  // Offset pagination fields
-  @ApiPropertyOptional({
-    description: 'Page number (1-based, for offset pagination)',
-    minimum: 1,
-  })
+  @ApiPropertyOptional({ description: 'Page number (1-based)', minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
-  @ApiPropertyOptional({
-    description: 'Skip number of items (for offset pagination)',
-    minimum: 0,
-  })
+  @ApiPropertyOptional({ description: 'Skip number of items', minimum: 0 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
   skip?: number = 0;
 
-  @ApiPropertyOptional({
-    description: 'Number of items to return',
-    minimum: 1,
-    maximum: 100,
-    default: 20,
-  })
+  @ApiPropertyOptional({ description: 'Number of items to return', minimum: 1, maximum: 100, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -54,11 +32,7 @@ export class CombinedPaginationDto {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({
-    description: 'Number of items to take (alias for limit, for offset pagination)',
-    minimum: 1,
-    maximum: 100,
-  })
+  @ApiPropertyOptional({ description: 'Alias for limit (offset pagination)', minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -67,18 +41,11 @@ export class CombinedPaginationDto {
   take?: number;
 
   getSkip(): number {
-    if (this.page !== undefined) {
-      const page = Number.isFinite(this.page) ? this.page : 1;
-      const effectiveLimit = this.getTake();
-      return Math.max(0, (page - 1) * effectiveLimit);
-    }
-    const skip = Number.isFinite(this.skip) ? (this.skip ?? 0) : 0;
-    return Math.max(0, skip);
+    if (this.page !== undefined) return pageToSkip(this.page, this.getTake());
+    return Math.max(0, Number.isFinite(this.skip) ? (this.skip ?? 0) : 0);
   }
 
   getTake(): number {
-    const candidate = this.take ?? this.limit ?? 20;
-    const normalized = Number.isFinite(candidate) ? candidate : 20;
-    return Math.max(1, Math.min(100, normalized));
+    return clampPageLimit(this.take ?? this.limit);
   }
 }

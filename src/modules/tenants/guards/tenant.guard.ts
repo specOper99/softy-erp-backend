@@ -7,12 +7,6 @@ import { SKIP_TENANT_KEY } from '../decorators/skip-tenant.decorator';
 import { TenantStatus } from '../enums/tenant-status.enum';
 import { TenantsService } from '../tenants.service';
 
-/**
- * Global guard that ensures a tenant context is present for protected routes.
- * It checks the TenantContextService (populated by TenantMiddleware) for a tenantId.
- * Certain public routes (e.g., user registration) are allowed without a tenant ID.
- * If no tenantId is found for protected routes, the request is rejected with an UnauthorizedException.
- */
 @Injectable()
 export class TenantGuard implements CanActivate {
   private static readonly TENANT_STATE_TTL_MS = 30_000;
@@ -24,19 +18,12 @@ export class TenantGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-    const skipTenant = this.reflector.getAllAndOverride<boolean>(SKIP_TENANT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (skipTenant) {
+    if (this.reflector.getAllAndOverride<boolean>(SKIP_TENANT_KEY, [context.getHandler(), context.getClass()])) {
       return true;
     }
 
     const tenantId = TenantContextService.getTenantId();
-    if (!tenantId) {
-      throw new UnauthorizedException('common.tenant_missing');
-    }
-
+    if (!tenantId) throw new UnauthorizedException('common.tenant_missing');
     return this.assertTenantActiveOrAllowed(tenantId);
   }
 
@@ -45,23 +32,15 @@ export class TenantGuard implements CanActivate {
     const cached = await this.cache.get<{ status?: TenantStatus }>(cacheKey);
 
     const status = cached?.status ?? (await this.loadTenantStatus(tenantId));
-    if (!cached?.status) {
-      await this.cache.set(cacheKey, { status }, TenantGuard.TENANT_STATE_TTL_MS);
-    }
+    if (!cached?.status) await this.cache.set(cacheKey, { status }, TenantGuard.TENANT_STATE_TTL_MS);
 
-    // Default: allow ACTIVE and GRACE_PERIOD; block inactive/suspended/locked/etc.
-    if (status === TenantStatus.ACTIVE || status === TenantStatus.GRACE_PERIOD) {
-      return true;
-    }
-
+    if (status === TenantStatus.ACTIVE || status === TenantStatus.GRACE_PERIOD) return true;
     throw new ForbiddenException('tenants.tenant_suspended');
   }
 
   private async loadTenantStatus(tenantId: string): Promise<TenantStatus> {
     const tenant = await this.tenantsService.findOne(tenantId);
-    if (!tenant) {
-      throw new ForbiddenException('tenants.tenant_suspended');
-    }
+    if (!tenant) throw new ForbiddenException('tenants.tenant_suspended');
     return tenant.status;
   }
 }

@@ -9,10 +9,6 @@ import { toErrorMessage } from '../../../common/utils/error.util';
 
 type BullmqJob = Parameters<WorkerHost['process']>[0];
 
-/**
- * Webhook processor for handling background webhook delivery.
- * Processes jobs from the 'webhook' queue with exponential backoff retries.
- */
 @Processor(WEBHOOK_QUEUE)
 export class WebhookProcessor extends WorkerHost {
   private readonly logger = new Logger(WebhookProcessor.name);
@@ -33,7 +29,6 @@ export class WebhookProcessor extends WorkerHost {
 
     await TenantContextService.run(tenantId, async () => {
       try {
-        // Create a partial Webhook entity for the service method
         const webhookEntity = {
           id: webhook.id,
           tenantId: webhook.tenantId,
@@ -47,7 +42,7 @@ export class WebhookProcessor extends WorkerHost {
         this.logger.log(`Webhook job ${job.id} completed: ${event.type} to ${webhook.url}`);
       } catch (error) {
         this.logger.error(`Webhook job ${job.id} failed: ${toErrorMessage(error)}`);
-        throw error; // Re-throw to trigger BullMQ retry
+        throw error;
       }
     });
   }

@@ -1,8 +1,5 @@
 /**
- * Resource Ownership Guard
- *
- * Verifies that the authenticated user has ownership rights to the requested resource.
- * Shadow mode: legacy decision remains authoritative; CASL evaluation is compared and metered.
+ * Resource ownership guard — legacy decision authoritative; CASL shadow compared and metered.
  */
 import {
   CanActivate,
@@ -145,8 +142,6 @@ export class ResourceOwnershipGuard implements CanActivate {
       clientId: user.clientId,
     });
     const subject = config.resourceType;
-    const action = ResourceOwnershipGuard.DEFAULT_ACTION;
-    void action;
 
     if (config.allowRoles?.includes(user.role)) {
       const bypassAllowed = ability.can('manage', 'all');

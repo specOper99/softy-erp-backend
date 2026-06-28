@@ -251,33 +251,14 @@ export class TenantAwareRepository<T extends { tenantId: string }> {
 
   // ==================== Enhanced Query Builder Methods ====================
 
-  /**
-   * Creates a tenant-scoped query builder for streaming operations.
-   * Use this for exports, reports, and other streaming scenarios where
-   * the caller will call `.stream()` on the result.
-   *
-   * @example
-   * ```typescript
-   * const stream = await this.repo.createStreamQueryBuilder('t')
-   *   .orderBy('t.createdAt', 'DESC')
-   *   .stream();
-   * ```
-   */
+  /** Tenant-scoped query builder for streaming / aggregation. */
   createStreamQueryBuilder(alias: string): SelectQueryBuilder<T> {
     this.logger.debug(`Creating stream query builder for ${this.entityName}`);
-    // createQueryBuilder already scopes by tenantId — no second andWhere needed.
     return this.createQueryBuilder(alias);
   }
 
-  /**
-   * Creates a tenant-scoped query builder for aggregation operations
-   * (COUNT, SUM, AVG, etc.). The caller should add SELECT expressions and
-   * GROUP BY clauses as needed.
-   */
   createAggregateQueryBuilder(alias: string): SelectQueryBuilder<T> {
-    this.logger.debug(`Creating aggregate query builder for ${this.entityName}`);
-    // createQueryBuilder already scopes by tenantId — no second andWhere needed.
-    return this.createQueryBuilder(alias);
+    return this.createStreamQueryBuilder(alias);
   }
 
   /**

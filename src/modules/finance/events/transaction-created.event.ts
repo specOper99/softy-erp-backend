@@ -33,9 +33,7 @@ export class TransactionCreatedEvent implements IEvent {
     public readonly reversalOfId?: string,
   ) {}
 
-  /**
-   * Get the amount in base currency (after exchange rate conversion)
-   */
+  /** Get the amount in base currency (after exchange rate conversion) */
   get baseAmount(): number {
     return this.amount * this.exchangeRate;
   }

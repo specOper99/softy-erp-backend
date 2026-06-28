@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
-import { toErrorMessage } from '../../../common/utils/error.util';
 import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
 import { MailService } from '../mail.service';
+import { runMailDispatch } from '../../../common/utils/event-dispatch.util';
 
 @EventsHandler(BookingConfirmedEvent)
 export class BookingConfirmedMailHandler implements IEventHandler<BookingConfirmedEvent> {
@@ -10,20 +10,21 @@ export class BookingConfirmedMailHandler implements IEventHandler<BookingConfirm
 
   constructor(private readonly mailService: MailService) {}
 
-  async handle(event: BookingConfirmedEvent) {
-    this.logger.log(`Handling BookingConfirmedEvent for mail: ${event.bookingId}`);
-
-    try {
-      await this.mailService.sendBookingConfirmation({
-        clientName: event.clientName,
-        clientEmail: event.clientEmail,
-        eventDate: event.eventDate,
-        packageName: event.packageName,
-        totalPrice: event.totalPrice,
-        bookingId: event.bookingId,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send booking confirmation email for ${event.bookingId}: ${toErrorMessage(error)}`);
-    }
+  handle(event: BookingConfirmedEvent): Promise<void> {
+    return runMailDispatch(
+      this.logger,
+      'Handling BookingConfirmedEvent for mail',
+      event.bookingId,
+      'booking confirmation email',
+      () =>
+        this.mailService.sendBookingConfirmation({
+          clientName: event.clientName,
+          clientEmail: event.clientEmail,
+          eventDate: event.eventDate,
+          packageName: event.packageName,
+          totalPrice: event.totalPrice,
+          bookingId: event.bookingId,
+        }),
+    );
   }
 }

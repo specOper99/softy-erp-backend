@@ -139,15 +139,70 @@ describe('Platform Tenants Lifecycle E2E', () => {
       });
   });
 
-  it('GET /platform/tenants?status=PENDING_DELETION includes created tenant', () => {
+  it('POST /platform/tenants/:id/cancel-deletion restores ACTIVE', () => {
     return request(app.getHttpServer())
-      .get(`/api/v1/platform/tenants?status=${TenantStatus.PENDING_DELETION}`)
+      .post(`/api/v1/platform/tenants/${createdTenantId}/cancel-deletion`)
       .set('Authorization', `Bearer ${platformToken}`)
+      .send({ reason })
       .expect(200)
       .expect((res: Response) => {
-        const tenants = res.body.data.tenants as Array<{ id: string }>;
-        expect(tenants.some((t) => t.id === createdTenantId)).toBe(true);
+        expect(res.body.data.status).toBe(TenantStatus.ACTIVE);
+        expect(res.body.data.deletionScheduledAt).toBeNull();
       });
+  });
+
+  it('DELETE with past scheduleFor purges tenant', async () => {
+    const purgeSlug = `e2e-purge-${Date.now()}`;
+    const create = await request(app.getHttpServer())
+      .post('/api/v1/platform/tenants')
+      .set('Authorization', `Bearer ${platformToken}`)
+      .send({
+        name: 'E2E Purge Tenant',
+        slug: purgeSlug,
+        subscriptionPlan: 'FREE',
+        initialAdmin: {
+          email: `purge-${Date.now()}@e2e.example`,
+          password: 'SecurePassword123!',
+        },
+      })
+      .expect(201);
+
+    const purgeTenantId = create.body.data.id as string;
+    const pastSchedule = new Date(Date.now() - 60_000).toISOString();
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/platform/tenants/${purgeTenantId}`)
+      .set('Authorization', `Bearer ${platformToken}`)
+      .send({ reason, scheduleFor: pastSchedule })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/platform/tenants/${purgeTenantId}`)
+      .set('Authorization', `Bearer ${platformToken}`)
+      .expect(404);
+  });
+
+  it('GET /platform/tenants?status=PENDING_DELETION includes created tenant', () => {
+    return request(app.getHttpServer())
+      .post(`/api/v1/platform/tenants/${createdTenantId}/lock?reason=${encodeURIComponent(reason)}`)
+      .set('Authorization', `Bearer ${platformToken}`)
+      .expect(200)
+      .then(() =>
+        request(app.getHttpServer())
+          .delete(`/api/v1/platform/tenants/${createdTenantId}?reason=${encodeURIComponent(reason)}`)
+          .set('Authorization', `Bearer ${platformToken}`)
+          .expect(200),
+      )
+      .then(() =>
+        request(app.getHttpServer())
+          .get(`/api/v1/platform/tenants?status=${TenantStatus.PENDING_DELETION}`)
+          .set('Authorization', `Bearer ${platformToken}`)
+          .expect(200)
+          .expect((res: Response) => {
+            const tenants = res.body.data.tenants as Array<{ id: string }>;
+            expect(tenants.some((t) => t.id === createdTenantId)).toBe(true);
+          }),
+      );
   });
 
   it('GET /platform/tenants/:id/timeline returns lifecycle events', () => {

@@ -20,8 +20,10 @@ export class MfaRequiredGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
   ) {
-    const rolesString = this.configService.get<string>('MFA_REQUIRED_ROLES', 'ADMIN');
-    this.requiredRoles = rolesString.split(',').map((r) => r.trim() as Role);
+    this.requiredRoles = this.configService
+      .get<string>('MFA_REQUIRED_ROLES', 'ADMIN')
+      .split(',')
+      .map((r) => r.trim() as Role);
   }
 
   canActivate(context: ExecutionContext): boolean {
@@ -29,24 +31,14 @@ export class MfaRequiredGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+    if (!isMfaRequired) return true;
 
-    if (!isMfaRequired) {
-      return true;
+    const user = (context.switchToHttp().getRequest<Request>() as Request & { user?: AuthenticatedUser }).user;
+    if (!user) throw new ForbiddenException('common.authentication_required');
+
+    if (this.requiredRoles.includes(user.role) && !user.isMfaEnabled) {
+      throw new ForbiddenException({ code: 'auth.mfa_required_enable' });
     }
-
-    const request = context.switchToHttp().getRequest<Request>();
-    const user = (request as Request & { user?: AuthenticatedUser }).user;
-
-    if (!user) {
-      throw new ForbiddenException('common.authentication_required');
-    }
-
-    if (this.requiredRoles.includes(user.role)) {
-      if (!user.isMfaEnabled) {
-        throw new ForbiddenException({ code: 'auth.mfa_required_enable' });
-      }
-    }
-
     return true;
   }
 }
