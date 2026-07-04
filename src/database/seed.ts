@@ -1,5 +1,6 @@
 import * as argon2 from 'argon2';
 import { config } from 'dotenv';
+import { join } from 'path';
 import { DataSource } from 'typeorm';
 import { getDatabaseConnectionConfig } from './db-config';
 
@@ -96,6 +97,8 @@ import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
 import { Task } from '../modules/tasks/entities/task.entity';
 import { TimeEntry } from '../modules/tasks/entities/time-entry.entity';
 import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
+import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
+import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
 import { Tenant } from '../modules/tenants/entities/tenant.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Role } from '../modules/users/enums/role.enum';
@@ -151,10 +154,11 @@ const AppDataSource = new DataSource({
     PerformanceReview,
     ProcessingTypeEligibility,
     TenantSubscription,
+    PlatformUser,
   ],
-  migrations: ['src/database/migrations/*.{ts,js}'],
+  migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
   dropSchema: shouldDropSchema,
-  migrationsRun: true,
+  migrationsRun: false,
   synchronize: false, // Use migrations instead of synchronize during seeding
 });
 
@@ -194,6 +198,7 @@ async function seed() {
     const walletRepo = AppDataSource.getRepository(EmployeeWallet);
     const packageRepo = AppDataSource.getRepository(ServicePackage);
     const categoryRepo = AppDataSource.getRepository(TransactionCategory);
+    const platformUserRepo = AppDataSource.getRepository(PlatformUser);
 
     // ============ 0. CREATE DEFAULT TENANT ============
     SeedLogger.log('Creating default tenant...');
@@ -411,6 +416,29 @@ async function seed() {
       }
     }
 
+    // ============ 7. CREATE PLATFORM ADMIN ============
+    SeedLogger.log('\nCreating platform admin...');
+    const platformAdminEmail = 'admin@erp.soft-y.org';
+    const existingPlatformAdmin = await platformUserRepo.findOne({
+      where: { email: platformAdminEmail },
+    });
+    if (!existingPlatformAdmin) {
+      const platformPasswordHash = await argon2.hash(process.env.SEED_PLATFORM_ADMIN_PASSWORD!, ARGON2_OPTIONS);
+      await platformUserRepo.save(
+        platformUserRepo.create({
+          email: platformAdminEmail,
+          fullName: 'Platform Admin',
+          passwordHash: platformPasswordHash,
+          role: PlatformRole.SUPER_ADMIN,
+          status: 'active',
+          mfaEnabled: false,
+        }),
+      );
+      SeedLogger.log(`   Platform admin created: ${platformAdminEmail}`);
+    } else {
+      SeedLogger.log(`   Platform admin already exists: ${platformAdminEmail}`);
+    }
+
     SeedLogger.log('\n========================================');
     SeedLogger.log('Seed completed successfully!');
     SeedLogger.log('========================================\n');
@@ -420,7 +448,8 @@ async function seed() {
     SeedLogger.log('  Ops Mgr:  ops@erp.soft-y.org / [SEED_OPS_PASSWORD]');
     SeedLogger.log('  Staff:    john.photographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
     SeedLogger.log('            sarah.videographer@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
-    SeedLogger.log('            mike.editor@erp.soft-y.org / [SEED_STAFF_PASSWORD]\n');
+    SeedLogger.log('            mike.editor@erp.soft-y.org / [SEED_STAFF_PASSWORD]');
+    SeedLogger.log('  Platform: admin@erp.soft-y.org / [SEED_PLATFORM_ADMIN_PASSWORD] (/platform/login)\n');
   } catch (error) {
     SeedLogger.error('Seed failed:', error);
     process.exit(1);

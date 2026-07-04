@@ -305,7 +305,7 @@ w    DB_PASSWORD    "$DB_PASSWORD"
 w    DB_DATABASE    "$DB_DATABASE"
 wlit DB_SYNCHRONIZE false
 wlit DB_LOGGING     false
-wlit DB_MIGRATIONS_RUN true
+wlit DB_MIGRATIONS_RUN false
 wblank
 
 wcmt "🗄️  Connection Pool"

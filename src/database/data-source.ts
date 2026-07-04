@@ -100,6 +100,7 @@ export const dataSourceOptions: DataSourceOptions = {
   ],
   migrations: [join(__dirname, 'migrations', '[0-9]*.{ts,js}')],
   migrationsTableName: 'migrations',
+  migrationsTransactionMode: 'each',
   logging: process.env.DB_LOGGING === 'true',
 
   // CRITICAL SECURITY: synchronize is unconditionally disabled in all environments.

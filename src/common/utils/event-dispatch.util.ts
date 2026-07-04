@@ -1,7 +1,7 @@
 import type { Logger } from '@nestjs/common';
 import { toErrorMessage } from './error.util';
 
-type DispatchFn = () => void | Promise<void>;
+type DispatchFn = () => void | Promise<unknown>;
 
 interface GuardedDispatchMessages {
   startMessage?: string;

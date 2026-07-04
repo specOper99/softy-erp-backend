@@ -472,7 +472,7 @@ export class PlatformTenantService {
 
   async cancelScheduledDeletion(
     tenantId: string,
-    dto: CancelDeletionDto,
+    _dto: CancelDeletionDto,
     platformUserId: string,
     _ipAddress: string,
     reason: string,

@@ -105,7 +105,7 @@ describe('MfaService', () => {
       expect(result).toHaveLength(10); // 10 recovery codes
     });
 
-    it('should throw Unauthorized if code is invalid', async () => {
+    it('should throw BadRequest if code is invalid', async () => {
       const secret = 'MOCK_SECRET_BASE32';
       usersService.findByEmailWithMfaSecret.mockResolvedValue({
         ...mockUser,

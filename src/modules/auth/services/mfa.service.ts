@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { toDataURL } from 'qrcode';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
@@ -42,7 +42,7 @@ export class MfaService {
     );
 
     if (!isValid) {
-      throw new UnauthorizedException('auth.invalid_mfa_code');
+      throw new BadRequestException('auth.invalid_mfa_code');
     }
 
     await this.usersService.updateMfaSecret(user.id, userWithSecret.mfaSecret, true);

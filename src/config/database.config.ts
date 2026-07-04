@@ -34,7 +34,8 @@ export default registerAs('database', () => {
     logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
     migrations: [join(__dirname, '..', 'database', 'migrations', '*.js')],
     migrationsTableName: 'migrations',
-    migrationsRun: process.env.DB_MIGRATIONS_RUN !== 'false',
+    // Migrations are explicit-only (npm run migration:run / entrypoint.sh). Never auto-run on Nest boot.
+    migrationsRun: process.env.DB_MIGRATIONS_RUN === 'true',
     retryAttempts: parseEnvInt(process.env.DB_RETRY_ATTEMPTS, 10),
     retryDelay: parseEnvInt(process.env.DB_RETRY_DELAY_MS, 3000),
     // Warn and log slow queries. Default 1000ms; lower in production via DB_MAX_QUERY_MS.

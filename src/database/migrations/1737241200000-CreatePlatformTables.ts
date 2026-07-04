@@ -20,7 +20,6 @@ export class CreatePlatformTables1737241200000 implements MigrationInterface {
               name: 'email',
               type: 'varchar',
               length: '255',
-              isUnique: true,
             },
             {
               name: 'full_name',
@@ -122,23 +121,33 @@ export class CreatePlatformTables1737241200000 implements MigrationInterface {
       );
     }
 
-    await queryRunner.createIndex(
-      'platform_users',
-      new TableIndex({
-        name: 'IDX_platform_users_email',
-        columnNames: ['email'],
-        isUnique: true,
-        where: 'deleted_at IS NULL',
-      }),
-    );
+    // Legacy/partial installs may already have platform_users without full schema.
+    await queryRunner.query(`
+      ALTER TABLE "platform_users"
+        ADD COLUMN IF NOT EXISTS "mfa_enabled" boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "mfa_secret" character varying(255),
+        ADD COLUMN IF NOT EXISTS "mfa_recovery_codes" json,
+        ADD COLUMN IF NOT EXISTS "last_login_at" TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS "last_login_ip" character varying(45),
+        ADD COLUMN IF NOT EXISTS "ip_allowlist" json,
+        ADD COLUMN IF NOT EXISTS "trusted_devices" json,
+        ADD COLUMN IF NOT EXISTS "failed_login_attempts" integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS "locked_until" TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS "must_change_password" boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "password_changed_at" TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP
+    `);
 
-    await queryRunner.createIndex(
-      'platform_users',
-      new TableIndex({
-        name: 'IDX_platform_users_status_created',
-        columnNames: ['status', 'created_at'],
-      }),
-    );
+    await queryRunner.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_platform_users_email"
+      ON "platform_users" ("email")
+      WHERE deleted_at IS NULL
+    `);
+
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS "IDX_platform_users_status_created"
+      ON "platform_users" ("status", "created_at")
+    `);
 
     // Create platform_sessions table
     if (!(await queryRunner.hasTable('platform_sessions'))) {
