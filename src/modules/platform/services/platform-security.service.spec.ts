@@ -11,6 +11,7 @@ import { User } from '../../users/entities/user.entity';
 import { PlatformAction } from '../enums/platform-action.enum';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformSecurityService } from './platform-security.service';
+import { PlatformTenantService } from './platform-tenant.service';
 
 describe('PlatformSecurityService', () => {
   let service: PlatformSecurityService;
@@ -20,6 +21,7 @@ describe('PlatformSecurityService', () => {
   let auditService: { log: jest.Mock };
   let passwordHashService: { hash: jest.Mock };
   let passwordService: { forgotPassword: jest.Mock };
+  let tenantService: { scheduleTenantDeletion: jest.Mock };
 
   const platformUserId = 'platform-admin-1';
   const ipAddress = '203.0.113.10';
@@ -47,6 +49,7 @@ describe('PlatformSecurityService', () => {
     auditService = { log: jest.fn().mockResolvedValue(undefined) };
     passwordHashService = { hash: jest.fn().mockResolvedValue('new-hash') };
     passwordService = { forgotPassword: jest.fn().mockResolvedValue(undefined) };
+    tenantService = { scheduleTenantDeletion: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +60,7 @@ describe('PlatformSecurityService', () => {
         { provide: PlatformAuditService, useValue: auditService },
         { provide: PasswordHashService, useValue: passwordHashService },
         { provide: PasswordService, useValue: passwordService },
+        { provide: PlatformTenantService, useValue: tenantService },
       ],
     }).compile();
 
