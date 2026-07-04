@@ -13,6 +13,11 @@
   "subscription_none": "Aucun abonnement trouvé pour le locataire",
   "suspended_already": "Le locataire est déjà suspendu",
   "active_already": "Le locataire est déjà actif",
+  "deletion_already_scheduled": "La suppression du locataire est déjà planifiée",
+  "already_deleted": "Le locataire a déjà été supprimé",
+  "deletion_not_scheduled": "La suppression du locataire n'est pas planifiée",
+  "deletion_cancellation_window_closed": "La fenêtre d'annulation de suppression est fermée",
+  "subscription_end_before_start": "La date de fin d'abonnement doit être postérieure à la date de début",
   "upgrade_required": "Passez à {plan} pour accéder à cette fonctionnalité.",
   "quota_exceeded": "Quota dépassé pour {resourceType}. Limite : {limit}, actuel : {currentUsage}"
 }

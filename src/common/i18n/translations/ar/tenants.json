@@ -13,6 +13,11 @@
   "subscription_none": "لا يوجد اشتراك لهذا المستأجر",
   "suspended_already": "المستأجر موقوف بالفعل",
   "active_already": "المستأجر نشط بالفعل",
+  "deletion_already_scheduled": "حذف المستأجر مجدول بالفعل",
+  "already_deleted": "تم حذف المستأجر بالفعل",
+  "deletion_not_scheduled": "حذف المستأجر غير مجدول",
+  "deletion_cancellation_window_closed": "انتهت فترة إلغاء الحذف المجدول",
+  "subscription_end_before_start": "يجب أن يكون تاريخ انتهاء الاشتراك بعد تاريخ البداية",
   "upgrade_required": "قم بالترقية إلى {plan} للوصول إلى هذه الميزة.",
   "quota_exceeded": "تم تجاوز الحصة لـ {resourceType}. الحد: {limit}، الحالي: {currentUsage}"
 }

@@ -13,6 +13,11 @@
   "subscription_none": "No subscription found for tenant",
   "suspended_already": "Tenant is already suspended",
   "active_already": "Tenant is already active",
+  "deletion_already_scheduled": "Tenant deletion is already scheduled",
+  "already_deleted": "Tenant has already been deleted",
+  "deletion_not_scheduled": "Tenant deletion is not scheduled",
+  "deletion_cancellation_window_closed": "Deletion cancellation window has closed",
+  "subscription_end_before_start": "Subscription end date must be after start date",
   "upgrade_required": "Upgrade to {plan} to access this feature.",
   "quota_exceeded": "Quota exceeded for {resourceType}. Limit: {limit}, Current: {currentUsage}"
 }

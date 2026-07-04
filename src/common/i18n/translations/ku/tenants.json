@@ -13,6 +13,11 @@
   "subscription_none": "هیچ بەژدارییەک بۆ ئەم تێنەنتە نەدۆزرایەوە",
   "suspended_already": "تێنەنت پێشتر ڕاگیراوە",
   "active_already": "تێنەنت پێشتر چالاکە",
+  "deletion_already_scheduled": "سڕینەوەی تێنەنت پێشتر خراوەتە خشتە",
+  "already_deleted": "تێنەنت پێشتر سڕاوەتەوە",
+  "deletion_not_scheduled": "سڕینەوەی تێنەنت لە خشتەدا نییە",
+  "deletion_cancellation_window_closed": "ماوەی هەڵوەشاندنەوەی سڕینەوە داخراوە",
+  "subscription_end_before_start": "بەرواری کۆتایی بەژداری دەبێت دوای بەرواری دەستپێکردن بێت",
   "upgrade_required": "بۆ {plan} بەرز بکەرەوە بۆ گەیشتن بەم تایبەتمەندیە.",
   "quota_exceeded": "سنوور بۆ {resourceType} تێپەڕیوە. سنوور: {limit}، ئێستا: {currentUsage}"
 }
