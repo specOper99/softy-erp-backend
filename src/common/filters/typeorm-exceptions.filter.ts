@@ -3,6 +3,7 @@ import { QueryFailedError } from 'typeorm';
 import { Response, Request } from 'express';
 import { I18nContext, I18nService } from 'nestjs-i18n';
 import { translateApiErrorMessage } from '../i18n/api-error-translation';
+import { resolveLanguageFromHeader } from '../i18n/resolve-language.util';
 import { getCorrelationId } from '../logger/request-context';
 
 interface RequestWithCorrelationId extends Request {
@@ -18,15 +19,13 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
     private readonly i18nService: I18nService,
   ) {}
 
-  private static readonly SUPPORTED_LANGUAGES = new Set<string>(['en', 'ar', 'ku', 'fr']);
-
   catch(exception: QueryFailedError, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<RequestWithCorrelationId>();
 
     const i18nLang = I18nContext.current(host)?.lang;
-    const lang = i18nLang ?? this.resolveLanguageFromHeader(request.headers['accept-language'] as string | undefined);
+    const lang = i18nLang ?? resolveLanguageFromHeader(request.headers['accept-language'] as string | undefined);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let i18nKey = 'common.internal_error';
@@ -100,16 +99,5 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
       default:
         return 'An unexpected error occurred. Please try again later.';
     }
-  }
-
-  private resolveLanguageFromHeader(acceptLanguage: string | undefined): string {
-    if (!acceptLanguage) return 'en';
-    for (const part of acceptLanguage.split(',')) {
-      const raw = (part.split(';')[0] ?? '').trim().toLowerCase();
-      if (TypeOrmExceptionFilter.SUPPORTED_LANGUAGES.has(raw)) return raw;
-      const base = raw.split('-')[0] ?? '';
-      if (TypeOrmExceptionFilter.SUPPORTED_LANGUAGES.has(base)) return base;
-    }
-    return 'en';
   }
 }

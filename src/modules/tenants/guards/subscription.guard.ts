@@ -5,7 +5,7 @@ import { SubscriptionPlan } from '../enums/subscription-plan.enum';
 import { meetsMinimumPlan } from '../plan-features';
 import { TenantsService } from '../tenants.service';
 
-export const SUBSCRIPTION_KEY = 'subscription_plan';
+const SUBSCRIPTION_KEY = 'subscription_plan';
 export const RequireSubscription = (plan: SubscriptionPlan) => SetMetadata(SUBSCRIPTION_KEY, plan);
 
 @Injectable()

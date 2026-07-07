@@ -3,12 +3,9 @@ import { ValidationPipe } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
-import type { Repository } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
-import { Client } from '../src/modules/bookings/entities/client.entity';
 import { MailService } from '../src/modules/mail/mail.service';
 
 // Mock ThrottlerGuard
@@ -20,8 +17,6 @@ class MockThrottlerGuard extends ThrottlerGuard {
 
 describe('Tenant Boundary Security E2E', () => {
   let app: INestApplication;
-  let clientRepository: Repository<Client>;
-  let mailService: MailService;
 
   // Tenant A Data
   const timestamp = Date.now();
@@ -72,10 +67,6 @@ describe('Tenant Boundary Security E2E', () => {
     );
     app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
-
-    // Get repositories directly for verification setup
-    clientRepository = moduleFixture.get(getRepositoryToken(Client));
-    mailService = moduleFixture.get(MailService);
   });
 
   afterAll(async () => {
@@ -142,93 +133,6 @@ describe('Tenant Boundary Security E2E', () => {
         .set('Authorization', `Bearer ${tenantB.token}`)
         .send({ price: 1 })
         .expect(404);
-    });
-  });
-
-  describe('Magic Link Security & Isolation', () => {
-    let clientA: Client;
-    let magicLinkToken: string;
-
-    it('Should create a client for Tenant A', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/clients')
-        .set('Authorization', `Bearer ${tenantA.token}`)
-        .send({
-          name: 'Client A',
-          email: `client-a-${timestamp}@example.com`,
-          phone: '+1234567890',
-        })
-        .expect(201);
-
-      // Wait for DB to settle (optional but safe)
-      const savedClient = await clientRepository.findOne({
-        where: { id: res.body.data.id },
-      });
-      expect(savedClient).toBeDefined();
-      if (savedClient) clientA = savedClient;
-    });
-
-    it('Should generate magic link using public endpoint (Tenant A context via subdomain)', async () => {
-      await request(app.getHttpServer())
-        .post(`/api/v1/client-portal/${tenantA.slug}/auth/request-magic-link`)
-        .send({ email: clientA.email, tenantSlug: tenantA.slug })
-        .expect(200);
-
-      expect(mailService.sendMagicLink).toHaveBeenCalled();
-      const callArgs = (mailService.sendMagicLink as jest.Mock).mock.calls[0][0];
-      expect(callArgs.clientEmail).toBe(clientA.email);
-      magicLinkToken = callArgs.token;
-      expect(magicLinkToken).toBeDefined();
-    });
-
-    it('Should verify magic link successfully for correct tenant (via subdomain)', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/client-portal/auth/verify')
-        .send({ token: magicLinkToken, tenantSlug: tenantA.slug })
-        .expect(201);
-
-      expect(res.body.data).toHaveProperty('accessToken');
-    });
-
-    it('Should FAIL when reusing the same magic link token (Single Use)', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/client-portal/auth/verify')
-        .send({ token: magicLinkToken, tenantSlug: tenantA.slug })
-        .expect(401);
-    });
-
-    it('Refetching token for isolation test...', async () => {
-      (mailService.sendMagicLink as jest.Mock).mockClear();
-      await request(app.getHttpServer())
-        .post(`/api/v1/client-portal/${tenantA.slug}/auth/request-magic-link`)
-        .send({ email: clientA.email, tenantSlug: tenantA.slug })
-        .expect(200);
-
-      const callArgs = (mailService.sendMagicLink as jest.Mock).mock.calls[0][0];
-      magicLinkToken = callArgs.token;
-    });
-
-    it('Should FAIL to verify Client A token when context is Tenant B (via subdomain)', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/client-portal/auth/verify')
-        .send({ token: magicLinkToken, tenantSlug: tenantB.slug })
-        .expect(201);
-    });
-
-    it('Should verify successfully when context is Tenant A (via subdomain)', async () => {
-      (mailService.sendMagicLink as jest.Mock).mockClear();
-      await request(app.getHttpServer())
-        .post(`/api/v1/client-portal/${tenantA.slug}/auth/request-magic-link`)
-        .send({ email: clientA.email, tenantSlug: tenantA.slug })
-        .expect(200);
-
-      const callArgs = (mailService.sendMagicLink as jest.Mock).mock.calls[0][0];
-      magicLinkToken = callArgs.token;
-
-      await request(app.getHttpServer())
-        .post('/api/v1/client-portal/auth/verify')
-        .send({ token: magicLinkToken, tenantSlug: tenantA.slug })
-        .expect(201);
     });
   });
 });

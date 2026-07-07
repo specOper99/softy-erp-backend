@@ -17,8 +17,7 @@
         "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
     ],
     "moduleNameMapper": {
-        "^p-retry$": "<rootDir>/test/__mocks__/p-retry.ts",
-        "^file-type$": "<rootDir>/test/__mocks__/file-type.ts"
+        "^p-retry$": "<rootDir>/test/__mocks__/p-retry.ts"
     },
     "moduleDirectories": [
         "node_modules",

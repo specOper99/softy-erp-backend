@@ -4,7 +4,6 @@ import { Counter } from 'prom-client';
 import { DataSource, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { BUSINESS_CONSTANTS } from '../../../common/constants/business.constants';
 import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
-import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { BookingsPricingService } from './bookings-pricing.service';
 
 import { FlagsService } from '../../../common/flags/flags.service';
@@ -39,19 +38,8 @@ import { AuditService } from '../../audit/audit.service';
 import { BookingRepository } from '../repositories/booking.repository';
 import { ProcessingTypeRepository } from '../repositories/processing-type.repository';
 import { parseCanonicalBookingDateInput } from '../utils/booking-date-policy.util';
+import { applyBookingFilters } from '../utils/booking-query-builder.util';
 import { StaffConflictService } from './staff-conflict.service';
-
-/** Shared filter fields used by both offset and cursor pagination. */
-interface BookingFilterFields {
-  search?: string;
-  status?: BookingStatus[];
-  startDate?: string;
-  endDate?: string;
-  packageId?: string;
-  clientId?: string;
-  minPrice?: number;
-  maxPrice?: number;
-}
 
 @Injectable()
 export class BookingsService {
@@ -245,7 +233,7 @@ export class BookingsService {
 
     qb.skip(query.getSkip()).take(query.getTake());
 
-    this.applyBookingFilters(qb, query);
+    applyBookingFilters(qb, query);
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
@@ -268,7 +256,7 @@ export class BookingsService {
       .leftJoinAndSelect('booking.processingTypes', 'processingTypes')
       .where('booking.tenantId = :tenantId', { tenantId });
 
-    this.applyBookingFilters(qb, query);
+    applyBookingFilters(qb, query);
 
     // RBAC: FIELD_STAFF can only see bookings they are assigned to via tasks
     if (user && user.role === Role.FIELD_STAFF) {
@@ -599,10 +587,6 @@ export class BookingsService {
   }
 
   /**
-   * Apply shared booking filter conditions to a query builder.
-   * Used by findAll (offset), findAllCursor, and export methods.
-   */
-  /**
    * Applies an RBAC filter so FIELD_STAFF can only see bookings where they are
    * explicitly assigned — either via the task_assignees join table or via the
    * legacy assigned_user_id column.
@@ -627,45 +611,6 @@ export class BookingsService {
       ))`,
       { userId },
     );
-  }
-
-  private applyBookingFilters(qb: SelectQueryBuilder<Booking>, filters: BookingFilterFields): void {
-    if (filters.search) {
-      const trimmed = filters.search.trim();
-      applyIlikeSearch(qb, ['client.name', 'client.email', 'booking.notes'], trimmed, {
-        minLength: BUSINESS_CONSTANTS.SEARCH.MIN_LENGTH,
-        maxLength: BUSINESS_CONSTANTS.SEARCH.MAX_LENGTH,
-      });
-    }
-
-    if (filters.status && filters.status.length > 0) {
-      const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
-      qb.andWhere('booking.status IN (:...statuses)', { statuses });
-    }
-
-    if (filters.startDate) {
-      qb.andWhere('booking.eventDate >= :startDate', { startDate: filters.startDate });
-    }
-
-    if (filters.endDate) {
-      qb.andWhere('booking.eventDate <= :endDate', { endDate: filters.endDate });
-    }
-
-    if (filters.packageId) {
-      qb.andWhere('booking.packageId = :packageId', { packageId: filters.packageId });
-    }
-
-    if (filters.clientId) {
-      qb.andWhere('booking.clientId = :clientId', { clientId: filters.clientId });
-    }
-
-    if (filters.minPrice !== undefined) {
-      qb.andWhere('booking.totalPrice >= :minPrice', { minPrice: filters.minPrice });
-    }
-
-    if (filters.maxPrice !== undefined) {
-      qb.andWhere('booking.totalPrice <= :maxPrice', { maxPrice: filters.maxPrice });
-    }
   }
 
   private async ensureNoStaffConflict(input: {

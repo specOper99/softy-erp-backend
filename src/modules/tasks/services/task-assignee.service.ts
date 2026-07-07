@@ -20,6 +20,7 @@ import { TaskAssignee } from '../entities/task-assignee.entity';
 import { Task } from '../entities/task.entity';
 import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
 import { TaskAssignedEvent } from '../events/task-assigned.event';
+import { findTaskWithLock, isFieldStaffAssignedToTask } from '../helpers/task-lock.helper';
 import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
 import { TaskRepository } from '../repositories/task.repository';
 
@@ -42,7 +43,7 @@ export class TaskAssigneeService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     const result = await this.tenantTx.run(async (manager) => {
-      const task = await this.findTaskWithLock(manager, id, tenantId);
+      const task = await findTaskWithLock(manager, id, tenantId);
 
       const oldUserId = task.assignedUserId;
 
@@ -84,7 +85,7 @@ export class TaskAssigneeService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     return this.tenantTx.run(async (manager) => {
-      const task = await this.findTaskWithLock(manager, id, tenantId);
+      const task = await findTaskWithLock(manager, id, tenantId);
       await this.validateUserInTenant(manager, dto.userId, tenantId);
 
       const commissionAmount = MathUtils.round(Number(dto.commissionSnapshot ?? task.commissionSnapshot) || 0);
@@ -135,7 +136,7 @@ export class TaskAssigneeService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     return this.tenantTx.run(async (manager) => {
-      const task = await this.findTaskWithLock(manager, id, tenantId);
+      const task = await findTaskWithLock(manager, id, tenantId);
 
       const assignee = await manager.findOne(TaskAssignee, {
         where: { tenantId, taskId: id, userId },
@@ -170,7 +171,7 @@ export class TaskAssigneeService {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
     await this.tenantTx.run(async (manager) => {
-      const task = await this.findTaskWithLock(manager, id, tenantId);
+      const task = await findTaskWithLock(manager, id, tenantId);
 
       const assignee = await manager.findOne(TaskAssignee, {
         where: { tenantId, taskId: id, userId },
@@ -212,7 +213,7 @@ export class TaskAssigneeService {
       order: { createdAt: 'ASC' },
     });
 
-    if (user.role === Role.FIELD_STAFF && !this.isFieldStaffAssignedToTask(user.id, task, assignees)) {
+    if (user.role === Role.FIELD_STAFF && !isFieldStaffAssignedToTask(user.id, task, assignees)) {
       throw new ForbiddenException('tasks.assignees_forbidden');
     }
 
@@ -289,42 +290,5 @@ export class TaskAssigneeService {
       task.assignedUserId = nextAssignedUserId;
       await manager.save(task);
     }
-  }
-
-  private isFieldStaffAssignedToTask(userId: string, task: Task, assignees: TaskAssignee[]): boolean {
-    return task.assignedUserId === userId || assignees.some((a) => a.userId === userId);
-  }
-
-  private async findTaskWithLock(
-    manager: import('typeorm').EntityManager,
-    id: string,
-    tenantId: string,
-    relations: string[] = ['booking', 'processingType', 'assignedUser'],
-  ): Promise<Task> {
-    const taskLock = await manager.findOne(Task, {
-      where: { id, tenantId },
-      lock: { mode: 'pessimistic_write' },
-    });
-
-    if (!taskLock) {
-      throw new NotFoundException({
-        code: 'tasks.not_found_by_id',
-        args: { id },
-      });
-    }
-
-    const task = await manager.findOne(Task, {
-      where: { id, tenantId },
-      relations,
-    });
-
-    if (!task) {
-      throw new NotFoundException({
-        code: 'tasks.not_found_by_id',
-        args: { id },
-      });
-    }
-
-    return task;
   }
 }

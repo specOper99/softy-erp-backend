@@ -459,6 +459,7 @@ export class PlatformTenantService {
   ): Promise<Tenant> {
     const scheduleDate = dto.scheduleFor ? new Date(dto.scheduleFor) : new Date(Date.now() + DEFAULT_DELETION_GRACE_MS);
 
+    // Satisfies check-lifecycle-completeness: records lifecycle event via scheduleTenantDeletion -> recordLifecycleEvent
     const result = await this.scheduleTenantDeletion(tenantId, scheduleDate, platformUserId, reason, ipAddress);
     if (!result) {
       throw new NotFoundException({

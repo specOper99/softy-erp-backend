@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { TENANT_REPO_PURCHASE_INVOICE } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { isUniqueViolation } from '../../../common/utils/db-error.util';
 import { CreatePurchaseInvoiceDto } from '../dto';
 import { PurchaseInvoice, Vendor } from '../entities';
 import { Transaction } from '../entities/transaction.entity';
@@ -64,7 +65,7 @@ export class PurchaseInvoicesService {
 
       return this.findById(createdInvoice.id);
     } catch (error) {
-      if (this.isUniqueViolation(error)) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException('finance.purchase_invoice_already_exists');
       }
       throw error;
@@ -89,14 +90,5 @@ export class PurchaseInvoicesService {
     }
 
     return purchaseInvoice;
-  }
-
-  private isUniqueViolation(error: unknown): boolean {
-    if (typeof error !== 'object' || error === null) {
-      return false;
-    }
-
-    const record = error as Record<string, unknown>;
-    return record['code'] === '23505';
   }
 }

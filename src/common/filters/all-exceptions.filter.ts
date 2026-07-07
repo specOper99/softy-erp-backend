@@ -15,6 +15,7 @@ import {
   type ApiErrorArgs,
   type ApiValidationErrorItem,
 } from '../i18n/api-error-translation';
+import { resolveLanguageFromHeader } from '../i18n/resolve-language.util';
 
 interface FieldErrorEntry {
   field: string;
@@ -46,9 +47,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     private readonly i18nService: I18nService,
   ) {}
 
-  /** Languages with translation files. */
-  private static readonly SUPPORTED_LANGUAGES = new Set(['en', 'ar', 'ku', 'fr']);
-
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -59,7 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.setHeader('X-Correlation-ID', correlationId);
 
     const i18nLang = I18nContext.current(host)?.lang;
-    const lang = i18nLang ?? this.resolveLanguageFromHeader(request.headers['accept-language'] as string | undefined);
+    const lang = i18nLang ?? resolveLanguageFromHeader(request.headers['accept-language'] as string | undefined);
 
     let status: number;
     let message: string;
@@ -177,17 +175,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const registered = getRegisteredApiErrorKeys();
     if (registered.has(s)) return translateApiErrorMessage(this.i18nService, s, undefined, lang, this.logger);
     return s;
-  }
-
-  private resolveLanguageFromHeader(acceptLanguage: string | undefined): string {
-    if (!acceptLanguage) return 'en';
-    for (const part of acceptLanguage.split(',')) {
-      const raw = (part.split(';')[0] ?? '').trim().toLowerCase();
-      if (AllExceptionsFilter.SUPPORTED_LANGUAGES.has(raw)) return raw;
-      const base = raw.split('-')[0] ?? '';
-      if (AllExceptionsFilter.SUPPORTED_LANGUAGES.has(base)) return base;
-    }
-    return 'en';
   }
 
   private resolveCorrelationId(request: RequestWithCorrelationId): string {

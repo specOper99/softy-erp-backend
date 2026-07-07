@@ -10,20 +10,3 @@ export class UserCreatedEvent implements IEvent {
     public readonly createdAt: Date,
   ) {}
 }
-
-export class UserUpdatedEvent implements IEvent {
-  constructor(
-    public readonly userId: string,
-    public readonly tenantId: string,
-    public readonly changes: Record<string, { old: unknown; new: unknown }>,
-    public readonly updatedAt: Date,
-  ) {}
-
-  get emailChanged(): boolean {
-    return 'email' in this.changes;
-  }
-
-  get roleChanged(): boolean {
-    return 'role' in this.changes;
-  }
-}

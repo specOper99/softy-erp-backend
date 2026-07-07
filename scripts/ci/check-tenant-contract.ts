@@ -101,9 +101,9 @@ const SKIP_TENANT_EXPLICIT_CONTEXT_ALLOWLIST = new Set([
   'src/modules/health/health.controller.ts',
   'src/modules/metrics/metrics.controller.ts',
   'src/modules/auth/auth.controller.ts',
-  'src/modules/platform/controllers/platform-auth.controller.ts',
+  'src/modules/platform/auth/controllers/platform-auth.controller.ts',
   'src/modules/platform/controllers/mfa.controller.ts',
-  'src/modules/platform/controllers/mfa-login.controller.ts',
+  'src/modules/platform/auth/controllers/mfa-login.controller.ts',
 ]);
 
 interface SkipTenantMethodContract {
@@ -150,7 +150,7 @@ const SKIP_TENANT_USAGE_ALLOWLIST: Record<string, SkipTenantUsageAllowlistEntry>
     reason: 'Metrics endpoints are global platform telemetry and intentionally tenant-agnostic.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/controllers/mfa-login.controller.ts': {
+  'src/modules/platform/auth/controllers/mfa-login.controller.ts': {
     reason: 'Platform control-plane login MFA endpoint is global and not tenant-scoped.',
     allowClassDecorator: true,
   },
@@ -166,9 +166,10 @@ const SKIP_TENANT_USAGE_ALLOWLIST: Record<string, SkipTenantUsageAllowlistEntry>
     reason: 'Platform control-plane audit log access is global compliance scope, not tenant request scope.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/controllers/platform-auth.controller.ts': {
+  'src/modules/platform/auth/controllers/platform-auth.controller.ts': {
     reason: 'Platform control-plane auth endpoints are global bootstrap/session flows.',
     allowClassDecorator: true,
+    methods: ['login', 'refreshTokens'],
   },
   'src/modules/platform/controllers/platform-security.controller.ts': {
     reason:

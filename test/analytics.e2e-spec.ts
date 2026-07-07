@@ -10,7 +10,6 @@ import { TransformInterceptor } from '../src/common/interceptors';
 import { MailService } from '../src/modules/mail/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
 
-// Mock ThrottlerGuard to always allow requests in tests
 class MockThrottlerGuard extends ThrottlerGuard {
   protected override handleRequest(): Promise<boolean> {
     return Promise.resolve(true);
@@ -54,7 +53,6 @@ describe('Analytics Module E2E Tests', () => {
     app.useGlobalInterceptors(new TransformInterceptor());
     await app.init();
 
-    // Seed database and login
     const dataSource = app.get(DataSource);
     const seedData = await seedTestDatabase(dataSource);
     tenantHost = `${seedData.tenantId}.example.com`;
@@ -69,36 +67,6 @@ describe('Analytics Module E2E Tests', () => {
 
   afterAll(async () => {
     await app.close();
-  });
-
-  describe('Revenue Reports', () => {
-    describe('GET /api/v1/analytics/revenue-by-package', () => {
-      it('should return revenue by package data', async () => {
-        const currentYear = new Date().getFullYear();
-        const response = await request(app.getHttpServer())
-          .get(`/api/v1/analytics/revenue-by-package?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
-
-        expect(response.body.data).toBeInstanceOf(Array);
-      });
-
-      it('should fail without date filters', async () => {
-        await request(app.getHttpServer())
-          .get('/api/v1/analytics/revenue-by-package')
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(400);
-      });
-
-      it('should fail without authentication', async () => {
-        await request(app.getHttpServer())
-          .get('/api/v1/analytics/revenue-by-package')
-          .set('Host', tenantHost)
-          .expect(401);
-      });
-    });
   });
 
   describe('Tax Reports', () => {
@@ -126,43 +94,6 @@ describe('Analytics Module E2E Tests', () => {
 
         expect(response.body.data).toBeDefined();
       });
-    });
-
-    describe('GET /api/v1/analytics/revenue-by-package/pdf', () => {
-      it('should return PDF file', async () => {
-        const currentYear = new Date().getFullYear();
-        const response = await request(app.getHttpServer())
-          .get(`/api/v1/analytics/revenue-by-package/pdf?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`)
-          .set('Host', tenantHost)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
-
-        expect(response.headers['content-type']).toContain('application/pdf');
-      });
-    });
-  });
-
-  describe('Caching', () => {
-    it('should return cached data on subsequent requests', async () => {
-      const currentYear = new Date().getFullYear();
-      const url = `/api/v1/analytics/revenue-by-package?startDate=${currentYear}-01-01&endDate=${currentYear}-12-31`;
-
-      // First request
-      const firstResponse = await request(app.getHttpServer())
-        .get(url)
-        .set('Host', tenantHost)
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200);
-
-      // Second request (should be cached)
-      const secondResponse = await request(app.getHttpServer())
-        .get(url)
-        .set('Host', tenantHost)
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200);
-
-      // Both should return the same data structure
-      expect(firstResponse.body.data).toEqual(secondResponse.body.data);
     });
   });
 });

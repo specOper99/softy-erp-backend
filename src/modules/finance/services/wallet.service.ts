@@ -5,6 +5,7 @@ import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { isUniqueViolation } from '../../../common/utils/db-error.util';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { EmployeeWallet } from '../entities/employee-wallet.entity';
 import { WalletBalanceUpdatedEvent } from '../events/wallet-balance-updated.event';
@@ -53,7 +54,7 @@ export class WalletService {
         wallet = await this.walletRepository.save(wallet);
       } catch (error) {
         // Handle race condition if unique constraint exists
-        if (this.isUniqueViolation(error)) {
+        if (isUniqueViolation(error)) {
           // Postgres unique_violation
           wallet = await this.walletRepository.findOne({
             where: { userId },
@@ -83,7 +84,7 @@ export class WalletService {
       try {
         wallet = await manager.save(wallet);
       } catch (error) {
-        if (this.isUniqueViolation(error)) {
+        if (isUniqueViolation(error)) {
           wallet = await manager.findOne(EmployeeWallet, {
             where: { userId, tenantId },
             lock: { mode: 'pessimistic_write' },
@@ -353,14 +354,5 @@ export class WalletService {
       }
     }
     return wallet;
-  }
-
-  private isUniqueViolation(error: unknown): boolean {
-    if (typeof error !== 'object' || error === null) {
-      return false;
-    }
-
-    const record = error as Record<string, unknown>;
-    return record['code'] === '23505';
   }
 }

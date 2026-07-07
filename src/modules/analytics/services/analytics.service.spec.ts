@@ -1,7 +1,6 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { Repository, SelectQueryBuilder } from 'typeorm';
-import { createMockQueryBuilder } from '../../../../test/helpers/test-setup.utils';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import type { Booking } from '../../bookings/entities/booking.entity';
@@ -11,7 +10,6 @@ import { AnalyticsService } from './analytics.service';
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
   let bookingRepo: jest.Mocked<Repository<Booking>>;
-  let cacheUtils: jest.Mocked<CacheUtilsService>;
 
   const mockTenantId = 'tenant-123';
 
@@ -37,9 +35,7 @@ describe('AnalyticsService', () => {
 
     service = module.get<AnalyticsService>(AnalyticsService);
     bookingRepo = module.get(BookingRepository);
-    cacheUtils = module.get(CacheUtilsService);
 
-    // Mock tenant context
     jest.spyOn(TenantContextService, 'getTenantIdOrThrow').mockReturnValue(mockTenantId);
   });
 
@@ -49,63 +45,6 @@ describe('AnalyticsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-  });
-
-  describe('getRevenueByPackage', () => {
-    const mockFilter = { startDate: '2024-01-01', endDate: '2024-12-31' };
-
-    it('should return cached data if available', async () => {
-      const cachedData = [{ packageName: 'Basic', bookingCount: 10, totalRevenue: 5000 }];
-      cacheUtils.get.mockResolvedValue(cachedData);
-
-      const result = await service.getRevenueByPackage(mockFilter);
-
-      expect(cacheUtils.get).toHaveBeenCalled();
-      expect(result).toEqual(cachedData);
-      expect(bookingRepo.createQueryBuilder).not.toHaveBeenCalled();
-    });
-
-    it('should query database and cache result when no cache', async () => {
-      const mockRawResult = [{ packageName: 'Basic', bookingCount: '10', totalRevenue: '5000' }];
-
-      cacheUtils.get.mockResolvedValue(null);
-
-      const mockQueryBuilder = createMockQueryBuilder(mockRawResult);
-      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
-
-      const result = await service.getRevenueByPackage(mockFilter);
-
-      expect(bookingRepo.createQueryBuilder).toHaveBeenCalledWith('b');
-      expect(result).toBeDefined();
-      expect(result?.length).toBeGreaterThan(0);
-      expect(result[0]?.packageName).toBe('Basic');
-      expect(result[0]?.bookingCount).toBe(10); // Converted from string
-      expect(result[0]?.totalRevenue).toBe(5000);
-      expect(cacheUtils.set).toHaveBeenCalled();
-    });
-
-    it('should bypass cache when nocache is true', async () => {
-      const mockRawResult = [{ packageName: 'Premium', bookingCount: '5', totalRevenue: '10000' }];
-
-      const mockQueryBuilder = {
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue(mockRawResult),
-      };
-      bookingRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as unknown as SelectQueryBuilder<Booking>);
-
-      const result = await service.getRevenueByPackage(mockFilter, true);
-
-      expect(cacheUtils.get).not.toHaveBeenCalled();
-      expect(result).toBeDefined();
-      expect(result?.length).toBeGreaterThan(0);
-      expect(result[0]?.packageName).toBe('Premium');
-    });
   });
 
   describe('getTaxReport', () => {

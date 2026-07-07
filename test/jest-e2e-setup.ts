@@ -114,11 +114,6 @@ jest.mock('@aws-sdk/client-s3', () => ({
   DeleteObjectCommand: class {},
 }));
 
-// Mock S3 Request Presigner
-jest.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: jest.fn().mockResolvedValue('http://mock-signed-url'),
-}));
-
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 

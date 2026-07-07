@@ -87,12 +87,11 @@
     "deps:audit": "npm audit --omit=dev --audit-level=high",
     "deps:audit:signatures": "npm audit signatures",
     "deps:licenses": "license-checker --production --excludePrivatePackages --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Unlicense;CC0-1.0;CC-BY-4.0;Python-2.0;BlueOak-1.0.0' --summary",
-    "deps:unused": "depcheck --ignores=\"@types/*,ts-node,tsconfig-paths,jest-junit,supertest,sqlite3,@stryker-mutator/*,@testcontainers/*,@pact-foundation/pact,jest,ts-jest,husky,lint-staged,prettier,eslint,eslint-*,@eslint/*,typescript,typescript-eslint,@nestjs/cli,@nestjs/schematics,@types/jest,@types/express,@types/node,@types/multer,@types/bcrypt,@types/qrcode,@types/sanitize-html,@types/passport-jwt,@types/opossum,@types/archiver,@types/node-vault,@types/nodemailer,@types/supertest,@commitlint/*,knip,madge,jscpd,axios,globals\"",
+    "deps:unused": "depcheck --ignores=\"@types/*,ts-node,tsconfig-paths,jest-junit,supertest,sqlite3,@stryker-mutator/*,@testcontainers/*,@pact-foundation/pact,jest,ts-jest,husky,lint-staged,prettier,eslint,eslint-*,@eslint/*,typescript,typescript-eslint,@nestjs/cli,@nestjs/schematics,@types/jest,@types/express,@types/node,@types/multer,@types/bcrypt,@types/qrcode,@types/sanitize-html,@types/passport-jwt,@types/opossum,@types/node-vault,@types/nodemailer,@types/supertest,@commitlint/*,knip,madge,jscpd,axios,globals\"",
     "deps:hygiene": "npm run deps:licenses && npm run deps:audit:signatures && npm run deps:unused"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1073.0",
-    "@aws-sdk/s3-request-presigner": "3.1073.0",
     "@casl/ability": "^6.8.1",
     "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs-modules/mailer": "^2.3.7",
@@ -120,7 +119,6 @@
     "@opentelemetry/sdk-trace-node": "^2.8.0",
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "@sentry/nestjs": "^10.59.0",
-    "archiver": "^8.0.0",
     "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",
     "bullmq": "5.76.6",
@@ -133,7 +131,6 @@
     "date-fns": "^4.4.0",
     "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
-    "file-type": "^22.0.1",
     "handlebars": "^4.7.9",
     "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
@@ -159,7 +156,6 @@
     "sanitize-html": "^2.17.5",
     "socket.io": "^4.8.3",
     "standardwebhooks": "^1.0.0",
-    "stripe": "^22.2.2",
     "typeorm": "^0.3.28",
     "typeorm-transactional": "^0.5.0",
     "unleash-client": "^6.11.0",
@@ -179,7 +175,6 @@
     "@stryker-mutator/jest-runner": "^9.6.1",
     "@stryker-mutator/typescript-checker": "^9.6.1",
     "@testcontainers/postgresql": "^12.0.3",
-    "@types/archiver": "^8.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
@@ -242,8 +237,7 @@
       "node_modules/(?!(uuid|p-limit|yocto-queue)/)"
     ],
     "moduleNameMapper": {
-      "^p-retry$": "<rootDir>/../test/__mocks__/p-retry.ts",
-      "^file-type$": "<rootDir>/../test/__mocks__/file-type.ts"
+      "^p-retry$": "<rootDir>/../test/__mocks__/p-retry.ts"
     },
     "coverageProvider": "v8",
     "collectCoverageFrom": [

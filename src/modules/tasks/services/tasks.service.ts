@@ -21,6 +21,7 @@ import { TaskAssignee } from '../entities/task-assignee.entity';
 import { Task } from '../entities/task.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 import { TaskCompletedEvent } from '../events/task-completed.event';
+import { findTaskWithLock, isFieldStaffAssignedToTask } from '../helpers/task-lock.helper';
 import { TasksExportService } from './tasks-export.service';
 
 import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
@@ -263,14 +264,14 @@ export class TasksService {
       // Step 1: Acquire pessimistic lock to prevent race conditions
       // Note: We MUST NOT include relations here because "FOR UPDATE" cannot be
       // applied to the nullable side of an outer join (which TypeORM uses for relations)
-      const task = await this.findTaskWithLock(manager, id, tenantId);
+      const task = await findTaskWithLock(manager, id, tenantId);
 
       const taskAssignees = await manager.find(TaskAssignee, {
         where: { tenantId, taskId: task.id },
       });
 
       const canFieldStaffComplete =
-        user.role !== Role.FIELD_STAFF || this.isFieldStaffAssignedToTask(user.id, task, taskAssignees);
+        user.role !== Role.FIELD_STAFF || isFieldStaffAssignedToTask(user.id, task, taskAssignees);
 
       if (!canFieldStaffComplete) {
         throw new ForbiddenException('tasks.modify_forbidden');
@@ -379,15 +380,6 @@ export class TasksService {
     throw new ForbiddenException('common.not_allowed');
   }
 
-  /**
-   * Returns true if the given user (FIELD_STAFF) is assigned to the task either
-   * via the direct `assignedUserId` field or via the many-to-many `task_assignees` table.
-   * Consolidates the two historically duplicated checks into one place.
-   */
-  private isFieldStaffAssignedToTask(userId: string, task: Task, assignees: TaskAssignee[]): boolean {
-    return task.assignedUserId === userId || assignees.some((a) => a.userId === userId);
-  }
-
   private createTaskBaseQuery(tenantId: string) {
     return this.taskRepository
       .createQueryBuilder('task')
@@ -396,41 +388,6 @@ export class TasksService {
       .leftJoinAndSelect('task.processingType', 'processingType', 'processingType.tenantId = :tenantId', { tenantId })
       .leftJoinAndSelect('task.assignedUser', 'assignedUser', 'assignedUser.tenantId = :tenantId', { tenantId })
       .andWhere('task.tenantId = :tenantId', { tenantId });
-  }
-
-  private async findTaskWithLock(
-    manager: import('typeorm').EntityManager,
-    id: string,
-    tenantId: string,
-    relations: string[] = ['booking', 'processingType', 'assignedUser'],
-  ): Promise<Task> {
-    // Step 1: Acquire pessimistic lock (without relations due to FOR UPDATE limitation)
-    const taskLock = await manager.findOne(Task, {
-      where: { id, tenantId },
-      lock: { mode: 'pessimistic_write' },
-    });
-
-    if (!taskLock) {
-      throw new NotFoundException({
-        code: 'tasks.not_found_by_id',
-        args: { id },
-      });
-    }
-
-    // Step 2: Fetch actual data with relations
-    const task = await manager.findOne(Task, {
-      where: { id, tenantId },
-      relations,
-    });
-
-    if (!task) {
-      throw new NotFoundException({
-        code: 'tasks.not_found_by_id',
-        args: { id },
-      });
-    }
-
-    return task;
   }
 
   private parseFilterDate(value: string): Date {

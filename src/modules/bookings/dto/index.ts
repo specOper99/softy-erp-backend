@@ -1,3 +1,4 @@
+export * from './booking-filter-fields.dto';
 export * from './booking-cursor-filter.dto';
 export * from './booking-export-filter.dto';
 export * from './booking-filter.dto';
