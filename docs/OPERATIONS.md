@@ -49,10 +49,11 @@ the bundled PostgreSQL service uses the split `DB_*` variables.
 | `SMTP_PORT` | No | SMTP port (default: 587) |
 | `SMTP_USER` | Yes | SMTP username |
 | `SMTP_PASS` | Yes | SMTP password |
-| `MINIO_ENDPOINT` | Yes | MinIO/S3 endpoint |
-| `MINIO_ACCESS_KEY` | Yes | MinIO access key |
-| `MINIO_SECRET_KEY` | Yes | MinIO secret key |
-| `MINIO_BUCKET` | Yes | Default bucket name |
+| `S3_ENDPOINT` | Yes (Prod storage) | Garage/S3 endpoint (path-style) |
+| `S3_ACCESS_KEY` | Yes (Prod storage) | S3 access key |
+| `S3_SECRET_KEY` | Yes (Prod storage) | S3 secret key |
+| `S3_BUCKET` | Yes (Prod storage) | Default bucket name |
+| `S3_REGION` | No | Default `garage` (or provider region) |
 
 ### Observability
 
@@ -85,7 +86,7 @@ The application exposes health check endpoints for Kubernetes probes:
 
 - **Database**: PostgreSQL connectivity
 - **SMTP**: Mail server availability (non-critical)
-- **Storage**: MinIO/S3 connectivity
+- **Storage**: Garage/S3 connectivity (`S3_*` env)
 
 ---
 
@@ -100,15 +101,15 @@ Before deploying to production:
    - [x] `CORS_ORIGINS` is restricted to known origins
 
 2. **Database**
-   - [x] PostgreSQL is accessible
+   - [x] PostgreSQL is accessible (Coolify-managed resource recommended)
    - [x] Choose one DB config shape: `DATABASE_URL` or the full `DB_*` set
-   - [x] If using Docker or Coolify, do not override the container entrypoint; it runs migrations before app boot
-   - [x] For manual recovery, use `npm run migration:run:prod` against built artifacts or `npm run migration:run` from source
+   - [x] If using Docker or Coolify, do not override the container entrypoint; it **waits** for migrations (does not run them)
+   - [x] Devops applies schema with `npm run migration:run:prod` / `node dist/database/migrate.js` before/at release
    - [x] Database user has appropriate permissions
 
 3. **External Services**
    - [x] SMTP server is reachable and credentials valid
-   - [x] MinIO/S3 bucket exists and credentials valid
+   - [x] Garage/S3 bucket exists and `S3_*` credentials valid
    - [x] (Optional) Vault is accessible and token valid
 
 4. **Security**
@@ -127,14 +128,14 @@ Before deploying to production:
 
 ## Coolify / Docker Compose Deployments
 
-Use [backend/docs/COOLIFY_DEPLOYMENT_GUIDE.md](/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/docs/COOLIFY_DEPLOYMENT_GUIDE.md) as the primary runbook for this hosting path.
+Use [backend/docs/COOLIFY_DEPLOYMENT_GUIDE.md](./COOLIFY_DEPLOYMENT_GUIDE.md) as the primary runbook for this hosting path.
 
 Operational notes:
 
-- Point Coolify at [backend/docker-compose.coolify.yml](/Users/mohammadnawfal/Desktop/Archive/softy-erp/backend/docker-compose.coolify.yml).
-- Do not set a custom start command or entrypoint override in Coolify. The image entrypoint runs `node dist/database/migrate.js` before `node dist/main.js`.
-- In this deployment path, `DB_MIGRATIONS_RUN=false` is intentional. The entrypoint is the authoritative migration runner, and the app still checks for pending migrations at startup.
-- Check the backend container logs, not only the high-level Coolify deployment log. A healthy boot sequence includes `Waiting for PostgreSQL`, `Running database migrations`, then either `Applied ... migration(s)` or `No pending migrations.`
+- Point Coolify at [backend/docker-compose.coolify.yml](../docker-compose.coolify.yml). Compose is **backend-only**; Postgres, Redis, and Garage are Coolify-managed resources.
+- Do not set a custom start command or entrypoint override in Coolify. The image entrypoint runs `node dist/database/wait-for-migrations.js` before `node dist/main.js`.
+- In this deployment path, `DB_MIGRATIONS_RUN=false` is intentional. Devops runs `node dist/database/migrate.js` as a one-off; the entrypoint only waits until `showMigrations()` reports no pending work. The app still re-checks pending migrations at Nest boot.
+- Check the backend container logs, not only the high-level Coolify deployment log. Healthy boot: `Waiting for PostgreSQL` → `Waiting for database migrations...` → `No pending migrations. Schema is ready.` → `Starting application...`.
 - Verify liveness at `GET /api/v1/health/live` after the backend container reports startup complete.
 
 ---

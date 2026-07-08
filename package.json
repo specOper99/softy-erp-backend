@@ -256,6 +256,7 @@
       "!database/seed.ts",
       "!**/*.spec.ts",
       "!database/migrate.ts",
+      "!database/wait-for-migrations.ts",
       "!database/create-admin.ts"
     ],
     "coverageDirectory": "../coverage",

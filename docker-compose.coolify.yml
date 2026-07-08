@@ -1,68 +1,15 @@
 # ============================================================================
-# Coolify production stack: backend + postgres + redis + minio.
+# Coolify production stack: backend only.
 # Build Pack: Docker Compose. Point Coolify at this file.
+#
+# Postgres, Redis, and Garage (S3-compatible storage) are Coolify-managed
+# standalone resources — NOT part of this compose. Attach them to the same
+# project/network in Coolify UI and inject connection env vars below.
+#
 # Secrets are injected via Coolify UI -> Environment Variables (NOT committed).
-# All services share the project network -> reach each other by service name.
 # ============================================================================
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_DATABASE}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}']
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  minio-init:
-    image: minio/mc:latest
-    restart: "no"
-    depends_on:
-      minio:
-        condition: service_healthy
-    environment:
-      MINIO_BUCKET: ${MINIO_BUCKET}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-    entrypoint: >
-      /bin/sh -c "
-      if [ -z \"$$MINIO_BUCKET\" ]; then echo 'ERROR: MINIO_BUCKET is not set' >&2; exit 1; fi;
-      /usr/bin/mc alias set m http://minio:9000 \"$$MINIO_ACCESS_KEY\" \"$$MINIO_SECRET_KEY\";
-      /usr/bin/mc mb \"m/$$MINIO_BUCKET\" --ignore-existing;
-      exit 0;
-      "
-
   backend:
     build:
       context: .
@@ -70,25 +17,29 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # --- Database (service name, not localhost) ---
-      DB_HOST: postgres
-      DB_PORT: 5432
+      # --- Database (Coolify-managed Postgres; use host from that resource) ---
+      # Prefer split DB_* or a single DATABASE_URL — both are supported by db-config.
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
+      DATABASE_URL: ${DATABASE_URL:-}
       DB_SYNCHRONIZE: 'false'
-      # Entrypoint runs migrations before app boot in this deployment path.
+      # Migrations are devops one-off (node dist/database/migrate.js). Entrypoint waits.
       DB_MIGRATIONS_RUN: 'false'
-      # --- Cache ---
-      REDIS_URL: redis://redis:6379
-      # --- Object storage ---
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
-      MINIO_BUCKET: ${MINIO_BUCKET}
-      MINIO_REGION: ${MINIO_REGION:-us-east-1}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      UPLOAD_TO_MINIO: 'true'
+      DB_WAIT_RETRIES: ${DB_WAIT_RETRIES:-30}
+      DB_WAIT_DELAY: ${DB_WAIT_DELAY:-2}
+      MIGRATION_WAIT_RETRIES: ${MIGRATION_WAIT_RETRIES:-60}
+      MIGRATION_WAIT_DELAY: ${MIGRATION_WAIT_DELAY:-5}
+      # --- Cache (Coolify-managed Redis) ---
+      REDIS_URL: ${REDIS_URL}
+      # --- Object storage (Coolify-managed Garage / any S3 path-style endpoint) ---
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_REGION: ${S3_REGION:-garage}
       # --- Required secrets (set in Coolify env) ---
       JWT_SECRET: ${JWT_SECRET}
       PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET}
@@ -121,28 +72,26 @@ services:
       SEED_TENANT_SLUG: ${SEED_TENANT_SLUG:-default-org}
       SEED_EMAIL_DOMAIN: ${SEED_EMAIL_DOMAIN:-soft-y.org}
     healthcheck:
-      # Override Dockerfile HEALTHCHECK with a longer start_period so Coolify
-      # does not count migration time against the retry budget and trigger
-      # premature restarts on slow first-boot or DB schema upgrades.
+      # start_period covers DB wait + migration-wait poll + Nest boot so Coolify
+      # does not restart the container while devops applies schema.
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/v1/health/live || exit 1']
       interval: 15s
       timeout: 5s
       start_period: 180s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+    mem_limit: 768M
+    cpus: 1.0
     volumes:
       - logs_data:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
     ports:
       - '3000'
 
 volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
   logs_data:

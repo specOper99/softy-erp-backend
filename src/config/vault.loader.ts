@@ -29,7 +29,13 @@ const ALLOWED_VAULT_KEYS = new Set([
   'MAIL_USER',
   'MAIL_PASS',
   'MAIL_PASSWORD',
-  // Storage
+  // Storage (S3-compatible: Garage, MinIO, AWS)
+  'S3_ENDPOINT',
+  'S3_ACCESS_KEY',
+  'S3_SECRET_KEY',
+  'S3_BUCKET',
+  'S3_REGION',
+  // Legacy MinIO names (local/dev scripts may still emit these)
   'MINIO_ACCESS_KEY',
   'MINIO_SECRET_KEY',
   'MINIO_ENDPOINT',

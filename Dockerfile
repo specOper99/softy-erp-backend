@@ -33,7 +33,7 @@ COPY --from=builder --chown=65532:65532 /app/package*.json ./
 # Create writable logs directory for Winston file transport (production)
 RUN mkdir -p /app/logs && chown 65532:65532 /app/logs
 
-# Copy entrypoint script that runs migrations then starts the app
+# Copy entrypoint: waits for devops-applied migrations, then starts the app
 COPY --chown=65532:65532 entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
@@ -44,13 +44,14 @@ EXPOSE 3000
 # Kubernetes deployments should use the liveness/readiness probes instead:
 #   - Liveness probe:  GET /api/v1/health/live  (port 3000)
 #   - Readiness probe: GET /api/v1/health/ready (port 3000)
-# start-period covers DB-readiness wait + migrations + Nest boot before
-# failures count against the container (prevents kill during slow first boot).
+# start-period covers DB-readiness wait + migration-wait poll + Nest boot before
+# failures count against the container (prevents kill while devops applies schema).
 HEALTHCHECK --interval=10s --timeout=5s --start-period=120s --retries=5 \
   CMD wget -qO- http://localhost:3000/api/v1/health/live || exit 1
 
 USER 65532
 
-# Entrypoint runs pending migrations, then starts the app.
+# Entrypoint waits for pending migrations (does NOT run them), then starts the app.
+# Admin one-off: node dist/database/migrate.js
 # `exec` replaces the shell process so SIGTERM is forwarded correctly.
 ENTRYPOINT ["./entrypoint.sh"]
