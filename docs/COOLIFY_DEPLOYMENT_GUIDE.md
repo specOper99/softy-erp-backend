@@ -64,23 +64,27 @@ Resource limits in compose (`mem_limit: 768M`, `cpus: 1.0`) are a starting point
 
 ## Migrations (devops one-off)
 
-The container **does not** run migrations. Entrypoint polls until schema has no pending migrations, then starts Nest.
+The `backend` container **does not** run migrations. Its entrypoint (`wait-for-migrations.js`) polls until schema has no pending migrations, then starts Nest. Devops applies migrations out-of-band via the dedicated `migrate` service.
 
-**Before** (or immediately after) deploying a release that needs schema changes:
+### Why a dedicated migrate service (not `Execute Command`)
 
-1. Ensure the new image is built/available (deploy once so the container exists, or run a one-off from the same image).
-2. In Coolify → backend service → **Execute Command** (or equivalent one-off):
+The backend entrypoint blocks until schema is ready, so the app container may be mid-wait or restarting — an unreliable `Execute Command` target. The `migrate` service in `docker-compose.coolify.yml` is **profile-gated** (`profiles: ['migrate']`), so a normal deploy never starts it, and it **overrides the entrypoint** to run migrations directly (no wait). `restart: 'no'` means it applies migrations once and exits — never crash-loops.
+
+### Apply migrations (run this BEFORE / at release)
+
+From the Coolify server host terminal, in the backend project directory:
 
 ```bash
-node dist/database/migrate.js
+docker compose -f docker-compose.coolify.yml --profile migrate run --rm migrate
 ```
 
-Equivalent from a built tree: `npm run migration:run:prod`.
+This waits for Postgres, applies pending migrations, validates runtime schema, then exits 0. Equivalent from a built tree elsewhere: `npm run migration:run:prod`.
 
-3. Confirm logs show `Applied ... migration(s)` or `No pending migrations.`
-4. App entrypoint will proceed past the wait and boot (`Starting application...`).
+Confirm logs show `Applied ... migration(s)` or `No pending migrations.`, then (re)deploy / start the backend. Its wait gate sees zero pending and boots.
 
-### Boot sequence (healthy logs)
+> Coolify note: for a compose stack there is **no** Pre/Post-deploy command field (that exists only for Nixpacks/Dockerfile *Application* resources). The profile-gated `migrate` service is the supported path. If you instead want migrations to run automatically inside the deployed stack, make the service non-profiled and add the Coolify-only field `exclude_from_hc: true` (plus `restart: 'no'`) so the exited container is not flagged unhealthy — but that reintroduces auto-migrate, which this setup intentionally avoids.
+
+### Boot sequence (healthy backend logs)
 
 ```text
 Waiting for PostgreSQL at ...
@@ -90,7 +94,11 @@ No pending migrations. Schema is ready.
 Starting application...
 ```
 
-If devops has not migrated yet, logs repeat `pending migrations still present` until timeout (`MIGRATION_WAIT_RETRIES` × `MIGRATION_WAIT_DELAY`, defaults 60 × 5s), then exit 1. Healthcheck `start_period: 180s` covers the wait window.
+If devops has not migrated yet, logs repeat `pending migrations still present` until timeout, then exit 1.
+
+### Timing (avoids the restart storm)
+
+Worst-case entrypoint wait = DB wait (`DB_WAIT_RETRIES`×`DB_WAIT_DELAY`, default 30×2 = 60s) + migration wait (`MIGRATION_WAIT_RETRIES`×`MIGRATION_WAIT_DELAY`, default 30×5 = 150s) = **210s**. Healthcheck `start_period` is **240s** so the liveness probe never fails the container mid-wait. Keep `start_period > total wait`; if you raise the wait envs, raise `start_period` to match, or the container will be killed and restart-loop.
 
 Tune wait via env: `DB_WAIT_RETRIES`, `DB_WAIT_DELAY`, `MIGRATION_WAIT_RETRIES`, `MIGRATION_WAIT_DELAY`.
 

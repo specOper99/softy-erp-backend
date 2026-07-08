@@ -30,7 +30,9 @@ services:
       DB_MIGRATIONS_RUN: 'false'
       DB_WAIT_RETRIES: ${DB_WAIT_RETRIES:-30}
       DB_WAIT_DELAY: ${DB_WAIT_DELAY:-2}
-      MIGRATION_WAIT_RETRIES: ${MIGRATION_WAIT_RETRIES:-60}
+      # Bounded so worst-case wait (DB 60s + migration 150s = 210s) stays under the
+      # healthcheck start_period (240s) -> container is never killed mid-wait.
+      MIGRATION_WAIT_RETRIES: ${MIGRATION_WAIT_RETRIES:-30}
       MIGRATION_WAIT_DELAY: ${MIGRATION_WAIT_DELAY:-5}
       # --- Cache (Coolify-managed Redis) ---
       REDIS_URL: ${REDIS_URL}
@@ -72,12 +74,14 @@ services:
       SEED_TENANT_SLUG: ${SEED_TENANT_SLUG:-default-org}
       SEED_EMAIL_DOMAIN: ${SEED_EMAIL_DOMAIN:-soft-y.org}
     healthcheck:
-      # start_period covers DB wait + migration-wait poll + Nest boot so Coolify
-      # does not restart the container while devops applies schema.
+      # start_period (240s) must exceed the worst-case entrypoint wait
+      # (DB wait 60s + migration wait 150s + Nest boot buffer). Otherwise the
+      # liveness probe fails while wait-for-migrations is still polling and
+      # Coolify kills+restarts the container mid-wait -> the restart storm.
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/v1/health/live || exit 1']
       interval: 15s
       timeout: 5s
-      start_period: 180s
+      start_period: 240s
       retries: 5
     deploy:
       resources:
@@ -92,6 +96,45 @@ services:
       - logs_data:/app/logs
     ports:
       - '3000'
+
+  # --------------------------------------------------------------------------
+  # Devops one-off migration runner. NOT started on a normal deploy (gated by
+  # the `migrate` compose profile). Overrides the image entrypoint so it runs
+  # migrations directly instead of the wait-for-migrations gate.
+  #
+  # Trigger it manually from the Coolify server terminal (host), e.g.:
+  #   docker compose -f docker-compose.coolify.yml --profile migrate \
+  #     run --rm migrate
+  #
+  # It waits for Postgres, applies pending migrations, validates schema, exits.
+  # Once it exits 0, the backend's wait-for-migrations gate sees zero pending
+  # and boots. `restart: no` guarantees it never crash-loops.
+  #
+  # NOTE: `exclude_from_hc: true` (a Coolify-only field) is intentionally NOT
+  # set here — with a profile-gated service it is unnecessary (the container is
+  # never part of the deployed stack) and it would break raw `docker compose`
+  # validation / the manual trigger command above.
+  # --------------------------------------------------------------------------
+  migrate:
+    profiles: ['migrate']
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: 'no'
+    entrypoint: ['node', 'dist/database/migrate.js']
+    environment:
+      NODE_ENV: production
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DATABASE_URL: ${DATABASE_URL:-}
+      DB_SYNCHRONIZE: 'false'
+      DB_WAIT_RETRIES: ${DB_WAIT_RETRIES:-30}
+      DB_WAIT_DELAY: ${DB_WAIT_DELAY:-2}
+      MIGRATE_RETRIES: ${MIGRATE_RETRIES:-5}
+      MIGRATE_DELAY: ${MIGRATE_DELAY:-3}
 
 volumes:
   logs_data:
