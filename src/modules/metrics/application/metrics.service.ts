@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { collectDefaultMetrics, Counter, Gauge, Histogram, register } from 'prom-client';
-import { MetricsFactory } from '../../common/services/metrics.factory';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 
 // Initialize default metrics (CPU, memory, event loop, etc.)
 collectDefaultMetrics({ prefix: 'softy_' });
@@ -13,6 +13,8 @@ export class MetricsService {
   readonly httpRequestDuration: Histogram<string>;
   readonly activeConnections: Gauge<string>;
   readonly dbQueryDuration: Histogram<string>;
+  readonly outboxPendingGauge: Gauge<string>;
+  readonly outboxDeadLetterTotal: Counter<string>;
 
   constructor(private readonly metricsFactory: MetricsFactory) {
     this.httpRequestsTotal = this.metricsFactory.getOrCreateCounter({
@@ -38,6 +40,17 @@ export class MetricsService {
       help: 'Database query duration in seconds',
       labelNames: ['operation'],
       buckets: [0.001, 0.01, 0.05, 0.1, 0.5, 1],
+    });
+
+    this.outboxPendingGauge = this.metricsFactory.getOrCreateGauge({
+      name: 'softy_outbox_pending_events',
+      help: 'Count of outbox events awaiting dispatch',
+    });
+
+    this.outboxDeadLetterTotal = this.metricsFactory.getOrCreateCounter({
+      name: 'softy_outbox_dead_letter_total',
+      help: 'Outbox events moved to dead letter',
+      labelNames: ['eventType'],
     });
   }
   /**

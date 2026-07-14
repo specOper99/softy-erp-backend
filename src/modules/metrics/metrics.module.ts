@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MetricsFactory } from '../../common/services/metrics.factory';
-import { MetricsGuard } from './guards/metrics.guard';
-import { MetricsController } from './metrics.controller';
-import { MetricsService } from './metrics.service';
+import { MetricsController } from './api/metrics.controller';
+import { MetricsService } from './application/metrics.service';
+import { MetricsGuard } from './infrastructure/guards/metrics.guard';
 
 @Module({
   controllers: [MetricsController],

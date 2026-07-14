@@ -1,9 +1,9 @@
 import { Controller, Get, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
-import { MetricsGuard } from './guards/metrics.guard';
-import { MetricsService } from './metrics.service';
+import { SkipTenant } from '../../../modules/tenants/infrastructure/decorators/skip-tenant.decorator';
+import { MetricsGuard } from '../infrastructure/guards/metrics.guard';
+import { MetricsService } from '../application/metrics.service';
 
 @ApiTags('Metrics')
 @Controller('metrics')

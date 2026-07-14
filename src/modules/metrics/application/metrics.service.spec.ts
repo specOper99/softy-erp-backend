@@ -1,7 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { createMockMetricsFactory } from '../../../test/helpers/mock-factories';
-import { MetricsFactory } from '../../common/services/metrics.factory';
+import { createMockMetricsFactory } from '../../../../test/helpers/mock-factories';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import { MetricsService } from './metrics.service';
 
 describe('MetricsService', () => {
