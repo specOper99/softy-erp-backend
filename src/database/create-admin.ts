@@ -21,8 +21,8 @@ import type { Repository } from 'typeorm';
 import { AppModule } from '../app.module';
 import { PasswordHashService } from '../common/services/password-hash.service';
 import { toErrorMessage } from '../common/utils/error.util';
-import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
-import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
+import { PlatformUser } from '../modules/platform/domain/entities/platform-user.entity';
+import { PlatformRole } from '../modules/platform/domain/enums/platform-role.enum';
 
 const rl = readline.createInterface({
   input: process.stdin,

@@ -6,49 +6,50 @@ import { getDatabaseConnectionConfig } from './db-config';
 import { patchTypeOrmMigrationOrdering } from './patch-typeorm-migration-order';
 // Import all entities
 import { OutboxEvent } from '../common/entities/outbox-event.entity';
-import { AuditLog } from '../modules/audit/entities/audit-log.entity';
-import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
-import { Booking } from '../modules/bookings/entities/booking.entity';
-import { Client } from '../modules/bookings/entities/client.entity';
-import { ProcessingType } from '../modules/bookings/entities/processing-type.entity';
-import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
-import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
-import { Invoice } from '../modules/finance/entities/invoice.entity';
-import { Payout } from '../modules/finance/entities/payout.entity';
-import { PurchaseInvoice } from '../modules/finance/entities/purchase-invoice.entity';
-import { RecurringTransaction } from '../modules/finance/entities/recurring-transaction.entity';
-import { TransactionCategory } from '../modules/finance/entities/transaction-category.entity';
-import { Transaction } from '../modules/finance/entities/transaction.entity';
-import { Vendor } from '../modules/finance/entities/vendor.entity';
-import { PayrollRun } from '../modules/hr/entities/payroll-run.entity';
-import { Profile } from '../modules/hr/entities/profile.entity';
-import { EmailTemplate } from '../modules/mail/entities/email-template.entity';
-import { NotificationPreference } from '../modules/notifications/entities/notification-preference.entity';
-import { Notification } from '../modules/notifications/entities/notification.entity';
-import { TaskAssignee } from '../modules/tasks/entities/task-assignee.entity';
-import { Task } from '../modules/tasks/entities/task.entity';
-import { TimeEntry } from '../modules/tasks/entities/time-entry.entity';
-import { Tenant } from '../modules/tenants/entities/tenant.entity';
-import { User } from '../modules/users/entities/user.entity';
+import { ConsumerInbox } from '../common/entities/consumer-inbox.entity';
+import { AuditLog } from '../modules/audit/domain/entities';
+import { RefreshToken } from '../modules/auth/domain/entities/refresh-token.entity';
+import { Booking } from '../modules/bookings/domain/entities/booking.entity';
+import { Client } from '../modules/clients/domain/entities/client.entity';
+import { ProcessingType } from '../modules/bookings/domain/entities/processing-type.entity';
+import { ServicePackage } from '../modules/catalog/domain/entities/service-package.entity';
+import { EmployeeWallet } from '../modules/finance/domain/entities/employee-wallet.entity';
+import { Invoice } from '../modules/finance/domain/entities/invoice.entity';
+import { Payout } from '../modules/finance/domain/entities/payout.entity';
+import { PurchaseInvoice } from '../modules/finance/domain/entities/purchase-invoice.entity';
+import { RecurringTransaction } from '../modules/finance/domain/entities/recurring-transaction.entity';
+import { TransactionCategory } from '../modules/finance/domain/entities/transaction-category.entity';
+import { Transaction } from '../modules/finance/domain/entities/transaction.entity';
+import { Vendor } from '../modules/finance/domain/entities/vendor.entity';
+import { PayrollRun } from '../modules/hr/domain/entities/payroll-run.entity';
+import { Profile } from '../modules/hr/domain/entities/profile.entity';
+import { EmailTemplate } from '../modules/mail/domain/entities';
+import { NotificationPreference } from '../modules/notifications/domain/entities/notification-preference.entity';
+import { Notification } from '../modules/notifications/domain/entities/notification.entity';
+import { TaskAssignee } from '../modules/tasks/domain/entities/task-assignee.entity';
+import { Task } from '../modules/tasks/domain/entities/task.entity';
+import { TimeEntry } from '../modules/tasks/domain/entities/time-entry.entity';
+import { Tenant } from '../modules/tenants/domain/entities/tenant.entity';
+import { User } from '../modules/users/domain/entities/user.entity';
 
 // Missing entities added
 import { RuntimeFailure } from '../common/errors/runtime-failure';
-import { DailyMetrics } from '../modules/analytics/entities/daily-metrics.entity';
-import { EmailVerificationToken } from '../modules/auth/entities/email-verification-token.entity';
-import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
-import { UserPreference } from '../modules/dashboard/entities/user-preference.entity';
-import { DepartmentBudget } from '../modules/finance/entities/department-budget.entity';
-import { Attendance } from '../modules/hr/entities/attendance.entity';
-import { PerformanceReview } from '../modules/hr/entities/performance-review.entity';
-import { ProcessingTypeEligibility } from '../modules/hr/entities/processing-type-eligibility.entity';
-import { TaskTemplate } from '../modules/tasks/entities/task-template.entity';
-import { Subscription as TenantSubscription } from '../modules/tenants/entities/subscription.entity';
-import { TenantLifecycleEvent } from '../modules/platform/entities/tenant-lifecycle-event.entity';
-import { ImpersonationSession } from '../modules/platform/entities/impersonation-session.entity';
-import { PlatformAuditLog } from '../modules/platform/entities/platform-audit-log.entity';
-import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
-import { PlatformRefreshToken } from '../modules/platform/auth/entities/platform-refresh-token.entity';
-import { PrivacyRequest } from '../modules/privacy/entities/privacy-request.entity';
+import { DailyMetrics } from '../modules/analytics/domain/entities/daily-metrics.entity';
+import { EmailVerificationToken } from '../modules/auth/domain/entities/email-verification-token.entity';
+import { PasswordResetToken } from '../modules/auth/domain/entities/password-reset-token.entity';
+import { UserPreference } from '../modules/dashboard/domain/entities/user-preference.entity';
+import { DepartmentBudget } from '../modules/finance/domain/entities/department-budget.entity';
+import { Attendance } from '../modules/hr/domain/entities/attendance.entity';
+import { PerformanceReview } from '../modules/hr/domain/entities/performance-review.entity';
+import { ProcessingTypeEligibility } from '../modules/hr/domain/entities/processing-type-eligibility.entity';
+import { TaskTemplate } from '../modules/tasks/domain/entities/task-template.entity';
+import { Subscription as TenantSubscription } from '../modules/tenants/domain/entities/subscription.entity';
+import { TenantLifecycleEvent } from '../modules/platform/domain/entities/tenant-lifecycle-event.entity';
+import { ImpersonationSession } from '../modules/platform/domain/entities/impersonation-session.entity';
+import { PlatformAuditLog } from '../modules/platform/domain/entities/platform-audit-log.entity';
+import { PlatformUser } from '../modules/platform/domain/entities/platform-user.entity';
+import { PlatformRefreshToken } from '../modules/platform/domain/entities/platform-refresh-token.entity';
+import { PrivacyRequest } from '../modules/privacy/domain/entities/privacy-request.entity';
 
 patchTypeOrmMigrationOrdering();
 
@@ -65,6 +66,7 @@ export const ALL_ENTITIES = [
   TaskAssignee,
   TimeEntry,
   OutboxEvent,
+  ConsumerInbox,
   Transaction,
   TransactionCategory,
   RecurringTransaction,

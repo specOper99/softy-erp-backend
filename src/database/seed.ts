@@ -64,16 +64,16 @@ if (missingEnvVars.length > 0) {
 }
 
 // Import entities used by seed logic
-import { ServicePackage } from '../modules/catalog/entities/service-package.entity';
-import { EmployeeWallet } from '../modules/finance/entities/employee-wallet.entity';
-import { TransactionCategory } from '../modules/finance/entities/transaction-category.entity';
-import { TransactionType } from '../modules/finance/enums/transaction-type.enum';
-import { Profile } from '../modules/hr/entities/profile.entity';
-import { PlatformUser } from '../modules/platform/entities/platform-user.entity';
-import { PlatformRole } from '../modules/platform/enums/platform-role.enum';
-import { Tenant } from '../modules/tenants/entities/tenant.entity';
-import { User } from '../modules/users/entities/user.entity';
-import { Role } from '../modules/users/enums/role.enum';
+import { ServicePackage } from '../modules/catalog/domain/entities/service-package.entity';
+import { EmployeeWallet } from '../modules/finance/domain/entities/employee-wallet.entity';
+import { TransactionCategory } from '../modules/finance/domain/entities/transaction-category.entity';
+import { TransactionType } from '../modules/finance/domain/enums/transaction-type.enum';
+import { Profile } from '../modules/hr/domain/entities/profile.entity';
+import { PlatformUser } from '../modules/platform/domain/entities/platform-user.entity';
+import { PlatformRole } from '../modules/platform/domain/enums/platform-role.enum';
+import { Tenant } from '../modules/tenants/domain/entities/tenant.entity';
+import { User } from '../modules/users/domain/entities/user.entity';
+import { Role } from '../modules/users/domain/enums/role.enum';
 
 // Create data source
 const shouldDropSchema = (process.env.SEED_DROP_SCHEMA ?? 'false') === 'true';
