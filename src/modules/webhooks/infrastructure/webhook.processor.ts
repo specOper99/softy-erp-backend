@@ -1,8 +1,8 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Webhook } from '../entities/webhook.entity';
-import { WebhookService } from '../webhooks.service';
-import { WEBHOOK_QUEUE, WebhookJobData } from '../webhooks.types';
+import { WebhookService } from '../application/webhooks.service';
+import { WEBHOOK_QUEUE, WebhookJobData } from '../application/webhooks.types';
+import { Webhook } from '../domain/entities/webhook.entity';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { toErrorMessage } from '../../../common/utils/error.util';

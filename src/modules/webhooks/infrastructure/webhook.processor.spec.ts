@@ -1,8 +1,8 @@
 import type { Job } from 'bullmq';
 import { RuntimeFailure } from '../../../common/errors/runtime-failure';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import type { WebhookJobData } from '../webhooks.types';
-import type { WebhookService } from '../webhooks.service';
+import type { WebhookService } from '../application/webhooks.service';
+import type { WebhookJobData } from '../application/webhooks.types';
 import { WebhookProcessor } from './webhook.processor';
 
 describe('WebhookProcessor', () => {

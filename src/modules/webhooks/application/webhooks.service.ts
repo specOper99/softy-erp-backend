@@ -15,16 +15,16 @@ import * as https from 'node:https';
 import { isIP } from 'node:net';
 import { SelectQueryBuilder } from 'typeorm';
 import { Webhook as StandardWebhook } from 'standardwebhooks';
-import { WEBHOOK_CONSTANTS } from '../../common/constants';
-import { EncryptionService } from '../../common/services/encryption.service';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { DeliveryStatus, WebhookDelivery } from './entities/webhook-delivery.entity';
-import { Webhook } from './entities/webhook.entity';
-import { WebhookDeliveryRepository } from './repositories/webhook-delivery.repository';
-import { WebhookRepository } from './repositories/webhook.repository';
+import { WEBHOOK_CONSTANTS } from '../../../common/constants';
+import { EncryptionService } from '../../../common/services/encryption.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
+import { DeliveryStatus, WebhookDelivery } from '../domain/entities/webhook-delivery.entity';
+import { Webhook } from '../domain/entities/webhook.entity';
+import { WebhookDeliveryRepository } from '../infrastructure/webhook-delivery.repository';
+import { WebhookRepository } from '../infrastructure/webhook.repository';
 import { WEBHOOK_QUEUE, WebhookConfig, WebhookEvent, WebhookJobData } from './webhooks.types';
-import { toErrorMessage } from '../../common/utils/error.util';
-import { MetricsFactory } from '../../common/services/metrics.factory';
 import { Counter } from 'prom-client';
 
 type PLimit = typeof import('p-limit').default;
@@ -285,7 +285,7 @@ export class WebhookService {
    * If queue is available, jobs are enqueued for background processing.
    * Otherwise falls back to inline delivery with concurrency limit.
    */
-  async emit(event: WebhookEvent): Promise<void> {
+  async emit(event: WebhookEvent, options?: { throwOnFailure?: boolean }): Promise<void> {
     const tenantId = event.tenantId;
     if (!tenantId) {
       throw new BadRequestException('common.tenant_missing');
@@ -341,7 +341,13 @@ export class WebhookService {
         }
       });
 
-      await Promise.allSettled(deliveries);
+      const results = await Promise.allSettled(deliveries);
+      if (options?.throwOnFailure) {
+        const firstRejection = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+        if (firstRejection) {
+          throw firstRejection.reason;
+        }
+      }
     });
   }
 

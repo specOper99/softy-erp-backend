@@ -1,5 +1,5 @@
 import { Column, Entity, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { BaseTenantEntity } from '../../../../common/entities/abstract.entity';
 import { Webhook } from './webhook.entity';
 
 export enum DeliveryStatus {
