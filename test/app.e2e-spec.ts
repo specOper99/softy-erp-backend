@@ -6,7 +6,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
-import { MailService } from '../src/modules/mail/mail.service';
+import { MailService } from '../src/modules/mail/application/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
 
 describe('AppController (e2e)', () => {

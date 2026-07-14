@@ -8,8 +8,8 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../../../src/app.module';
 import { IpRateLimitGuard } from '../../../src/common/guards/ip-rate-limit.guard';
 import { TransformInterceptor } from '../../../src/common/interceptors';
-import { MailService } from '../../../src/modules/mail/mail.service';
-import { Role } from '../../../src/modules/users/enums/role.enum';
+import { MailService } from '../../../src/modules/mail/application/mail.service';
+import { Role } from '../../../src/modules/users/domain/enums/role.enum';
 import { seedTestDatabase } from '../../utils/seed-data';
 
 class MockThrottlerGuard extends ThrottlerGuard {

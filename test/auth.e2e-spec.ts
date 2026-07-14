@@ -8,8 +8,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
-import { MailService } from '../src/modules/mail/mail.service';
-import { User } from '../src/modules/users/entities/user.entity';
+import { MailService } from '../src/modules/mail/application/mail.service';
+import { User } from '../src/modules/users/domain/entities/user.entity';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock ThrottlerGuard to always allow requests in tests

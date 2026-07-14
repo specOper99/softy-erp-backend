@@ -1,16 +1,16 @@
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
-import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
-import { Client } from '../../../src/modules/bookings/entities/client.entity';
-import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
-import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
-import { Invoice } from '../../../src/modules/finance/entities/invoice.entity';
-import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
-import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
-import { Task } from '../../../src/modules/tasks/entities/task.entity';
-import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
+import { Booking } from '../../../src/modules/bookings/domain/entities/booking.entity';
+import { Client } from '../../../src/modules/clients/domain/entities/client.entity';
+import { BookingStatus } from '../../../src/modules/bookings/domain/enums/booking-status.enum';
+import { ServicePackage } from '../../../src/modules/catalog/domain/entities/service-package.entity';
+import { ProcessingType } from '../../../src/modules/catalog/domain/entities/task-type.entity';
+import { Invoice } from '../../../src/modules/finance/domain/entities/invoice.entity';
+import { Transaction } from '../../../src/modules/finance/domain/entities/transaction.entity';
+import { TransactionType } from '../../../src/modules/finance/domain/enums/transaction-type.enum';
+import { Task } from '../../../src/modules/tasks/domain/entities/task.entity';
+import { TaskStatus } from '../../../src/modules/tasks/domain/enums/task-status.enum';
 
 describe('FinanceRepository Integration Tests', () => {
   let dataSource: DataSource;

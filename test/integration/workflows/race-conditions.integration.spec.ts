@@ -6,13 +6,13 @@
  */
 
 import type { DataSource, EntityManager, Repository } from 'typeorm';
-import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
-import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
-import { EmployeeWallet } from '../../../src/modules/finance/entities/employee-wallet.entity';
-import { Task } from '../../../src/modules/tasks/entities/task.entity';
-import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
-import { User } from '../../../src/modules/users/entities/user.entity';
-import { Role } from '../../../src/modules/users/enums/role.enum';
+import { Booking } from '../../../src/modules/bookings/domain/entities/booking.entity';
+import { BookingStatus } from '../../../src/modules/bookings/domain/enums/booking-status.enum';
+import { EmployeeWallet } from '../../../src/modules/finance/domain/entities/employee-wallet.entity';
+import { Task } from '../../../src/modules/tasks/domain/entities/task.entity';
+import { TaskStatus } from '../../../src/modules/tasks/domain/enums/task-status.enum';
+import { User } from '../../../src/modules/users/domain/entities/user.entity';
+import { Role } from '../../../src/modules/users/domain/enums/role.enum';
 import { createTestDataSource } from '../../utils/create-test-datasource';
 import { seedTestDatabase } from '../../utils/seed-data';
 

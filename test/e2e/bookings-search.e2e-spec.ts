@@ -6,8 +6,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { TransformInterceptor } from '../../src/common/interceptors';
-import { BookingStatus } from '../../src/modules/bookings/enums/booking-status.enum';
-import { MailService } from '../../src/modules/mail/mail.service';
+import { BookingStatus } from '../../src/modules/bookings/domain/enums/booking-status.enum';
+import { MailService } from '../../src/modules/mail/application/mail.service';
 import { seedTestDatabase } from '../utils/seed-data';
 
 describe('Bookings Search (E2E)', () => {

@@ -5,10 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
 import { EventEmitter } from 'node:events';
-import { WebhookRepository } from '../../../src/modules/webhooks/repositories/webhook.repository';
-import { WebhookDeliveryRepository } from '../../../src/modules/webhooks/repositories/webhook-delivery.repository';
+import { WebhookRepository } from '../../../src/modules/webhooks/infrastructure/webhook.repository';
+import { WebhookDeliveryRepository } from '../../../src/modules/webhooks/infrastructure/webhook-delivery.repository';
 
-import { WEBHOOK_QUEUE } from '../../../src/modules/webhooks/webhooks.types';
+import { WEBHOOK_QUEUE } from '../../../src/modules/webhooks/application/webhooks.types';
 import { randomUUID } from 'node:crypto';
 import { EncryptionService } from '../../../src/common/services/encryption.service';
 import { TenantContextService } from '../../../src/common/services/tenant-context.service';
@@ -19,10 +19,10 @@ import * as https from 'node:https';
 jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(() => Promise.resolve([{ address: '1.1.1.1', family: 4 }])),
 }));
-import { Webhook } from '../../../src/modules/webhooks/entities/webhook.entity';
-import { WebhookDelivery } from '../../../src/modules/webhooks/entities/webhook-delivery.entity';
-import { WebhookService } from '../../../src/modules/webhooks/webhooks.service';
-import type { WebhookEvent } from '../../../src/modules/webhooks/webhooks.types';
+import { Webhook } from '../../../src/modules/webhooks/domain/entities/webhook.entity';
+import { WebhookDelivery } from '../../../src/modules/webhooks/domain/entities/webhook-delivery.entity';
+import { WebhookService } from '../../../src/modules/webhooks/application/webhooks.service';
+import type { WebhookEvent } from '../../../src/modules/webhooks/application/webhooks.types';
 
 // Mock ConfigService
 const mockConfigService = {

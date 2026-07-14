@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { DataSource, Repository } from 'typeorm';
-import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
-import { Client } from '../../../src/modules/bookings/entities/client.entity';
-import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
-import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { Transaction } from '../../../src/modules/finance/entities/transaction.entity';
-import { TransactionType } from '../../../src/modules/finance/enums/transaction-type.enum';
+import { Booking } from '../../../src/modules/bookings/domain/entities/booking.entity';
+import { Client } from '../../../src/modules/clients/domain/entities/client.entity';
+import { BookingStatus } from '../../../src/modules/bookings/domain/enums/booking-status.enum';
+import { ServicePackage } from '../../../src/modules/catalog/domain/entities/service-package.entity';
+import { Transaction } from '../../../src/modules/finance/domain/entities/transaction.entity';
+import { TransactionType } from '../../../src/modules/finance/domain/enums/transaction-type.enum';
 import { createTestDataSource } from '../../utils/create-test-datasource';
 
 describe('Financial Transaction Rollback Integration', () => {

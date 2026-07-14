@@ -7,9 +7,9 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { TransformInterceptor } from '../../src/common/interceptors';
 import { PasswordHashService } from '../../src/common/services/password-hash.service';
-import { MailService } from '../../src/modules/mail/mail.service';
+import { MailService } from '../../src/modules/mail/application/mail.service';
 import { Tenant } from '../../src/modules/tenants/entities/tenant.entity';
-import { Role } from '../../src/modules/users/enums/role.enum';
+import { Role } from '../../src/modules/users/domain/enums/role.enum';
 import { seedTestDatabase } from '../utils/seed-data';
 
 // ... existing imports ...

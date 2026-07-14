@@ -7,12 +7,12 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
-import { EmployeeWallet } from '../src/modules/finance/entities/employee-wallet.entity';
-import { Profile } from '../src/modules/hr/entities/profile.entity';
-import { MockPaymentGatewayService } from '../src/modules/hr/services/payment-gateway.service';
-import { MailService } from '../src/modules/mail/mail.service';
-import { User } from '../src/modules/users/entities/user.entity';
-import { Role } from '../src/modules/users/enums/role.enum';
+import { EmployeeWallet } from '../src/modules/finance/domain/entities/employee-wallet.entity';
+import { Profile } from '../src/modules/hr/domain/entities/profile.entity';
+import { MockPaymentGatewayService, PAYMENT_GATEWAY } from '../src/modules/hr/application/payment-gateway.service';
+import { MailService } from '../src/modules/mail/application/mail.service';
+import { User } from '../src/modules/users/domain/entities/user.entity';
+import { Role } from '../src/modules/users/domain/enums/role.enum';
 import { seedTestDatabase } from './utils/seed-data';
 
 class MockThrottlerGuard extends ThrottlerGuard {
@@ -31,6 +31,17 @@ describe('Payroll Load E2E Tests', () => {
     // Increase timeout for this setup as it might take a while to seed
     jest.setTimeout(60000);
 
+    const deterministicGateway = {
+      triggerPayout: jest.fn().mockResolvedValue({
+        success: true,
+        transactionReference: 'MOCK_TXN_REF',
+      }),
+      checkPayoutStatus: jest.fn().mockResolvedValue({
+        status: 'COMPLETED',
+        transactionReference: 'MOCK_TXN_REF',
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -42,13 +53,10 @@ describe('Payroll Load E2E Tests', () => {
         sendTaskAssignment: jest.fn().mockResolvedValue(undefined),
         sendPayrollNotification: jest.fn().mockResolvedValue(undefined),
       })
-      .overrideProvider(MockPaymentGatewayService) // Override Random Failure Service
-      .useValue({
-        triggerPayout: jest.fn().mockResolvedValue({
-          success: true,
-          transactionReference: 'MOCK_TXN_REF',
-        }),
-      })
+      .overrideProvider(MockPaymentGatewayService)
+      .useValue(deterministicGateway)
+      .overrideProvider(PAYMENT_GATEWAY)
+      .useValue(deterministicGateway)
       .compile();
 
     app = moduleFixture.createNestApplication();

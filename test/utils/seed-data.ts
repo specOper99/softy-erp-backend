@@ -2,17 +2,17 @@ import * as bcrypt from 'bcrypt';
 import type { DataSource } from 'typeorm';
 import { PasswordHashService } from '../../src/common/services/password-hash.service';
 import { toErrorMessage } from '../../src/common/utils/error.util';
-import { Client } from '../../src/modules/bookings/entities/client.entity';
-import { ProcessingType } from '../../src/modules/bookings/entities/processing-type.entity';
-import { ServicePackage } from '../../src/modules/catalog/entities/service-package.entity';
-import { EmployeeWallet } from '../../src/modules/finance/entities/employee-wallet.entity';
-import { ProcessingTypeEligibility } from '../../src/modules/hr/entities/processing-type-eligibility.entity';
-import { Profile } from '../../src/modules/hr/entities/profile.entity';
+import { Client } from '../../src/modules/clients/domain/entities/client.entity';
+import { ProcessingType } from '../../src/modules/bookings/domain/entities/processing-type.entity';
+import { ServicePackage } from '../../src/modules/catalog/domain/entities/service-package.entity';
+import { EmployeeWallet } from '../../src/modules/finance/domain/entities/employee-wallet.entity';
+import { ProcessingTypeEligibility } from '../../src/modules/hr/domain/entities/processing-type-eligibility.entity';
+import { Profile } from '../../src/modules/hr/domain/entities/profile.entity';
 import { PlatformUser } from '../../src/modules/platform/entities/platform-user.entity';
 import { PlatformRole } from '../../src/modules/platform/enums/platform-role.enum';
 import { Tenant } from '../../src/modules/tenants/entities/tenant.entity';
-import { User } from '../../src/modules/users/entities/user.entity';
-import { Role } from '../../src/modules/users/enums/role.enum';
+import { User } from '../../src/modules/users/domain/entities/user.entity';
+import { Role } from '../../src/modules/users/domain/enums/role.enum';
 
 import { SubscriptionPlan } from '../../src/modules/tenants/enums/subscription-plan.enum';
 

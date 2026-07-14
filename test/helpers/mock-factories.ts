@@ -19,9 +19,9 @@ import type { ObjectLiteral, Repository } from 'typeorm';
 import { TenantContextService } from '../../src/common/services/tenant-context.service';
 
 // Import entity types for type safety in mock factories
-import type { Booking } from '../../src/modules/bookings/entities/booking.entity';
-import type { Task } from '../../src/modules/tasks/entities/task.entity';
-import type { User } from '../../src/modules/users/entities/user.entity';
+import type { Booking } from '../../src/modules/bookings/domain/entities/booking.entity';
+import type { Task } from '../../src/modules/tasks/domain/entities/task.entity';
+import type { User } from '../../src/modules/users/domain/entities/user.entity';
 
 // Type-safe partial entity types for mock factories
 // Using intersection with Record for flexibility while maintaining type hints

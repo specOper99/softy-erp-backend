@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { ROLES_KEY } from '../../src/common/decorators/roles.decorator';
-import { TasksController } from '../../src/modules/tasks/controllers/tasks.controller';
-import { Role } from '../../src/modules/users/enums/role.enum';
+import { TasksController } from '../../src/modules/tasks/api/tasks.controller';
+import { Role } from '../../src/modules/users/domain/enums/role.enum';
 
 describe('Tasks authorization policy guardrail (integration config)', () => {
   const staffAndManagerRoles = [Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF];

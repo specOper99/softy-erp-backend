@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
-import { Client } from '../../../src/modules/bookings/entities/client.entity';
-import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
-import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { Task } from '../../../src/modules/tasks/entities/task.entity';
+import { Booking } from '../../../src/modules/bookings/domain/entities/booking.entity';
+import { Client } from '../../../src/modules/clients/domain/entities/client.entity';
+import { BookingStatus } from '../../../src/modules/bookings/domain/enums/booking-status.enum';
+import { ServicePackage } from '../../../src/modules/catalog/domain/entities/service-package.entity';
+import { Task } from '../../../src/modules/tasks/domain/entities/task.entity';
 
 describe('BookingsRepository Integration Tests', () => {
   let dataSource: DataSource;

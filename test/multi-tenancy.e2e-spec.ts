@@ -6,7 +6,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
-import { MailService } from '../src/modules/mail/mail.service';
+import { MailService } from '../src/modules/mail/application/mail.service';
 import { unwrapListData } from './utils/e2e-response';
 
 // Mock ThrottlerGuard to always allow requests in tests

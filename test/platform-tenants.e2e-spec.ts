@@ -9,7 +9,7 @@ import type { Response } from 'supertest';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
-import { MailService } from '../src/modules/mail/mail.service';
+import { MailService } from '../src/modules/mail/application/mail.service';
 import { TenantStatus } from '../src/modules/tenants/enums/tenant-status.enum';
 
 class MockThrottlerGuard extends ThrottlerGuard {

@@ -9,7 +9,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { IpRateLimitGuard } from '../src/common/guards/ip-rate-limit.guard';
 import { TransformInterceptor } from '../src/common/interceptors';
-import { MailService } from '../src/modules/mail/mail.service';
+import { MailService } from '../src/modules/mail/application/mail.service';
 import { seedTestDatabase } from './utils/seed-data';
 
 function decodeBase32(secret: string): Buffer {

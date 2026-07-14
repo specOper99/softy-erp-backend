@@ -14,30 +14,30 @@ import { TenantContextService } from '../../../src/common/services/tenant-contex
 
 void globalThis.fetch;
 import { GeoIpService } from '../../../src/common/services/geoip.service';
-import { AuditService } from '../../../src/modules/audit/audit.service';
-import { AuthService } from '../../../src/modules/auth/auth.service';
-import type { RegisterDto } from '../../../src/modules/auth/dto/auth.dto';
-import { EmailVerificationToken } from '../../../src/modules/auth/entities/email-verification-token.entity';
-import { PasswordResetToken } from '../../../src/modules/auth/entities/password-reset-token.entity';
-import { RefreshToken } from '../../../src/modules/auth/entities/refresh-token.entity';
-import { AccountLockoutService } from '../../../src/modules/auth/services/account-lockout.service';
-import { TokenService } from '../../../src/modules/auth/services/token.service';
-import { MfaService } from '../../../src/modules/auth/services/mfa.service';
-import { MfaTokenService } from '../../../src/modules/auth/services/mfa-token.service';
-import { SessionService } from '../../../src/modules/auth/services/session.service';
-import { PasswordService } from '../../../src/modules/auth/services/password.service';
-import { TokenBlacklistService } from '../../../src/modules/auth/services/token-blacklist.service';
-import { EmployeeWallet } from '../../../src/modules/finance/entities/employee-wallet.entity';
-import { Profile } from '../../../src/modules/hr/entities/profile.entity';
-import { MailService } from '../../../src/modules/mail/mail.service';
+import { AuditService } from '../../../src/modules/audit/application/audit.service';
+import { AuthService } from '../../../src/modules/auth/application/auth.service';
+import type { RegisterDto } from '../../../src/modules/auth/api/dto/auth.dto';
+import { EmailVerificationToken } from '../../../src/modules/auth/domain/entities/email-verification-token.entity';
+import { PasswordResetToken } from '../../../src/modules/auth/domain/entities/password-reset-token.entity';
+import { RefreshToken } from '../../../src/modules/auth/domain/entities/refresh-token.entity';
+import { AccountLockoutService } from '../../../src/modules/auth/application/account-lockout.service';
+import { TokenService } from '../../../src/modules/auth/application/token.service';
+import { MfaService } from '../../../src/modules/auth/application/mfa.service';
+import { MfaTokenService } from '../../../src/modules/auth/application/mfa-token.service';
+import { SessionService } from '../../../src/modules/auth/application/session.service';
+import { PasswordService } from '../../../src/modules/auth/application/password.service';
+import { TokenBlacklistService } from '../../../src/modules/auth/application/token-blacklist.service';
+import { EmployeeWallet } from '../../../src/modules/finance/domain/entities/employee-wallet.entity';
+import { Profile } from '../../../src/modules/hr/domain/entities/profile.entity';
+import { MailService } from '../../../src/modules/mail/application/mail.service';
 import { Tenant } from '../../../src/modules/tenants/entities/tenant.entity';
 import { TenantsService } from '../../../src/modules/tenants/tenants.service';
-import { User } from '../../../src/modules/users/entities/user.entity';
-import { UsersService } from '../../../src/modules/users/services/users.service';
-import { UserRepository } from '../../../src/modules/users/repositories/user.repository';
+import { User } from '../../../src/modules/users/domain/entities/user.entity';
+import { UsersService } from '../../../src/modules/users/application/users.service';
+import { UserRepository } from '../../../src/modules/users/infrastructure/user.repository';
 
 void globalThis.fetch;
-import { AuditPublisher } from '../../../src/modules/audit/audit.publisher';
+import { AuditPublisher } from '../../../src/modules/audit/application/audit.publisher';
 
 // Mock CacheUtilsService with in-memory map
 class MockCacheUtilsService {

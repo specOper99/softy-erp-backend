@@ -7,8 +7,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
-import { Profile } from '../src/modules/hr/entities/profile.entity';
-import { MailService } from '../src/modules/mail/mail.service';
+import { Profile } from '../src/modules/hr/domain/entities/profile.entity';
+import { MailService } from '../src/modules/mail/application/mail.service';
 import { unwrapListData } from './utils/e2e-response';
 import { seedTestDatabase } from './utils/seed-data';
 

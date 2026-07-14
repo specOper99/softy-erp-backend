@@ -1,15 +1,15 @@
 import type { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
-import { Booking } from '../../../src/modules/bookings/entities/booking.entity';
-import { Client } from '../../../src/modules/bookings/entities/client.entity';
-import { BookingStatus } from '../../../src/modules/bookings/enums/booking-status.enum';
-import { ServicePackage } from '../../../src/modules/catalog/entities/service-package.entity';
-import { ProcessingType } from '../../../src/modules/catalog/entities/task-type.entity';
-import { Task } from '../../../src/modules/tasks/entities/task.entity';
-import { TaskStatus } from '../../../src/modules/tasks/enums/task-status.enum';
-import { User } from '../../../src/modules/users/entities/user.entity';
-import { Role } from '../../../src/modules/users/enums/role.enum';
+import { Booking } from '../../../src/modules/bookings/domain/entities/booking.entity';
+import { Client } from '../../../src/modules/clients/domain/entities/client.entity';
+import { BookingStatus } from '../../../src/modules/bookings/domain/enums/booking-status.enum';
+import { ServicePackage } from '../../../src/modules/catalog/domain/entities/service-package.entity';
+import { ProcessingType } from '../../../src/modules/catalog/domain/entities/task-type.entity';
+import { Task } from '../../../src/modules/tasks/domain/entities/task.entity';
+import { TaskStatus } from '../../../src/modules/tasks/domain/enums/task-status.enum';
+import { User } from '../../../src/modules/users/domain/entities/user.entity';
+import { Role } from '../../../src/modules/users/domain/enums/role.enum';
 
 describe('TasksRepository Integration Tests', () => {
   let dataSource: DataSource;

@@ -9,9 +9,9 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TransformInterceptor } from '../src/common/interceptors';
 import { TenantContextService } from '../src/common/services/tenant-context.service';
-import { MailService } from '../src/modules/mail/mail.service';
-import { Webhook } from '../src/modules/webhooks/entities/webhook.entity';
-import { WebhookService } from '../src/modules/webhooks/webhooks.service';
+import { MailService } from '../src/modules/mail/application/mail.service';
+import { Webhook } from '../src/modules/webhooks/domain/entities/webhook.entity';
+import { WebhookService } from '../src/modules/webhooks/application/webhooks.service';
 import { seedTestDatabase } from './utils/seed-data';
 
 // Mock p-limit to immediately invoke functions (like in unit tests)
