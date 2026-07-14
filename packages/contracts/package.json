@@ -1,0 +1,16 @@
+{
+  "name": "@softy/contracts",
+  "version": "0.0.0-dev",
+  "description": "Canonical OpenAPI contract for Softy ERP backend",
+  "private": false,
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "openapi.json",
+    "manifest.json"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build-manifest.mjs"
+  }
+}
