@@ -1,0 +1,309 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
+import { format } from 'date-fns';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { BookingRepository } from '../../bookings/infrastructure/booking.repository';
+import { Invoice, InvoiceStatus } from '../domain/entities/invoice.entity';
+import { Currency } from '../domain/enums/currency.enum';
+
+import { InvoiceRepository } from '../infrastructure/invoice.repository';
+
+/** Invoice number prefix for identification */
+const INVOICE_NUMBER_PREFIX = 'INV';
+
+@Injectable()
+export class InvoiceService {
+  constructor(
+    private readonly invoiceRepository: InvoiceRepository,
+    private readonly bookingRepository: BookingRepository,
+  ) {}
+
+  /**
+   * Generates a cryptographically secure invoice number.
+   * Format: INV-YYYYMMDD-XXXXXX (6 hex chars = 16.7M combinations per day)
+   */
+  private generateInvoiceNumber(): string {
+    const datePart = format(new Date(), 'yyyyMMdd');
+    // Use crypto.randomBytes for secure randomness instead of Math.random()
+    const randomPart = randomBytes(3).toString('hex').toUpperCase();
+    return `${INVOICE_NUMBER_PREFIX}-${datePart}-${randomPart}`;
+  }
+
+  async findByBookingId(bookingId: string): Promise<Invoice | null> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+    return this.invoiceRepository.findOne({ where: { bookingId, tenantId } }) ?? null;
+  }
+
+  async createInvoice(bookingId: string): Promise<Invoice> {
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId, tenantId },
+      relations: ['client', 'servicePackage'],
+    });
+
+    if (!booking) {
+      throw new NotFoundException({
+        code: 'invoice.booking_not_found',
+        args: { bookingId },
+      });
+    }
+
+    const existingInvoice = await this.invoiceRepository.findOne({
+      where: { bookingId, tenantId },
+    });
+
+    if (existingInvoice) {
+      return existingInvoice;
+    }
+
+    const items = [
+      {
+        description: booking.servicePackage.name,
+        quantity: 1,
+        unitPrice: booking.subTotal,
+        amount: booking.subTotal,
+      },
+    ];
+
+    const amountPaid = Math.max(0, Number(booking.amountPaid || 0));
+    const balanceDue = Math.max(0, Number(booking.totalPrice) - amountPaid);
+    const status =
+      balanceDue === 0 ? InvoiceStatus.PAID : amountPaid > 0 ? InvoiceStatus.PARTIALLY_PAID : InvoiceStatus.DRAFT;
+
+    const MAX_INVOICE_NUMBER_RETRIES = 3;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < MAX_INVOICE_NUMBER_RETRIES; attempt++) {
+      const invoiceNumber = this.generateInvoiceNumber();
+
+      const invoice = this.invoiceRepository.create({
+        tenantId,
+        bookingId: booking.id,
+        clientId: booking.clientId,
+        booking,
+        client: booking.client,
+        invoiceNumber,
+        status,
+        issueDate: new Date(),
+        dueDate: new Date(booking.eventDate),
+        paidDate: balanceDue === 0 ? new Date() : null,
+        items,
+        subTotal: booking.subTotal,
+        taxRate: booking.taxRate,
+        taxTotal: booking.taxAmount,
+        totalAmount: booking.totalPrice,
+        amountPaid,
+        balanceDue,
+        currency: Currency.USD,
+      });
+
+      try {
+        return await this.invoiceRepository.save(invoice);
+      } catch (error) {
+        const pgCode = (error as { code?: string }).code;
+        if (pgCode === '23505') {
+          // Concurrent duplicate creation for the same booking → return the winner's record.
+          const existing = await this.invoiceRepository.findOne({
+            where: { bookingId, tenantId },
+          });
+          if (existing) return existing;
+          // 23505 on invoiceNumber uniqueness (different booking, same random number) — retry.
+          lastError = error;
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  async getInvoicePdf(invoiceId: string): Promise<Uint8Array> {
+    const invoice = await this.invoiceRepository.findOne({
+      where: { id: invoiceId },
+      relations: ['booking', 'booking.client'],
+    });
+
+    if (!invoice) {
+      throw new NotFoundException({
+        code: 'finance.invoice_not_found',
+        args: { id: invoiceId },
+      });
+    }
+
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const fontSize = 12;
+    const margin = 50;
+
+    page.drawText('INVOICE', {
+      x: margin,
+      y: height - margin,
+      size: 24,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(`# ${invoice.invoiceNumber}`, {
+      x: width - margin - 150,
+      y: height - margin,
+      size: 14,
+      font,
+    });
+
+    let yPos = height - margin - 60;
+    page.drawText(`Date: ${invoice.issueDate.toISOString().split('T')[0]}`, {
+      x: margin,
+      y: yPos,
+      size: fontSize,
+      font,
+    });
+
+    yPos -= 20;
+    page.drawText(`Due Date: ${invoice.dueDate.toISOString().split('T')[0]}`, {
+      x: margin,
+      y: yPos,
+      size: fontSize,
+      font,
+    });
+
+    yPos -= 40;
+    const clientName = invoice.booking?.client?.name || 'Unknown Client';
+    const clientEmail = invoice.booking?.client?.email || 'N/A';
+
+    page.drawText('Bill To:', {
+      x: margin,
+      y: yPos,
+      size: fontSize,
+      font: boldFont,
+    });
+
+    yPos -= 20;
+    page.drawText(clientName, {
+      x: margin,
+      y: yPos,
+      size: fontSize,
+      font,
+    });
+
+    yPos -= 20;
+    page.drawText(clientEmail, {
+      x: margin,
+      y: yPos,
+      size: fontSize,
+      font,
+    });
+
+    page.drawText(`Status: ${invoice.status}`, {
+      x: width - margin - 150,
+      y: height - margin - 60,
+      size: fontSize,
+      font: boldFont,
+      color: invoice.status === InvoiceStatus.PAID ? rgb(0, 0.5, 0) : rgb(0.5, 0, 0),
+    });
+
+    yPos -= 60;
+    page.drawText('Description', {
+      x: margin,
+      y: yPos,
+      size: fontSize,
+      font: boldFont,
+    });
+    page.drawText('Qty', { x: 300, y: yPos, size: fontSize, font: boldFont });
+    page.drawText('Price', { x: 350, y: yPos, size: fontSize, font: boldFont });
+    page.drawText('Total', { x: 450, y: yPos, size: fontSize, font: boldFont });
+
+    yPos -= 10;
+    page.drawLine({
+      start: { x: margin, y: yPos },
+      end: { x: width - margin, y: yPos },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    yPos -= 20;
+    for (const item of invoice.items) {
+      page.drawText(item.description, {
+        x: margin,
+        y: yPos,
+        size: fontSize,
+        font,
+      });
+      page.drawText(item.quantity.toString(), {
+        x: 300,
+        y: yPos,
+        size: fontSize,
+        font,
+      });
+      page.drawText(item.unitPrice.toFixed(2), {
+        x: 350,
+        y: yPos,
+        size: fontSize,
+        font,
+      });
+      page.drawText(item.amount.toFixed(2), {
+        x: 450,
+        y: yPos,
+        size: fontSize,
+        font,
+      });
+      yPos -= 20;
+    }
+
+    yPos -= 20;
+    page.drawLine({
+      start: { x: 300, y: yPos },
+      end: { x: width - margin, y: yPos },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    yPos -= 20;
+    page.drawText('Subtotal:', { x: 350, y: yPos, size: fontSize, font });
+    page.drawText(invoice.subTotal.toFixed(2), {
+      x: 450,
+      y: yPos,
+      size: fontSize,
+      font,
+    });
+
+    yPos -= 20;
+    page.drawText('Tax:', { x: 350, y: yPos, size: fontSize, font });
+    page.drawText(invoice.taxTotal.toFixed(2), {
+      x: 450,
+      y: yPos,
+      size: fontSize,
+      font,
+    });
+
+    yPos -= 20;
+    page.drawText('Total:', {
+      x: 350,
+      y: yPos,
+      size: fontSize + 2,
+      font: boldFont,
+    });
+    page.drawText(invoice.totalAmount.toFixed(2), {
+      x: 450,
+      y: yPos,
+      size: fontSize + 2,
+      font: boldFont,
+    });
+
+    page.drawText('Thank you for your business!', {
+      x: margin,
+      y: 50,
+      size: 10,
+      font,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+
+    return pdfDoc.save();
+  }
+}
