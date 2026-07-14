@@ -4,11 +4,11 @@ import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorator
 import { RolesGuard } from '../../../common/guards';
 import type { Language } from '../../../common/i18n';
 import { I18nLang, I18nService } from '../../../common/i18n';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { User } from '../../users/entities/user.entity';
-import { Role } from '../../users/enums/role.enum';
-import { NotificationFilterDto, NotificationResponseDto } from '../dto/notification.dto';
-import { NotificationService } from '../services/notification.service';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { NotificationFilterDto, NotificationResponseDto } from './dto/notification.dto';
+import { NotificationService } from '../application/notification.service';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()

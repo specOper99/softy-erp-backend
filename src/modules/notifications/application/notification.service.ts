@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { CreateNotificationDto, NotificationFilterDto } from '../dto/notification.dto';
-import { Notification } from '../entities/notification.entity';
-import { NotificationRepository } from '../repositories/notification.repository';
+import { CreateNotificationDto, NotificationFilterDto } from '../api/dto/notification.dto';
+import { Notification } from '../domain/entities/notification.entity';
+import { NotificationRepository } from '../infrastructure/notification.repository';
 
 @Injectable()
 export class NotificationService {

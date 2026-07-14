@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
-import { NotificationPreference } from '../entities/notification-preference.entity';
+import { NotificationPreference } from '../domain/entities/notification-preference.entity';
 
 @Injectable()
 export class NotificationPreferenceRepository extends TenantAwareRepository<NotificationPreference> {

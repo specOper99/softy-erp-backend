@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { UpdateNotificationPreferenceDto } from '../dto/notification-preference.dto';
-import { NotificationPreference } from '../entities/notification-preference.entity';
-import { NotificationType } from '../enums/notification.enum';
-import { NotificationPreferenceRepository } from '../repositories/notification-preference.repository';
+import { UpdateNotificationPreferenceDto } from '../api/dto/notification-preference.dto';
+import { NotificationPreference } from '../domain/entities/notification-preference.entity';
+import { NotificationType } from '../domain/enums/notification.enum';
+import { NotificationPreferenceRepository } from '../infrastructure/notification-preference.repository';
 
 @Injectable()
 export class NotificationPreferencesService {

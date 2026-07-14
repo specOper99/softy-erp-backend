@@ -1,6 +1,6 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import type { User } from '../../users/entities/user.entity';
+import { BaseTenantEntity } from '../../../../common/entities/abstract.entity';
+import type { User } from '../../../users/domain/entities/user.entity';
 import { NotificationType } from '../enums/notification.enum';
 
 @Entity('notifications')

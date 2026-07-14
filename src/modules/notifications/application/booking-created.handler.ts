@@ -1,12 +1,14 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { DURABLE_NOTIFICATION_EVENTS_FLAG } from '../../../common/events/outbox-envelope';
+import { FlagsService } from '../../../common/flags/flags.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { runGuardedDispatch } from '../../../common/utils/event-dispatch.util';
-import { BookingCreatedEvent } from '../../bookings/events/booking-created.event';
-import { Role } from '../../users/enums/role.enum';
-import { UsersService } from '../../users/services/users.service';
-import { NotificationType } from '../enums/notification.enum';
-import { NotificationService } from '../services/notification.service';
+import { BookingCreatedEvent } from '../../bookings/domain/events/booking-created.event';
+import { Role } from '../../users/domain/enums/role.enum';
+import { UsersService } from '../../users/application/users.service';
+import { NotificationType } from '../domain/enums/notification.enum';
+import { NotificationService } from './notification.service';
 
 @EventsHandler(BookingCreatedEvent)
 export class BookingCreatedNotificationHandler implements IEventHandler<BookingCreatedEvent> {
@@ -15,9 +17,15 @@ export class BookingCreatedNotificationHandler implements IEventHandler<BookingC
   constructor(
     private readonly notificationService: NotificationService,
     private readonly usersService: UsersService,
+    @Optional() private readonly flagsService?: FlagsService,
   ) {}
 
   async handle(event: BookingCreatedEvent): Promise<void> {
+    if (this.flagsService?.isEnabled(DURABLE_NOTIFICATION_EVENTS_FLAG, {}, true) ?? true) {
+      this.logger.debug(`Skipping legacy CQRS notification for BookingCreatedEvent (durable path on)`);
+      return;
+    }
+
     this.logger.log(`Handling BookingCreatedEvent for notifications: ${event.bookingId}`);
 
     await TenantContextService.run(event.tenantId, async () =>

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { NotificationType } from '../enums/notification.enum';
+import { NotificationType } from '../domain/enums/notification.enum';
 import { NotificationPreferencesService } from './notification-preferences.service';
 
 @Injectable()

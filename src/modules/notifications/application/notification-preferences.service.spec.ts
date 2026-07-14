@@ -1,9 +1,9 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotificationPreference } from '../entities/notification-preference.entity';
-import { NotificationFrequency, NotificationType } from '../enums/notification.enum';
-import { NotificationPreferenceRepository } from '../repositories/notification-preference.repository';
+import { NotificationPreference } from '../domain/entities/notification-preference.entity';
+import { NotificationFrequency, NotificationType } from '../domain/enums/notification.enum';
+import { NotificationPreferenceRepository } from '../infrastructure/notification-preference.repository';
 import { NotificationPreferencesService } from './notification-preferences.service';
 
 describe('NotificationPreferencesService', () => {

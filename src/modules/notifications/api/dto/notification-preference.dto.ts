@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
-import { NotificationFrequency, NotificationType } from '../enums/notification.enum';
+import { NotificationFrequency, NotificationType } from '../../domain/enums/notification.enum';
 
 export class UpdateNotificationPreferenceDto {
   @ApiProperty({ enum: NotificationType, description: 'Notification type to configure' })

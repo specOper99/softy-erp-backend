@@ -1,7 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import type { NotificationPreference } from '../entities/notification-preference.entity';
-import { NotificationType } from '../enums/notification.enum';
+import type { NotificationPreference } from '../domain/entities/notification-preference.entity';
+import { NotificationType } from '../domain/enums/notification.enum';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationsService } from './notifications.service';
 
