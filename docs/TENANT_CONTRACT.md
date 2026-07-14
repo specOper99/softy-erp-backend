@@ -46,10 +46,10 @@ Allowlist process:
 - `RAW_REPOSITORY_IN_TENANT_MODULE` violations are CI failures unless explicitly allowlisted.
 - To add an allowlist entry, add an entry to `FILE_PATH_ALLOWLIST` in `scripts/ci/check-tenant-contract.ts` with:
   - `path`: exact file path to allowlist
-  - `reason`: documented rationale explaining why this exception is necessary
+  - `reason`: documented rationale explaining why this exception is necessary (must not be a TEMP baseline placeholder)
 - All allowlist entries require documented rationale and must be reviewed in PRs.
 - The allowlist is reported in `tenant-contract-report.txt` for transparency.
-- **TEMP baseline allowlist**: Current offenders are listed in `FILE_PATH_ALLOWLIST` with reason `TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)`. These entries will be removed as each module is remediated in subsequent tasks.
+- **TEMP baseline allowlist**: Cleared. All former TEMP offenders were remediated onto `TenantAwareRepository` (or deleted). `FILE_PATH_ALLOWLIST` is empty; do not reintroduce TEMP placeholders.
 
 Known allowlists (explicit and conservative):
 
@@ -58,8 +58,8 @@ Known allowlists (explicit and conservative):
   - `src/modules/tenants/`
   - `src/modules/health/`
   - `src/modules/metrics/`
-- Allowlisted global entities/paths (examples): `Tenant`, `OutboxEvent`, and a small set of exact files referenced in `scripts/ci/check-tenant-contract.ts`.
-- File-path specific allowlist (`FILE_PATH_ALLOWLIST`): Additional exceptions for specific files with documented rationale, including TEMP baseline entries for legacy offenders.
+- Allowlisted global entities/paths (examples): `Tenant`, `OutboxEvent`, and a small set of exact files referenced in `scripts/ci/check-tenant-contract.ts` (`RAW_REPOSITORY_ALLOWLIST`).
+- File-path specific allowlist (`FILE_PATH_ALLOWLIST`): Empty after remediation. Auth bootstrap global user lookups live on `UserRepository` helpers (`findByEmailGlobal`, etc.) rather than a service-level raw `Repository` injection.
 
 ## Query Safety Contract (QueryBuilder)
 
@@ -109,7 +109,7 @@ Allowed categories (as implemented by reporting/classification):
 
 Classified `@SkipTenant()` allowlist (explicit, conservative):
 
-- `src/modules/auth/auth.controller.ts` (method-level only):
+- `src/modules/auth/api/auth.controller.ts` (method-level only):
   - `register`, `login`, `refreshTokens`, `verifyMfaTotp`, `verifyMfaRecovery`, `forgotPassword`, `resetPassword`, `verifyEmail`, `resendVerification`
   - Safe because these are auth bootstrap/recovery flows before request tenant context exists.
 - `src/modules/billing/controllers/billing.controller.ts` (`BillingWebhookController` class-level)

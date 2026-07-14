@@ -1,10 +1,11 @@
 # 2. Transactional Outbox Pattern
 
+**Owner:** Platform Engineering  
+**Status:** Accepted — implementation in progress (BullMQ relay)  
+**Last verified:** 2026-07-09  
+**Supersedes:** in-process CQRS as sole delivery path (see `EVENT_CONTRACT.md`)
+
 Date: 2026-01-16
-
-## Status
-
-Accepted
 
 ## Context
 

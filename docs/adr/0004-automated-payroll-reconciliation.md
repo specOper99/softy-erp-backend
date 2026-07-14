@@ -79,4 +79,4 @@ Uses a webhook-based abstraction (`TicketingService`) configured via `TICKETING_
 
 - [ADR-0002: Transactional Outbox](./0002-transactional-outbox.md)
 - [Payroll Reconciliation Runbook](../runbooks/payroll-reconciliation.md)
-- [PayrollReconciliationService](../../src/modules/hr/services/payroll-reconciliation.service.ts)
+- [PayrollReconciliationService](../../src/modules/hr/application/payroll-reconciliation.service.ts)

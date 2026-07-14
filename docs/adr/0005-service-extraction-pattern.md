@@ -44,6 +44,8 @@ src/modules/bookings/
 
 ### ClientsService
 
+**Location**: `modules/clients/application/clients.service.ts` (layered clients module).
+
 **Responsibility**: Manage client entities independently from bookings.
 
 **Key Methods**:

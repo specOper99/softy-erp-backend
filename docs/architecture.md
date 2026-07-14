@@ -27,7 +27,7 @@ The Bookings module follows a separation-of-concerns pattern with specialized se
 | Service | Responsibility |
 |---------|----------------|
 | `BookingsService` | Core booking CRUD, workflow orchestration |
-| `ClientsService` | Client management, tag filtering, CRUD |
+| `ClientsService` (`modules/clients`) | Client management, tag filtering, CRUD |
 | `BookingExportService` | Memory-efficient CSV streaming exports |
 | `BookingStateMachineService` | State transition validation, guards |
 
