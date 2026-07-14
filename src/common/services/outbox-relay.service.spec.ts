@@ -1,9 +1,15 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
+import { getQueueToken } from '@nestjs/bullmq';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { OutboxEvent, OutboxStatus } from '../entities/outbox-event.entity';
-import { DistributedLockService } from './distributed-lock.service';
+import {
+  DURABLE_FINANCIAL_EVENTS_FLAG,
+  DURABLE_MAIL_EVENTS_FLAG,
+  OUTBOX_EVENTS_QUEUE,
+} from '../events/outbox-envelope';
+import { FlagsService } from '../flags/flags.service';
 import { OutboxRelayService } from './outbox-relay.service';
 
 describe('OutboxRelayService', () => {
@@ -11,8 +17,9 @@ describe('OutboxRelayService', () => {
 
   const pendingEvent = {
     id: 'evt-1',
-    type: 'booking.created',
-    payload: { id: 'b-1' },
+    type: 'PaymentRecordedEvent',
+    aggregateId: 'b-1',
+    payload: { tenantId: 't-1' },
     status: OutboxStatus.PENDING,
     retryCount: 0,
     createdAt: new Date(),
@@ -24,9 +31,11 @@ describe('OutboxRelayService', () => {
 
   const mockQueryBuilder = {
     where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
     setLock: jest.fn().mockReturnThis(),
+    setOnLocked: jest.fn().mockReturnThis(),
     getMany: jest.fn().mockResolvedValue([pendingEvent]),
   };
 
@@ -34,9 +43,12 @@ describe('OutboxRelayService', () => {
     createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
-  const mockDistributedLockService = {
-    acquire: jest.fn().mockResolvedValue({ acquired: true, lockToken: 'token-1' }),
-    release: jest.fn().mockResolvedValue(undefined),
+  const mockQueue = {
+    add: jest.fn().mockResolvedValue({ id: 'job-1' }),
+  };
+
+  const mockFlagsService = {
+    isEnabled: jest.fn().mockReturnValue(true),
   };
 
   beforeEach(async () => {
@@ -45,53 +57,91 @@ describe('OutboxRelayService', () => {
         OutboxRelayService,
         { provide: getRepositoryToken(OutboxEvent), useValue: mockOutboxRepository },
         { provide: DataSource, useValue: mockDataSource },
-        { provide: DistributedLockService, useValue: mockDistributedLockService },
+        { provide: getQueueToken(OUTBOX_EVENTS_QUEUE), useValue: mockQueue },
+        { provide: FlagsService, useValue: mockFlagsService },
       ],
     }).compile();
 
     service = module.get(OutboxRelayService);
     jest.clearAllMocks();
-    mockQueryBuilder.getMany.mockResolvedValue([pendingEvent]);
-    mockDistributedLockService.acquire.mockResolvedValue({ acquired: true, lockToken: 'token-1' });
+    mockFlagsService.isEnabled.mockReturnValue(true);
+    mockQueryBuilder.getMany.mockResolvedValue([{ ...pendingEvent }]);
   });
 
-  it('marks events FAILED when broker is not configured', async () => {
+  it('dispatches events to BullMQ with jobId=eventId', async () => {
     await service.processOutbox();
 
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'PaymentRecordedEvent',
+      expect.objectContaining({ eventId: 'evt-1' }),
+      expect.objectContaining({ jobId: 'evt-1' }),
+    );
+    expect(mockOutboxRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: OutboxStatus.DISPATCHED }),
+    );
+  });
+
+  it('marks FAILED when all durable kill switches are off (no dual-delivery backlog)', async () => {
+    mockFlagsService.isEnabled.mockImplementation((flag: string) => {
+      if (flag === DURABLE_FINANCIAL_EVENTS_FLAG || flag === DURABLE_MAIL_EVENTS_FLAG) {
+        return false;
+      }
+      return true;
+    });
+
+    await service.processOutbox();
+
+    expect(mockQueue.add).not.toHaveBeenCalled();
     expect(mockOutboxRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'evt-1',
-        status: OutboxStatus.PENDING,
-        retryCount: 1,
-        error: expect.stringContaining('No message broker configured'),
+        status: OutboxStatus.FAILED,
+        error: 'skipped: durable kill switch off',
       }),
     );
   });
 
-  it('skips processing when lock is not acquired', async () => {
-    mockDistributedLockService.acquire.mockResolvedValue({ acquired: false, lockToken: null });
+  it('still relays when at least one category kill switch remains on (ON→partial OFF)', async () => {
+    // PaymentRecorded is financial + mail. Financial OFF, mail ON → leave PENDING path and dispatch.
+    mockFlagsService.isEnabled.mockImplementation((flag: string) => {
+      if (flag === DURABLE_FINANCIAL_EVENTS_FLAG) return false;
+      if (flag === DURABLE_MAIL_EVENTS_FLAG) return true;
+      return true;
+    });
 
     await service.processOutbox();
+
+    expect(mockQueue.add).toHaveBeenCalled();
+    expect(mockOutboxRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: OutboxStatus.DISPATCHED }),
+    );
+  });
+
+  it('ON→OFF before dispatch marks FAILED with kill-switch reason (recoverable via replay)', async () => {
+    mockFlagsService.isEnabled.mockReturnValue(false);
+
+    await service.processOutbox();
+
+    expect(mockQueue.add).not.toHaveBeenCalled();
+    expect(mockOutboxRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: OutboxStatus.FAILED,
+        error: 'skipped: durable kill switch off',
+      }),
+    );
+  });
+
+  it('skips when queue is not configured', async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        OutboxRelayService,
+        { provide: getRepositoryToken(OutboxEvent), useValue: mockOutboxRepository },
+        { provide: DataSource, useValue: mockDataSource },
+      ],
+    }).compile();
+    const noQueueService = module.get(OutboxRelayService);
+
+    await noQueueService.processOutbox();
 
     expect(mockQueryBuilder.getMany).not.toHaveBeenCalled();
-    expect(mockOutboxRepository.save).not.toHaveBeenCalled();
-  });
-
-  it('marks events FAILED after max retries', async () => {
-    const exhaustedEvent = {
-      ...pendingEvent,
-      retryCount: 4,
-    } as unknown as OutboxEvent;
-    mockQueryBuilder.getMany.mockResolvedValue([exhaustedEvent]);
-
-    await service.processOutbox();
-
-    expect(mockOutboxRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'evt-1',
-        status: OutboxStatus.FAILED,
-        retryCount: 5,
-      }),
-    );
   });
 });

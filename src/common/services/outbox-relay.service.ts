@@ -1,117 +1,276 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
 import { DataSource, Repository } from 'typeorm';
+import { ConsumerInbox } from '../entities/consumer-inbox.entity';
 import { OutboxEvent, OutboxStatus } from '../entities/outbox-event.entity';
+import {
+  durableCategoriesForEventType,
+  isFinancialOutboxEventType,
+  isMailOutboxEventType,
+  isNotificationOutboxEventType,
+  isWebhookOutboxEventType,
+  killSwitchFlagForCategory,
+  OUTBOX_EVENTS_QUEUE,
+  type OutboxEventEnvelope,
+} from '../events/outbox-envelope';
+import { FlagsService } from '../flags/flags.service';
+import {
+  OUTBOX_FINANCIAL_CONSUMER,
+  OUTBOX_MAIL_CONSUMER,
+  OUTBOX_NOTIFICATION_CONSUMER,
+  OUTBOX_WEBHOOK_CONSUMER,
+  type OutboxFinancialConsumerPort,
+  type OutboxMailConsumerPort,
+  type OutboxNotificationConsumerPort,
+  type OutboxWebhookConsumerPort,
+} from '../outbox/outbox-consumer.port';
 import { toErrorMessage } from '../utils/error.util';
-import { DistributedLockService } from './distributed-lock.service';
 
-/** Maximum delivery attempts before an event is permanently marked FAILED. */
-const MAX_RETRIES = 5;
+/** Explicit FAILED reason when all durable category kill switches are off at relay time. */
+export const KILL_SWITCH_SKIP_REASON = 'skipped: durable kill switch off';
+
+const MAX_RELAY_ATTEMPTS = 5;
+const CLAIM_LEASE_MS = 60_000;
+const BATCH_SIZE = 50;
+
+function backoffMs(attempt: number): number {
+  return Math.min(60_000, 1_000 * 2 ** Math.max(0, attempt - 1));
+}
 
 @Injectable()
 export class OutboxRelayService {
   private readonly logger = new Logger(OutboxRelayService.name);
+  private readonly instanceId = process.env.HOSTNAME ?? `pid-${process.pid}`;
 
   constructor(
     @InjectRepository(OutboxEvent)
     private readonly outboxRepository: Repository<OutboxEvent>,
     private readonly dataSource: DataSource,
-    private readonly distributedLockService: DistributedLockService,
+    @Optional() @InjectQueue(OUTBOX_EVENTS_QUEUE) private readonly outboxQueue?: Queue,
+    @Optional() private readonly flagsService?: FlagsService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_SECONDS)
-  async processOutbox() {
-    // Prevent duplicate processing across replicas — skip if another instance holds the lock.
-    let lockResult: Awaited<ReturnType<typeof this.distributedLockService.acquire>>;
-    try {
-      lockResult = await this.distributedLockService.acquire('outbox-relay-cron', { ttl: 30000 });
-    } catch (error: unknown) {
-      // Redis is unavailable — skip this tick rather than blocking the cron thread.
-      this.logger.warn(
-        `outbox-relay: could not acquire distributed lock (Redis unavailable?): ${toErrorMessage(error)}`,
-      );
-      return;
-    }
-
-    if (!lockResult.acquired) {
+  async processOutbox(): Promise<void> {
+    if (!this.outboxQueue) {
       return;
     }
 
     try {
       await this.processBatch();
     } catch (error: unknown) {
-      this.logger.error(`outbox-relay: processBatch failed unexpectedly: ${toErrorMessage(error)}`);
-    } finally {
-      await this.distributedLockService.release('outbox-relay-cron', lockResult.lockToken).catch((error: unknown) => {
-        this.logger.warn(`outbox-relay: failed to release lock: ${toErrorMessage(error)}`);
-      });
+      this.logger.error(`outbox-relay: processBatch failed: ${toErrorMessage(error)}`);
     }
   }
 
   private async processBatch(): Promise<void> {
-    // SELECT FOR UPDATE SKIP LOCKED — multi-replica safe; each replica claims its own batch.
+    const now = new Date();
+
     const events = await this.dataSource
       .createQueryBuilder(OutboxEvent, 'event')
       .where('event.status = :status', { status: OutboxStatus.PENDING })
+      .andWhere('(event.nextAttemptAt IS NULL OR event.nextAttemptAt <= :now)', { now })
       .orderBy('event.createdAt', 'ASC')
-      .limit(50)
-      .setLock('pessimistic_write_or_fail')
-      .getMany()
-      .catch(
-        () =>
-          // pessimistic_write_or_fail throws when rows are locked; fall back gracefully.
-          [] as OutboxEvent[],
-      );
+      .limit(BATCH_SIZE)
+      .setLock('pessimistic_write')
+      .setOnLocked('skip_locked')
+      .getMany();
 
     if (events.length === 0) {
       return;
     }
 
-    this.logger.log(`Found ${events.length} pending events. Processing...`);
+    this.logger.log(`Claimed ${events.length} pending outbox events`);
 
     for (const event of events) {
-      try {
-        await this.publishEvent(event);
-        event.status = OutboxStatus.PUBLISHED;
-        event.error = null;
-        this.logger.log(`Published event ${event.type} (ID: ${event.id})`);
-      } catch (error: unknown) {
-        const message = toErrorMessage(error);
-        const stack = error instanceof Error ? error.stack : undefined;
-        event.retryCount = (event.retryCount ?? 0) + 1;
-        event.error = message;
-        if (event.retryCount >= MAX_RETRIES) {
-          this.logger.error(`Event ${event.id} exhausted ${MAX_RETRIES} retries, marking FAILED: ${message}`, stack);
-          event.status = OutboxStatus.FAILED;
-        } else {
-          this.logger.warn(`Event ${event.id} delivery attempt ${event.retryCount}/${MAX_RETRIES} failed: ${message}`);
-          // Keep PENDING — will be retried on the next cron tick.
-        }
-      }
-
-      await this.outboxRepository.save(event);
+      await this.relayOne(event);
     }
   }
 
-  /**
-   * Publish an outbox event to the configured message broker.
-   *
-   * Subclasses must override this method and inject a real broker client
-   * (e.g. RabbitMQ/Kafka/SNS/BullMQ). Example:
-   *
-   *   protected async publishEvent(event: OutboxEvent): Promise<void> {
-   *     await this.broker.emit(event.type, event.payload);
-   *   }
-   *
-   * The base implementation throws so the retry+failure plumbing works correctly:
-   * events are retried up to MAX_RETRIES times, then permanently marked FAILED.
-   * This surfaces the misconfiguration clearly rather than silently discarding events.
-   */
-  protected async publishEvent(event: OutboxEvent): Promise<void> {
-    throw new Error(
-      `No message broker configured — cannot publish outbox event ${event.id} (type: ${event.type}). ` +
-        'Extend OutboxRelayService and override publishEvent() with a real broker implementation.',
-    );
+  private isDurableRelayEnabled(eventType: string): boolean {
+    const categories = durableCategoriesForEventType(eventType);
+    if (categories.length === 0) {
+      return true;
+    }
+    // Event may belong to multiple categories; relay if any category kill switch is on.
+    return categories.some((category) => {
+      const flag = killSwitchFlagForCategory(category);
+      return this.flagsService?.isEnabled(flag, {}, true) ?? true;
+    });
+  }
+
+  private async relayOne(event: OutboxEvent): Promise<void> {
+    if (!this.outboxQueue) {
+      return;
+    }
+
+    const envelope = this.toEnvelope(event);
+
+    if (!this.isDurableRelayEnabled(envelope.eventType)) {
+      // All categories OFF: mark FAILED with explicit reason so ops can
+      // `outbox:dlq-replay --reason kill-switch` after a mistaken flip.
+      // When any category is still ON, isDurableRelayEnabled stays true and we relay.
+      event.status = OutboxStatus.FAILED;
+      event.error = KILL_SWITCH_SKIP_REASON;
+      event.claimedBy = null;
+      event.claimLeaseExpiresAt = null;
+      await this.outboxRepository.save(event);
+      this.logger.debug(`Skipped durable relay for ${envelope.eventType} (kill switch off)`);
+      return;
+    }
+
+    event.claimedBy = this.instanceId;
+    event.claimLeaseExpiresAt = new Date(Date.now() + CLAIM_LEASE_MS);
+
+    try {
+      await this.outboxQueue.add(envelope.eventType, envelope, {
+        jobId: envelope.eventId,
+        removeOnComplete: true,
+        removeOnFail: false,
+      });
+
+      event.status = OutboxStatus.DISPATCHED;
+      event.dispatchedAt = new Date();
+      event.error = null;
+      this.logger.log(`Dispatched ${envelope.eventType} (${envelope.eventId}) to BullMQ`);
+    } catch (error: unknown) {
+      const message = toErrorMessage(error);
+      event.retryCount = (event.retryCount ?? 0) + 1;
+      event.error = message;
+      event.nextAttemptAt = new Date(Date.now() + backoffMs(event.retryCount));
+
+      if (event.retryCount >= MAX_RELAY_ATTEMPTS) {
+        event.status = OutboxStatus.DEAD_LETTER;
+        event.deadLetteredAt = new Date();
+        this.logger.error(`Outbox event ${event.id} dead-lettered after ${MAX_RELAY_ATTEMPTS} attempts: ${message}`);
+      } else {
+        this.logger.warn(
+          `Outbox relay attempt ${event.retryCount}/${MAX_RELAY_ATTEMPTS} failed for ${event.id}: ${message}`,
+        );
+      }
+    }
+
+    await this.outboxRepository.save(event);
+  }
+
+  toEnvelope(event: OutboxEvent): OutboxEventEnvelope {
+    const payload = event.payload ?? {};
+    const tenantFromPayload =
+      typeof payload.tenantId === 'string' && payload.tenantId.trim() !== '' ? payload.tenantId.trim() : null;
+
+    return {
+      eventId: event.id,
+      eventType: event.type,
+      eventVersion: event.eventVersion ?? 1,
+      tenantId: event.tenantId ?? tenantFromPayload,
+      aggregateType: event.aggregateType ?? 'unknown',
+      aggregateId: event.aggregateId,
+      occurredAt: (event.occurredAt ?? event.createdAt).toISOString(),
+      payload,
+      correlationId: event.correlationId ?? null,
+    };
+  }
+}
+
+type BullmqJob = Parameters<WorkerHost['process']>[0];
+
+/**
+ * Routes dispatched outbox envelopes to domain consumers.
+ * Idempotency: consumers use ConsumerInboxService inside their transaction.
+ */
+@Processor(OUTBOX_EVENTS_QUEUE)
+export class OutboxEventProcessor extends WorkerHost {
+  private readonly logger = new Logger(OutboxEventProcessor.name);
+
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional() private readonly flagsService?: FlagsService,
+    @Optional()
+    @Inject(OUTBOX_NOTIFICATION_CONSUMER)
+    private readonly notificationConsumer?: OutboxNotificationConsumerPort,
+    @Optional()
+    @Inject(OUTBOX_MAIL_CONSUMER)
+    private readonly mailConsumer?: OutboxMailConsumerPort,
+    @Optional()
+    @Inject(OUTBOX_WEBHOOK_CONSUMER)
+    private readonly webhookConsumer?: OutboxWebhookConsumerPort,
+    @Optional()
+    @Inject(OUTBOX_FINANCIAL_CONSUMER)
+    private readonly financialConsumer?: OutboxFinancialConsumerPort,
+  ) {
+    super();
+  }
+
+  private isCategoryEnabled(category: 'financial' | 'notification' | 'mail' | 'webhook'): boolean {
+    const flag = killSwitchFlagForCategory(category);
+    return this.flagsService?.isEnabled(flag, {}, true) ?? true;
+  }
+
+  async process(job: BullmqJob, _token?: string): Promise<void> {
+    const envelope = job.data as OutboxEventEnvelope;
+    this.logger.log(`Processing outbox job ${job.id}: ${envelope.eventType}`);
+
+    let handled = false;
+
+    if (isFinancialOutboxEventType(envelope.eventType) && this.isCategoryEnabled('financial')) {
+      if (this.financialConsumer) {
+        await this.financialConsumer.process(envelope);
+      } else {
+        await this.recordInboxOnly('outbox-financial-consumer', envelope);
+      }
+      handled = true;
+    }
+
+    if (
+      isNotificationOutboxEventType(envelope.eventType) &&
+      this.notificationConsumer &&
+      this.isCategoryEnabled('notification')
+    ) {
+      await this.notificationConsumer.process(envelope);
+      handled = true;
+    }
+
+    if (isMailOutboxEventType(envelope.eventType) && this.isCategoryEnabled('mail')) {
+      if (this.mailConsumer) {
+        await this.mailConsumer.process(envelope);
+      } else {
+        await this.recordInboxOnly('outbox-mail-router', envelope);
+      }
+      handled = true;
+    }
+
+    if (isWebhookOutboxEventType(envelope.eventType) && this.isCategoryEnabled('webhook')) {
+      if (this.webhookConsumer) {
+        await this.webhookConsumer.process(envelope);
+      } else {
+        await this.recordInboxOnly('outbox-webhook-router', envelope);
+      }
+      handled = true;
+    }
+
+    if (!handled) {
+      this.logger.warn(`No durable consumer registered for ${envelope.eventType}`);
+    }
+  }
+
+  private async recordInboxOnly(consumerName: string, envelope: OutboxEventEnvelope): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const inboxRepo = manager.getRepository(ConsumerInbox);
+      const existing = await inboxRepo.findOne({
+        where: { consumerName, eventId: envelope.eventId },
+      });
+      if (existing) {
+        this.logger.debug(`Duplicate outbox event ${envelope.eventId} — skipping`);
+        return;
+      }
+
+      await inboxRepo.save({
+        consumerName,
+        eventId: envelope.eventId,
+      });
+    });
   }
 }
