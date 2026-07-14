@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
-import { DatabaseResilienceService } from '../../../common/resilience/database-resilience.service';
+import { DatabaseResilienceService } from '../../../../common/resilience/database-resilience.service';
 
 @Injectable()
 export class CircuitBreakerHealthIndicator extends HealthIndicator {

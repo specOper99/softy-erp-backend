@@ -2,7 +2,7 @@ import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
-import { toErrorMessage } from '../../../common/utils/error.util';
+import { toErrorMessage } from '../../../../common/utils/error.util';
 
 @Injectable()
 export class S3HealthIndicator extends HealthIndicator {

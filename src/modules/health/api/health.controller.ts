@@ -10,9 +10,9 @@ import {
 } from '@nestjs/terminus';
 import { SkipThrottle, Throttle, minutes } from '@nestjs/throttler';
 import { timingSafeEqual } from 'node:crypto';
-import { SkipIpRateLimit } from '../../common/decorators/skip-ip-rate-limit.decorator';
-import { SkipTenant } from '../../modules/tenants/decorators/skip-tenant.decorator';
-import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
+import { SkipIpRateLimit } from '../../../common/decorators/skip-ip-rate-limit.decorator';
+import { SkipTenant } from '../../../modules/tenants/infrastructure/decorators/skip-tenant.decorator';
+import { S3HealthIndicator, SmtpHealthIndicator } from '../infrastructure/indicators';
 
 @ApiTags('Health')
 @Controller('health')

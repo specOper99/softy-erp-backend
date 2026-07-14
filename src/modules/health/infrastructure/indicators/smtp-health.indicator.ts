@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
 import * as net from 'net';
-import { toErrorMessage } from '../../../common/utils/error.util';
+import { toErrorMessage } from '../../../../common/utils/error.util';
 
 @Injectable()
 export class SmtpHealthIndicator extends HealthIndicator {

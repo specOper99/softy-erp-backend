@@ -8,7 +8,7 @@ import {
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { HealthController } from './health.controller';
-import { S3HealthIndicator, SmtpHealthIndicator } from './indicators';
+import { S3HealthIndicator, SmtpHealthIndicator } from '../infrastructure/indicators';
 
 describe('HealthController', () => {
   let controller: HealthController;
