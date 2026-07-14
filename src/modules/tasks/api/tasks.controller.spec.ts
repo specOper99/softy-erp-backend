@@ -2,15 +2,15 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
-import type { User } from '../../users/entities/user.entity';
-import type { AddTaskAssigneeDto, AssignTaskDto, UpdateTaskAssigneeDto, UpdateTaskDto } from '../dto';
-import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
-import type { Task } from '../entities/task.entity';
-import { TaskStatus } from '../enums/task-status.enum';
-import { TaskAssigneeService } from '../services/task-assignee.service';
-import { TasksService } from '../services/tasks.service';
+import type { User } from '../../users/domain/entities/user.entity';
+import type { AddTaskAssigneeDto, AssignTaskDto, UpdateTaskAssigneeDto, UpdateTaskDto } from './dto';
+import { TaskAssigneeRole } from '../domain/enums/task-assignee-role.enum';
+import type { Task } from '../domain/entities/task.entity';
+import { TaskStatus } from '../domain/enums/task-status.enum';
+import { TaskAssigneeService } from '../application/task-assignee.service';
+import { TasksService } from '../application/tasks.service';
 import { TasksController } from './tasks.controller';
-import { Role } from '../../users/enums/role.enum';
+import { Role } from '../../users/domain/enums/role.enum';
 
 describe('TasksController', () => {
   let controller: TasksController;

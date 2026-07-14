@@ -16,13 +16,13 @@ import type { Response } from 'express';
 import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { User } from '../../users/entities/user.entity';
-import { Role } from '../../users/enums/role.enum';
-import { AddTaskAssigneeDto, AssignTaskDto, TaskFilterDto, UpdateTaskAssigneeDto, UpdateTaskDto } from '../dto';
-import { TaskStatus } from '../enums/task-status.enum';
-import { TasksService } from '../services/tasks.service';
-import { TaskAssigneeService } from '../services/task-assignee.service';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { AddTaskAssigneeDto, AssignTaskDto, TaskFilterDto, UpdateTaskAssigneeDto, UpdateTaskDto } from './dto';
+import { TaskStatus } from '../domain/enums/task-status.enum';
+import { TasksService } from '../application/tasks.service';
+import { TaskAssigneeService } from '../application/task-assignee.service';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()

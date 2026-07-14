@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
-import { CombinedPaginationDto } from '../../../common/dto/combined-pagination.dto';
-import { TaskStatus } from '../enums/task-status.enum';
+import { CombinedPaginationDto } from '../../../../common/dto/combined-pagination.dto';
+import { TaskStatus } from '../../domain/enums/task-status.enum';
 
 export class TaskFilterDto extends CombinedPaginationDto {
   @ApiPropertyOptional({ enum: TaskStatus, description: 'Filter by task status' })

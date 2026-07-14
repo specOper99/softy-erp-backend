@@ -1,10 +1,10 @@
 import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { TaskStatus } from '../enums/task-status.enum';
 
-import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { Booking } from '../../bookings/entities/booking.entity';
-import { ProcessingType } from '../../bookings/entities/processing-type.entity';
-import { User } from '../../users/entities/user.entity';
+import { BaseTenantEntity } from '../../../../common/entities/abstract.entity';
+import { Booking } from '../../../bookings/domain/entities/booking.entity';
+import { ProcessingType } from '../../../bookings/domain/entities/processing-type.entity';
+import { User } from '../../../users/domain/entities/user.entity';
 
 @Entity('tasks')
 @Index(['tenantId', 'status', 'dueDate'])

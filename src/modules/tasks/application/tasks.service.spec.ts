@@ -4,18 +4,19 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { createMockRepository, createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
-import { WalletService } from '../../finance/services/wallet.service';
-import type { User } from '../../users/entities/user.entity';
-import { Role } from '../../users/enums/role.enum';
-import type { TaskAssignee } from '../entities/task-assignee.entity';
-import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
-import type { Task } from '../entities/task.entity';
-import { TaskStatus } from '../enums/task-status.enum';
-import { TaskCompletedEvent } from '../events/task-completed.event';
-import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
-import { TaskRepository } from '../repositories/task.repository';
+import { AuditService } from '../../audit/application/audit.service';
+import { WalletService } from '../../finance/application/wallet.service';
+import type { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import type { TaskAssignee } from '../domain/entities/task-assignee.entity';
+import { TaskAssigneeRole } from '../domain/enums/task-assignee-role.enum';
+import type { Task } from '../domain/entities/task.entity';
+import { TaskStatus } from '../domain/enums/task-status.enum';
+import { TaskCompletedEvent } from '../domain/events/task-completed.event';
+import { TaskAssigneeRepository } from '../infrastructure/task-assignee.repository';
+import { TaskRepository } from '../infrastructure/task.repository';
 import { TasksExportService } from './tasks-export.service';
 import { TasksService } from './tasks.service';
 
@@ -583,6 +584,21 @@ describe('TasksService - Comprehensive Tests', () => {
       expect(result.commissionAccrued).toBe(100);
       expect(result.walletUpdated).toBe(true);
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        OutboxEvent,
+        expect.objectContaining({
+          type: 'TaskCompletedEvent',
+          aggregateId: 'task-uuid-123',
+          aggregateType: 'Task',
+          tenantId: 'tenant-123',
+          payload: expect.objectContaining({
+            taskId: 'task-uuid-123',
+            tenantId: 'tenant-123',
+            commissionAccrued: 100,
+            assignedUserId: 'user-uuid-123',
+          }),
+        }),
+      );
       expect(mockEventBus.publish).toHaveBeenCalledWith(expect.any(TaskCompletedEvent));
     });
 

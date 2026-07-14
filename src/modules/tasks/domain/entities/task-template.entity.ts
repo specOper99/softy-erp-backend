@@ -1,5 +1,5 @@
 import { Column, Entity, Index } from 'typeorm';
-import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { BaseTenantEntity } from '../../../../common/entities/abstract.entity';
 import { TaskStatus } from '../enums/task-status.enum';
 
 @Entity('task_templates')

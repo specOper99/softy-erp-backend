@@ -3,7 +3,7 @@ import type { Response } from 'express';
 import { TENANT_REPO_TASK } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { ExportService } from '../../../common/services/export.service';
-import { Task } from '../entities/task.entity';
+import { Task } from '../domain/entities/task.entity';
 
 @Injectable()
 export class TasksExportService {

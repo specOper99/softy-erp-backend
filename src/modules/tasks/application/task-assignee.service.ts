@@ -7,22 +7,23 @@ import {
 } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { DataSource } from 'typeorm';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
-import { AuditService } from '../../audit/audit.service';
-import { Client } from '../../bookings/entities/client.entity';
-import { FinanceService } from '../../finance/services/finance.service';
-import { User } from '../../users/entities/user.entity';
-import { Role } from '../../users/enums/role.enum';
-import { AddTaskAssigneeDto, AssignTaskDto, UpdateTaskAssigneeDto } from '../dto';
-import { TaskAssignee } from '../entities/task-assignee.entity';
-import { Task } from '../entities/task.entity';
-import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
-import { TaskAssignedEvent } from '../events/task-assigned.event';
-import { findTaskWithLock, isFieldStaffAssignedToTask } from '../helpers/task-lock.helper';
-import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
-import { TaskRepository } from '../repositories/task.repository';
+import { AuditService } from '../../audit/application/audit.service';
+import { Client } from '../../clients/domain/entities/client.entity';
+import { FinanceService } from '../../finance/application/finance.service';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { AddTaskAssigneeDto, AssignTaskDto, UpdateTaskAssigneeDto } from '../api/dto';
+import { TaskAssignee } from '../domain/entities/task-assignee.entity';
+import { Task } from '../domain/entities/task.entity';
+import { TaskAssigneeRole } from '../domain/enums/task-assignee-role.enum';
+import { TaskAssignedEvent } from '../domain/events/task-assigned.event';
+import { findTaskWithLock, isFieldStaffAssignedToTask } from '../domain/helpers/task-lock.helper';
+import { TaskAssigneeRepository } from '../infrastructure/task-assignee.repository';
+import { TaskRepository } from '../infrastructure/task.repository';
 
 @Injectable()
 export class TaskAssigneeService {
@@ -60,22 +61,43 @@ export class TaskAssigneeService {
 
       await this.ensureClientLoaded(manager, task, tenantId);
 
-      return { savedTask, assignedUser, commissionAmount };
+      let eventToPublish: TaskAssignedEvent | null = null;
+      if (assignedUser && savedTask.processingType && savedTask.booking) {
+        eventToPublish = new TaskAssignedEvent(
+          savedTask.id,
+          tenantId,
+          assignedUser.email,
+          assignedUser.email,
+          savedTask.processingType.name,
+          savedTask.booking.client?.name || 'Client',
+          savedTask.booking.eventDate,
+          commissionAmount,
+        );
+
+        await manager.save(OutboxEvent, {
+          aggregateId: savedTask.id,
+          aggregateType: 'Task',
+          type: 'TaskAssignedEvent',
+          tenantId,
+          occurredAt: new Date(),
+          payload: {
+            taskId: savedTask.id,
+            tenantId,
+            employeeName: assignedUser.email,
+            employeeEmail: assignedUser.email,
+            processingTypeName: savedTask.processingType.name,
+            clientName: savedTask.booking.client?.name || 'Client',
+            eventDate: savedTask.booking.eventDate,
+            commission: commissionAmount,
+          },
+        });
+      }
+
+      return { savedTask, assignedUser, commissionAmount, eventToPublish };
     });
 
-    if (result.assignedUser && result.savedTask.processingType && result.savedTask.booking) {
-      this.eventBus.publish(
-        new TaskAssignedEvent(
-          result.savedTask.id,
-          tenantId,
-          result.assignedUser.email,
-          result.assignedUser.email,
-          result.savedTask.processingType.name,
-          result.savedTask.booking.client?.name || 'Client',
-          result.savedTask.booking.eventDate,
-          result.commissionAmount,
-        ),
-      );
+    if (result.eventToPublish) {
+      this.eventBus.publish(result.eventToPublish);
     }
 
     return result.savedTask;
@@ -84,9 +106,9 @@ export class TaskAssigneeService {
   async addTaskAssignee(id: string, dto: AddTaskAssigneeDto): Promise<TaskAssignee> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
 
-    return this.tenantTx.run(async (manager) => {
+    const result = await this.tenantTx.run(async (manager) => {
       const task = await findTaskWithLock(manager, id, tenantId);
-      await this.validateUserInTenant(manager, dto.userId, tenantId);
+      const assignedUser = await this.validateUserInTenant(manager, dto.userId, tenantId);
 
       const commissionAmount = MathUtils.round(Number(dto.commissionSnapshot ?? task.commissionSnapshot) || 0);
       if (commissionAmount <= 0) {
@@ -127,9 +149,48 @@ export class TaskAssigneeService {
 
       await this.financeService.transferPendingCommission(manager, null, dto.userId, commissionAmount);
       await this.syncLegacyAssignedUserIdWithLead(manager, task, tenantId);
+      await this.ensureClientLoaded(manager, task, tenantId);
 
-      return savedAssignee;
+      let eventToPublish: TaskAssignedEvent | null = null;
+      if (assignedUser && task.processingType && task.booking) {
+        eventToPublish = new TaskAssignedEvent(
+          task.id,
+          tenantId,
+          assignedUser.email,
+          assignedUser.email,
+          task.processingType.name,
+          task.booking.client?.name || 'Client',
+          task.booking.eventDate,
+          commissionAmount,
+        );
+
+        await manager.save(OutboxEvent, {
+          aggregateId: task.id,
+          aggregateType: 'Task',
+          type: 'TaskAssignedEvent',
+          tenantId,
+          occurredAt: new Date(),
+          payload: {
+            taskId: task.id,
+            tenantId,
+            employeeName: assignedUser.email,
+            employeeEmail: assignedUser.email,
+            processingTypeName: task.processingType.name,
+            clientName: task.booking.client?.name || 'Client',
+            eventDate: task.booking.eventDate,
+            commission: commissionAmount,
+          },
+        });
+      }
+
+      return { savedAssignee, eventToPublish };
     });
+
+    if (result.eventToPublish) {
+      this.eventBus.publish(result.eventToPublish);
+    }
+
+    return result.savedAssignee;
   }
 
   async updateTaskAssignee(id: string, userId: string, dto: UpdateTaskAssigneeDto): Promise<TaskAssignee> {

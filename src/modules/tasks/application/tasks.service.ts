@@ -2,30 +2,31 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { EventBus } from '@nestjs/cqrs';
 import { parseISO, isValid } from 'date-fns';
 import type { Response } from 'express';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
 import { MathUtils } from '../../../common/utils/math.utils';
 import { TenantScopedManager } from '../../../common/utils/tenant-scoped-manager';
-import { AuditService } from '../../audit/audit.service';
-import { BookingStatus } from '../../bookings/enums/booking-status.enum';
-import { WalletService } from '../../finance/services/wallet.service';
-import { User } from '../../users/entities/user.entity';
-import { Role } from '../../users/enums/role.enum';
-import { CompleteTaskResponseDto, TaskFilterDto, UpdateTaskDto } from '../dto';
-import { TaskAssignee } from '../entities/task-assignee.entity';
-import { Task } from '../entities/task.entity';
-import { TaskStatus } from '../enums/task-status.enum';
-import { TaskCompletedEvent } from '../events/task-completed.event';
-import { findTaskWithLock, isFieldStaffAssignedToTask } from '../helpers/task-lock.helper';
+import { AuditService } from '../../audit/application/audit.service';
+import { BookingStatus } from '../../bookings/domain/enums/booking-status.enum';
+import { WalletService } from '../../finance/application/wallet.service';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { CompleteTaskResponseDto, TaskFilterDto, UpdateTaskDto } from '../api/dto';
+import { TaskAssignee } from '../domain/entities/task-assignee.entity';
+import { Task } from '../domain/entities/task.entity';
+import { TaskStatus } from '../domain/enums/task-status.enum';
+import { TaskCompletedEvent } from '../domain/events/task-completed.event';
+import { findTaskWithLock, isFieldStaffAssignedToTask } from '../domain/helpers/task-lock.helper';
 import { TasksExportService } from './tasks-export.service';
 
-import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
-import { TaskRepository } from '../repositories/task.repository';
+import { TaskAssigneeRepository } from '../infrastructure/task-assignee.repository';
+import { TaskRepository } from '../infrastructure/task.repository';
 
 @Injectable()
 export class TasksService {
@@ -334,6 +335,8 @@ export class TasksService {
         notes: `Task completed. Commission of ${commissionAmount} accrued.`,
       });
 
+      await this.saveTaskCompletedOutbox(manager, task, taskAssignees, tenantId, commissionAmount);
+
       return { task, commissionAmount, walletUpdated };
     });
 
@@ -378,6 +381,35 @@ export class TasksService {
     }
 
     throw new ForbiddenException('common.not_allowed');
+  }
+
+  private async saveTaskCompletedOutbox(
+    manager: EntityManager,
+    task: Task,
+    taskAssignees: TaskAssignee[],
+    tenantId: string,
+    commissionAmount: number,
+  ): Promise<void> {
+    const assignedUserId = task.assignedUserId ?? taskAssignees[0]?.userId;
+    if (!assignedUserId) {
+      return;
+    }
+
+    const completedAt = task.completedAt ?? new Date();
+    await manager.save(OutboxEvent, {
+      aggregateId: task.id,
+      aggregateType: 'Task',
+      type: 'TaskCompletedEvent',
+      tenantId,
+      occurredAt: completedAt,
+      payload: {
+        taskId: task.id,
+        tenantId,
+        completedAt,
+        commissionAccrued: commissionAmount,
+        assignedUserId,
+      },
+    });
   }
 
   private createTaskBaseQuery(tenantId: string) {

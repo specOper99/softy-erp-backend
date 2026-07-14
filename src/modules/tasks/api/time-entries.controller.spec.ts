@@ -2,11 +2,11 @@ import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { createMockTimeEntry, createMockUser } from '../../../../test/helpers/mock-factories';
-import type { User } from '../../users/entities/user.entity';
-import type { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
-import type { TimeEntry } from '../entities/time-entry.entity';
-import { TimeEntryStatus } from '../entities/time-entry.entity';
-import { TimeEntriesService } from '../services/time-entries.service';
+import type { User } from '../../users/domain/entities/user.entity';
+import type { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from './dto/time-entry.dto';
+import type { TimeEntry } from '../domain/entities/time-entry.entity';
+import { TimeEntryStatus } from '../domain/entities/time-entry.entity';
+import { TimeEntriesService } from '../application/time-entries.service';
 import { TimeEntriesController } from './time-entries.controller';
 
 describe('TimeEntriesController', () => {

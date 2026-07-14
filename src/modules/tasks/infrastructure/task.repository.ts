@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
-import { TaskAssignee } from '../entities/task-assignee.entity';
+import { Task } from '../domain/entities/task.entity';
 
 @Injectable()
-export class TaskAssigneeRepository extends TenantAwareRepository<TaskAssignee> {
+export class TaskRepository extends TenantAwareRepository<Task> {
   constructor(
-    @InjectRepository(TaskAssignee)
-    repository: Repository<TaskAssignee>,
+    @InjectRepository(Task)
+    repository: Repository<Task>,
   ) {
     super(repository);
   }

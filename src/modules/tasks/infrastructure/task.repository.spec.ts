@@ -2,7 +2,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
-import { Task } from '../entities/task.entity';
+import { Task } from '../domain/entities/task.entity';
 import { TaskRepository } from './task.repository';
 
 describe('TaskRepository', () => {

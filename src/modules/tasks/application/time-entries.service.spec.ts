@@ -11,11 +11,11 @@ import {
   createMockUser,
   mockTenantContext,
 } from '../../../../test/helpers/mock-factories';
-import type { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
-import type { TimeEntry } from '../entities/time-entry.entity';
-import { TimeEntryStatus } from '../entities/time-entry.entity';
+import type { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../api/dto/time-entry.dto';
+import type { TimeEntry } from '../domain/entities/time-entry.entity';
+import { TimeEntryStatus } from '../domain/entities/time-entry.entity';
 import { TimeEntriesService } from './time-entries.service';
-import type { User } from '../../users/entities/user.entity';
+import type { User } from '../../users/domain/entities/user.entity';
 
 describe('TimeEntriesService', () => {
   let service: TimeEntriesService;

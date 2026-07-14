@@ -3,11 +3,11 @@ import { DataSource } from 'typeorm';
 import { TENANT_REPO_TIME_ENTRY } from '../../../common/constants/tenant-repo.tokens';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { User } from '../../users/entities/user.entity';
-import { Role } from '../../users/enums/role.enum';
-import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../dto/time-entry.dto';
-import { Task } from '../entities/task.entity';
-import { TimeEntry, TimeEntryStatus } from '../entities/time-entry.entity';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { StartTimeEntryDto, StopTimeEntryDto, UpdateTimeEntryDto } from '../api/dto/time-entry.dto';
+import { Task } from '../domain/entities/task.entity';
+import { TimeEntry, TimeEntryStatus } from '../domain/entities/time-entry.entity';
 
 @Injectable()
 export class TimeEntriesService {

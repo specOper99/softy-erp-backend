@@ -4,17 +4,18 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { createMockTask, createMockUser } from '../../../../test/helpers/mock-factories';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { AuditService } from '../../audit/audit.service';
-import { FinanceService } from '../../finance/services/finance.service';
-import type { User } from '../../users/entities/user.entity';
-import { Role } from '../../users/enums/role.enum';
-import { TaskAssignee } from '../entities/task-assignee.entity';
-import type { Task } from '../entities/task.entity';
-import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
-import { TaskStatus } from '../enums/task-status.enum';
-import { TaskAssigneeRepository } from '../repositories/task-assignee.repository';
-import { TaskRepository } from '../repositories/task.repository';
+import { AuditService } from '../../audit/application/audit.service';
+import { FinanceService } from '../../finance/application/finance.service';
+import type { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { TaskAssignee } from '../domain/entities/task-assignee.entity';
+import type { Task } from '../domain/entities/task.entity';
+import { TaskAssigneeRole } from '../domain/enums/task-assignee-role.enum';
+import { TaskStatus } from '../domain/enums/task-status.enum';
+import { TaskAssigneeRepository } from '../infrastructure/task-assignee.repository';
+import { TaskRepository } from '../infrastructure/task.repository';
 import { TaskAssigneeService } from './task-assignee.service';
 
 describe('TaskAssigneeService', () => {
@@ -163,6 +164,19 @@ describe('TaskAssigneeService', () => {
           entityId: 'task-uuid-123',
         }),
       );
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        OutboxEvent,
+        expect.objectContaining({
+          type: 'TaskAssignedEvent',
+          aggregateId: 'task-uuid-123',
+          payload: expect.objectContaining({
+            taskId: 'task-uuid-123',
+            employeeEmail: 'new@example.com',
+            processingTypeName: 'Photography',
+            commission: 100,
+          }),
+        }),
+      );
       expect(mockEventBus.publish).toHaveBeenCalled();
     });
 
@@ -192,7 +206,7 @@ describe('TaskAssigneeService', () => {
       mockQueryRunner.manager.findOne
         .mockResolvedValueOnce(task) // lock
         .mockResolvedValueOnce(task) // relations
-        .mockResolvedValueOnce({ id: 'user-1', tenantId: 'tenant-123' }) // validateUser
+        .mockResolvedValueOnce({ id: 'user-1', tenantId: 'tenant-123', email: 'user1@example.com' }) // validateUser
         .mockResolvedValueOnce(null); // syncLegacy: no lead
 
       const dto = { userId: 'user-1', role: TaskAssigneeRole.ASSISTANT, commissionSnapshot: 50 };
@@ -211,6 +225,18 @@ describe('TaskAssigneeService', () => {
         'user-1',
         50,
       );
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        OutboxEvent,
+        expect.objectContaining({
+          type: 'TaskAssignedEvent',
+          aggregateId: 'task-uuid-123',
+          payload: expect.objectContaining({
+            employeeEmail: 'user1@example.com',
+            commission: 50,
+          }),
+        }),
+      );
+      expect(mockEventBus.publish).toHaveBeenCalled();
     });
 
     it('should add LEAD assignee and demote existing LEAD', async () => {
@@ -218,7 +244,7 @@ describe('TaskAssigneeService', () => {
       mockQueryRunner.manager.findOne
         .mockResolvedValueOnce(task) // lock
         .mockResolvedValueOnce(task) // relations
-        .mockResolvedValueOnce({ id: 'user-2', tenantId: 'tenant-123' }) // validateUser
+        .mockResolvedValueOnce({ id: 'user-2', tenantId: 'tenant-123', email: 'user2@example.com' }) // validateUser
         .mockResolvedValueOnce(null); // syncLegacy: no lead after sync
 
       const dto = { userId: 'user-2', role: TaskAssigneeRole.LEAD, commissionSnapshot: 75 };

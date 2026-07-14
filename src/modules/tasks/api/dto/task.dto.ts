@@ -1,8 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
-import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
-import { TaskAssigneeRole } from '../enums/task-assignee-role.enum';
-import { TaskStatus } from '../enums/task-status.enum';
+import { SanitizeHtml } from '../../../../common/decorators/sanitize-html.decorator';
+import { TaskAssigneeRole } from '../../domain/enums/task-assignee-role.enum';
+import { TaskStatus } from '../../domain/enums/task-status.enum';
 
 export class AssignTaskDto {
   @ApiProperty({ description: 'User ID to assign the task to' })
