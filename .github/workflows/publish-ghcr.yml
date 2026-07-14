@@ -1,0 +1,142 @@
+# Publish immutable backend image to GHCR.
+# Operator: set GHCR_PUSH_ENABLED=true and configure packages:write on GITHUB_TOKEN.
+# Digests upload as artifacts for Coolify pin (@sha256:…).
+name: Publish Backend Image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Force dry-run (build only, no push) even if GHCR_PUSH_ENABLED'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/softy-erp-backend
+
+jobs:
+  publish:
+    name: Build and push GHCR image
+    runs-on: ubuntu-latest
+    if: vars.GHCR_PUSH_ENABLED == 'true' && github.event.inputs.dry_run != 'true'
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Write Coolify digest artifact
+        run: |
+          mkdir -p digest
+          DIGEST='${{ steps.build.outputs.digest }}'
+          if [ -z "$DIGEST" ]; then
+            echo "::error::GHCR push returned empty digest. Coolify must pin by digest — refusing to continue."
+            exit 1
+          fi
+          IMAGE_REF="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}"
+          echo "${DIGEST}" > digest/DIGEST.txt
+          echo "${IMAGE_REF}" > digest/IMAGE_REF.txt
+          {
+            echo "## Coolify image digest (backend)"
+            echo ""
+            echo "Pin Coolify to digest (not floating tag):"
+            echo ""
+            echo "\`${IMAGE_REF}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Published ${IMAGE_REF}"
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: softy-erp-backend-ghcr-digest
+          path: digest/
+          if-no-files-found: error
+
+  scaffold:
+    name: GHCR publish scaffold (dry-run)
+    runs-on: ubuntu-latest
+    if: vars.GHCR_PUSH_ENABLED != 'true' || github.event.inputs.dry_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image locally (no push) + capture digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: softy-erp-backend:ci-smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Write dry-run digest artifact
+        run: |
+          mkdir -p digest
+          DIGEST='${{ steps.build.outputs.digest }}'
+          if [ -z "$DIGEST" ]; then
+            echo "::error::Dry-run build returned empty digest."
+            exit 1
+          fi
+          echo "${DIGEST}" > digest/DIGEST.txt
+          echo "softy-erp-backend:ci-smoke@${DIGEST}" > digest/IMAGE_REF.txt
+          {
+            echo "mode=dry-run"
+            echo "note=Local build digest only. Coolify needs GHCR digest after GHCR_PUSH_ENABLED=true (or workflow_dispatch without dry_run)."
+            echo "ghcr_image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          } > digest/README.txt
+          {
+            echo "## GHCR dry-run (backend)"
+            echo ""
+            echo "Local image digest: \`${DIGEST}\`"
+            echo ""
+            echo "No push performed. Set \`GHCR_PUSH_ENABLED=true\` for Coolify-ready GHCR digests."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dry-run digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: softy-erp-backend-ghcr-digest-dry-run
+          path: digest/
+          if-no-files-found: error

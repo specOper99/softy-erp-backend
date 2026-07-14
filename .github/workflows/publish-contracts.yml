@@ -1,0 +1,45 @@
+# Publish @softy/contracts to GitHub Packages
+name: Publish Contracts
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: vars.CONTRACTS_PUBLISH_ENABLED == 'true'
+    defaults:
+      run:
+        working-directory: packages/contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://npm.pkg.github.com
+      - name: Export OpenAPI
+        working-directory: .
+        run: npm run openapi:export
+      - name: Build manifest
+        run: npm run build
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  scaffold:
+    runs-on: ubuntu-latest
+    if: vars.CONTRACTS_PUBLISH_ENABLED != 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate contract package build
+        working-directory: backend/packages/contracts
+        run: |
+          npm run build || node scripts/build-manifest.mjs

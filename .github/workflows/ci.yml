@@ -1,6 +1,10 @@
 name: Backend CI
 
 on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
   workflow_call:
   workflow_dispatch:
 
@@ -52,6 +56,12 @@ jobs:
 
       - name: Check Security Patterns
         run: npm run check:security-patterns
+
+      - name: Check module boundaries (no-new-violations)
+        run: npm run check:module-boundaries
+
+      - name: Check governance
+        run: npm run check:governance
 
       - name: Check Layering Contract
         run: npm run check:layering-contract
@@ -186,6 +196,15 @@ jobs:
           VAULT_ENABLED: 'false'
           DISABLE_RATE_LIMITING: 'true'
 
+      - name: Update knowledge graph (when graphify available)
+        continue-on-error: true
+        run: |
+          if command -v graphify >/dev/null 2>&1; then
+            graphify update .
+          else
+            echo "graphify not installed on runner — skip (install graphify CLI for automatic graph updates)."
+          fi
+
       - name: Run integration tests
         run: npm run test:integration -- --runInBand
         env:
@@ -280,3 +299,22 @@ jobs:
           tags: softy-erp:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  restore-drill-smoke:
+    name: Restore drill smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
+
+      - name: Validate recovery-drill wiring
+        env:
+          RESTORE_DRILL_DRY_RUN: 'true'
+        run: |
+          test -x ./scripts/recovery-drill.sh
+          bash -n ./scripts/recovery-drill.sh
+          bash ./scripts/recovery-drill.sh --help
+          bash ./scripts/recovery-drill.sh --smoke
+          RESTORE_DRILL_DRY_RUN=true bash ./scripts/recovery-drill.sh --full
