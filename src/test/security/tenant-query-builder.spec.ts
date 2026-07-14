@@ -13,7 +13,7 @@ describe('Tenant scoping in QueryBuilder usages', () => {
   });
 
   it('ProfileRepository createQueryBuilder should delegate to TenantAwareRepository safety patch', () => {
-    const repoFile = path.join(srcDir, 'modules', 'hr', 'repositories', 'profile.repository.ts');
+    const repoFile = path.join(srcDir, 'modules', 'hr', 'infrastructure', 'profile.repository.ts');
     const content = fs.readFileSync(repoFile, 'utf8');
 
     expect(content).toContain('createQueryBuilder(alias: string)');
@@ -72,9 +72,9 @@ describe('Tenant scoping in QueryBuilder usages', () => {
 
   it('search filters in tasks/catalog/hr use tenant-safe single andWhere clauses', () => {
     const targets = [
-      path.join(srcDir, 'modules', 'tasks', 'services', 'tasks.service.ts'),
-      path.join(srcDir, 'modules', 'catalog', 'services', 'catalog.service.ts'),
-      path.join(srcDir, 'modules', 'hr', 'services', 'hr.service.ts'),
+      path.join(srcDir, 'modules', 'tasks', 'application', 'tasks.service.ts'),
+      path.join(srcDir, 'modules', 'catalog', 'application', 'catalog.service.ts'),
+      path.join(srcDir, 'modules', 'hr', 'application', 'hr.service.ts'),
     ];
 
     for (const file of targets) {
@@ -91,14 +91,14 @@ describe('Tenant scoping in QueryBuilder usages', () => {
     expect(content).toContain('createAggregateQueryBuilder');
   });
 
-  it('migrated finance/task services use TenantAware repository classes', () => {
+  it('migrated finance/task filters use TenantAware repository classes', () => {
     const targets = [
-      path.join(srcDir, 'modules', 'tasks', 'services', 'tasks-export.service.ts'),
-      path.join(srcDir, 'modules', 'tasks', 'services', 'time-entries.service.ts'),
-      path.join(srcDir, 'modules', 'finance', 'services', 'purchase-invoices.service.ts'),
-      path.join(srcDir, 'modules', 'finance', 'services', 'payout-relay.service.ts'),
-      path.join(srcDir, 'modules', 'finance', 'services', 'vendors.service.ts'),
-      path.join(srcDir, 'modules', 'finance', 'services', 'transaction-categories.service.ts'),
+      path.join(srcDir, 'modules', 'tasks', 'application', 'tasks-export.service.ts'),
+      path.join(srcDir, 'modules', 'tasks', 'application', 'time-entries.service.ts'),
+      path.join(srcDir, 'modules', 'finance', 'application', 'purchase-invoices.service.ts'),
+      path.join(srcDir, 'modules', 'finance', 'application', 'payout-relay.service.ts'),
+      path.join(srcDir, 'modules', 'finance', 'application', 'vendors.service.ts'),
+      path.join(srcDir, 'modules', 'finance', 'application', 'transaction-categories.service.ts'),
     ];
 
     for (const file of targets) {
@@ -109,7 +109,7 @@ describe('Tenant scoping in QueryBuilder usages', () => {
   });
 
   it('has no dangling package event contract file after decommission', () => {
-    const eventFile = path.join(srcDir, 'modules', 'catalog', 'events', 'package.events.ts');
+    const eventFile = path.join(srcDir, 'modules', 'catalog', 'domain', 'events', 'package.events.ts');
     expect(fs.existsSync(eventFile)).toBe(false);
   });
 });
