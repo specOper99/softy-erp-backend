@@ -4,7 +4,7 @@ import { AvailabilityCacheOwnerService } from '../../../common/cache/availabilit
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { runGuardedDispatch } from '../../../common/utils/event-dispatch.util';
-import { PackagePriceChangedEvent } from '../events/package-price-changed.event';
+import { PackagePriceChangedEvent } from '../domain/events/package-price-changed.event';
 
 @EventsHandler(PackagePriceChangedEvent)
 export class PackagePriceChangedHandler implements IEventHandler<PackagePriceChangedEvent> {

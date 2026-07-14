@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
-import { CombinedPaginationDto } from '../../../common/dto/combined-pagination.dto';
+import { CombinedPaginationDto } from '../../../../common/dto/combined-pagination.dto';
 
 export class PackageFilterDto extends CombinedPaginationDto {
   @ApiPropertyOptional({ description: 'Filter by active status' })

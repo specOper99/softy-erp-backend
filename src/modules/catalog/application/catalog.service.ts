@@ -1,19 +1,20 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { SelectQueryBuilder } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { createPaginatedResponse, PaginatedResponseDto } from '../../../common/dto/paginated-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
-import { AuditPublisher } from '../../audit/audit.publisher';
-import { ClonePackageDto, CreateServicePackageDto, PackageFilterDto, UpdateServicePackageDto } from '../dto';
-import { ServicePackage } from '../entities/service-package.entity';
-import { PackagePriceChangedEvent } from '../events/package-price-changed.event';
-import { ServicePackageRepository } from '../repositories/service-package.repository';
+import { AuditPublisher } from '../../audit/application/audit.publisher';
+import { ClonePackageDto, CreateServicePackageDto, PackageFilterDto, UpdateServicePackageDto } from '../api/dto';
+import { ServicePackage } from '../domain/entities/service-package.entity';
+import { PackagePriceChangedEvent } from '../domain/events/package-price-changed.event';
+import { ServicePackageRepository } from '../infrastructure/service-package.repository';
 
 @Injectable()
 export class CatalogService {
@@ -23,6 +24,7 @@ export class CatalogService {
     private readonly cacheUtils: CacheUtilsService,
     private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
     private readonly eventBus: EventBus,
+    private readonly dataSource: DataSource,
   ) {}
 
   // Cache TTLs in milliseconds
@@ -192,10 +194,34 @@ export class CatalogService {
     if (dto.requiredStaffCount !== undefined) pkg.requiredStaffCount = dto.requiredStaffCount;
     if (dto.revenueAccountCode !== undefined) pkg.revenueAccountCode = dto.revenueAccountCode;
     if (dto.skipStaffCheck !== undefined) pkg.skipStaffCheck = dto.skipStaffCheck;
-    const savedPkg = await this.packageRepository.save(pkg);
 
-    if (dto.price !== undefined && dto.price !== oldValues.price) {
-      const tenantId = TenantContextService.getTenantIdOrThrow();
+    const priceChanged = dto.price !== undefined && dto.price !== oldValues.price;
+    const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    const savedPkg = await this.dataSource.transaction(async (manager) => {
+      const saved = await manager.save(ServicePackage, pkg);
+
+      if (priceChanged) {
+        await manager.save(OutboxEvent, {
+          aggregateId: saved.id,
+          aggregateType: 'ServicePackage',
+          type: 'PackagePriceChangedEvent',
+          tenantId,
+          occurredAt: new Date(),
+          payload: {
+            packageId: saved.id,
+            tenantId,
+            oldPrice: Number(oldValues.price),
+            newPrice: Number(saved.price),
+            packageName: saved.name,
+          },
+        });
+      }
+
+      return saved;
+    });
+
+    if (priceChanged) {
       this.eventBus.publish(
         new PackagePriceChangedEvent(id, tenantId, Number(oldValues.price), Number(savedPkg.price), savedPkg.name),
       );
@@ -221,7 +247,6 @@ export class CatalogService {
     }
 
     // Invalidate caches
-    const tenantId = TenantContextService.getTenantIdOrThrow();
     await this.invalidatePackagesCache(tenantId);
 
     // Invalidate availability cache when staffing-affecting fields change

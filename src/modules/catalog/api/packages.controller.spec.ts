@@ -4,9 +4,9 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
-import type { CreateServicePackageDto, UpdateServicePackageDto } from '../dto/catalog.dto';
-import type { PackageFilterDto } from '../dto/package-filter.dto';
-import { CatalogService } from '../services/catalog.service';
+import type { CreateServicePackageDto, UpdateServicePackageDto } from './dto/catalog.dto';
+import type { PackageFilterDto } from './dto/package-filter.dto';
+import { CatalogService } from '../application/catalog.service';
 import { PackagesController } from './packages.controller';
 
 describe('PackagesController', () => {

@@ -26,8 +26,8 @@ import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor'
 import { ApiErrorResponses, Cacheable, Roles } from '../../../common/decorators';
 import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { Role } from '../../users/enums/role.enum';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { Role } from '../../users/domain/enums/role.enum';
 import {
   ClonePackageDto,
   CreateServicePackageDto,
@@ -36,8 +36,8 @@ import {
   ServicePackagePaginatedResponseDto,
   ServicePackageSummaryResponseDto,
   UpdateServicePackageDto,
-} from '../dto';
-import { CatalogService } from '../services/catalog.service';
+} from './dto';
+import { CatalogService } from '../application/catalog.service';
 
 @ApiTags('Service Packages')
 @ApiBearerAuth('tenant-auth')

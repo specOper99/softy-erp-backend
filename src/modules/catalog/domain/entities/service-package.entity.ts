@@ -1,5 +1,5 @@
 import { Column, Entity } from 'typeorm';
-import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
+import { BaseTenantEntity } from '../../../../common/entities/abstract.entity';
 
 @Entity('service_packages')
 export class ServicePackage extends BaseTenantEntity {

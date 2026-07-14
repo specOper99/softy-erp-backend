@@ -2,7 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import type { SelectQueryBuilder } from 'typeorm';
+import { DataSource, type SelectQueryBuilder } from 'typeorm';
 import {
   createMockRepository,
   createMockServicePackage,
@@ -11,11 +11,11 @@ import {
 import { AvailabilityCacheOwnerService } from '../../../common/cache/availability-cache-owner.service';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import type { PaginationDto } from '../../../common/dto/pagination.dto';
-import { AuditPublisher } from '../../audit/audit.publisher';
-import type { CreateServicePackageDto, UpdateServicePackageDto } from '../dto';
-import type { ServicePackage } from '../entities/service-package.entity';
-import { PackagePriceChangedEvent } from '../events/package-price-changed.event';
-import { ServicePackageRepository } from '../repositories/service-package.repository';
+import { AuditPublisher } from '../../audit/application/audit.publisher';
+import type { CreateServicePackageDto, UpdateServicePackageDto } from '../api/dto';
+import type { ServicePackage } from '../domain/entities/service-package.entity';
+import { PackagePriceChangedEvent } from '../domain/events/package-price-changed.event';
+import { ServicePackageRepository } from '../infrastructure/service-package.repository';
 import { CatalogService } from './catalog.service';
 
 describe('CatalogService', () => {
@@ -69,6 +69,16 @@ describe('CatalogService', () => {
         {
           provide: EventBus,
           useValue: { publish: jest.fn() },
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn(async (cb: (manager: unknown) => unknown) =>
+              cb({
+                save: jest.fn(async (_entity: unknown, value: unknown) => value),
+              }),
+            ),
+          },
         },
       ],
     }).compile();

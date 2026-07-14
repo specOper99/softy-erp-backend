@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
-import { SanitizeHtml } from '../../../common/decorators/sanitize-html.decorator';
+import { SanitizeHtml } from '../../../../common/decorators/sanitize-html.decorator';
 
 // Base DTOs
 export class BaseServicePackageDto {
