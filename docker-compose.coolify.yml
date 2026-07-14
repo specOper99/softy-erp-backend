@@ -14,6 +14,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Coolify-managed Postgres/Redis live on the shared `coolify` network.
+    # Without this, the compose stack stays on an isolated project network and
+    # DB_HOST (resource UUID / container name) never resolves or accepts TCP.
+    networks:
+      - coolify
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -122,6 +127,8 @@ services:
       dockerfile: Dockerfile
     restart: 'no'
     entrypoint: ['node', 'dist/database/migrate.js']
+    networks:
+      - coolify
     environment:
       NODE_ENV: production
       DB_HOST: ${DB_HOST}
@@ -138,3 +145,8 @@ services:
 
 volumes:
   logs_data:
+
+networks:
+  # Pre-created by Coolify on the host. Postgres/Redis containers attach here.
+  coolify:
+    external: true

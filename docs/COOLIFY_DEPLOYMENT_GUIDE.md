@@ -26,11 +26,13 @@ Do **not** add Postgres/Redis/MinIO back into `docker-compose.coolify.yml`. Bund
 
 In Coolify UI, create and attach to the **same project/network** as the backend app:
 
-1. **PostgreSQL** — note internal hostname, port, user, password, database name.
+1. **PostgreSQL** — note internal hostname (often the resource UUID / container name, e.g. `kgztg6…`), port, user, password, database name.
 2. **Redis** — note connection URL (`redis://...`).
 3. **Garage** (or any S3 path-style endpoint) — create bucket + access/secret keys; note API endpoint.
 
 Wire those values into the backend resource Environment Variables (table below).
+
+`docker-compose.coolify.yml` joins the external **`coolify`** Docker network so the backend can reach managed Postgres/Redis by container name. If deploy fails with `network coolify declared as external but could not be found`, create/attach via Coolify UI or run `docker network ls` on the host and rename the external network in compose to match.
 
 ---
 
@@ -56,15 +58,28 @@ Wire those values into the backend resource Environment Variables (table below).
 | `CORS_ORIGINS` | Yes | Comma-separated frontend origins |
 
 5. Do **not** override the image entrypoint or start command.
-6. Deploy is safe only **after** migrations have been applied (next section).
+6. Migrations: either apply out-of-band (compose `migrate` profile) **or** set `RUN_MIGRATIONS_ON_BOOT=true` for Dockerfile Application (next section).
 
 Resource limits in compose (`mem_limit: 768M`, `cpus: 1.0`) are a starting point — raise if the app OOMs under load, but leave headroom for Coolify + managed DBs.
 
 ---
 
-## Migrations (devops one-off)
+## Migrations
 
-The `backend` container **does not** run migrations. Its entrypoint (`wait-for-migrations.js`) polls until schema has no pending migrations, then starts Nest. Devops applies migrations out-of-band via the dedicated `migrate` service.
+### Dockerfile Application (Coolify) — recommended for this hosting path
+
+Coolify pre/post-deploy hooks need a **healthy** (or existing) container. First deploy has neither → migrate hooks skip → healthcheck kills wait-loop. Fix:
+
+1. Add runtime env **`RUN_MIGRATIONS_ON_BOOT=true`** (not build-time).
+2. Keep **replicas = 1** while boot-migrate is on (avoid concurrent `runMigrations`).
+3. Keep `DB_MIGRATIONS_RUN=false` (TypeORM Nest-boot migrate stays off).
+4. Redeploy. Logs should show `RUN_MIGRATIONS_ON_BOOT=true` → `Running database migrations...` → `Starting application...`.
+
+Unset / set `false` if you switch back to out-of-band migrate.
+
+### Compose — devops one-off (default)
+
+Without `RUN_MIGRATIONS_ON_BOOT`, the `backend` container **does not** run migrations. Entrypoint (`wait-for-migrations.js`) polls until schema has no pending migrations, then starts Nest. Devops applies migrations out-of-band via the dedicated `migrate` service.
 
 ### Why a dedicated migrate service (not `Execute Command`)
 
@@ -86,6 +101,8 @@ Confirm logs show `Applied ... migration(s)` or `No pending migrations.`, then (
 
 ### Boot sequence (healthy backend logs)
 
+Wait path (default):
+
 ```text
 Waiting for PostgreSQL at ...
 PostgreSQL is reachable.
@@ -94,13 +111,22 @@ No pending migrations. Schema is ready.
 Starting application...
 ```
 
-If devops has not migrated yet, logs repeat `pending migrations still present` until timeout, then exit 1.
+Boot-migrate path (`RUN_MIGRATIONS_ON_BOOT=true`):
+
+```text
+RUN_MIGRATIONS_ON_BOOT=true — applying migrations before start...
+Waiting for PostgreSQL at ...
+PostgreSQL is reachable.
+Running database migrations...
+Applied N migration(s): ...   # or: No pending migrations.
+Starting application...
+```
+
+If wait path and devops has not migrated yet, logs repeat `pending migrations still present` until timeout, then exit 1.
 
 ### Timing (avoids the restart storm)
 
-Worst-case entrypoint wait = DB wait (`DB_WAIT_RETRIES`×`DB_WAIT_DELAY`, default 30×2 = 60s) + migration wait (`MIGRATION_WAIT_RETRIES`×`MIGRATION_WAIT_DELAY`, default 30×5 = 150s) = **210s**. Healthcheck `start_period` is **240s** so the liveness probe never fails the container mid-wait. Keep `start_period > total wait`; if you raise the wait envs, raise `start_period` to match, or the container will be killed and restart-loop.
-
-Tune wait via env: `DB_WAIT_RETRIES`, `DB_WAIT_DELAY`, `MIGRATION_WAIT_RETRIES`, `MIGRATION_WAIT_DELAY`.
+Worst-case wait path = DB wait (`DB_WAIT_RETRIES`×`DB_WAIT_DELAY`, default 30×2 = 60s) + migration wait (`MIGRATION_WAIT_RETRIES`×`MIGRATION_WAIT_DELAY`, default 30×5 = 150s) = **210s**. Image `HEALTHCHECK` `start-period` is **240s**. Keep Coolify health start period ≥ that (or disable healthcheck only for emergency). Boot-migrate path is usually much shorter (DB wait + migrate).
 
 ---
 

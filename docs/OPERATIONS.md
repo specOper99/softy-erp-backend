@@ -103,7 +103,7 @@ Before deploying to production:
 2. **Database**
    - [x] PostgreSQL is accessible (Coolify-managed resource recommended)
    - [x] Choose one DB config shape: `DATABASE_URL` or the full `DB_*` set
-   - [x] If using Docker or Coolify, do not override the container entrypoint; it **waits** for migrations (does not run them)
+   - [x] If using Docker or Coolify, do not override the container entrypoint; default waits for migrations (or set `RUN_MIGRATIONS_ON_BOOT=true` for Dockerfile Coolify)
    - [x] Devops applies schema with `npm run migration:run:prod` / `node dist/database/migrate.js` before/at release
    - [x] Database user has appropriate permissions
 
@@ -133,10 +133,11 @@ Use [backend/docs/COOLIFY_DEPLOYMENT_GUIDE.md](./COOLIFY_DEPLOYMENT_GUIDE.md) as
 Operational notes:
 
 - Point Coolify at [backend/docker-compose.coolify.yml](../docker-compose.coolify.yml). Compose is **backend-only**; Postgres, Redis, and Garage are Coolify-managed resources.
-- Do not set a custom start command or entrypoint override in Coolify. The image entrypoint runs `node dist/database/wait-for-migrations.js` before `node dist/main.js`.
-- In this deployment path, `DB_MIGRATIONS_RUN=false` is intentional. Devops runs `node dist/database/migrate.js` as a one-off; the entrypoint only waits until `showMigrations()` reports no pending work. The app still re-checks pending migrations at Nest boot.
-- Check the backend container logs, not only the high-level Coolify deployment log. Healthy boot: `Waiting for PostgreSQL` → `Waiting for database migrations...` → `No pending migrations. Schema is ready.` → `Starting application...`.
-- Verify liveness at `GET /api/v1/health/live` after the backend container reports startup complete.
+- Do not set a custom start command or entrypoint override in Coolify.
+- Default entrypoint: `wait-for-migrations.js` then Nest. Compose path: devops runs profile `migrate` (or `node dist/database/migrate.js`) out-of-band.
+- Dockerfile Application (Coolify): set `RUN_MIGRATIONS_ON_BOOT=true` (runtime) so entrypoint runs `migrate.js` then Nest. Keep **one replica**. Keep `DB_MIGRATIONS_RUN=false`.
+- Check container logs, not only Coolify deploy log. Boot-migrate: `RUN_MIGRATIONS_ON_BOOT=true` → `Running database migrations...` → `Starting application...`. Wait path: `Waiting for PostgreSQL` → `No pending migrations. Schema is ready.` → `Starting application...`.
+- Verify liveness at `GET /api/v1/health/live` after startup.
 
 ---
 
