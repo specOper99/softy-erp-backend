@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Role } from '../../modules/users/enums/role.enum';
+import { Role } from '../../modules/users/domain/enums/role.enum';
 import { AbilityFactory } from './ability.factory';
 
 describe('AbilityFactory', () => {

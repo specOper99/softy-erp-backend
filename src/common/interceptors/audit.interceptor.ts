@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
-import { AuditService } from '../../modules/audit/audit.service';
+import { AuditService } from '../../modules/audit/application/audit.service';
 import { AUDIT_KEY, AuditOptions } from '../decorators/audit.decorator';
 import { getCorrelationId } from '../logger/request-context';
 import { TenantContextService } from '../services/tenant-context.service';

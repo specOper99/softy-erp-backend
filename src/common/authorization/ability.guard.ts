@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { User } from '../../modules/users/entities/user.entity';
+import { User } from '../../modules/users/domain/entities/user.entity';
 import { AbilityFactory } from '../authorization/ability.factory';
 import { CHECK_ABILITY_KEY, type CheckAbilityMetadata } from './check-ability.decorator';
 

@@ -1,6 +1,6 @@
 import { AbilityBuilder, createMongoAbility, subject, type MongoAbility } from '@casl/ability';
 import { Injectable } from '@nestjs/common';
-import { Role } from '../../modules/users/enums/role.enum';
+import { Role } from '../../modules/users/domain/enums/role.enum';
 
 export type AppSubject = 'all' | 'Booking' | 'Client' | 'Invoice' | 'Payroll' | 'Task' | 'User' | 'Webhook';
 

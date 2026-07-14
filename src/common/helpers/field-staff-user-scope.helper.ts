@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Role } from '../../modules/users/enums/role.enum';
+import { Role } from '../../modules/users/domain/enums/role.enum';
 
 export interface UserScopePrincipal {
   id: string;

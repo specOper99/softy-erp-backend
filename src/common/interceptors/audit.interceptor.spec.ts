@@ -5,7 +5,7 @@ import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { of, throwError } from 'rxjs';
-import { AuditService } from '../../modules/audit/audit.service';
+import { AuditService } from '../../modules/audit/application/audit.service';
 import type { AuditOptions } from '../decorators/audit.decorator';
 import { TenantContextService } from '../services/tenant-context.service';
 import { AuditInterceptor } from './audit.interceptor';

@@ -3,8 +3,8 @@ import type { Reflector } from '@nestjs/core';
 import type { DataSource } from 'typeorm';
 import { AbilityFactory } from '../authorization/ability.factory';
 import type { CaslShadowMetric } from '../authorization/casl-shadow.metric';
-import { Client } from '../../modules/bookings/entities/client.entity';
-import { Role } from '../../modules/users/enums/role.enum';
+import { Client } from '../../modules/clients/domain/entities/client.entity';
+import { Role } from '../../modules/users/domain/enums/role.enum';
 import { TenantContextService } from '../services/tenant-context.service';
 import { ResourceOwnershipGuard } from './resource-ownership.guard';
 

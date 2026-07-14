@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { User } from '../../modules/users/entities/user.entity';
-import { Role } from '../../modules/users/enums/role.enum';
+import { User } from '../../modules/users/domain/entities/user.entity';
+import { Role } from '../../modules/users/domain/enums/role.enum';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
 interface RequestWithUser extends Request {

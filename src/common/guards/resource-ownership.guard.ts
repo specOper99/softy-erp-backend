@@ -13,9 +13,9 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { DataSource } from 'typeorm';
-import { Client } from '../../modules/bookings/entities/client.entity';
-import { User } from '../../modules/users/entities/user.entity';
-import { Role } from '../../modules/users/enums/role.enum';
+import { Client } from '../../modules/clients/domain/entities/client.entity';
+import { User } from '../../modules/users/domain/entities/user.entity';
+import { Role } from '../../modules/users/domain/enums/role.enum';
 import { AbilityFactory, type AppAction, type AppSubject } from '../authorization/ability.factory';
 import { CaslShadowMetric } from '../authorization/casl-shadow.metric';
 import { TenantContextService } from '../services/tenant-context.service';

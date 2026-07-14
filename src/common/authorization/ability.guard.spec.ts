@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Role } from '../../modules/users/enums/role.enum';
+import { Role } from '../../modules/users/domain/enums/role.enum';
 import { createMockExecutionContext } from '../../../test/helpers/test-setup.utils';
 import { AbilityFactory } from './ability.factory';
 import { AbilityGuard } from './ability.guard';

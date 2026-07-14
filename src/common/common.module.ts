@@ -1,19 +1,16 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthorizationModule } from './authorization/authorization.module';
-import { OutboxEvent } from './entities/outbox-event.entity';
-import { ResourceOwnershipGuard } from './guards/resource-ownership.guard';
 import { FlagsService } from './flags/flags.service';
+import { OutboxModule } from './outbox/outbox.module';
 import { CursorAuthService } from './services/cursor-auth.service';
 import { DistributedLockService } from './services/distributed-lock.service';
 import { EncryptionService } from './services/encryption.service';
-import { OutboxRelayService } from './services/outbox-relay.service';
 import { PasswordHashService } from './services/password-hash.service';
+import { ResourceOwnershipGuard } from './guards/resource-ownership.guard';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OutboxEvent]), AuthorizationModule],
+  imports: [forwardRef(() => OutboxModule), AuthorizationModule],
   providers: [
-    OutboxRelayService,
     FlagsService,
     PasswordHashService,
     CursorAuthService,
@@ -22,8 +19,7 @@ import { PasswordHashService } from './services/password-hash.service';
     ResourceOwnershipGuard,
   ],
   exports: [
-    OutboxRelayService,
-    TypeOrmModule,
+    OutboxModule,
     FlagsService,
     PasswordHashService,
     CursorAuthService,
