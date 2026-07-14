@@ -41,7 +41,7 @@
     "src/database/**": ["exports"],
     "src/modules/**/decorators/**": ["exports"],
     "src/modules/tenants/guards/subscription.guard.ts": ["exports"],
-    "src/modules/users/events/**": ["exports"]
+    "src/modules/users/domain/events/**": ["exports"]
   },
   "rules": {
     "exports": "error",

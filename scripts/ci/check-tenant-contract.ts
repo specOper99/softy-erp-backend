@@ -34,76 +34,24 @@ const RAW_REPOSITORY_ALLOWLIST = [
   },
   {
     kind: 'pathExact',
-    value: 'src/modules/client-portal/decorators/validate-tenant-slug.decorator.ts',
-    reason: 'Slug middleware resolves Tenant identity for public routes before tenant context is established.',
-  },
-  {
-    kind: 'pathExact',
     value: 'src/common/services/outbox-relay.service.ts',
     reason: 'Outbox relay is a global publisher loop and intentionally uses raw outbox repository access.',
   },
 ] as const;
 
 // File-path specific allowlist for RAW_REPOSITORY_IN_TENANT_MODULE violations
-// These are exceptional cases that require explicit rationale and CI approval
-const FILE_PATH_ALLOWLIST: { path: string; reason: string }[] = [
-  {
-    path: 'src/modules/audit/audit.processor.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/billing/services/subscription.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/finance/services/payout-relay.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/finance/services/purchase-invoices.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/finance/services/transaction-categories.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/finance/services/vendors.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/hr/services/task-type-eligibility.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/mail/services/mail-template.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/privacy/consent.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/tasks/services/tasks-export.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/tasks/services/time-entries.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-  {
-    path: 'src/modules/users/services/users.service.ts',
-    reason: 'TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)',
-  },
-];
+// These are exceptional cases that require explicit rationale and CI approval.
+// TEMP baseline entries have been fully remediated — keep empty unless a new
+// documented exception is approved in review.
+const FILE_PATH_ALLOWLIST: { path: string; reason: string }[] = [];
 
 const SKIP_TENANT_EXPLICIT_CONTEXT_ALLOWLIST = new Set([
-  'src/modules/health/health.controller.ts',
-  'src/modules/metrics/metrics.controller.ts',
-  'src/modules/auth/auth.controller.ts',
-  'src/modules/platform/auth/controllers/platform-auth.controller.ts',
-  'src/modules/platform/controllers/mfa.controller.ts',
-  'src/modules/platform/auth/controllers/mfa-login.controller.ts',
+  'src/modules/health/api/health.controller.ts',
+  'src/modules/metrics/api/metrics.controller.ts',
+  'src/modules/auth/api/auth.controller.ts',
+  'src/modules/platform/api/controllers/platform-auth.controller.ts',
+  'src/modules/platform/api/controllers/mfa.controller.ts',
+  'src/modules/platform/api/controllers/mfa-login.controller.ts',
 ]);
 
 interface SkipTenantMethodContract {
@@ -118,7 +66,7 @@ interface SkipTenantUsageAllowlistEntry {
 }
 
 const SKIP_TENANT_USAGE_ALLOWLIST: Record<string, SkipTenantUsageAllowlistEntry> = {
-  'src/modules/auth/auth.controller.ts': {
+  'src/modules/auth/api/auth.controller.ts': {
     reason: 'Auth bootstrap and recovery endpoints must run before tenant context is established.',
     methods: [
       'register',
@@ -132,90 +80,56 @@ const SKIP_TENANT_USAGE_ALLOWLIST: Record<string, SkipTenantUsageAllowlistEntry>
       'resendVerification',
     ],
   },
-  'src/modules/billing/controllers/billing.controller.ts': {
-    reason:
-      'Stripe webhook controller validates signatures and derives tenant through billing linkage, not request tenant input.',
-    allowClassDecorator: true,
-  },
-  'src/modules/client-portal/client-portal.controller.ts': {
-    reason:
-      'Client portal is public-entry auth and tenant derivation via slug/token, with explicit TenantContextService.run for tenant-scoped calls.',
-    allowClassDecorator: true,
-  },
-  'src/modules/health/health.controller.ts': {
+  'src/modules/health/api/health.controller.ts': {
     reason: 'Health probes are infrastructure/global and do not operate on tenant-owned domain persistence.',
     allowClassDecorator: true,
   },
-  'src/modules/metrics/metrics.controller.ts': {
+  'src/modules/metrics/api/metrics.controller.ts': {
     reason: 'Metrics endpoints are global platform telemetry and intentionally tenant-agnostic.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/auth/controllers/mfa-login.controller.ts': {
+  'src/modules/platform/api/controllers/mfa-login.controller.ts': {
     reason: 'Platform control-plane login MFA endpoint is global and not tenant-scoped.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/controllers/mfa.controller.ts': {
+  'src/modules/platform/api/controllers/mfa.controller.ts': {
     reason: 'Platform control-plane MFA management is global and not tenant-scoped.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/controllers/platform-analytics.controller.ts': {
+  'src/modules/platform/api/controllers/platform-analytics.controller.ts': {
     reason: 'Platform control-plane analytics is global and uses explicit target-tenant context when needed.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/controllers/platform-audit.controller.ts': {
+  'src/modules/platform/api/controllers/platform-audit.controller.ts': {
     reason: 'Platform control-plane audit log access is global compliance scope, not tenant request scope.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/auth/controllers/platform-auth.controller.ts': {
+  'src/modules/platform/api/controllers/platform-auth.controller.ts': {
     reason: 'Platform control-plane auth endpoints are global bootstrap/session flows.',
     allowClassDecorator: true,
     methods: ['login', 'refreshTokens'],
   },
-  'src/modules/platform/controllers/platform-security.controller.ts': {
+  'src/modules/platform/api/controllers/platform-security.controller.ts': {
     reason:
       'Platform security operations are global entry points and explicitly establish tenant context for targeted actions.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/controllers/platform-support.controller.ts': {
+  'src/modules/platform/api/controllers/platform-support.controller.ts': {
     reason: 'Platform support/impersonation endpoints are control-plane operations outside tenant guard scope.',
     allowClassDecorator: true,
   },
-  'src/modules/platform/controllers/platform-tenants.controller.ts': {
+  'src/modules/platform/api/controllers/platform-tenants.controller.ts': {
     reason:
       'Platform tenant lifecycle management is global metadata/control-plane and not tenant-scoped by request context.',
-    allowClassDecorator: true,
-  },
-  'src/modules/platform/controllers/platform-time-entries.controller.ts': {
-    reason: 'Platform support time-entry endpoints use explicit target tenant context for tenant-specific operations.',
     allowClassDecorator: true,
   },
 };
 
 const SKIP_TENANT_METHOD_CONTRACTS: Record<string, SkipTenantMethodContract[]> = {
-  'src/modules/client-portal/client-portal.controller.ts': [
-    {
-      methodName: 'getMyBookings',
-      tenantScopedCallPatterns: [/this\.clientPortalService\.getMyBookingsPaginated\s*\(/],
-    },
-    { methodName: 'getBooking', tenantScopedCallPatterns: [/this\.clientPortalService\.getBooking\s*\(/] },
-    { methodName: 'createBooking', tenantScopedCallPatterns: [/this\.clientPortalService\.createBooking\s*\(/] },
-    { methodName: 'cancelBooking', tenantScopedCallPatterns: [/this\.clientPortalService\.cancelMyBooking\s*\(/] },
-    { methodName: 'updateProfile', tenantScopedCallPatterns: [/this\.clientsService\.update\s*\(/] },
-    {
-      methodName: 'updateNotificationPreferences',
-      tenantScopedCallPatterns: [/this\.clientsService\.update\s*\(/],
-    },
-    { methodName: 'getNotifications', tenantScopedCallPatterns: [/this\.notificationService\.findByClient\s*\(/] },
-  ],
-  'src/modules/platform/controllers/platform-time-entries.controller.ts': [
-    { methodName: 'list', tenantScopedCallPatterns: [/this\.service\.list\s*\(/] },
-    { methodName: 'findOne', tenantScopedCallPatterns: [/this\.service\.findOne\s*\(/] },
-    { methodName: 'update', tenantScopedCallPatterns: [/this\.service\.update\s*\(/] },
-  ],
-  'src/modules/platform/controllers/platform-analytics.controller.ts': [
+  'src/modules/platform/api/controllers/platform-analytics.controller.ts': [
     { methodName: 'getTenantHealth', tenantScopedCallPatterns: [/this\.analyticsService\.getTenantHealth\s*\(/] },
   ],
-  'src/modules/platform/controllers/platform-security.controller.ts': [
+  'src/modules/platform/api/controllers/platform-security.controller.ts': [
     {
       methodName: 'forceTenantAdminPasswordReset',
       tenantScopedCallPatterns: [/this\.securityService\.forceTenantAdminPasswordReset\s*\(/],

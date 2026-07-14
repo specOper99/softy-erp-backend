@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
-const controllerPath = join(root, 'src/modules/platform/controllers/platform-tenants.controller.ts');
-const servicePath = join(root, 'src/modules/platform/services/platform-tenant.service.ts');
+const controllerPath = join(root, 'src/modules/platform/api/controllers/platform-tenants.controller.ts');
+const servicePath = join(root, 'src/modules/platform/application/platform-tenant.service.ts');
 
 const LIFECYCLE_MUTATION_METHODS: ReadonlyArray<{ controllerMethod: string; serviceMethod: string }> = [
   { controllerMethod: 'createTenant', serviceMethod: 'createTenant' },

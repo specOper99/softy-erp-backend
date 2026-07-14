@@ -59,10 +59,17 @@ if (!dockerfile.includes('npm prune --omit=dev')) {
   fail('Dockerfile must prune dev dependencies with --omit=dev.');
 }
 
-if (!deployWorkflow.includes('npm ci --include=dev')) {
-  fail('Production deploy workflow must install dev dependencies before build steps.');
-}
+// Legacy SSH deploy.yml is hard-disabled (Coolify + GHCR). Dockerfile already
+// enforces include=dev / omit=dev above. Only require those strings when the
+// workflow is still an executable build/deploy path.
+const deployHardDisabled = deployWorkflow.includes('permanently disabled') || deployWorkflow.includes('Fail closed');
 
-if (!deployWorkflow.includes('npm prune --omit=dev')) {
-  fail('Production deploy workflow must prune dev dependencies after build/migration steps.');
+if (!deployHardDisabled) {
+  if (!deployWorkflow.includes('npm ci --include=dev')) {
+    fail('Production deploy workflow must install dev dependencies before build steps.');
+  }
+
+  if (!deployWorkflow.includes('npm prune --omit=dev')) {
+    fail('Production deploy workflow must prune dev dependencies after build/migration steps.');
+  }
 }
