@@ -4,6 +4,7 @@ import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { CatalogModule } from '../catalog/catalog.module';
+import { ClientsModule } from '../clients/clients.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { FinanceModule } from '../finance/finance.module';
 import { HealthModule } from '../health/health.module';
@@ -21,6 +22,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     AuthModule,
     UsersModule,
     CatalogModule,
+    ClientsModule,
     BookingsModule,
     TasksModule,
     FinanceModule,
@@ -39,6 +41,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     AuthModule,
     UsersModule,
     CatalogModule,
+    ClientsModule,
     BookingsModule,
     TasksModule,
     FinanceModule,
