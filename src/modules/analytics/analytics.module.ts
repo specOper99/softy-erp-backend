@@ -1,20 +1,30 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Booking } from '../bookings/entities/booking.entity';
-import { DailyMetrics } from './entities/daily-metrics.entity';
-import { UpdateMetricsHandler } from './handlers/update-metrics.handler';
-import { AnalyticsService } from './services/analytics.service';
-import { ReportGeneratorService } from '../dashboard/services/report-generator.service';
-
+import { CommonModule } from '../../common/common.module';
+import { OUTBOX_FINANCIAL_CONSUMER } from '../../common/outbox/outbox-consumer.port';
+import { OutboxModule } from '../../common/outbox/outbox.module';
+import { Booking } from '../bookings/domain/entities/booking.entity';
 import { AuthModule } from '../auth/auth.module';
-import { BookingRepository } from '../bookings/repositories/booking.repository';
+import { BookingRepository } from '../bookings/infrastructure/booking.repository';
+import { ReportGeneratorService } from '../dashboard/application/report-generator.service';
 import { TenantsModule } from '../tenants/tenants.module';
-import { AnalyticsController } from './controllers';
-import { DailyMetricsRepository } from './repositories/daily-metrics.repository';
+import { AnalyticsController } from './api/analytics.controller';
+import { AnalyticsService } from './application/analytics.service';
+import { DailyMetrics } from './domain/entities';
+import { DailyMetricsRepository } from './infrastructure/daily-metrics.repository';
+import { OutboxFinancialConsumer } from './infrastructure/outbox-financial.consumer';
+import { UpdateMetricsHandler } from './infrastructure/update-metrics.handler';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DailyMetrics, Booking]), CqrsModule, AuthModule, TenantsModule],
+  imports: [
+    TypeOrmModule.forFeature([DailyMetrics, Booking]),
+    CqrsModule,
+    AuthModule,
+    TenantsModule,
+    CommonModule,
+    forwardRef(() => OutboxModule),
+  ],
   controllers: [AnalyticsController],
   providers: [
     UpdateMetricsHandler,
@@ -22,7 +32,12 @@ import { DailyMetricsRepository } from './repositories/daily-metrics.repository'
     DailyMetricsRepository,
     BookingRepository,
     ReportGeneratorService,
+    OutboxFinancialConsumer,
+    {
+      provide: OUTBOX_FINANCIAL_CONSUMER,
+      useExisting: OutboxFinancialConsumer,
+    },
   ],
-  exports: [AnalyticsService, DailyMetricsRepository, ReportGeneratorService],
+  exports: [AnalyticsService, DailyMetricsRepository, ReportGeneratorService, OUTBOX_FINANCIAL_CONSUMER],
 })
 export class AnalyticsModule {}

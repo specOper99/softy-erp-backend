@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
-import { DailyMetrics } from '../entities/daily-metrics.entity';
+import { DailyMetrics } from '../domain/entities/daily-metrics.entity';
 
 @Injectable()
 export class DailyMetricsRepository extends TenantAwareRepository<DailyMetrics> {

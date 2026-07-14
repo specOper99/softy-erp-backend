@@ -1,17 +1,19 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
-import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
-import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
-import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
-import type { DailyMetrics } from '../entities/daily-metrics.entity';
-import { DailyMetricsRepository } from '../repositories/daily-metrics.repository';
+import { FlagsService } from '../../../common/flags/flags.service';
+import { BookingCancelledEvent } from '../../bookings/domain/events/booking-cancelled.event';
+import { BookingConfirmedEvent } from '../../bookings/domain/events/booking-confirmed.event';
+import { PaymentRecordedEvent } from '../../bookings/domain/events/payment-recorded.event';
+import { TaskCompletedEvent } from '../../tasks/domain/events/task-completed.event';
+import type { DailyMetrics } from '../domain/entities/daily-metrics.entity';
+import { DailyMetricsRepository } from './daily-metrics.repository';
 import { UpdateMetricsHandler } from './update-metrics.handler';
 
 // Converted to a unit test that mocks the repository to avoid native sqlite dependency
 describe('UpdateMetricsHandler (unit)', () => {
   let handler: UpdateMetricsHandler;
   let metricsRepo: MockDailyMetricsRepository;
+  const flagsService = { isEnabled: jest.fn().mockReturnValue(false) };
 
   class MockDailyMetricsRepository {
     private store = new Map<string, DailyMetrics>();
@@ -75,11 +77,19 @@ describe('UpdateMetricsHandler (unit)', () => {
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UpdateMetricsHandler, { provide: DailyMetricsRepository, useClass: MockDailyMetricsRepository }],
+      providers: [
+        UpdateMetricsHandler,
+        { provide: DailyMetricsRepository, useClass: MockDailyMetricsRepository },
+        { provide: FlagsService, useValue: flagsService },
+      ],
     }).compile();
 
     handler = module.get(UpdateMetricsHandler);
     metricsRepo = module.get(DailyMetricsRepository) as unknown as MockDailyMetricsRepository;
+  });
+
+  beforeEach(() => {
+    flagsService.isEnabled.mockReturnValue(false);
   });
 
   afterEach(async () => {
@@ -104,7 +114,7 @@ describe('UpdateMetricsHandler (unit)', () => {
     expect(Number(metrics?.totalRevenue)).toBe(0);
   });
 
-  it('should increment revenue on PaymentRecordedEvent', async () => {
+  it('should increment revenue on PaymentRecordedEvent when durable financial is off', async () => {
     const event = new PaymentRecordedEvent(
       'booking-1',
       'tenant-1',
@@ -122,6 +132,26 @@ describe('UpdateMetricsHandler (unit)', () => {
     const metrics = await metricsRepo.findOne({ where: { tenantId: 'tenant-1' } });
     expect(metrics).toBeDefined();
     expect(Number(metrics?.totalRevenue)).toBe(1500);
+  });
+
+  it('skips PaymentRecorded metrics when durable financial flag is on', async () => {
+    flagsService.isEnabled.mockReturnValue(true);
+    const event = new PaymentRecordedEvent(
+      'booking-1',
+      'tenant-1',
+      'client@test.com',
+      'Client Name',
+      new Date(),
+      1500,
+      'Credit Card',
+      'ref-123',
+      1500,
+      1500,
+    );
+    await handler.handle(event);
+
+    const metrics = await metricsRepo.findOne({ where: { tenantId: 'tenant-1' } });
+    expect(metrics).toBeUndefined();
   });
 
   it('should increment task count on TaskCompletedEvent', async () => {

@@ -3,8 +3,8 @@ import { Test } from '@nestjs/testing';
 import type { Repository, SelectQueryBuilder } from 'typeorm';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import type { Booking } from '../../bookings/entities/booking.entity';
-import { BookingRepository } from '../../bookings/repositories/booking.repository';
+import type { Booking } from '../../bookings/domain/entities/booking.entity';
+import { BookingRepository } from '../../bookings/infrastructure/booking.repository';
 import { AnalyticsService } from './analytics.service';
 
 describe('AnalyticsService', () => {

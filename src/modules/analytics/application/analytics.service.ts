@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { MathUtils } from '../../../common/utils/math.utils';
-import { BookingStatus } from '../../bookings/enums/booking-status.enum';
-import { BookingRepository } from '../../bookings/repositories/booking.repository';
-import { FinancialReportFilterDto } from '../../finance/dto/financial-report.dto';
-import { RevenueByPackageEntry, RevenueByPackageRaw, TaxReportRaw } from '../../finance/types/report.types';
+import { BookingStatus } from '../../bookings/domain/enums/booking-status.enum';
+import { BookingRepository } from '../../bookings/infrastructure/booking.repository';
+import { FinancialReportFilterDto } from '../../finance/api/dto/financial-report.dto';
+import { RevenueByPackageEntry, RevenueByPackageRaw, TaxReportRaw } from '../../finance/domain/types/report.types';
 
 @Injectable()
 export class AnalyticsService {

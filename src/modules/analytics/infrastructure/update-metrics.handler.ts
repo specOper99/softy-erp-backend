@@ -1,13 +1,15 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { format } from 'date-fns';
+import { DURABLE_FINANCIAL_EVENTS_FLAG } from '../../../common/events/outbox-envelope';
+import { FlagsService } from '../../../common/flags/flags.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { isDuplicateKeyError, toErrorMessage } from '../../../common/utils/error.util';
-import { BookingCancelledEvent } from '../../bookings/events/booking-cancelled.event';
-import { BookingConfirmedEvent } from '../../bookings/events/booking-confirmed.event';
-import { PaymentRecordedEvent } from '../../bookings/events/payment-recorded.event';
-import { TaskCompletedEvent } from '../../tasks/events/task-completed.event';
-import { DailyMetricsRepository } from '../repositories/daily-metrics.repository';
+import { BookingCancelledEvent } from '../../bookings/domain/events/booking-cancelled.event';
+import { BookingConfirmedEvent } from '../../bookings/domain/events/booking-confirmed.event';
+import { PaymentRecordedEvent } from '../../bookings/domain/events/payment-recorded.event';
+import { TaskCompletedEvent } from '../../tasks/domain/events/task-completed.event';
+import { DailyMetricsRepository } from './daily-metrics.repository';
 
 @EventsHandler(BookingConfirmedEvent, TaskCompletedEvent, BookingCancelledEvent, PaymentRecordedEvent)
 export class UpdateMetricsHandler
@@ -19,7 +21,10 @@ export class UpdateMetricsHandler
 {
   private readonly logger = new Logger(UpdateMetricsHandler.name);
 
-  constructor(private readonly metricsRepository: DailyMetricsRepository) {}
+  constructor(
+    private readonly metricsRepository: DailyMetricsRepository,
+    @Optional() private readonly flagsService?: FlagsService,
+  ) {}
 
   async handle(event: BookingConfirmedEvent | TaskCompletedEvent | BookingCancelledEvent | PaymentRecordedEvent) {
     const tenantId = event.tenantId;
@@ -54,6 +59,11 @@ export class UpdateMetricsHandler
         increments = { cancellationsCount: 1 };
         break;
       case 'PaymentRecorded':
+        // Durable financial outbox owns payment revenue when flag is ON.
+        if (this.flagsService?.isEnabled(DURABLE_FINANCIAL_EVENTS_FLAG, {}, true) ?? true) {
+          this.logger.debug(`Skipping legacy CQRS metrics for PaymentRecordedEvent (durable path on)`);
+          return;
+        }
         // Revenue tracked on collection date.
         dateStr = today;
         increments = { totalRevenue: event.amount };

@@ -2,11 +2,11 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { SubscriptionPlan } from '../../tenants/enums/subscription-plan.enum';
-import { RequireSubscription, SubscriptionGuard } from '../../tenants/guards/subscription.guard';
-import { Role } from '../../users/enums/role.enum';
-import { AnalyticsService } from '../services/analytics.service';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { SubscriptionPlan } from '../../tenants/domain/enums/subscription-plan.enum';
+import { RequireSubscription, SubscriptionGuard } from '../../tenants/infrastructure/guards/subscription.guard';
+import { Role } from '../../users/domain/enums/role.enum';
+import { AnalyticsService } from '../application/analytics.service';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()

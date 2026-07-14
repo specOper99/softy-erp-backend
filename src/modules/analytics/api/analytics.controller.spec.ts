@@ -1,8 +1,8 @@
 import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { TenantsService } from '../../tenants/tenants.service';
-import { AnalyticsService } from '../services/analytics.service';
+import { TenantsService } from '../../tenants/application/tenants.service';
+import { AnalyticsService } from '../application/analytics.service';
 import { AnalyticsController } from './analytics.controller';
 
 describe('AnalyticsController', () => {
