@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
 import { Repository } from 'typeorm';
-import { Tenant } from '../entities/tenant.entity';
+import { Tenant } from '../../domain/entities/tenant.entity';
 
 interface AuthenticatedRequest extends Request {
   user?: { tenantId?: string };

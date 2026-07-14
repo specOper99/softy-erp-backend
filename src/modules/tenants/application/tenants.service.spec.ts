@@ -2,12 +2,12 @@ import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { FlagsService } from '../../common/flags/flags.service';
-import { MetricsFactory } from '../../common/services/metrics.factory';
+import { FlagsService } from '../../../common/flags/flags.service';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
 import type { EntityManager, Repository } from 'typeorm';
-import type { CreateTenantDto } from './dto/create-tenant.dto';
-import { Tenant } from './entities/tenant.entity';
-import { TenantStatus } from './enums/tenant-status.enum';
+import type { CreateTenantDto } from '../api/dto/create-tenant.dto';
+import { Tenant } from '../domain/entities/tenant.entity';
+import { TenantStatus } from '../domain/enums/tenant-status.enum';
 import { TenantsService } from './tenants.service';
 
 describe('TenantsService', () => {

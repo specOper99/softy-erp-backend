@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { NextFunction, Request, Response } from 'express';
-import { TenantsService } from '../tenants.service';
+import { TenantsService } from '../../application/tenants.service';
 import { TenantMiddleware } from './tenant.middleware';
 
 describe('TenantMiddleware', () => {

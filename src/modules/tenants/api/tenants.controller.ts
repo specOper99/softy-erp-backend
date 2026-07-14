@@ -12,18 +12,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiErrorResponses, Roles } from '../../common/decorators';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { MfaRequired } from '../auth/decorators/mfa-required.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { MfaRequiredGuard } from '../auth/guards/mfa-required.guard';
-import { Role } from '../users/enums/role.enum';
+import { ApiErrorResponses, Roles } from '../../../common/decorators';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { MfaRequired } from '../../auth/infrastructure/decorators/mfa-required.decorator';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/infrastructure/guards/mfa-required.guard';
+import { Role } from '../../users/domain/enums/role.enum';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { StudioSettingsResponseDto, UpdateStudioSettingsDto } from './dto/studio-settings.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
-import { Tenant } from './entities/tenant.entity';
-import { TenantsService } from './tenants.service';
+import { Tenant } from '../domain/entities/tenant.entity';
+import { TenantsService } from '../application/tenants.service';
 
 @ApiTags('Tenants')
 @ApiBearerAuth()

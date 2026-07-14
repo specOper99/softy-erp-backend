@@ -3,10 +3,10 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
-import type { Tenant } from '../entities/tenant.entity';
-import { SubscriptionPlan } from '../enums/subscription-plan.enum';
-import { TenantsService } from '../tenants.service';
+import { TenantContextService } from '../../../../common/services/tenant-context.service';
+import type { Tenant } from '../../domain/entities/tenant.entity';
+import { SubscriptionPlan } from '../../domain/enums/subscription-plan.enum';
+import { TenantsService } from '../../application/tenants.service';
 import { SubscriptionGuard } from './subscription.guard';
 
 describe('SubscriptionGuard', () => {

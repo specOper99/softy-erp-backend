@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { SubscriptionPlan } from '../tenants.enums';
+import { SubscriptionPlan } from '../../domain/enums';
 
 export class CreateTenantDto {
   @ApiProperty({ description: 'Tenant display name' })

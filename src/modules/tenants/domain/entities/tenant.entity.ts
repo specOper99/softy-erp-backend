@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { Currency } from '../../finance/enums/currency.enum';
+import { Currency } from '../../../finance/domain/enums/currency.enum';
 import { SubscriptionPlan } from '../enums/subscription-plan.enum';
 import { TenantStatus } from '../enums/tenant-status.enum';
 

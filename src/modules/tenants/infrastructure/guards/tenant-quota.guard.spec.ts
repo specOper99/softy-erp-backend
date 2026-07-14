@@ -4,7 +4,7 @@ import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Tenant } from '../entities/tenant.entity';
+import { Tenant } from '../../domain/entities/tenant.entity';
 import { TenantQuotaGuard } from './tenant-quota.guard';
 
 describe('TenantQuotaGuard', () => {

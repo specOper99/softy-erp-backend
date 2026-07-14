@@ -2,14 +2,14 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { Counter } from 'prom-client';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { FlagsService } from '../../common/flags/flags.service';
-import { MetricsFactory } from '../../common/services/metrics.factory';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { CreateTenantDto } from './dto/create-tenant.dto';
-import { StudioSettingsResponseDto, UpdateStudioSettingsDto, WorkingHoursDto } from './dto/studio-settings.dto';
-import { UpdateTenantDto } from './dto/update-tenant.dto';
-import { Tenant } from './entities/tenant.entity';
-import { TenantStatus } from './enums/tenant-status.enum';
+import { FlagsService } from '../../../common/flags/flags.service';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CreateTenantDto } from '../api/dto/create-tenant.dto';
+import { StudioSettingsResponseDto, UpdateStudioSettingsDto, WorkingHoursDto } from '../api/dto/studio-settings.dto';
+import { UpdateTenantDto } from '../api/dto/update-tenant.dto';
+import { Tenant } from '../domain/entities/tenant.entity';
+import { TenantStatus } from '../domain/enums/tenant-status.enum';
 
 @Injectable()
 export class TenantsService {

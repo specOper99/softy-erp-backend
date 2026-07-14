@@ -1,12 +1,12 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { TenantContextService } from '../../common/services/tenant-context.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import type { CreateTenantDto } from './dto/create-tenant.dto';
 import type { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantsController } from './tenants.controller';
-import { MfaRequiredGuard } from '../auth/guards/mfa-required.guard';
-import { TenantsService } from './tenants.service';
+import { MfaRequiredGuard } from '../../auth/infrastructure/guards/mfa-required.guard';
+import { TenantsService } from '../application/tenants.service';
 
 describe('TenantsController', () => {
   let controller: TenantsController;

@@ -3,11 +3,11 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CacheUtilsService } from '../../../../common/cache/cache-utils.service';
+import { TenantContextService } from '../../../../common/services/tenant-context.service';
 import { SKIP_TENANT_KEY } from '../decorators/skip-tenant.decorator';
-import { TenantStatus } from '../enums/tenant-status.enum';
-import { TenantsService } from '../tenants.service';
+import { TenantStatus } from '../../domain/enums/tenant-status.enum';
+import { TenantsService } from '../../application/tenants.service';
 import { TenantGuard } from './tenant.guard';
 
 describe('TenantGuard', () => {

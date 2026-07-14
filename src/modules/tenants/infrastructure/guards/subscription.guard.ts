@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { SubscriptionPlan } from '../enums/subscription-plan.enum';
-import { meetsMinimumPlan } from '../plan-features';
-import { TenantsService } from '../tenants.service';
+import { TenantContextService } from '../../../../common/services/tenant-context.service';
+import { SubscriptionPlan } from '../../domain/enums/subscription-plan.enum';
+import { meetsMinimumPlan } from '../../application/plan-features';
+import { TenantsService } from '../../application/tenants.service';
 
 const SUBSCRIPTION_KEY = 'subscription_plan';
 export const RequireSubscription = (plan: SubscriptionPlan) => SetMetadata(SUBSCRIPTION_KEY, plan);

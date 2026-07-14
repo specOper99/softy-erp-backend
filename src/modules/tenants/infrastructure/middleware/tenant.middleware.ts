@@ -2,9 +2,9 @@ import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { NextFunction, Request, Response } from 'express';
-import { RuntimeFailure } from '../../../common/errors/runtime-failure';
-import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
+import { RuntimeFailure } from '../../../../common/errors/runtime-failure';
+import { TenantContextService } from '../../../../common/services/tenant-context.service';
+import { getAllowedJwtAlgorithm } from '../../../../common/utils/jwt-algorithm.util';
 
 interface JwtPayload {
   sub: string;

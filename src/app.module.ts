@@ -32,8 +32,8 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggerModule } from './common/logger/logger.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { QueueModule } from './common/queue/queue.module';
-import { TenantGuard } from './modules/tenants/guards/tenant.guard';
-import { TenantMiddleware } from './modules/tenants/middleware/tenant.middleware';
+import { TenantGuard } from './modules/tenants/infrastructure/guards/tenant.guard';
+import { TenantMiddleware } from './modules/tenants/infrastructure/middleware/tenant.middleware';
 
 // Feature module imports
 import { ResilienceModule } from './common/resilience/resilience.module';

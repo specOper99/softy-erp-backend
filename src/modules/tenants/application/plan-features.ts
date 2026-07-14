@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { SubscriptionPlan } from './enums/subscription-plan.enum';
+import { SubscriptionPlan } from '../domain/enums/subscription-plan.enum';
 
 export enum PlanFeature {
   MFA_ENROLLMENT = 'MFA_ENROLLMENT',

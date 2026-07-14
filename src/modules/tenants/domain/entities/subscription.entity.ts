@@ -1,6 +1,6 @@
 import { Column, Entity } from 'typeorm';
-import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { SubscriptionPlan } from '../tenants.enums';
+import { BaseTenantEntity } from '../../../../common/entities/abstract.entity';
+import { SubscriptionPlan } from '../enums';
 
 export enum SubscriptionStatus {
   ACTIVE = 'ACTIVE',
