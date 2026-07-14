@@ -1,0 +1,222 @@
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import { createMockRepository, mockTenantContext } from '../../../../test/helpers/mock-factories';
+import type { ServicePackage } from '../../catalog/domain/entities/service-package.entity';
+import { ServicePackageRepository } from '../../catalog/infrastructure/service-package.repository';
+import type { ProcessingTypeEligibility } from '../../hr/domain/entities/processing-type-eligibility.entity';
+import { ProcessingTypeEligibilityRepository } from '../../hr/infrastructure/processing-type-eligibility.repository';
+import type { StaffAvailabilitySlot } from '../../hr/domain/entities/staff-availability-slot.entity';
+import { StaffAvailabilitySlotRepository } from '../../hr/infrastructure/staff-availability-slot.repository';
+import type { TaskAssignee } from '../../tasks/domain/entities/task-assignee.entity';
+import type { Task } from '../../tasks/domain/entities/task.entity';
+import { TaskAssigneeRepository } from '../../tasks/infrastructure/task-assignee.repository';
+import { TaskRepository } from '../../tasks/infrastructure/task.repository';
+import type { User } from '../../users/domain/entities/user.entity';
+import { UserRepository } from '../../users/infrastructure/user.repository';
+import { ProcessingTypeRepository } from '../infrastructure/processing-type.repository';
+import type { ProcessingType } from '../domain/entities/processing-type.entity';
+import { StaffConflictService } from './staff-conflict.service';
+
+type BusyAssignmentRecord = {
+  userId: string;
+  eventDate: Date | string;
+  startTime: string;
+  durationMinutes: number | string;
+};
+
+const createRawQueryBuilder = (rows: BusyAssignmentRecord[]) => {
+  return {
+    innerJoin: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue(rows),
+  };
+};
+
+describe('StaffConflictService', () => {
+  let service: StaffConflictService;
+  let servicePackageRepo: MockRepository<ServicePackage>;
+  let processingTypeRepo: MockRepository<ProcessingType>;
+  let processingTypeEligibilityRepo: MockRepository<ProcessingTypeEligibility>;
+  let userRepo: MockRepository<User>;
+  let taskAssigneeRepo: MockRepository<TaskAssignee>;
+  let taskRepo: MockRepository<Task>;
+  let availabilitySlotRepo: MockRepository<StaffAvailabilitySlot>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        StaffConflictService,
+        {
+          provide: ServicePackageRepository,
+          useValue: createMockRepository<ServicePackage>(),
+        },
+        {
+          provide: ProcessingTypeEligibilityRepository,
+          useValue: createMockRepository<ProcessingTypeEligibility>(),
+        },
+        {
+          provide: UserRepository,
+          useValue: createMockRepository<User>(),
+        },
+        {
+          provide: TaskAssigneeRepository,
+          useValue: createMockRepository<TaskAssignee>(),
+        },
+        {
+          provide: TaskRepository,
+          useValue: createMockRepository<Task>(),
+        },
+        {
+          provide: StaffAvailabilitySlotRepository,
+          useValue: createMockRepository<StaffAvailabilitySlot>(),
+        },
+        {
+          provide: ProcessingTypeRepository,
+          useValue: createMockRepository<ProcessingType>(),
+        },
+      ],
+    }).compile();
+
+    service = module.get<StaffConflictService>(StaffConflictService);
+    servicePackageRepo = module.get(ServicePackageRepository);
+    processingTypeRepo = module.get(ProcessingTypeRepository);
+    processingTypeEligibilityRepo = module.get(ProcessingTypeEligibilityRepository);
+    userRepo = module.get(UserRepository);
+    taskAssigneeRepo = module.get(TaskAssigneeRepository);
+    taskRepo = module.get(TaskRepository);
+    availabilitySlotRepo = module.get(StaffAvailabilitySlotRepository);
+    // Default: no slots configured → falls back to schedule-unaware behaviour
+    availabilitySlotRepo.find.mockResolvedValue([]);
+
+    mockTenantContext('tenant-123');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('returns ok=true when available staff meets required staff count', async () => {
+    servicePackageRepo.findOne.mockResolvedValue({
+      id: 'pkg-1',
+      tenantId: 'tenant-123',
+      durationMinutes: 120,
+      requiredStaffCount: 2,
+    } as ServicePackage);
+    processingTypeRepo.find.mockResolvedValue([{ id: 'pt-1' } as ProcessingType, { id: 'pt-2' } as ProcessingType]);
+    processingTypeEligibilityRepo.find
+      .mockResolvedValueOnce([
+        { processingTypeId: 'pt-1' } as ProcessingTypeEligibility,
+        { processingTypeId: 'pt-2' } as ProcessingTypeEligibility,
+      ])
+      .mockResolvedValueOnce([
+        { userId: 'u-1' } as ProcessingTypeEligibility,
+        { userId: 'u-2' } as ProcessingTypeEligibility,
+        { userId: 'u-3' } as ProcessingTypeEligibility,
+        { userId: 'u-3' } as ProcessingTypeEligibility,
+      ]);
+    userRepo.find.mockResolvedValue([{ id: 'u-1' } as User, { id: 'u-2' } as User, { id: 'u-3' } as User]);
+
+    const assigneeQb = createRawQueryBuilder([
+      {
+        userId: 'u-1',
+        eventDate: new Date('2026-05-01T00:00:00.000Z'),
+        startTime: '10:30',
+        durationMinutes: 60,
+      },
+    ]);
+    const legacyQb = createRawQueryBuilder([]);
+    taskAssigneeRepo.createQueryBuilder.mockReturnValue(assigneeQb);
+    taskRepo.createQueryBuilder.mockReturnValue(legacyQb);
+
+    const result = await service.checkPackageStaffAvailability({
+      packageId: 'pkg-1',
+      eventDate: new Date('2026-05-01T00:00:00.000Z'),
+      startTime: '10:00',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      requiredStaffCount: 2,
+      eligibleCount: 3,
+      busyCount: 1,
+      availableCount: 2,
+    });
+  });
+
+  it('returns ok=false with early exit when eligible staff is below required', async () => {
+    servicePackageRepo.findOne.mockResolvedValue({
+      id: 'pkg-2',
+      tenantId: 'tenant-123',
+      durationMinutes: 90,
+      requiredStaffCount: 3,
+    } as ServicePackage);
+    processingTypeRepo.find.mockResolvedValue([{ id: 'pt-1' } as ProcessingType]);
+    processingTypeEligibilityRepo.find
+      .mockResolvedValueOnce([{ processingTypeId: 'pt-1' } as ProcessingTypeEligibility])
+      .mockResolvedValueOnce([
+        { userId: 'u-1' } as ProcessingTypeEligibility,
+        { userId: 'u-2' } as ProcessingTypeEligibility,
+      ]);
+    userRepo.find.mockResolvedValue([{ id: 'u-1' } as User, { id: 'u-2' } as User]);
+
+    const result = await service.checkPackageStaffAvailability({
+      packageId: 'pkg-2',
+      eventDate: new Date('2026-05-01T00:00:00.000Z'),
+      startTime: '14:00',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      requiredStaffCount: 3,
+      eligibleCount: 2,
+      busyCount: 0,
+      availableCount: 2,
+    });
+    expect(taskAssigneeRepo.createQueryBuilder).not.toHaveBeenCalled();
+    expect(taskRepo.createQueryBuilder).not.toHaveBeenCalled();
+  });
+
+  it('does not mark user busy when existing booking touches boundary only', async () => {
+    servicePackageRepo.findOne.mockResolvedValue({
+      id: 'pkg-3',
+      tenantId: 'tenant-123',
+      durationMinutes: 60,
+      requiredStaffCount: 1,
+    } as ServicePackage);
+    processingTypeRepo.find.mockResolvedValue([{ id: 'pt-1' } as ProcessingType]);
+    processingTypeEligibilityRepo.find
+      .mockResolvedValueOnce([{ processingTypeId: 'pt-1' } as ProcessingTypeEligibility])
+      .mockResolvedValueOnce([{ userId: 'u-9' } as ProcessingTypeEligibility]);
+    userRepo.find.mockResolvedValue([{ id: 'u-9' } as User]);
+
+    const assigneeQb = createRawQueryBuilder([
+      {
+        userId: 'u-9',
+        eventDate: new Date('2026-05-01T00:00:00.000Z'),
+        startTime: '10:00',
+        durationMinutes: 60,
+      },
+    ]);
+    const legacyQb = createRawQueryBuilder([]);
+    taskAssigneeRepo.createQueryBuilder.mockReturnValue(assigneeQb);
+    taskRepo.createQueryBuilder.mockReturnValue(legacyQb);
+
+    const result = await service.checkPackageStaffAvailability({
+      packageId: 'pkg-3',
+      eventDate: new Date('2026-05-01T00:00:00.000Z'),
+      startTime: '11:00',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      requiredStaffCount: 1,
+      eligibleCount: 1,
+      busyCount: 0,
+      availableCount: 1,
+    });
+  });
+});

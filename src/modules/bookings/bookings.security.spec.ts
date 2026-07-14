@@ -9,20 +9,20 @@ import { AvailabilityCacheOwnerService } from '../../common/cache/availability-c
 import { CacheUtilsService } from '../../common/cache/cache-utils.service';
 import { FlagsService } from '../../common/flags/flags.service';
 import { MetricsFactory } from '../../common/services/metrics.factory';
-import { AuditService } from '../audit/audit.service';
-import { CatalogService } from '../catalog/services/catalog.service';
-import { FinanceService } from '../finance/services/finance.service';
-import { Task } from '../tasks/entities/task.entity';
-import type { User } from '../users/entities/user.entity';
-import { Role } from '../users/enums/role.enum';
-import { BookingFilterDto } from './dto';
+import { AuditService } from '../audit/application/audit.service';
+import { CatalogService } from '../catalog/application/catalog.service';
+import { FinanceService } from '../finance/application/finance.service';
+import { Task } from '../tasks/domain/entities/task.entity';
+import type { User } from '../users/domain/entities/user.entity';
+import { Role } from '../users/domain/enums/role.enum';
+import { BookingFilterDto } from './api/dto';
 import { OutboxEvent } from '../../common/entities/outbox-event.entity';
-import { BookingRepository } from './repositories/booking.repository';
-import { ProcessingTypeRepository } from './repositories/processing-type.repository';
-import { BookingStateMachineService } from './services/booking-state-machine.service';
-import { BookingsPricingService } from './services/bookings-pricing.service';
-import { BookingsService } from './services/bookings.service';
-import { StaffConflictService } from './services/staff-conflict.service';
+import { BookingRepository } from './infrastructure/booking.repository';
+import { ProcessingTypeRepository } from './infrastructure/processing-type.repository';
+import { BookingStateMachineService } from './application/booking-state-machine.service';
+import { BookingsPricingService } from './application/bookings-pricing.service';
+import { BookingsService } from './application/bookings.service';
+import { StaffConflictService } from './application/staff-conflict.service';
 
 describe('Bookings Security Test', () => {
   let service: BookingsService;

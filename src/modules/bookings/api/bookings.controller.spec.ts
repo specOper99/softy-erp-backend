@@ -1,0 +1,192 @@
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { Response } from 'express';
+import { TasksService } from '../../tasks/application/tasks.service';
+import type { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import type {
+  BookingAvailabilityQueryDto,
+  BookingFilterDto,
+  CancelBookingDto,
+  CreateBookingDto,
+  RescheduleBookingDto,
+  UpdateBookingDto,
+} from './dto';
+import { BookingStatus } from '../domain/enums/booking-status.enum';
+import { BookingExportService } from '../application/booking-export.service';
+import { BookingWorkflowService } from '../application/booking-workflow.service';
+import { BookingsPaymentsService } from '../application/bookings-payments.service';
+import { BookingsService } from '../application/bookings.service';
+import { BookingsController } from './bookings.controller';
+
+describe('BookingsController', () => {
+  let controller: BookingsController;
+  let service: BookingsService;
+  let workflowService: BookingWorkflowService;
+  let exportService: BookingExportService;
+
+  const mockBooking = { id: 'uuid', status: BookingStatus.DRAFT };
+  const mockUser = { id: 'user-id', role: Role.ADMIN } as User;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [BookingsController],
+      providers: [
+        {
+          provide: BookingsService,
+          useValue: {
+            create: jest.fn().mockResolvedValue(mockBooking),
+            checkAvailability: jest.fn().mockResolvedValue({ available: true, conflictReasons: [] }),
+            findAll: jest.fn().mockResolvedValue([mockBooking]),
+            findAllCursor: jest.fn().mockResolvedValue({ data: [mockBooking], nextCursor: null }),
+            findOne: jest.fn().mockResolvedValue(mockBooking),
+            update: jest.fn().mockResolvedValue(mockBooking),
+            remove: jest.fn().mockResolvedValue(undefined),
+            recordPayment: jest.fn().mockResolvedValue(mockBooking),
+          },
+        },
+        {
+          provide: BookingWorkflowService,
+          useValue: {
+            confirmBooking: jest.fn().mockResolvedValue(mockBooking),
+            rescheduleBooking: jest.fn().mockResolvedValue(mockBooking),
+            cancelBooking: jest.fn().mockResolvedValue(mockBooking),
+            completeBooking: jest.fn().mockResolvedValue(mockBooking),
+            duplicateBooking: jest.fn().mockResolvedValue(mockBooking),
+          },
+        },
+        {
+          provide: BookingExportService,
+          useValue: {
+            exportBookingsToCSV: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: TasksService,
+          useValue: {
+            findByBooking: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: BookingsPaymentsService,
+          useValue: {
+            recordPayment: jest.fn().mockResolvedValue(mockBooking),
+            recordRefund: jest.fn().mockResolvedValue(mockBooking),
+            getBookingTransactions: jest.fn().mockResolvedValue([]),
+            markAsPaid: jest.fn().mockResolvedValue(mockBooking),
+          },
+        },
+      ],
+    }).compile();
+
+    controller = module.get<BookingsController>(BookingsController);
+    service = module.get<BookingsService>(BookingsService);
+    workflowService = module.get<BookingWorkflowService>(BookingWorkflowService);
+    exportService = module.get<BookingExportService>(BookingExportService);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+
+  describe('create', () => {
+    it('should call service.create', async () => {
+      const dto = { clientId: 'c-id' } as unknown as CreateBookingDto;
+      await controller.create(dto, mockUser);
+      expect(service.create).toHaveBeenCalledWith(dto);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should call service.findAll', async () => {
+      await controller.findAll({} as BookingFilterDto, mockUser);
+      expect(service.findAll).toHaveBeenCalledWith({}, mockUser);
+    });
+  });
+
+  describe('checkAvailability', () => {
+    it('should call service.checkAvailability', async () => {
+      const query = {
+        packageId: '11111111-1111-4111-8111-111111111111',
+        eventDate: '2099-01-01T00:00:00.000Z',
+        startTime: '10:00',
+      } as BookingAvailabilityQueryDto;
+
+      await controller.checkAvailability(query);
+      expect(service.checkAvailability).toHaveBeenCalledWith(query);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should call service.findOne', async () => {
+      await controller.findOne('uuid', mockUser);
+      expect(service.findOne).toHaveBeenCalledWith('uuid', mockUser);
+    });
+  });
+
+  describe('update', () => {
+    it('should call service.update', async () => {
+      const dto = { status: BookingStatus.CONFIRMED } as UpdateBookingDto;
+      await controller.update('uuid', dto, mockUser);
+      expect(service.update).toHaveBeenCalledWith('uuid', dto, mockUser);
+    });
+  });
+
+  describe('remove', () => {
+    it('should call service.remove', async () => {
+      const dto = { reason: 'duplicate booking' };
+      await controller.remove('uuid', dto, mockUser);
+      expect(service.remove).toHaveBeenCalledWith('uuid', dto.reason, mockUser);
+    });
+  });
+
+  describe('confirm', () => {
+    it('should call workflowService.confirmBooking', async () => {
+      const user = { role: 'ADMIN' } as any;
+      await controller.confirm('uuid', {}, user);
+      expect(workflowService.confirmBooking).toHaveBeenCalledWith('uuid', false);
+    });
+  });
+
+  describe('cancel', () => {
+    it('should call workflowService.cancelBooking', async () => {
+      await controller.cancel('uuid', {} as CancelBookingDto);
+      expect(workflowService.cancelBooking).toHaveBeenCalledWith('uuid', {});
+    });
+  });
+
+  describe('reschedule', () => {
+    it('should call workflowService.rescheduleBooking', async () => {
+      const dto = {
+        eventDate: new Date(Date.now() + 172800000).toISOString(),
+        startTime: '12:00',
+      } as RescheduleBookingDto;
+      const user = { role: 'ADMIN' } as any;
+
+      await controller.reschedule('uuid', dto, user);
+      expect(workflowService.rescheduleBooking).toHaveBeenCalledWith('uuid', dto, false);
+    });
+  });
+
+  describe('complete', () => {
+    it('should call workflowService.completeBooking', async () => {
+      await controller.complete('uuid');
+      expect(workflowService.completeBooking).toHaveBeenCalledWith('uuid');
+    });
+  });
+
+  describe('duplicate', () => {
+    it('should call workflowService.duplicateBooking', async () => {
+      await controller.duplicate('uuid');
+      expect(workflowService.duplicateBooking).toHaveBeenCalledWith('uuid');
+    });
+  });
+
+  describe('exportBookings', () => {
+    it('should call exportService.exportBookingsToCSV', async () => {
+      const res = {} as unknown as Response;
+      await controller.exportBookings({}, res);
+      expect(exportService.exportBookingsToCSV).toHaveBeenCalledWith(res, {});
+    });
+  });
+});

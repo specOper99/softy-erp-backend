@@ -13,20 +13,20 @@ import { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
 import { TransformInterceptor } from '../../common/interceptors';
 import { IpRateLimitGuard } from '../../common/guards/ip-rate-limit.guard';
-import { Client } from './entities/client.entity';
-import { Booking } from './entities/booking.entity';
-import { BookingStatus } from './enums/booking-status.enum';
-import { ServicePackage } from '../catalog/entities/service-package.entity';
-import { Transaction } from '../finance/entities/transaction.entity';
-import { TransactionType } from '../finance/enums/transaction-type.enum';
-import { ProcessingType } from './entities/processing-type.entity';
-import { ProcessingTypeEligibility } from '../hr/entities/processing-type-eligibility.entity';
-import { MailService } from '../mail/mail.service';
-import { Task } from '../tasks/entities/task.entity';
-import { TaskStatus } from '../tasks/enums/task-status.enum';
-import { Tenant } from '../tenants/entities/tenant.entity';
-import { User } from '../users/entities/user.entity';
-import { Role } from '../users/enums/role.enum';
+import { Client } from '../clients/domain/entities/client.entity';
+import { Booking } from './domain/entities/booking.entity';
+import { BookingStatus } from './domain/enums/booking-status.enum';
+import { ServicePackage } from '../catalog/domain/entities/service-package.entity';
+import { Transaction } from '../finance/domain/entities/transaction.entity';
+import { TransactionType } from '../finance/domain/enums/transaction-type.enum';
+import { ProcessingType } from './domain/entities/processing-type.entity';
+import { ProcessingTypeEligibility } from '../hr/domain/entities/processing-type-eligibility.entity';
+import { MailService } from '../mail/application/mail.service';
+import { Task } from '../tasks/domain/entities/task.entity';
+import { TaskStatus } from '../tasks/domain/enums/task-status.enum';
+import { Tenant } from '../tenants/domain/entities/tenant.entity';
+import { User } from '../users/domain/entities/user.entity';
+import { Role } from '../users/domain/enums/role.enum';
 
 class MockThrottlerGuard extends ThrottlerGuard {
   protected override handleRequest(): Promise<boolean> {
