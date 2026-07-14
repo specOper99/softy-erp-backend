@@ -1,10 +1,10 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { CacheUtilsService } from '../../common/cache/cache-utils.service';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
 import { DashboardController } from './dashboard.controller';
-import { DashboardService } from './dashboard.service';
-import { ReportGeneratorService } from './services/report-generator.service';
+import { DashboardService } from '../application/dashboard.service';
+import { ReportGeneratorService } from '../application/report-generator.service';
 
 describe('DashboardController', () => {
   let controller: DashboardController;

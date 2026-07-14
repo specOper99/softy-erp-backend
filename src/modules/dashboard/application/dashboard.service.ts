@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { endOfDay, endOfMonth, startOfDay, startOfMonth } from 'date-fns';
-import { CacheUtilsService } from '../../common/cache/cache-utils.service';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { MathUtils } from '../../common/utils/math.utils';
-import { DailyMetricsRepository } from '../analytics/repositories/daily-metrics.repository';
-import { BookingStatus } from '../bookings/enums/booking-status.enum';
-import { BookingRepository } from '../bookings/repositories/booking.repository';
-import { TransactionType } from '../finance/enums/transaction-type.enum';
-import { TransactionRepository } from '../finance/repositories/transaction.repository';
-import { Profile } from '../hr/entities/profile.entity';
-import { ProfileRepository } from '../hr/repositories/profile.repository';
-import { NotificationRepository } from '../notifications/repositories/notification.repository';
-import { TaskStatus } from '../tasks/enums/task-status.enum';
-import { TaskRepository } from '../tasks/repositories/task.repository';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { MathUtils } from '../../../common/utils/math.utils';
+import { DailyMetricsRepository } from '../../analytics/infrastructure/daily-metrics.repository';
+import { BookingStatus } from '../../bookings/domain/enums/booking-status.enum';
+import { BookingRepository } from '../../bookings/infrastructure/booking.repository';
+import { TransactionType } from '../../finance/domain/enums/transaction-type.enum';
+import { TransactionRepository } from '../../finance/infrastructure/transaction.repository';
+import { Profile } from '../../hr/domain/entities/profile.entity';
+import { ProfileRepository } from '../../hr/infrastructure/profile.repository';
+import { NotificationRepository } from '../../notifications/infrastructure/notification.repository';
+import { TaskStatus } from '../../tasks/domain/enums/task-status.enum';
+import { TaskRepository } from '../../tasks/infrastructure/task.repository';
 import {
   BookingTrendDto,
   DashboardKpiDto,
@@ -23,10 +23,10 @@ import {
   RevenueSummaryDto,
   StaffPerformanceDto,
   StudioKpisDto,
-} from './dto/dashboard.dto';
-import { UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
-import { UserDashboardConfig } from './entities/user-preference.entity';
-import { UserPreferenceRepository } from './repositories/user-preference.repository';
+} from '../api/dto/dashboard.dto';
+import { UpdateDashboardPreferencesDto } from '../api/dto/update-preferences.dto';
+import { UserDashboardConfig } from '../domain/entities/user-preference.entity';
+import { UserPreferenceRepository } from '../infrastructure/user-preference.repository';
 
 @Injectable()
 export class DashboardService {

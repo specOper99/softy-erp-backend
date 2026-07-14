@@ -1,21 +1,21 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { CacheUtilsService } from '../../common/cache/cache-utils.service';
-import { DailyMetricsRepository } from '../analytics/repositories/daily-metrics.repository';
-import { BookingRepository } from '../bookings/repositories/booking.repository';
-import { TransactionType } from '../finance/enums/transaction-type.enum';
-import { TransactionRepository } from '../finance/repositories/transaction.repository';
-import { ProfileRepository } from '../hr/repositories/profile.repository';
-import { NotificationRepository } from '../notifications/repositories/notification.repository';
-import { TaskStatus } from '../tasks/enums/task-status.enum';
-import { TaskRepository } from '../tasks/repositories/task.repository';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { DailyMetricsRepository } from '../../analytics/infrastructure/daily-metrics.repository';
+import { BookingRepository } from '../../bookings/infrastructure/booking.repository';
+import { TransactionType } from '../../finance/domain/enums/transaction-type.enum';
+import { TransactionRepository } from '../../finance/infrastructure/transaction.repository';
+import { ProfileRepository } from '../../hr/infrastructure/profile.repository';
+import { NotificationRepository } from '../../notifications/infrastructure/notification.repository';
+import { TaskStatus } from '../../tasks/domain/enums/task-status.enum';
+import { TaskRepository } from '../../tasks/infrastructure/task.repository';
 import { DashboardService } from './dashboard.service';
-import { UserPreference } from './entities/user-preference.entity';
-import { UserPreferenceRepository } from './repositories/user-preference.repository';
+import { UserPreference } from '../domain/entities/user-preference.entity';
+import { UserPreferenceRepository } from '../infrastructure/user-preference.repository';
 
 // Mock TenantContextService to avoid ReferenceError/Circular Dependency issues in tests
-jest.mock('../../common/services/tenant-context.service', () => ({
+jest.mock('../../../common/services/tenant-context.service', () => ({
   TenantContextService: {
     getTenantId: jest.fn().mockReturnValue('tenant-123'),
     getTenantIdOrThrow: jest.fn().mockReturnValue('tenant-123'),

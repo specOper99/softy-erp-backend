@@ -6,8 +6,8 @@ import {
   PackageStatsDto,
   RevenueStatsDto,
   StaffPerformanceDto,
-} from '../dto/dashboard.dto';
-import type { PnLReportRow, RevenueByPackageRow } from '../types/report.types';
+} from '../api/dto/dashboard.dto';
+import type { PnLReportRow, RevenueByPackageRow } from './report.types';
 
 @Injectable()
 export class ReportGeneratorService {

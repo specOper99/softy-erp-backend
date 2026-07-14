@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
-import { TransactionCreatedEvent } from '../../finance/events/transaction-created.event';
-import { DashboardGateway } from '../dashboard.gateway';
+import { TransactionCreatedEvent } from '../../finance/domain/events/transaction-created.event';
+import { DashboardGateway } from '../api/dashboard.gateway';
 import { toErrorMessage } from '../../../common/utils/error.util';
 
 @EventsHandler(TransactionCreatedEvent)

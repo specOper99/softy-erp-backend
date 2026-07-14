@@ -1,16 +1,16 @@
 import { Body, Controller, Get, Put, Query, Res, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { GlobalCacheInterceptor } from '../../common/cache/cache.interceptor';
-import { ApiErrorResponses } from '../../common/decorators';
-import { Cacheable } from '../../common/decorators/cacheable.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { User } from '../users/entities/user.entity';
-import { Role } from '../users/enums/role.enum';
-import { DashboardService } from './dashboard.service';
+import { GlobalCacheInterceptor } from '../../../common/cache/cache.interceptor';
+import { ApiErrorResponses } from '../../../common/decorators';
+import { Cacheable } from '../../../common/decorators/cacheable.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { DashboardService } from '../application/dashboard.service';
 import {
   BookingTrendDto,
   DashboardKpiDto,
@@ -25,9 +25,9 @@ import {
   StudioKpisDto,
 } from './dto/dashboard.dto';
 import { DashboardPreferencesResponseDto, UpdateDashboardPreferencesDto } from './dto/update-preferences.dto';
-import { UserDashboardConfig } from './entities/user-preference.entity';
+import { UserDashboardConfig } from '../domain/entities/user-preference.entity';
 
-import { ReportGeneratorService } from './services/report-generator.service';
+import { ReportGeneratorService } from '../application/report-generator.service';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth()

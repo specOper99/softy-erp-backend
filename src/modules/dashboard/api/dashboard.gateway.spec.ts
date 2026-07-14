@@ -4,9 +4,9 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { GATEWAY_OPTIONS } from '@nestjs/websockets/constants';
 import type { Server, Socket } from 'socket.io';
-import { AuthService } from '../auth/auth.service';
-import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
-import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
+import { AuthService } from '../../auth/application/auth.service';
+import { WsJwtGuard } from '../../auth/infrastructure/guards/ws-jwt.guard';
+import { TokenBlacklistService } from '../../auth/application/token-blacklist.service';
 import { DashboardGateway } from './dashboard.gateway';
 
 describe('DashboardGateway', () => {

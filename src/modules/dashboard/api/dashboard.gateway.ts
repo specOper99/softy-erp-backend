@@ -4,11 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { corsOriginDelegate, getCorsOriginAllowlist } from '../../common/utils/cors-origins.util';
-import { getAllowedJwtAlgorithm } from '../../common/utils/jwt-algorithm.util';
-import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
-import { TokenBlacklistService } from '../auth/services/token-blacklist.service';
-import { toErrorMessage } from '../../common/utils/error.util';
+import { corsOriginDelegate, getCorsOriginAllowlist } from '../../../common/utils/cors-origins.util';
+import { getAllowedJwtAlgorithm } from '../../../common/utils/jwt-algorithm.util';
+import { WsJwtGuard } from '../../auth/infrastructure/guards/ws-jwt.guard';
+import { TokenBlacklistService } from '../../auth/application/token-blacklist.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
 
 const _nodeEnv = process.env.NODE_ENV ?? 'development';
 const corsAllowlist = getCorsOriginAllowlist({
