@@ -2,26 +2,21 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
 import type { Job } from 'bullmq';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { AuditProcessor } from './audit.processor';
-import { TenantContextService } from '../../common/services/tenant-context.service';
 
 describe('AuditProcessor - Tenant Context', () => {
   let processor: AuditProcessor;
 
-  const mockRepository = {
+  const mockManager = {
+    query: jest.fn().mockResolvedValue(undefined),
     findOne: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockImplementation((data: Record<string, unknown>) => ({
+    create: jest.fn().mockImplementation((entity: unknown, data: Record<string, unknown>) => ({
       ...data,
       id: 'audit-1',
       calculateHash: jest.fn().mockReturnValue('hash-123'),
     })),
     save: jest.fn().mockResolvedValue({}),
-    query: jest.fn().mockResolvedValue(undefined),
-  };
-
-  const mockManager = {
-    query: jest.fn().mockResolvedValue(undefined),
-    getRepository: jest.fn().mockReturnValue(mockRepository),
   };
 
   const mockDataSource = {
@@ -60,14 +55,13 @@ describe('AuditProcessor - Tenant Context', () => {
     processor = module.get<AuditProcessor>(AuditProcessor);
     jest.clearAllMocks();
     mockManager.query.mockResolvedValue(undefined);
-    mockManager.getRepository.mockReturnValue(mockRepository);
-    mockRepository.findOne.mockResolvedValue(null);
-    mockRepository.create.mockImplementation((data: Record<string, unknown>) => ({
+    mockManager.findOne.mockResolvedValue(null);
+    mockManager.create.mockImplementation((entity: unknown, data: Record<string, unknown>) => ({
       ...data,
       id: 'audit-1',
       calculateHash: jest.fn().mockReturnValue('hash-123'),
     }));
-    mockRepository.save.mockResolvedValue({});
+    mockManager.save.mockResolvedValue({});
     mockDataSource.transaction.mockImplementation(async (cb: (manager: typeof mockManager) => Promise<void>) => {
       await cb(mockManager);
     });
@@ -84,8 +78,8 @@ describe('AuditProcessor - Tenant Context', () => {
     });
 
     expect(capturedTenantId).toBe(tenantId);
-    expect(mockRepository.create).toHaveBeenCalled();
-    expect(mockRepository.save).toHaveBeenCalled();
+    expect(mockManager.create).toHaveBeenCalled();
+    expect(mockManager.save).toHaveBeenCalled();
   });
 
   it('should propagate tenant context when saving audit log', async () => {
@@ -93,7 +87,7 @@ describe('AuditProcessor - Tenant Context', () => {
     const job = createMockJob(tenantId);
 
     let capturedTenantId: string | undefined;
-    mockRepository.create.mockImplementation((data: Record<string, unknown>) => {
+    mockManager.create.mockImplementation((entity: unknown, data: Record<string, unknown>) => {
       capturedTenantId = TenantContextService.getTenantId();
       return {
         ...data,
@@ -113,14 +107,14 @@ describe('AuditProcessor - Tenant Context', () => {
     const tenantId = 'chain-tenant';
     const job = createMockJob(tenantId);
 
-    mockRepository.findOne.mockResolvedValue({
+    mockManager.findOne.mockResolvedValue({
       id: 'prev-audit',
       hash: 'previous-hash-123',
       sequenceNumber: 5,
     });
 
     let createCallTenantId: string | undefined;
-    mockRepository.create.mockImplementation((data: Record<string, unknown>) => {
+    mockManager.create.mockImplementation((entity: unknown, data: Record<string, unknown>) => {
       createCallTenantId = TenantContextService.getTenantId();
       return {
         ...data,
@@ -134,7 +128,7 @@ describe('AuditProcessor - Tenant Context', () => {
     });
 
     expect(createCallTenantId).toBe(tenantId);
-    expect(mockRepository.findOne).toHaveBeenCalledWith({
+    expect(mockManager.findOne).toHaveBeenCalledWith(expect.anything(), {
       where: { tenantId },
       order: { sequenceNumber: 'DESC' },
       select: ['hash', 'sequenceNumber'],

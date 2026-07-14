@@ -3,13 +3,12 @@ import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { areBackgroundJobsEnabled } from '../../common/queue/background-jobs.runtime';
 import { MetricsModule } from '../metrics/metrics.module';
-import { AuditController } from './audit.controller';
-import { AuditProcessor } from './audit.processor';
-import { AuditService } from './audit.service';
-import { AuditLog } from './entities/audit-log.entity';
-
-import { AuditPublisher } from './audit.publisher';
-import { AuditLogRepository } from './repositories/audit-log.repository';
+import { AuditController } from './api/audit.controller';
+import { AuditPublisher } from './application/audit.publisher';
+import { AuditService } from './application/audit.service';
+import { AuditLog } from './domain/entities';
+import { AuditLogRepository } from './infrastructure/audit-log.repository';
+import { AuditProcessor } from './infrastructure/audit.processor';
 
 const backgroundJobsEnabled = areBackgroundJobsEnabled();
 

@@ -3,22 +3,17 @@ import { Test } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
 import type { Job } from 'bullmq';
 import type { DeepPartial } from 'typeorm';
+import type { AuditLog } from '../domain/entities';
 import { AuditProcessor } from './audit.processor';
-import type { AuditLog } from './entities/audit-log.entity';
 
 describe('AuditProcessor', () => {
   let processor: AuditProcessor;
 
-  const mockRepository = {
+  const mockManager = {
+    query: jest.fn().mockResolvedValue(undefined),
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
-    query: jest.fn().mockResolvedValue(undefined),
-  };
-
-  const mockManager = {
-    query: jest.fn().mockResolvedValue(undefined),
-    getRepository: jest.fn().mockReturnValue(mockRepository),
   };
 
   const mockDataSource = {
@@ -42,7 +37,6 @@ describe('AuditProcessor', () => {
     jest.clearAllMocks();
     // Re-setup defaults after clearAllMocks
     mockManager.query.mockResolvedValue(undefined);
-    mockManager.getRepository.mockReturnValue(mockRepository);
     mockDataSource.transaction.mockImplementation(async (cb: (manager: typeof mockManager) => Promise<void>) => {
       await cb(mockManager);
     });
@@ -65,15 +59,15 @@ describe('AuditProcessor', () => {
         discard,
       } as unknown as Job;
 
-      mockRepository.findOne.mockResolvedValue(null);
-      mockRepository.create.mockReturnValue({ calculateHash: () => 'hash' } as DeepPartial<AuditLog> as AuditLog);
-      mockRepository.save.mockResolvedValue({});
+      mockManager.findOne.mockResolvedValue(null);
+      mockManager.create.mockReturnValue({ calculateHash: () => 'hash' } as DeepPartial<AuditLog> as AuditLog);
+      mockManager.save.mockResolvedValue({});
 
       await processor.process(job);
 
-      expect(mockRepository.findOne).toHaveBeenCalled();
-      expect(mockRepository.create).toHaveBeenCalled();
-      expect(mockRepository.save).toHaveBeenCalled();
+      expect(mockManager.findOne).toHaveBeenCalled();
+      expect(mockManager.create).toHaveBeenCalled();
+      expect(mockManager.save).toHaveBeenCalled();
     });
 
     it('should ignore other jobs', async () => {
@@ -107,7 +101,7 @@ describe('AuditProcessor', () => {
     };
 
     it('should chain hash correctly with previous log', async () => {
-      mockRepository.findOne.mockResolvedValue({
+      mockManager.findOne.mockResolvedValue({
         hash: 'prev-hash',
         sequenceNumber: 10,
       });
@@ -116,18 +110,19 @@ describe('AuditProcessor', () => {
         ...logData,
         calculateHash: jest.fn().mockReturnValue('new-hash'),
       };
-      mockRepository.create.mockReturnValue(mockEntry);
-      mockRepository.save.mockResolvedValue({});
+      mockManager.create.mockReturnValue(mockEntry);
+      mockManager.save.mockResolvedValue({});
 
       await processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job);
 
-      expect(mockRepository.findOne).toHaveBeenCalledWith({
+      expect(mockManager.findOne).toHaveBeenCalledWith(expect.anything(), {
         where: { tenantId: 'tenant-1' },
         order: { sequenceNumber: 'DESC' },
         select: ['hash', 'sequenceNumber'],
       });
 
-      expect(mockRepository.create).toHaveBeenCalledWith(
+      expect(mockManager.create).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           tenantId: 'tenant-1',
           previousHash: 'prev-hash',
@@ -135,21 +130,22 @@ describe('AuditProcessor', () => {
         }),
       );
 
-      expect(mockRepository.save).toHaveBeenCalled();
+      expect(mockManager.save).toHaveBeenCalled();
     });
 
     it('should handle first log (no previous)', async () => {
-      mockRepository.findOne.mockResolvedValue(null);
+      mockManager.findOne.mockResolvedValue(null);
       const mockEntry = {
         ...logData,
         calculateHash: jest.fn().mockReturnValue('first-hash'),
       };
-      mockRepository.create.mockReturnValue(mockEntry);
-      mockRepository.save.mockResolvedValue({});
+      mockManager.create.mockReturnValue(mockEntry);
+      mockManager.save.mockResolvedValue({});
 
       await processor.process({ name: 'log', data: logData, discard: jest.fn() } as unknown as Job);
 
-      expect(mockRepository.create).toHaveBeenCalledWith(
+      expect(mockManager.create).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           previousHash: undefined,
           sequenceNumber: 1,

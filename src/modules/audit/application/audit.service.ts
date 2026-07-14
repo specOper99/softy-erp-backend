@@ -4,13 +4,17 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import { Counter } from 'prom-client';
 import { DataSource } from 'typeorm';
-import { PII_FIELD_PATTERNS } from '../../common/decorators/pii.decorator';
-import { MetricsFactory } from '../../common/services/metrics.factory';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { CursorPaginationHelper } from '../../common/utils/cursor-pagination.helper';
-import { toErrorMessage } from '../../common/utils/error.util';
-import { AuditLogFilterDto } from './dto/audit-log-filter.dto';
-import { AuditLog } from './entities/audit-log.entity';
+import { PII_FIELD_PATTERNS } from '../../../common/decorators/pii.decorator';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
+import { MetricsFactory } from '../../../common/services/metrics.factory';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
+import { toErrorMessage } from '../../../common/utils/error.util';
+import { AuditLogFilterDto } from '../api/dto/audit-log-filter.dto';
+import { CreateAuditLogDto } from '../api/dto/create-audit-log.dto';
+import { AuditLog } from '../domain/entities';
+import { AuditLogRepository } from '../infrastructure/audit-log.repository';
+import { AuditPublisher } from './audit.publisher';
 
 export interface ChainVerificationResult {
   valid: boolean;
@@ -18,11 +22,6 @@ export interface ChainVerificationResult {
   brokenAt?: string;
   errorMessage?: string;
 }
-
-import { RuntimeFailure } from '../../common/errors/runtime-failure';
-import { AuditPublisher } from './audit.publisher';
-import { CreateAuditLogDto } from './dto/create-audit-log.dto';
-import { AuditLogRepository } from './repositories/audit-log.repository';
 
 @Injectable()
 export class AuditService implements AuditPublisher {

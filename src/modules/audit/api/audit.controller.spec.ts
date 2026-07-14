@@ -1,11 +1,11 @@
 import { Reflector } from '@nestjs/core';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { createMockAuditLog } from '../../../test/helpers/mock-factories';
+import { createMockAuditLog } from '../../../../test/helpers/mock-factories';
+import { AuditService } from '../application/audit.service';
+import type { AuditLog } from '../domain/entities';
 import { AuditController } from './audit.controller';
-import { AuditService } from './audit.service';
 import type { AuditLogFilterDto } from './dto/audit-log-filter.dto';
-import type { AuditLog } from './entities/audit-log.entity';
 
 describe('AuditController', () => {
   let controller: AuditController;

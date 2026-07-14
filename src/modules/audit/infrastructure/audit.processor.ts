@@ -3,10 +3,10 @@ import { Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
 import { DataSource } from 'typeorm';
-import { RuntimeFailure } from '../../common/errors/runtime-failure';
-import { TenantContextService } from '../../common/services/tenant-context.service';
-import { toErrorMessage } from '../../common/utils/error.util';
-import { AuditLog } from './entities/audit-log.entity';
+import { RuntimeFailure } from '../../../common/errors/runtime-failure';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { toErrorMessage } from '../../../common/utils/error.util';
+import { AuditLog } from '../domain/entities';
 
 interface AuditLogJobData {
   tenantId: string;
@@ -56,20 +56,15 @@ export class AuditProcessor extends WorkerHost {
 
     await this.dataSource
       .transaction(async (manager) => {
-        // Advisory lock scoped to this tenant prevents concurrent workers from
-        // reading the same lastLog and computing duplicate sequenceNumbers.
-        // hashtext() is a stable PostgreSQL function, so the lock is per-tenant.
         await manager.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [tenantId]);
 
-        const auditRepo = manager.getRepository(AuditLog);
-
-        const lastLog = await auditRepo.findOne({
+        const lastLog = await manager.findOne(AuditLog, {
           where: { tenantId },
           order: { sequenceNumber: 'DESC' },
           select: ['hash', 'sequenceNumber'],
         });
 
-        const entry = auditRepo.create({
+        const entry = manager.create(AuditLog, {
           ...logData,
           tenantId,
           previousHash: lastLog?.hash ?? undefined,
@@ -79,7 +74,7 @@ export class AuditProcessor extends WorkerHost {
         entry.createdAt = new Date();
         entry.hash = entry.calculateHash();
 
-        await auditRepo.save(entry);
+        await manager.save(AuditLog, entry);
       })
       .catch((error: unknown) => {
         this.logger.error(
@@ -116,22 +111,19 @@ export class AuditProcessor extends WorkerHost {
    */
   private async storeToDLQ(data: AuditLogJobData, error: Error): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
-      const auditRepo = manager.getRepository(AuditLog);
-
-      const dlqEntry = auditRepo.create({
+      const dlqEntry = manager.create(AuditLog, {
         tenantId: data.tenantId,
         action: `DLQ_FAILED:${data.action}`,
         entityName: data.entityName ?? 'unknown',
         entityId: data.entityId ?? undefined,
         userId: data.userId,
         notes: `FAILED_JOB: ${error.message}. Original data: ${JSON.stringify(data).slice(0, 1000)}`,
-        // Intentionally no sequenceNumber / previousHash — DLQ entries are NOT part of the integrity chain.
       });
 
       dlqEntry.createdAt = new Date();
       dlqEntry.hash = dlqEntry.calculateHash();
 
-      await auditRepo.save(dlqEntry);
+      await manager.save(AuditLog, dlqEntry);
     });
 
     this.logger.warn(`Stored failed audit log to DLQ: ${data.action}`);

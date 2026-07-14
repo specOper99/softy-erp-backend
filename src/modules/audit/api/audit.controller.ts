@@ -1,10 +1,10 @@
 import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../common/decorators';
-import { RolesGuard } from '../../common/guards';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Role } from '../users/enums/role.enum';
-import { AuditService } from './audit.service';
+import { Roles } from '../../../common/decorators';
+import { RolesGuard } from '../../../common/guards';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { Role } from '../../users/domain/enums/role.enum';
+import { AuditService } from '../application/audit.service';
 import { AuditLogFilterDto } from './dto/audit-log-filter.dto';
 
 @ApiTags('Audit Logs')

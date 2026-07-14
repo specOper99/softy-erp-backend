@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
-import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { CursorPaginationDto } from '../../../../common/dto/cursor-pagination.dto';
 
 export class AuditLogFilterDto extends CursorPaginationDto {
   @ApiPropertyOptional({ description: 'Filter by entity name' })
