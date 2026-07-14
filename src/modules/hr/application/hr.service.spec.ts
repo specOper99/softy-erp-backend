@@ -1,0 +1,423 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import type { FindOneOptions } from 'typeorm';
+import { DataSource } from 'typeorm';
+import type { MockRepository } from '../../../../test/helpers/mock-factories';
+import {
+  createMockEmployeeWallet,
+  createMockProfile,
+  createMockRepository,
+  createMockUser,
+  mockTenantContext,
+} from '../../../../test/helpers/mock-factories';
+import { AuditPublisher } from '../../audit/application/audit.publisher';
+import { EmployeeWallet } from '../../finance/domain/entities/employee-wallet.entity';
+import { WalletService } from '../../finance/application/wallet.service';
+import { UsersService } from '../../users/application/users.service';
+import type { CreateProfileDto } from '../api/dto/hr.dto';
+import type { Profile } from '../domain/entities/profile.entity';
+import { ProfileRepository } from '../infrastructure/profile.repository';
+import { HrService } from './hr.service';
+
+describe('HrService - Comprehensive Tests', () => {
+  let service: HrService;
+  let mockProfileRepository: MockRepository<Profile>;
+  let mockWalletRepository: MockRepository<EmployeeWallet>;
+
+  const mockProfile = createMockProfile({
+    id: 'profile-uuid-123',
+    userId: 'user-uuid-123',
+    tenantId: 'test-tenant-id',
+  }) as unknown as Profile;
+
+  const mockUser = createMockUser({
+    id: 'user-uuid-123',
+    email: 'john@example.com',
+    tenantId: 'test-tenant-id',
+  });
+  const mockWallet = createMockEmployeeWallet({
+    id: 'wallet-uuid-123',
+    userId: 'user-uuid-123',
+    pendingBalance: 50,
+    payableBalance: 150,
+  });
+
+  const mockWalletService = {
+    getOrCreateWallet: jest.fn().mockResolvedValue(mockWallet),
+    getOrCreateWalletWithManager: jest.fn().mockResolvedValue(mockWallet),
+    resetPayableBalance: jest.fn().mockResolvedValue({ ...mockWallet, payableBalance: 0 }),
+  };
+
+  const mockAuditService = {
+    log: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockUsersService = {
+    findOne: jest.fn().mockResolvedValue(mockUser),
+    findMany: jest.fn().mockResolvedValue([mockUser]),
+  };
+
+  const mockQueryRunner = {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      find: jest.fn().mockResolvedValue([mockProfile]),
+      findOne: jest.fn().mockResolvedValue(mockWallet),
+      create: jest.fn().mockImplementation((_entity, data) => data),
+      save: jest.fn().mockImplementation((data) => {
+        if (Array.isArray(data)) {
+          return Promise.resolve(data.map((item, i) => ({ id: `id-${i}`, ...item })));
+        }
+        return Promise.resolve({ id: 'payout-uuid-123', ...data });
+      }),
+    },
+  };
+
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    query: jest.fn().mockResolvedValue([]),
+    getRepository: jest.fn().mockImplementation(() => {
+      return {
+        create: jest.fn(),
+        save: jest.fn(),
+        findOne: jest.fn(),
+      };
+    }),
+  };
+
+  beforeEach(async () => {
+    mockProfileRepository = createMockRepository();
+    // Configure default behaviors from original manual mock
+    mockProfileRepository.save.mockImplementation((profile: Profile) =>
+      Promise.resolve({ ...profile, id: 'profile-uuid-123' }),
+    );
+    mockProfileRepository.find.mockResolvedValue([mockProfile]);
+    mockProfileRepository.remove.mockResolvedValue(mockProfile);
+    mockProfileRepository.count.mockResolvedValue(1);
+    // softRemove is not in standard mock factory by default? Check factory content.
+    // Yes, createMockRepository has remove, delete. Not softRemove.
+    // So we add it.
+    mockProfileRepository.softRemove = jest.fn().mockResolvedValue(mockProfile);
+
+    mockWalletRepository = createMockRepository();
+    mockWalletRepository.findOne.mockResolvedValue(mockWallet);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        HrService,
+        {
+          provide: ProfileRepository,
+          useValue: mockProfileRepository,
+        },
+        {
+          provide: getRepositoryToken(EmployeeWallet),
+          useValue: mockWalletRepository,
+        },
+        { provide: WalletService, useValue: mockWalletService },
+        { provide: AuditPublisher, useValue: mockAuditService },
+        { provide: DataSource, useValue: mockDataSource },
+        { provide: UsersService, useValue: mockUsersService },
+      ],
+    }).compile();
+
+    service = module.get<HrService>(HrService);
+
+    // Reset mocks first
+    jest.clearAllMocks();
+
+    // Mock TenantContextService using helper
+    mockTenantContext('test-tenant-id');
+
+    // Default behavior for findOne (re-apply after clearAllMocks if needed, or define BEFORE clearAllMocks?
+    // Wait, clearAllMocks clears assertions and implementation if configured?
+    // jest.clearAllMocks() clears usage data. implementation persists.
+    // But better re-apply critical overrides.
+
+    mockProfileRepository.findOne.mockImplementation(({ where }: FindOneOptions<Profile>) => {
+      const w = Array.isArray(where) ? where[0] : where;
+      if (w?.id === 'profile-uuid-123' || w?.userId === 'user-uuid-123') {
+        return Promise.resolve(mockProfile);
+      }
+      return Promise.resolve(null);
+    });
+
+    // Mock QueryBuilder
+    const qbMock = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([mockProfile]),
+    };
+    mockProfileRepository.createQueryBuilder.mockReturnValue(qbMock);
+
+    // Mock queryRunner.manager.findOne for user validation
+    mockQueryRunner.manager.findOne.mockImplementation((entity, options) => {
+      if (entity === 'User' && options?.where?.id === 'user-uuid-123') {
+        return Promise.resolve({
+          id: 'user-uuid-123',
+          tenantId: 'test-tenant-id',
+        });
+      }
+      return Promise.resolve(mockWallet);
+    });
+  });
+
+  // ============ PROFILE CRUD TESTS ============
+  describe('createProfile', () => {
+    it('should create profile and wallet for user', async () => {
+      const dto = {
+        userId: 'user-uuid-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        baseSalary: 2000,
+      };
+
+      const result = await service.createProfile(dto);
+      expect(mockWalletService.getOrCreateWalletWithManager).toHaveBeenCalled();
+      expect(mockUsersService.findOne).toHaveBeenCalledWith('user-uuid-123');
+      expect(result).toHaveProperty('id');
+    });
+
+    it('should create profile with hire date', async () => {
+      const dto = {
+        userId: 'user-uuid-123',
+        firstName: 'John',
+        baseSalary: 2000,
+        hireDate: '2024-01-01T00:00:00Z',
+      };
+      const result = await service.createProfile(dto);
+      expect(result).toBeDefined();
+    });
+
+    it('should create profile with all fields', async () => {
+      const dto = {
+        userId: 'user-uuid-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        baseSalary: 2000,
+        emergencyContactName: 'Jane Doe',
+        emergencyContactPhone: '+0987654321',
+        address: '123 Main St',
+        city: 'Dubai',
+        country: 'UAE',
+        department: 'Creative',
+        team: 'Photography',
+        contractType: 'FULL_TIME',
+      };
+
+      const result = await service.createProfile(dto as CreateProfileDto);
+      expect(result).toMatchObject(dto);
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'CREATE',
+          entityName: 'Profile',
+        }),
+      );
+    });
+  });
+
+  it('should throw ConflictException if profile already exists', async () => {
+    const dto = {
+      userId: 'user-uuid-123',
+      firstName: 'John',
+      baseSalary: 2000,
+    };
+    mockQueryRunner.manager.save.mockRejectedValueOnce({ code: '23505' });
+    try {
+      await service.createProfile(dto);
+      fail('expected conflict');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ConflictException);
+      expect((e as ConflictException).getResponse()).toMatchObject({
+        code: 'hr.profile_exists_for_user',
+        args: { userId: dto.userId },
+      });
+    }
+  });
+
+  it('should throw generic error on failure', async () => {
+    const dto = {
+      userId: 'user-uuid-123',
+      firstName: 'John',
+      baseSalary: 2000,
+    };
+    mockQueryRunner.manager.save.mockRejectedValueOnce(new Error('Database error'));
+    await expect(service.createProfile(dto)).rejects.toThrow('Database error');
+  });
+
+  describe('findAllProfiles', () => {
+    it('should return all profiles with user relations populated manually', async () => {
+      const result = await service.findAllProfiles();
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0]?.user).toEqual(mockUser);
+      expect(mockProfileRepository.find).toHaveBeenCalledWith({
+        skip: 0,
+        take: 20,
+      });
+      expect(mockUsersService.findMany).toHaveBeenCalledWith(['user-uuid-123']);
+    });
+
+    it('should return empty array when no profiles exist', async () => {
+      mockProfileRepository.find.mockResolvedValueOnce([]);
+      const result = await service.findAllProfiles();
+      expect(result).toEqual([]);
+    });
+    it('should handle missing users in findAllProfiles', async () => {
+      mockUsersService.findMany.mockResolvedValueOnce([]);
+      const result = await service.findAllProfiles();
+      expect(result).toHaveLength(1);
+      expect(result[0]?.user).toBeUndefined();
+    });
+  });
+
+  describe('findProfileById', () => {
+    it('should return profile by valid id with user', async () => {
+      const result = await service.findProfileById('profile-uuid-123');
+      expect(result.firstName).toBe('John');
+      expect(result.user).toEqual(mockUser);
+      expect(mockUsersService.findOne).toHaveBeenCalledWith('user-uuid-123');
+    });
+
+    it('should throw NotFoundException for invalid id', async () => {
+      await expect(service.findProfileById('invalid-id')).rejects.toThrow(NotFoundException);
+    });
+    it('should handle missing user in findProfileById', async () => {
+      mockUsersService.findOne.mockResolvedValueOnce(null);
+      const result = await service.findProfileById('profile-uuid-123');
+      expect(result.user).toBeNull();
+    });
+  });
+
+  describe('findProfileByUserId', () => {
+    it('should return profile by user id with user', async () => {
+      const result = await service.findProfileByUserId('user-uuid-123');
+      expect(result?.firstName).toBe('John');
+      expect(result?.user).toEqual(mockUser);
+    });
+
+    it('should return null for non-existent user', async () => {
+      mockProfileRepository.findOne.mockResolvedValueOnce(null);
+      const result = await service.findProfileByUserId('invalid-user');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('should update profile first name', async () => {
+      await service.updateProfile('profile-uuid-123', {
+        firstName: 'Jane',
+      });
+      expect(mockProfileRepository.save).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException for non-existent profile', async () => {
+      await expect(service.updateProfile('invalid-id', { firstName: 'Test' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ============ DELETE PROFILE TESTS ============
+  describe('deleteProfile', () => {
+    it('should delete existing profile', async () => {
+      await service.deleteProfile('profile-uuid-123');
+      expect(mockProfileRepository.remove).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException for non-existent profile', async () => {
+      await expect(service.deleteProfile('invalid-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('softDeleteProfileByUserId', () => {
+    it('should soft remove profile if it exists', async () => {
+      await service.softDeleteProfileByUserId('user-uuid-123');
+      expect(mockProfileRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId: 'user-uuid-123' }),
+        }),
+      );
+      expect(mockProfileRepository.softRemove).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'profile-uuid-123' }),
+      );
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'DELETE',
+          entityName: 'Profile',
+        }),
+      );
+    });
+
+    it('should do nothing if profile does not exist', async () => {
+      mockProfileRepository.findOne.mockReturnValueOnce(null);
+      await service.softDeleteProfileByUserId('non-existent-user');
+      expect(mockProfileRepository.softRemove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getAvailabilityWindows', () => {
+    it('maps raw rows to windows and deduplicates by userId and bookingId', async () => {
+      mockDataSource.query.mockResolvedValueOnce([
+        {
+          user_id: 'user-1',
+          booking_id: 'booking-1',
+          package_id: 'package-1',
+          event_date: '2026-04-10T00:00:00.000Z',
+          start_time: '09:30',
+          duration_minutes: '60',
+        },
+        {
+          user_id: 'user-1',
+          booking_id: 'booking-1',
+          package_id: 'package-1',
+          event_date: '2026-04-10T00:00:00.000Z',
+          start_time: '09:30',
+          duration_minutes: '60',
+        },
+        {
+          user_id: 'user-2',
+          booking_id: 'booking-2',
+          package_id: 'package-2',
+          event_date: '2026-04-11T00:00:00.000Z',
+          start_time: '11:00',
+          duration_minutes: 90,
+        },
+      ]);
+
+      const result = await service.getAvailabilityWindows({
+        start: '2026-04-01T00:00:00.000Z',
+        end: '2026-04-30T23:59:59.999Z',
+      });
+
+      expect(mockDataSource.query).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+      const first = result[0];
+      const second = result[1];
+
+      expect(first).toBeDefined();
+      expect(second).toBeDefined();
+
+      expect(first).toMatchObject({
+        userId: 'user-1',
+        bookingId: 'booking-1',
+        packageId: 'package-1',
+      });
+      expect(first?.start.getTime()).toBeGreaterThan(0);
+      expect((first?.end.getTime() ?? 0) - (first?.start.getTime() ?? 0)).toBe(60 * 60 * 1000);
+      expect(second).toMatchObject({
+        userId: 'user-2',
+        bookingId: 'booking-2',
+        packageId: 'package-2',
+      });
+      expect(second?.start.getTime()).toBeGreaterThan(0);
+      expect((second?.end.getTime() ?? 0) - (second?.start.getTime() ?? 0)).toBe(90 * 60 * 1000);
+    });
+  });
+});

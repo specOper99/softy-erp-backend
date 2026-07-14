@@ -1,0 +1,272 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
+import { ApiErrorResponses, CurrentUser, Roles } from '../../../common/decorators';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { RolesGuard } from '../../../common/guards';
+import { resolveRequestedUserIdScope } from '../../../common/helpers/field-staff-user-scope.helper';
+import { MfaRequired } from '../../auth/infrastructure/decorators/mfa-required.decorator';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/infrastructure/guards/mfa-required.guard';
+import { StaffConflictService } from '../../bookings/application/staff-conflict.service';
+import { SubscriptionPlan } from '../../tenants/domain/enums/subscription-plan.enum';
+import { RequireSubscription, SubscriptionGuard } from '../../tenants/infrastructure/guards/subscription.guard';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import {
+  AvailabilityQueryDto,
+  AvailabilityWindowDto,
+  CreateProfileDto,
+  CreateStaffDto,
+  CreateStaffResponseDto,
+  PayrollRunCursorResponseDto,
+  ProfileCursorResponseDto,
+  ProfileFilterDto,
+  ProfilePaginatedResponseDto,
+  ProfileResponseDto,
+  RunPayrollDto,
+  UpdateProfileDto,
+} from './dto';
+import { PayrollRun } from '../domain/entities/payroll-run.entity';
+import { HrService } from '../application/hr.service';
+import { PayrollService } from '../application/payroll.service';
+
+@ApiTags('HR')
+@ApiBearerAuth()
+@ApiExtraModels(ProfileResponseDto, ProfilePaginatedResponseDto, ProfileCursorResponseDto)
+@ApiErrorResponses(
+  'BAD_REQUEST',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'CONFLICT',
+  'UNPROCESSABLE_ENTITY',
+  'TOO_MANY_REQUESTS',
+)
+@Controller('hr')
+@UseGuards(JwtAuthGuard, MfaRequiredGuard, RolesGuard, SubscriptionGuard)
+@RequireSubscription(SubscriptionPlan.PRO)
+export class HrController {
+  constructor(
+    private readonly hrService: HrService,
+    private readonly payrollService: PayrollService,
+    private readonly staffConflictService: StaffConflictService,
+  ) {}
+
+  @Post('profiles')
+  @Roles(Role.ADMIN)
+  @MfaRequired()
+  @ApiOperation({ summary: 'Create employee profile (Admin only)' })
+  createProfile(@Body() dto: CreateProfileDto) {
+    return this.hrService.createProfile(dto);
+  }
+
+  @Post('staff')
+  @Roles(Role.ADMIN)
+  @MfaRequired()
+  @ApiOperation({
+    summary: 'Create staff user + profile atomically',
+    description:
+      'Creates user and HR profile in one transaction for studio staffing flow. If profile creation fails, user creation is rolled back.',
+  })
+  @ApiResponse({ status: 201, description: 'Staff created successfully', type: CreateStaffResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid role or payload' })
+  @ApiResponse({ status: 409, description: 'hr.user_or_profile_exists' })
+  createStaff(@Body() dto: CreateStaffDto): Promise<CreateStaffResponseDto> {
+    return this.hrService.createStaff(dto);
+  }
+
+  @Get('profiles')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({
+    summary: 'Get all employee profiles with filtering (Offset Pagination - Deprecated)',
+    description:
+      'Supports filtering by status, department, contract type, and search. Use /hr/profiles/cursor for better performance.',
+    deprecated: true,
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'department', required: false, type: String })
+  @ApiQuery({ name: 'contractType', required: false, type: String })
+  @ApiOkResponse({
+    description: 'Return filtered profiles with pagination meta',
+    schema: { $ref: getSchemaPath(ProfilePaginatedResponseDto) },
+  })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async findAllProfilesWithFilters(@Query() query: ProfileFilterDto) {
+    return this.hrService.findAllProfilesWithFilters(query);
+  }
+
+  @Get('profiles/cursor')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({
+    summary: 'Get all employee profiles with filtering (Cursor Pagination - Recommended)',
+    description: 'Supports filtering by status, department, contract type, and search with cursor pagination',
+  })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'department', required: false, type: String })
+  @ApiQuery({ name: 'contractType', required: false, type: String })
+  @ApiOkResponse({
+    description: 'Return filtered profiles with cursor pagination',
+    schema: { $ref: getSchemaPath(ProfileCursorResponseDto) },
+  })
+  @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async findAllProfilesWithFiltersCursor(@Query() query: ProfileFilterDto) {
+    return this.hrService.findAllProfilesWithFiltersCursor(query);
+  }
+
+  @Get('profiles/cursor/no-filters')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get all profiles with cursor pagination (no filters)' })
+  @ApiOkResponse({
+    description: 'Return profiles list',
+    schema: { $ref: getSchemaPath(ProfileCursorResponseDto) },
+  })
+  findAllProfilesCursor(@Query() query: CursorPaginationDto) {
+    return this.hrService.findAllProfilesCursor(query);
+  }
+
+  @Get('packages/:packageId/available-staff')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({
+    summary: 'Get available staff for a package on a given date/time (Admin/OpsManager)',
+    description:
+      'Returns eligible, scheduled, and free staff count for a given package, date, and start time. Useful for diagnosing why a package appears unavailable.',
+  })
+  @ApiQuery({ name: 'date', required: true, description: 'Date in YYYY-MM-DD format' })
+  @ApiQuery({ name: 'startTime', required: true, description: 'Start time in HH:mm format' })
+  @ApiResponse({ status: 200, description: 'Staff availability breakdown returned' })
+  async getAvailableStaffForPackage(
+    @Param('packageId', ParseUUIDPipe) packageId: string,
+    @Query('date') date: string,
+    @Query('startTime') startTime: string,
+  ) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new BadRequestException('hr.invalid_date_format');
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)) {
+      throw new BadRequestException('hr.invalid_time_format');
+    }
+    const eventDate = new Date(`${date}T00:00:00.000Z`);
+    return this.staffConflictService.checkPackageStaffAvailability({
+      packageId,
+      eventDate,
+      startTime,
+    });
+  }
+
+  @Get('availability')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
+  @ApiOperation({ summary: 'Get reserved availability windows by staff' })
+  @ApiQuery({ name: 'start', required: true, type: String })
+  @ApiQuery({ name: 'end', required: true, type: String })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiResponse({ status: 200, type: AvailabilityWindowDto, isArray: true })
+  getAvailability(@Query() query: AvailabilityQueryDto, @CurrentUser() user: User) {
+    const scopedUserId = resolveRequestedUserIdScope(user, query.userId);
+
+    return this.hrService.getAvailabilityWindows({
+      ...query,
+      userId: scopedUserId,
+    });
+  }
+
+  @Get('profiles/:id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get profile by ID' })
+  @ApiOkResponse({ description: 'Return profile detail', type: ProfileResponseDto })
+  @ApiResponse({ status: 404, description: 'Profile not found' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.hrService.findProfileById(id);
+  }
+
+  @Get('profiles/user/:userId')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
+  @ApiOperation({ summary: 'Get profile by user ID' })
+  @ApiOkResponse({ description: 'Return profile detail', type: ProfileResponseDto })
+  @ApiResponse({ status: 404, description: 'Profile not found' })
+  findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.hrService.findProfileByUserId(userId);
+  }
+
+  @Patch('profiles/:id')
+  @Roles(Role.ADMIN)
+  @MfaRequired()
+  @ApiOperation({ summary: 'Update profile (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateProfileDto) {
+    return this.hrService.updateProfile(id, dto);
+  }
+
+  @Delete('profiles/:id')
+  @Roles(Role.ADMIN)
+  @MfaRequired()
+  @ApiOperation({ summary: 'Delete profile (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Profile deleted successfully' })
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.hrService.deleteProfile(id);
+  }
+
+  @Post('payroll/run')
+  @Roles(Role.ADMIN)
+  @MfaRequired()
+  @ApiOperation({
+    summary: 'Run payroll manually (Admin only)',
+    description:
+      'Runs payroll for the specified month/year. When no body is provided, defaults to the current month and year.',
+  })
+  @ApiBody({ type: RunPayrollDto })
+  @ApiResponse({ status: 201, description: 'Payroll run completed' })
+  runPayroll(@Body() dto: RunPayrollDto = new RunPayrollDto()) {
+    return this.payrollService.runPayroll(dto);
+  }
+
+  @Get('payroll/history')
+  @Roles(Role.ADMIN)
+  @ApiOperation({
+    summary: 'Get payroll run history (Admin only, Offset Pagination)',
+    deprecated: true,
+    description: 'Use /hr/payroll/history/cursor for better performance with large datasets.',
+  })
+  @ApiOkResponse({ description: 'Return payroll history list', type: PayrollRun, isArray: true })
+  getPayrollHistory(@Query() query: PaginationDto = new PaginationDto()) {
+    return this.payrollService.getPayrollHistory(query);
+  }
+
+  @Get('payroll/history/cursor')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get payroll run history with cursor pagination (Admin only)' })
+  @ApiOkResponse({ description: 'Return payroll history list', type: PayrollRunCursorResponseDto })
+  getPayrollHistoryCursor(@Query() query: CursorPaginationDto) {
+    return this.payrollService.getPayrollHistoryCursor(query);
+  }
+}
