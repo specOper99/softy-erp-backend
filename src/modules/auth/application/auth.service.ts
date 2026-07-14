@@ -1,0 +1,588 @@
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as Sentry from '@sentry/nestjs';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'node:crypto';
+import { Counter } from 'prom-client';
+import { DataSource, Repository } from 'typeorm';
+import { CacheUtilsService } from '../../../common/cache/cache-utils.service';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { isPostgresUniqueViolation, toErrorMessage } from '../../../common/utils/error.util';
+import { MailService } from '../../mail/application/mail.service';
+import { TenantsService } from '../../tenants/application/tenants.service';
+import { User } from '../../users/domain/entities/user.entity';
+import { Role } from '../../users/domain/enums/role.enum';
+import { UsersService } from '../../users/application/users.service';
+import { AuthResponseDto, LoginDto, MfaResponseDto, RegisterDto, TokensDto } from '../api/dto';
+import { EmailVerificationToken } from '../domain/entities/email-verification-token.entity';
+import { RefreshToken } from '../domain/entities/refresh-token.entity';
+import { AccountLockoutService } from './account-lockout.service';
+import { MfaTokenService } from './mfa-token.service';
+import { MfaService } from './mfa.service';
+import { PasswordService } from './password.service';
+import { SessionService } from './session.service';
+import { TokenBlacklistService } from './token-blacklist.service';
+import { RequestContext, TokenPayload, TokenService } from './token.service';
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const REMEMBER_ME_TOKEN_LIFETIME_MARGIN_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Prometheus counter for background job failures in the auth service.
+ * Incremented whenever a fire-and-forget security check rejects.
+ * Alert on this in Grafana: `auth_background_failure_total > 0`.
+ */
+const authBackgroundFailureCounter = new Counter({
+  name: 'auth_background_failure_total',
+  help: 'Number of failures in fire-and-forget auth background jobs',
+  labelNames: ['kind'] as const,
+});
+
+@Injectable()
+export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly EMAIL_ACTION_HOURLY_LIMIT = 3;
+  private readonly EMAIL_ACTION_DAILY_LIMIT = 10;
+  private readonly HOUR_MS = 60 * 60 * 1000;
+  private readonly DAY_MS = 24 * 60 * 60 * 1000;
+
+  /**
+   * Timing attack mitigation:
+   * Generate a unique dummy hash at service instantiation using random bytes.
+   * This prevents attackers from pre-computing timing patterns and ensures
+   * consistent response times regardless of user existence.
+   */
+  private readonly dummyPasswordHashPromise: Promise<string>;
+
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly tenantsService: TenantsService,
+    private readonly tokenService: TokenService,
+    private readonly mfaService: MfaService,
+    private readonly sessionService: SessionService,
+    private readonly passwordService: PasswordService,
+    private readonly mfaTokenService: MfaTokenService,
+    @InjectRepository(EmailVerificationToken)
+    private readonly emailVerificationRepository: Repository<EmailVerificationToken>,
+    private readonly dataSource: DataSource,
+    private readonly lockoutService: AccountLockoutService,
+    private readonly mailService: MailService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
+    private readonly cacheUtils: CacheUtilsService,
+  ) {
+    // Generate a unique dummy hash at startup using cryptographically secure random bytes
+    // This is never stored or exposed - it's solely for timing attack mitigation
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    // Use asynchronous hash generation at startup (one-time cost)
+    this.dummyPasswordHashPromise = bcrypt.hash(randomPassword, 10);
+  }
+
+  async register(registerDto: RegisterDto, context?: RequestContext): Promise<AuthResponseDto> {
+    const slug = registerDto.companyName
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/g, '-')
+      .replaceAll(/(^-)|(-$)/g, '');
+
+    // Check for existing user before starting transaction (better performance)
+    const existingUser = await this.usersService.findByEmailGlobal(registerDto.email);
+    if (existingUser) {
+      throw new ConflictException('auth.email_already_registered');
+    }
+
+    try {
+      const user = await this.dataSource.transaction(async (manager) => {
+        let tenant;
+        try {
+          tenant = await this.tenantsService.createWithManager(manager, {
+            name: registerDto.companyName,
+            slug,
+          });
+        } catch (error: unknown) {
+          if (isPostgresUniqueViolation(error)) {
+            throw new ConflictException('tenants.tenant_exists_name_slug');
+          }
+          throw error;
+        }
+
+        const user = await this.usersService.createWithManager(manager, {
+          email: registerDto.email,
+          password: registerDto.password,
+          role: Role.ADMIN,
+          tenantId: tenant.id,
+        });
+
+        return user;
+      });
+
+      // Send verification email AFTER transaction commits (external service call)
+      await this.sendVerificationEmail(user);
+
+      return this.generateAuthResponse(user, context);
+    } catch (error: unknown) {
+      if (isPostgresUniqueViolation(error)) {
+        throw new BadRequestException('auth.email_already_registered');
+      }
+      throw error;
+    }
+  }
+
+  async login(loginDto: LoginDto, context?: RequestContext): Promise<AuthResponseDto> {
+    // CRITICAL SECURITY: equalize auth response timing to reduce user enumeration via latency.
+    // This applies to both success and failure paths.
+    // 500 ms floor: Argon2id on modern hardware can complete in ~50–150 ms, so 100 ms provided
+    // negligible headroom. 500 ms ensures a meaningful, consistent minimum regardless of whether
+    // the user exists, the password is correct, or the hash algorithm is fast.
+    const startedAtMs = Date.now();
+    const minResponseMs = 500;
+
+    try {
+      const lockoutStatus = await this.lockoutService.isLockedOut(loginDto.email);
+      if (lockoutStatus.locked) {
+        const remainingSecs = Math.ceil((lockoutStatus.remainingMs || 0) / 1000);
+        throw new UnauthorizedException({
+          code: 'auth.account_locked_seconds',
+          args: { seconds: remainingSecs },
+        });
+      }
+
+      const user = await this.usersService.findByEmailWithMfaSecretGlobal(loginDto.email);
+      // Find user globally by email to determine tenant
+      if (!user) {
+        await this.lockoutService.recordFailedAttempt(loginDto.email);
+        // Timing Attack Mitigation:
+        // Perform a dummy bcrypt comparison so the response time roughly matches valid users.
+        // This prevents attackers from easily enumerating valid email addresses by measuring response latency.
+        // The dummy password hash is generated uniquely at service startup from random bytes.
+        await bcrypt.compare(loginDto.password, await this.dummyPasswordHashPromise);
+        throw new UnauthorizedException('auth.invalid_credentials');
+      }
+
+      const tenantId = user.tenantId;
+      if (!user.isActive) {
+        throw new UnauthorizedException('auth.account_deactivated');
+      }
+
+      const isPasswordValid = await this.usersService.validatePassword(user, loginDto.password);
+      if (!isPasswordValid) {
+        await this.lockoutService.recordFailedAttempt(loginDto.email);
+        throw new UnauthorizedException('auth.invalid_credentials');
+      }
+
+      if (user.isMfaEnabled) {
+        const tempToken = await this.mfaTokenService.createTempToken({
+          userId: user.id,
+          tenantId,
+          rememberMe: !!loginDto.rememberMe,
+        });
+
+        return { requiresMfa: true, tempToken };
+      }
+
+      await this.lockoutService.clearAttempts(loginDto.email);
+
+      if (context?.ipAddress) {
+        this.safeBackground('suspicious_activity_check', () =>
+          this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress!, user.email),
+        );
+      }
+
+      return this.generateAuthResponse(user, context, loginDto.rememberMe);
+    } finally {
+      const elapsedMs = Date.now() - startedAtMs;
+      const remainingMs = minResponseMs - elapsedMs;
+      if (remainingMs > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, remainingMs));
+      }
+    }
+  }
+
+  async generateMfaSecret(user: User): Promise<MfaResponseDto> {
+    return this.mfaService.generateMfaSecret(user);
+  }
+
+  async verifyMfaTotp(tempToken: string, code: string, context?: RequestContext): Promise<AuthResponseDto> {
+    return this.verifyMfaCommon(
+      tempToken,
+      code,
+      context,
+      async (userId) => {
+        const user = await this.usersService.findByIdWithMfaSecret(userId);
+        if (!user || !user.mfaSecret) return null;
+        return user;
+      },
+      (user, c) => this.mfaService.verifyTotp(user.mfaSecret, c),
+      'auth.invalid_mfa_code',
+    );
+  }
+
+  async verifyMfaRecovery(tempToken: string, code: string, context?: RequestContext): Promise<AuthResponseDto> {
+    return this.verifyMfaCommon(
+      tempToken,
+      code,
+      context,
+      (userId) => this.usersService.findByIdWithRecoveryCodesGlobal(userId),
+      (user, c) => this.mfaService.verifyRecoveryCode(user, c),
+      'auth.invalid_recovery_code',
+    );
+  }
+
+  async enableMfa(user: User, code: string): Promise<string[]> {
+    return this.mfaService.enableMfa(user, code);
+  }
+
+  async disableMfa(user: User): Promise<void> {
+    return this.mfaService.disableMfa(user);
+  }
+
+  async generateRecoveryCodes(user: User): Promise<string[]> {
+    return this.mfaService.generateRecoveryCodes(user);
+  }
+
+  async verifyRecoveryCode(user: User, code: string): Promise<boolean> {
+    return this.mfaService.verifyRecoveryCode(user, code);
+  }
+
+  async getRemainingRecoveryCodes(user: User): Promise<number> {
+    return this.mfaService.getRemainingRecoveryCodes(user);
+  }
+
+  async refreshTokens(refreshToken: string, context?: RequestContext): Promise<TokensDto> {
+    const tokenHash = this.tokenService.hashToken(refreshToken);
+
+    return this.dataSource.transaction(async (manager) => {
+      const storedToken = await manager.findOne(RefreshToken, {
+        where: { tokenHash },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!storedToken) {
+        throw new UnauthorizedException('auth.invalid_refresh_token');
+      }
+
+      const user =
+        storedToken.user ||
+        (await manager.findOne(User, {
+          where: { id: storedToken.userId },
+        }));
+      if (!user?.isActive) {
+        throw new UnauthorizedException('auth.user_not_found_or_inactive');
+      }
+
+      const rememberMe = this.isRememberMeRefreshToken(storedToken);
+
+      if (!storedToken.isValid()) {
+        if (storedToken.isRevoked) {
+          const now = Date.now();
+          const lastUsedAtMs = storedToken.lastUsedAt?.getTime();
+          // 500 ms is enough to absorb truly concurrent refresh requests (e.g., two
+          // tabs racing). 10 s was a session-hijacking window: an attacker with a
+          // stolen token had 10 full seconds to issue their own refresh after first use.
+          const recentRevocationGraceMs = 500;
+
+          const isLikelyConcurrentRefresh =
+            typeof lastUsedAtMs === 'number' &&
+            now - lastUsedAtMs >= 0 &&
+            now - lastUsedAtMs <= recentRevocationGraceMs;
+          if (isLikelyConcurrentRefresh) {
+            return this.generateSessionTokens(user, context, rememberMe);
+          }
+
+          this.logger.warn({
+            message: 'Possible token reuse detected',
+            userId: storedToken.userId,
+            tokenId: storedToken.id,
+            ipAddress: context?.ipAddress,
+            userAgent: context?.userAgent,
+          });
+          await manager.update(RefreshToken, { userId: storedToken.userId, isRevoked: false }, { isRevoked: true });
+        }
+        throw new UnauthorizedException('auth.refresh_token_expired_or_revoked');
+      }
+
+      storedToken.isRevoked = true;
+      storedToken.lastUsedAt = new Date();
+      await manager.save(storedToken);
+
+      return this.generateSessionTokens(user, context, rememberMe);
+    });
+  }
+
+  async logout(userId: string, refreshToken?: string, accessToken?: string): Promise<void> {
+    if (accessToken) {
+      // Blacklist access token
+      await this.tokenBlacklistService.blacklist(accessToken, this.tokenService.accessTokenExpiresIn);
+    }
+
+    if (refreshToken) {
+      const tokenHash = this.tokenService.hashToken(refreshToken);
+      await this.tokenService.revokeToken(tokenHash, userId);
+    } else {
+      await this.tokenService.revokeAllUserTokens(userId);
+    }
+  }
+
+  async logoutAllSessions(userId: string): Promise<number> {
+    return this.tokenService.revokeAllUserTokens(userId);
+  }
+
+  async validateUser(payload: TokenPayload): Promise<User> {
+    const user = await this.usersService.findOne(payload.sub);
+    if (!user?.isActive) {
+      throw new UnauthorizedException('auth.user_not_found_or_inactive');
+    }
+
+    if (!payload.tenantId || user.tenantId !== payload.tenantId) {
+      throw new UnauthorizedException('auth.invalid_token_tenant');
+    }
+    return user;
+  }
+
+  async getActiveSessions(userId: string): Promise<RefreshToken[]> {
+    return this.sessionService.getActiveSessions(userId);
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    return this.sessionService.revokeSession(userId, sessionId);
+  }
+
+  async revokeOtherSessions(userId: string, currentRefreshToken: string): Promise<number> {
+    return this.sessionService.revokeOtherSessions(userId, currentRefreshToken);
+  }
+
+  async cleanupExpiredTokens(): Promise<number> {
+    return this.tokenService.cleanupExpiredTokens();
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    await this.checkEmailActionRateLimit(email);
+    return this.passwordService.forgotPassword(email);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    return this.passwordService.resetPassword(token, newPassword, async (userId) => {
+      await this.logoutAllSessions(userId);
+    });
+  }
+
+  async verifyEmail(token: string): Promise<boolean> {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const verificationToken = await this.emailVerificationRepository.findOne({
+      where: { tokenHash, used: false },
+    });
+
+    if (!verificationToken) {
+      throw new UnauthorizedException('auth.invalid_verification_token');
+    }
+
+    if (verificationToken.isExpired()) {
+      throw new UnauthorizedException('auth.verification_token_expired');
+    }
+
+    const user = await this.usersService.findByEmailGlobal(verificationToken.email);
+    if (!user) {
+      throw new UnauthorizedException('common.user_not_found');
+    }
+
+    verificationToken.used = true;
+    await this.emailVerificationRepository.save(verificationToken);
+
+    await this.usersService.update(user.id, { emailVerified: true });
+
+    return true;
+  }
+
+  async resendVerificationEmail(email: string): Promise<void> {
+    await this.checkEmailActionRateLimit(email);
+    const user = await this.usersService.findByEmailGlobal(email);
+
+    // Always return without differentiating — prevent user enumeration and verification-status leakage.
+    // Internal state is logged for ops visibility only.
+    if (!user) {
+      this.logger.debug('resendVerification: email not found (not disclosed to caller)');
+      return;
+    }
+
+    if (user.emailVerified) {
+      this.logger.debug('resendVerification: email already verified (not disclosed to caller)');
+      return;
+    }
+
+    await this.sendVerificationEmail(user);
+  }
+
+  private isRememberMeRefreshToken(storedToken: RefreshToken): boolean {
+    if (!(storedToken.createdAt instanceof Date) || !(storedToken.expiresAt instanceof Date)) {
+      return false;
+    }
+
+    const standardLifetimeMs = this.tokenService.refreshTokenExpiresIn * ONE_DAY_MS;
+    const tokenLifetimeMs = storedToken.expiresAt.getTime() - storedToken.createdAt.getTime();
+    return tokenLifetimeMs > standardLifetimeMs + REMEMBER_ME_TOKEN_LIFETIME_MARGIN_MS;
+  }
+
+  private async generateSessionTokens(user: User, context?: RequestContext, rememberMe?: boolean): Promise<TokensDto> {
+    return this.tokenService.generateTokens(user, context, rememberMe, (userId, userAgent, ipAddress, userEmail) => {
+      this.safeBackground('new_device_check', () =>
+        this.sessionService.checkNewDevice(userId, userAgent, ipAddress, userEmail),
+      );
+    });
+  }
+
+  async getCurrentUserProfile(user: User): Promise<{
+    id: string;
+    email: string;
+    role: string;
+    isActive: boolean;
+    isMfaEnabled: boolean;
+    tenantId: string;
+    tenantSlug: string;
+  }> {
+    const tenant = await this.tenantsService.findOne(user.tenantId);
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      isMfaEnabled: user.isMfaEnabled,
+      tenantId: user.tenantId,
+      tenantSlug: tenant.slug,
+    };
+  }
+
+  private async generateAuthResponse(
+    user: User,
+    context?: RequestContext,
+    rememberMe?: boolean,
+  ): Promise<AuthResponseDto> {
+    const tokens = await this.generateSessionTokens(user, context, rememberMe);
+    const profile = await this.getCurrentUserProfile(user);
+
+    return {
+      ...tokens,
+      user: {
+        id: profile.id,
+        email: profile.email,
+        role: profile.role,
+        tenantId: profile.tenantId,
+        tenantSlug: profile.tenantSlug,
+      },
+    };
+  }
+
+  private async sendVerificationEmail(user: User): Promise<void> {
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await this.emailVerificationRepository.save({
+      email: user.email,
+      tokenHash,
+      expiresAt,
+    });
+
+    await this.mailService.queueEmailVerification({
+      email: user.email,
+      name: user.email,
+      token,
+    });
+  }
+
+  private async verifyMfaCommon(
+    tempToken: string,
+    code: string,
+    context: RequestContext | undefined,
+    fetchUser: (userId: string) => Promise<User | null>,
+    verifyFn: (user: User, code: string) => Promise<boolean> | boolean,
+    invalidCodeKey: string,
+  ): Promise<AuthResponseDto> {
+    const tempPayload = await this.mfaTokenService.getTempToken(tempToken);
+    if (!tempPayload) {
+      throw new UnauthorizedException('auth.mfa_session_expired');
+    }
+
+    return TenantContextService.run(tempPayload.tenantId, async () => {
+      const user = await fetchUser(tempPayload.userId);
+      if (!user || user.tenantId !== tempPayload.tenantId) {
+        throw new UnauthorizedException('common.user_not_found');
+      }
+
+      const isValid = await verifyFn(user, code);
+      if (!isValid) {
+        // Track failed attempts on the temp token itself. This targets the specific
+        // attack where an attacker possesses a stolen temp token and enumerates TOTP
+        // codes. IP-based throttling alone is insufficient for IP-rotating attackers.
+        const attempts = await this.mfaTokenService.recordFailedAttempt(tempToken);
+        if (attempts >= MfaTokenService.MAX_TOTP_ATTEMPTS) {
+          // Invalidate the temp token to force the attacker back to the login step.
+          await this.mfaTokenService.consumeTempToken(tempToken);
+          this.logger.warn({
+            message: 'MFA temp token invalidated after repeated failed attempts',
+            userId: user.id,
+            tenantId: user.tenantId,
+            attempts,
+          });
+        }
+        await this.lockoutService.recordFailedAttempt(user.email);
+        throw new UnauthorizedException(invalidCodeKey);
+      }
+
+      if (context?.ipAddress) {
+        this.safeBackground('suspicious_activity_check', () =>
+          this.sessionService.checkSuspiciousActivity(user.id, context.ipAddress!, user.email),
+        );
+      }
+
+      await this.mfaTokenService.consumeTempToken(tempToken);
+      await this.lockoutService.clearAttempts(user.email);
+
+      return this.generateAuthResponse(user, context, tempPayload.rememberMe);
+    });
+  }
+
+  /**
+   * Fire-and-forget wrapper: runs `fn` in the background, catches any rejection,
+   * logs it, increments the auth_background_failure counter, and captures to Sentry.
+   */
+  private safeBackground(kind: string, fn: () => Promise<unknown>): void {
+    fn().catch((error: unknown) => {
+      this.logger.error(`Background job '${kind}' failed: ${toErrorMessage(error)}`);
+      authBackgroundFailureCounter.inc({ kind });
+      Sentry.captureException(error, { tags: { kind } });
+    });
+  }
+
+  private async checkEmailActionRateLimit(email: string): Promise<void> {
+    const normalized = email.toLowerCase();
+    const hourKey = `email_action_hour:${normalized}`;
+    const dayKey = `email_action_day:${normalized}`;
+
+    const [hourCount, dayCount] = await Promise.all([
+      this.cacheUtils.get<number>(hourKey),
+      this.cacheUtils.get<number>(dayKey),
+    ]);
+
+    if ((hourCount ?? 0) >= this.EMAIL_ACTION_HOURLY_LIMIT) {
+      throw new HttpException('auth.email_action_rate_limited', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    if ((dayCount ?? 0) >= this.EMAIL_ACTION_DAILY_LIMIT) {
+      throw new HttpException('auth.email_action_rate_limited', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    await Promise.all([
+      this.cacheUtils.set(hourKey, (hourCount ?? 0) + 1, this.HOUR_MS),
+      this.cacheUtils.set(dayKey, (dayCount ?? 0) + 1, this.DAY_MS),
+    ]);
+  }
+}

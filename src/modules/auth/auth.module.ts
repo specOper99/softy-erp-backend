@@ -9,21 +9,21 @@ import { getAllowedJwtAlgorithm } from '../../common/utils/jwt-algorithm.util';
 import { MailModule } from '../mail/mail.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { UsersModule } from '../users/users.module';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { EmailVerificationToken } from './entities/email-verification-token.entity';
-import { PasswordResetToken } from './entities/password-reset-token.entity';
-import { RefreshToken } from './entities/refresh-token.entity';
-import { MfaRequiredGuard, WsJwtGuard } from './guards';
-import { UserDeactivatedHandler } from './handlers/user-deactivated.handler';
-import { AccountLockoutService } from './services/account-lockout.service';
-import { MfaTokenService } from './services/mfa-token.service';
-import { MfaService } from './services/mfa.service';
-import { PasswordService } from './services/password.service';
-import { SessionService } from './services/session.service';
-import { TokenBlacklistService } from './services/token-blacklist.service';
-import { TokenService } from './services/token.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { AuthController } from './api/auth.controller';
+import { AuthService } from './application/auth.service';
+import { EmailVerificationToken } from './domain/entities/email-verification-token.entity';
+import { PasswordResetToken } from './domain/entities/password-reset-token.entity';
+import { RefreshToken } from './domain/entities/refresh-token.entity';
+import { MfaRequiredGuard, WsJwtGuard } from './infrastructure/guards';
+import { UserDeactivatedHandler } from './infrastructure/handlers/user-deactivated.handler';
+import { AccountLockoutService } from './application/account-lockout.service';
+import { MfaTokenService } from './application/mfa-token.service';
+import { MfaService } from './application/mfa.service';
+import { PasswordService } from './application/password.service';
+import { SessionService } from './application/session.service';
+import { TokenBlacklistService } from './application/token-blacklist.service';
+import { TokenService } from './application/token.service';
+import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 
 @Module({
   imports: [
