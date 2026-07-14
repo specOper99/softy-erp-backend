@@ -23,14 +23,14 @@ import {
 } from '@nestjs/swagger';
 import { ApiErrorResponses, Roles } from '../../../common/decorators';
 import { RolesGuard } from '../../../common/guards';
-import { MfaRequired } from '../../auth/decorators/mfa-required.decorator';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
-import { TenantQuotaGuard } from '../../tenants/guards/tenant-quota.guard';
+import { MfaRequired } from '../../auth/infrastructure/decorators/mfa-required.decorator';
+import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
+import { MfaRequiredGuard } from '../../auth/infrastructure/guards/mfa-required.guard';
+import { TenantQuotaGuard } from '../../tenants/infrastructure/guards/tenant-quota.guard';
 import { DeleteWithReasonDto } from '../../../common/dto/delete-with-reason.dto';
-import { CreateUserDto, UpdateUserDto, UserCursorResponseDto, UserFilterDto, UserResponseDto } from '../dto';
-import { Role } from '../enums/role.enum';
-import { UsersService } from '../services/users.service';
+import { CreateUserDto, UpdateUserDto, UserCursorResponseDto, UserFilterDto, UserResponseDto } from './dto';
+import { Role } from '../domain/enums/role.enum';
+import { UsersService } from '../application/users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()

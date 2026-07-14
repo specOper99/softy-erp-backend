@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
+import type { EmployeeWallet } from '../../../finance/domain/entities/employee-wallet.entity';
 import { Role } from '../enums/role.enum';
 
 @Entity('users')

@@ -1,39 +1,28 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
-import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { CursorAuthService } from '../../../common/services/cursor-auth.service';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { applyIlikeSearch } from '../../../common/utils/ilike-escape.util';
-import { AuditPublisher } from '../../audit/audit.publisher';
-import { EmployeeWallet } from '../../finance/entities/employee-wallet.entity';
-import { CreateUserDto, UpdateUserDto, UserFilterDto } from '../dto';
-import { User } from '../entities/user.entity';
-import { Role } from '../enums/role.enum';
-import { UserCreatedEvent } from '../events/user-created.event';
-import { UserDeactivatedEvent } from '../events/user-deactivated.event';
-import { UserDeletedEvent } from '../events/user-deleted.event';
-import { UserRepository } from '../repositories/user.repository';
+import { AuditPublisher } from '../../audit/application/audit.publisher';
+import { EmployeeWallet } from '../../finance/domain/entities/employee-wallet.entity';
+import { CreateUserDto, UpdateUserDto, UserFilterDto } from '../api/dto';
+import { User } from '../domain/entities/user.entity';
+import { Role } from '../domain/enums/role.enum';
+import { UserCreatedEvent } from '../domain/events/user-created.event';
+import { UserDeactivatedEvent } from '../domain/events/user-deactivated.event';
+import { UserDeletedEvent } from '../domain/events/user-deleted.event';
+import { UserRepository } from '../infrastructure/user.repository';
 
 /**
- * UsersService manages user entities with dual repository strategy:
+ * UsersService manages user entities via UserRepository (TenantAwareRepository).
  *
- * 1. `userRepository` (UserRepository - TenantAwareRepository):
- *    - For tenant-scoped operations (CRUD, queries within tenant context)
- *    - Automatically filters by current tenant via AsyncLocalStorage
- *    - Used in authenticated endpoints with established tenant context
- *
- * 2. `rawUserRepository` (Repository<User>):
- *    - For cross-tenant operations requiring global access
- *    - Used exclusively in authentication flows BEFORE tenant context exists:
- *      - `findByEmailGlobal()`: Login endpoint needs to find user across all tenants
- *      - `findByEmailWithMfaSecretGlobal()`: MFA verification before tenant resolution
- *      - `findByIdWithRecoveryCodesGlobal()`: Recovery code verification (pre-auth)
- *    - **SECURITY**: Never expose rawUserRepository to controllers or external callers
- *
- * This pattern is INTENTIONAL and required for multi-tenant authentication.
- * Do NOT consolidate into single repository - breaks login flow.
+ * Tenant-scoped CRUD uses the repository's default tenant filtering.
+ * Auth bootstrap methods (`findByEmailGlobal`, `findByEmailWithMfaSecretGlobal`,
+ * `findByIdWithRecoveryCodesGlobal`) delegate to explicit UserRepository global
+ * helpers — required before request tenant context exists. Do not call those
+ * from controllers.
  */
 @Injectable()
 export class UsersService {
@@ -43,7 +32,6 @@ export class UsersService {
 
   constructor(
     private readonly userRepository: UserRepository,
-    @InjectRepository(User) private readonly rawUserRepository: Repository<User>,
     private readonly auditService: AuditPublisher,
     private readonly eventBus: EventBus,
     private readonly passwordHashService: PasswordHashService,
@@ -193,17 +181,19 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id } });
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndMapOne(
+        'user.wallet',
+        EmployeeWallet,
+        'wallet',
+        'wallet.userId = user.id AND wallet.tenantId = user.tenantId',
+      )
+      .andWhere('user.id = :id', { id });
+
+    const user = await qb.getOne();
     if (!user) {
       throw new NotFoundException('common.user_not_found');
-    }
-
-    const walletRepo = this.rawUserRepository.manager.getRepository(EmployeeWallet);
-    const wallet = await walletRepo.findOne({
-      where: { userId: user.id, tenantId: user.tenantId },
-    });
-    if (wallet) {
-      user.wallet = wallet;
     }
 
     return user;
@@ -214,7 +204,7 @@ export class UsersService {
   }
 
   async findByEmailGlobal(email: string): Promise<User | null> {
-    return this.rawUserRepository.findOne({ where: { email } });
+    return this.userRepository.findByEmailGlobal(email);
   }
 
   async findMany(ids: string[]): Promise<User[]> {
@@ -248,11 +238,7 @@ export class UsersService {
   }
 
   async findByEmailWithMfaSecretGlobal(email: string): Promise<User | null> {
-    return this.rawUserRepository
-      .createQueryBuilder('user')
-      .addSelect('user.mfaSecret')
-      .andWhere('user.email = :email', { email })
-      .getOne();
+    return this.userRepository.findByEmailWithMfaSecretGlobal(email);
   }
 
   async findByIdWithMfaSecret(userId: string): Promise<User | null> {
@@ -268,11 +254,7 @@ export class UsersService {
   }
 
   async findByIdWithRecoveryCodesGlobal(userId: string): Promise<User | null> {
-    return this.rawUserRepository
-      .createQueryBuilder('user')
-      .addSelect('user.mfaRecoveryCodes')
-      .andWhere('user.id = :userId', { userId })
-      .getOne();
+    return this.userRepository.findByIdWithRecoveryCodesGlobal(userId);
   }
 
   async updateMfaSecret(userId: string, secret: string | null, enabled: boolean): Promise<void> {
@@ -363,7 +345,17 @@ export class UsersService {
     // If hash was upgraded from bcrypt to Argon2id, update database
     if (result.valid && result.newHash && result.upgraded) {
       try {
-        await this.rawUserRepository.update({ id: user.id }, { passwordHash: result.newHash });
+        const contextTenantId = TenantContextService.getTenantId();
+        if (contextTenantId && contextTenantId === user.tenantId) {
+          await this.userRepository.update({ id: user.id }, { passwordHash: result.newHash });
+        } else if (user.tenantId) {
+          // Login / pre-auth: establish the user's tenant then use scoped update
+          await TenantContextService.run(user.tenantId, async () => {
+            await this.userRepository.update({ id: user.id }, { passwordHash: result.newHash! });
+          });
+        } else {
+          await this.userRepository.updatePasswordHashGlobal(user.id, result.newHash);
+        }
         this.logger.log(`Password hash upgraded to Argon2id for user ${user.id}`);
       } catch (error) {
         // Log but don't fail - hash upgrade is non-critical

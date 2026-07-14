@@ -2,7 +2,6 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { EventBus } from '@nestjs/cqrs';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import type { EntityManager, FindOneOptions, SelectQueryBuilder } from 'typeorm';
 import {
   createMockQueryRunner,
@@ -12,12 +11,13 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import { CursorAuthService } from '../../../common/services/cursor-auth.service';
 import { PasswordHashService } from '../../../common/services/password-hash.service';
-import { AuditPublisher } from '../../audit/audit.publisher';
-import { UserFilterDto } from '../dto';
-import { User } from '../entities/user.entity';
-import { Role } from '../enums/role.enum';
-import { UserDeactivatedEvent } from '../events/user-deactivated.event';
-import { UserRepository } from '../repositories/user.repository';
+import { TenantContextService } from '../../../common/services/tenant-context.service';
+import { AuditPublisher } from '../../audit/application/audit.publisher';
+import { UserFilterDto } from '../api/dto';
+import type { User } from '../domain/entities/user.entity';
+import { Role } from '../domain/enums/role.enum';
+import { UserDeactivatedEvent } from '../domain/events/user-deactivated.event';
+import { UserRepository } from '../infrastructure/user.repository';
 import { UsersService } from './users.service';
 
 // Test password constants - not real credentials, used only for unit test mocking
@@ -78,16 +78,20 @@ describe('UsersService - Comprehensive Tests', () => {
       isActive: true,
     }) as unknown as User;
 
+    const mockRepo = {
+      ...createMockRepository(),
+      findByEmailGlobal: jest.fn(),
+      findByEmailWithMfaSecretGlobal: jest.fn(),
+      findByIdWithRecoveryCodesGlobal: jest.fn(),
+      updatePasswordHashGlobal: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         {
           provide: UserRepository,
-          useValue: createMockRepository(),
-        },
-        {
-          provide: getRepositoryToken(User),
-          useValue: createMockRepository(),
+          useValue: mockRepo,
         },
         { provide: AuditPublisher, useValue: mockAuditService },
         {
@@ -112,9 +116,9 @@ describe('UsersService - Comprehensive Tests', () => {
     userRepository.find.mockResolvedValue([mockUser]);
     userRepository.save.mockImplementation((user) => Promise.resolve({ ...user, id: 'test-uuid-123' } as User));
     userRepository.softRemove.mockImplementation((user) => Promise.resolve({ ...user } as User));
+    userRepository.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
 
     // Default findOne behavior - handle BOTH id and email lookups
-
     userRepository.findOne.mockImplementation((options: FindOneOptions<User>) => {
       // Safe cast for test mock logic
       const where = options.where as { id?: string; email?: string; tenantId?: string };
@@ -130,6 +134,22 @@ describe('UsersService - Comprehensive Tests', () => {
       }
       return Promise.resolve(null);
     });
+
+    // findOne() uses tenant-scoped QueryBuilder + wallet join
+    const defaultFindOneQb = {
+      leftJoinAndMapOne: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(mockUser),
+    };
+    userRepository.createQueryBuilder.mockReturnValue(defaultFindOneQb as unknown as SelectQueryBuilder<User>);
+
+    (userRepository as unknown as { findByEmailGlobal: jest.Mock }).findByEmailGlobal.mockResolvedValue(mockUser);
+    (
+      userRepository as unknown as { findByEmailWithMfaSecretGlobal: jest.Mock }
+    ).findByEmailWithMfaSecretGlobal.mockResolvedValue(mockUser);
+    (
+      userRepository as unknown as { findByIdWithRecoveryCodesGlobal: jest.Mock }
+    ).findByIdWithRecoveryCodesGlobal.mockResolvedValue(mockUser);
 
     // Mock TenantContextService for tenant filter tests
     mockTenantContext(mockTenantId);
@@ -297,19 +317,20 @@ describe('UsersService - Comprehensive Tests', () => {
     it('should return user by valid UUID', async () => {
       const qbMock = {
         leftJoinAndMapOne: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(mockUser),
       };
       userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
 
       const result = await service.findOne('test-uuid-123');
       expect(result).toMatchObject({ id: 'test-uuid-123' });
+      expect(qbMock.andWhere).toHaveBeenCalledWith('user.id = :id', { id: 'test-uuid-123' });
     });
 
     it('should throw NotFoundException for invalid UUID', async () => {
       const qbMock = {
         leftJoinAndMapOne: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
       };
       userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
@@ -320,12 +341,27 @@ describe('UsersService - Comprehensive Tests', () => {
     it('should throw NotFoundException for empty string', async () => {
       const qbMock = {
         leftJoinAndMapOne: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
       };
       userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
 
       await expect(service.findOne('')).rejects.toThrow(NotFoundException);
+    });
+
+    it('does not expose user id owned by another tenant', async () => {
+      // TenantAwareRepository scopes QueryBuilder by tenantId; cross-tenant rows are invisible.
+      const qbMock = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      userRepository.createQueryBuilder.mockReturnValue(qbMock as unknown as SelectQueryBuilder<User>);
+
+      await expect(service.findOne('user-owned-by-other-tenant')).rejects.toThrow(NotFoundException);
+      expect(userRepository.createQueryBuilder).toHaveBeenCalledWith('user');
+      expect(qbMock.andWhere).toHaveBeenCalledWith('user.id = :id', { id: 'user-owned-by-other-tenant' });
+      expect(userRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -344,6 +380,16 @@ describe('UsersService - Comprehensive Tests', () => {
       await service.findByEmail('test@example.com', 'tenant-123');
       expect(userRepository.findOne).toHaveBeenCalledWith({
         where: { email: 'test@example.com', tenantId: 'tenant-123' },
+      });
+    });
+
+    it('returns null for email owned by another tenant', async () => {
+      // Explicit tenantId in where + TenantAwareRepository scope keeps foreign rows invisible.
+      userRepository.findOne.mockResolvedValueOnce(null);
+      const result = await service.findByEmail('test@example.com', 'other-tenant');
+      expect(result).toBeNull();
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'test@example.com', tenantId: 'other-tenant' },
       });
     });
   });
@@ -365,10 +411,12 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should update user active status and log audit note', async () => {
-      userRepository.findOne.mockResolvedValueOnce({
-        ...mockUser,
-        isActive: true,
-      } as User);
+      const qbActive = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({ ...mockUser, isActive: true }),
+      };
+      userRepository.createQueryBuilder.mockReturnValueOnce(qbActive as unknown as SelectQueryBuilder<User>);
       await service.update('test-uuid-123', { isActive: false });
       expect(userRepository.save).toHaveBeenCalled();
       expect(eventBus.publish).toHaveBeenCalledWith(expect.any(UserDeactivatedEvent));
@@ -378,10 +426,12 @@ describe('UsersService - Comprehensive Tests', () => {
         }),
       );
 
-      userRepository.findOne.mockResolvedValueOnce({
-        ...mockUser,
-        isActive: false,
-      } as User);
+      const qbInactive = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({ ...mockUser, isActive: false }),
+      };
+      userRepository.createQueryBuilder.mockReturnValueOnce(qbInactive as unknown as SelectQueryBuilder<User>);
       await service.update('test-uuid-123', { isActive: true });
       expect(mockAuditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -391,6 +441,12 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException when updating non-existent user', async () => {
+      const qbMissing = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      userRepository.createQueryBuilder.mockReturnValueOnce(qbMissing as unknown as SelectQueryBuilder<User>);
       await expect(service.update('invalid-id', { email: 'test@test.com' })).rejects.toThrow(NotFoundException);
     });
   });
@@ -410,6 +466,12 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('should throw NotFoundException when deleting non-existent user', async () => {
+      const qbMissing = {
+        leftJoinAndMapOne: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      userRepository.createQueryBuilder.mockReturnValueOnce(qbMissing as unknown as SelectQueryBuilder<User>);
       await expect(service.remove('invalid-id')).rejects.toThrow(NotFoundException);
     });
   });
@@ -474,12 +536,32 @@ describe('UsersService - Comprehensive Tests', () => {
         newHash: newArgon2Hash,
         upgraded: true,
       });
-      // Get the raw repo to check if it was called
       const user = { ...mockUser, passwordHash: '$2b$10$oldBcryptHash' } as User;
 
       const result = await service.validatePassword(user, password);
       expect(result).toBe(true);
       expect(mockPasswordHashService.verifyAndUpgrade).toHaveBeenCalledWith(user.passwordHash, password);
+      expect(userRepository.update).toHaveBeenCalledWith({ id: user.id }, { passwordHash: newArgon2Hash });
+    });
+
+    it('establishes user tenant context when upgrading hash outside request context', async () => {
+      const password = TEST_PASSWORD;
+      const newArgon2Hash = '$argon2id$v=19$m=65536,t=3,p=4$...new_hash';
+      mockPasswordHashService.verifyAndUpgrade.mockResolvedValueOnce({
+        valid: true,
+        newHash: newArgon2Hash,
+        upgraded: true,
+      });
+      jest.spyOn(TenantContextService, 'getTenantId').mockReturnValue(undefined);
+      const runSpy = jest
+        .spyOn(TenantContextService, 'run')
+        .mockImplementation(((_tid, fn) => fn()) as typeof TenantContextService.run);
+      const user = { ...mockUser, passwordHash: '$2b$10$oldBcryptHash' } as User;
+
+      const result = await service.validatePassword(user, password);
+      expect(result).toBe(true);
+      expect(runSpy).toHaveBeenCalledWith(user.tenantId, expect.any(Function));
+      expect(userRepository.update).toHaveBeenCalledWith({ id: user.id }, { passwordHash: newArgon2Hash });
     });
   });
   // ============ CURSOR PAGINATION TESTS ============
@@ -545,10 +627,11 @@ describe('UsersService - Comprehensive Tests', () => {
   // ============ GLOBAL LOOKUP TESTS ============
   describe('findByEmailGlobal', () => {
     it('should return user ignoring tenant scope', async () => {
-      (service['rawUserRepository'].findOne as jest.Mock).mockResolvedValue(mockUser);
+      const findByEmailGlobal = (userRepository as unknown as { findByEmailGlobal: jest.Mock }).findByEmailGlobal;
+      findByEmailGlobal.mockResolvedValue(mockUser);
       const result = await service.findByEmailGlobal('test@example.com');
       expect(result).toBe(mockUser);
-      expect(service['rawUserRepository'].findOne).toHaveBeenCalledWith({ where: { email: 'test@example.com' } });
+      expect(findByEmailGlobal).toHaveBeenCalledWith('test@example.com');
     });
   });
 
@@ -582,11 +665,17 @@ describe('UsersService - Comprehensive Tests', () => {
     });
 
     it('findByIdWithRecoveryCodesGlobal should return user with recovery codes ignoring tenant', async () => {
-      const rawQbMock = { ...queryBuilderMock, addSelect: jest.fn().mockReturnThis() };
-      (service['rawUserRepository'].createQueryBuilder as jest.Mock).mockReturnValue(rawQbMock);
+      const findByIdWithRecoveryCodesGlobal = (
+        userRepository as unknown as { findByIdWithRecoveryCodesGlobal: jest.Mock }
+      ).findByIdWithRecoveryCodesGlobal;
+      findByIdWithRecoveryCodesGlobal.mockResolvedValue({
+        ...mockUser,
+        mfaRecoveryCodes: ['code1'],
+      });
 
-      await service.findByIdWithRecoveryCodesGlobal('user-1');
-      expect(rawQbMock.addSelect).toHaveBeenCalledWith('user.mfaRecoveryCodes');
+      const result = await service.findByIdWithRecoveryCodesGlobal('user-1');
+      expect(result?.mfaRecoveryCodes).toEqual(['code1']);
+      expect(findByIdWithRecoveryCodesGlobal).toHaveBeenCalledWith('user-1');
     });
 
     it('updateMfaSecret should update repository', async () => {

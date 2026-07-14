@@ -1,9 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEmail, IsEnum, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
-import { CombinedPaginationDto } from '../../../common/dto/combined-pagination.dto';
-import { PII } from '../../../common/decorators';
-import { Role } from '../enums/role.enum';
+import { CombinedPaginationDto } from '../../../../common/dto/combined-pagination.dto';
+import { PII } from '../../../../common/decorators';
+import { Role } from '../../domain/enums/role.enum';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@erp.soft-y.org' })

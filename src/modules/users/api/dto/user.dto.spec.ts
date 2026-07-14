@@ -1,6 +1,6 @@
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
-import { Role } from '../enums/role.enum';
+import { Role } from '../../domain/enums/role.enum';
 import { CreateUserDto, UpdateUserDto } from './user.dto';
 
 describe('User DTOs', () => {

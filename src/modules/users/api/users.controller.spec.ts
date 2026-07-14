@@ -1,11 +1,11 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Tenant } from '../../tenants/entities/tenant.entity';
-import type { UserFilterDto } from '../dto';
-import { Role } from '../enums/role.enum';
-import { UsersService } from '../services/users.service';
-import { MfaRequiredGuard } from '../../auth/guards/mfa-required.guard';
+import { Tenant } from '../../tenants/domain/entities/tenant.entity';
+import type { UserFilterDto } from './dto';
+import { Role } from '../domain/enums/role.enum';
+import { UsersService } from '../application/users.service';
+import { MfaRequiredGuard } from '../../auth/infrastructure/guards/mfa-required.guard';
 import { UsersController } from './users.controller';
 
 describe('UsersController', () => {
