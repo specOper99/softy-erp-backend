@@ -1,6 +1,6 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { BaseTenantEntity } from '../../../common/entities/abstract.entity';
-import { User } from '../../users/entities/user.entity';
+import { BaseTenantEntity } from '../../../../common/entities/abstract.entity';
+import { User } from '../../../users/domain/entities/user.entity';
 
 export enum PrivacyRequestStatus {
   PENDING = 'PENDING',
