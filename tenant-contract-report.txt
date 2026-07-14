@@ -1,7 +1,7 @@
 Tenant Contract Report
-Generated: 2026-07-08T14:57:34.791Z
-Scanned files: 593
-Tenant-owned entities detected: 30
+Generated: 2026-07-11T11:22:35.416Z
+Scanned files: 632
+Tenant-owned entities detected: 31
 Violations (fail): 0
 Warnings (no fail): 0
 
@@ -28,41 +28,25 @@ Allowlist (explicit and conservative):
 - entity:OutboxEvent -> Outbox relay is infrastructure-level and not tenant-owned domain persistence.
 - pathPrefix:src/modules/platform/ -> Platform module operates cross-tenant with explicit target tenant controls.
 - pathPrefix:src/modules/tenants/ -> Tenant lifecycle management is global and cannot be tenant-scoped by repository base.
-- pathExact:src/modules/client-portal/decorators/validate-tenant-slug.decorator.ts -> Slug middleware resolves Tenant identity for public routes before tenant context is established.
 - pathExact:src/common/services/outbox-relay.service.ts -> Outbox relay is a global publisher loop and intentionally uses raw outbox repository access.
-- path:src/modules/audit/audit.processor.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/billing/services/subscription.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/finance/services/payout-relay.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/finance/services/purchase-invoices.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/finance/services/transaction-categories.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/finance/services/vendors.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/hr/services/task-type-eligibility.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/mail/services/mail-template.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/privacy/consent.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/tasks/services/tasks-export.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/tasks/services/time-entries.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- path:src/modules/users/services/users.service.ts -> TEMP baseline allowlist (tenant-consistency-stabilization Tasks 7-11)
-- skipTenantMethod:src/modules/auth/auth.controller.ts#register -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#login -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#refreshTokens -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#verifyMfaTotp -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#verifyMfaRecovery -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#forgotPassword -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#resetPassword -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#verifyEmail -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantMethod:src/modules/auth/auth.controller.ts#resendVerification -> Auth bootstrap and recovery endpoints must run before tenant context is established.
-- skipTenantClass:src/modules/billing/controllers/billing.controller.ts -> Stripe webhook controller validates signatures and derives tenant through billing linkage, not request tenant input.
-- skipTenantClass:src/modules/client-portal/client-portal.controller.ts -> Client portal is public-entry auth and tenant derivation via slug/token, with explicit TenantContextService.run for tenant-scoped calls.
-- skipTenantClass:src/modules/health/health.controller.ts -> Health probes are infrastructure/global and do not operate on tenant-owned domain persistence.
-- skipTenantClass:src/modules/metrics/metrics.controller.ts -> Metrics endpoints are global platform telemetry and intentionally tenant-agnostic.
-- skipTenantClass:src/modules/platform/auth/controllers/mfa-login.controller.ts -> Platform control-plane login MFA endpoint is global and not tenant-scoped.
-- skipTenantClass:src/modules/platform/controllers/mfa.controller.ts -> Platform control-plane MFA management is global and not tenant-scoped.
-- skipTenantClass:src/modules/platform/controllers/platform-analytics.controller.ts -> Platform control-plane analytics is global and uses explicit target-tenant context when needed.
-- skipTenantClass:src/modules/platform/controllers/platform-audit.controller.ts -> Platform control-plane audit log access is global compliance scope, not tenant request scope.
-- skipTenantClass:src/modules/platform/auth/controllers/platform-auth.controller.ts -> Platform control-plane auth endpoints are global bootstrap/session flows.
-- skipTenantMethod:src/modules/platform/auth/controllers/platform-auth.controller.ts#login -> Platform control-plane auth endpoints are global bootstrap/session flows.
-- skipTenantMethod:src/modules/platform/auth/controllers/platform-auth.controller.ts#refreshTokens -> Platform control-plane auth endpoints are global bootstrap/session flows.
-- skipTenantClass:src/modules/platform/controllers/platform-security.controller.ts -> Platform security operations are global entry points and explicitly establish tenant context for targeted actions.
-- skipTenantClass:src/modules/platform/controllers/platform-support.controller.ts -> Platform support/impersonation endpoints are control-plane operations outside tenant guard scope.
-- skipTenantClass:src/modules/platform/controllers/platform-tenants.controller.ts -> Platform tenant lifecycle management is global metadata/control-plane and not tenant-scoped by request context.
-- skipTenantClass:src/modules/platform/controllers/platform-time-entries.controller.ts -> Platform support time-entry endpoints use explicit target tenant context for tenant-specific operations.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#register -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#login -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#refreshTokens -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#verifyMfaTotp -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#verifyMfaRecovery -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#forgotPassword -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#resetPassword -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#verifyEmail -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantMethod:src/modules/auth/api/auth.controller.ts#resendVerification -> Auth bootstrap and recovery endpoints must run before tenant context is established.
+- skipTenantClass:src/modules/health/api/health.controller.ts -> Health probes are infrastructure/global and do not operate on tenant-owned domain persistence.
+- skipTenantClass:src/modules/metrics/api/metrics.controller.ts -> Metrics endpoints are global platform telemetry and intentionally tenant-agnostic.
+- skipTenantClass:src/modules/platform/api/controllers/mfa-login.controller.ts -> Platform control-plane login MFA endpoint is global and not tenant-scoped.
+- skipTenantClass:src/modules/platform/api/controllers/mfa.controller.ts -> Platform control-plane MFA management is global and not tenant-scoped.
+- skipTenantClass:src/modules/platform/api/controllers/platform-analytics.controller.ts -> Platform control-plane analytics is global and uses explicit target-tenant context when needed.
+- skipTenantClass:src/modules/platform/api/controllers/platform-audit.controller.ts -> Platform control-plane audit log access is global compliance scope, not tenant request scope.
+- skipTenantClass:src/modules/platform/api/controllers/platform-auth.controller.ts -> Platform control-plane auth endpoints are global bootstrap/session flows.
+- skipTenantMethod:src/modules/platform/api/controllers/platform-auth.controller.ts#login -> Platform control-plane auth endpoints are global bootstrap/session flows.
+- skipTenantMethod:src/modules/platform/api/controllers/platform-auth.controller.ts#refreshTokens -> Platform control-plane auth endpoints are global bootstrap/session flows.
+- skipTenantClass:src/modules/platform/api/controllers/platform-security.controller.ts -> Platform security operations are global entry points and explicitly establish tenant context for targeted actions.
+- skipTenantClass:src/modules/platform/api/controllers/platform-support.controller.ts -> Platform support/impersonation endpoints are control-plane operations outside tenant guard scope.
+- skipTenantClass:src/modules/platform/api/controllers/platform-tenants.controller.ts -> Platform tenant lifecycle management is global metadata/control-plane and not tenant-scoped by request context.
