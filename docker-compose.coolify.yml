@@ -71,6 +71,9 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
+      # Payroll bank gateway: production defaults to disabled (no mock money movement).
+      # Set a real PAYOUT_GATEWAY implementation before enabling payroll payouts.
+      PAYOUT_GATEWAY: ${PAYOUT_GATEWAY:-disabled}
       # --- Seed (first boot only) ---
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-}

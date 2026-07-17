@@ -35,7 +35,7 @@ import { PayrollRunRepository } from './infrastructure/payroll-run.repository';
 import { ProfileRepository } from './infrastructure/profile.repository';
 import { AttendanceService } from './application/attendance.service';
 import { HrService } from './application/hr.service';
-import { MockPaymentGatewayService, PAYMENT_GATEWAY } from './application/payment-gateway.service';
+import { createPaymentGatewayProviders } from './application/payment-gateway.service';
 import { PayrollReconciliationService } from './application/payroll-reconciliation.service';
 import { PayrollService } from './application/payroll.service';
 import { StaffAvailabilitySlotService } from './application/staff-availability-slot.service';
@@ -78,8 +78,7 @@ import { ProcessingTypeRepository } from '../bookings/infrastructure/processing-
     HrService,
     PayrollService,
     PayrollReconciliationService,
-    MockPaymentGatewayService,
-    { provide: PAYMENT_GATEWAY, useExisting: MockPaymentGatewayService },
+    ...createPaymentGatewayProviders(),
     AttendanceService,
     StaffAvailabilitySlotService,
     ProcessingTypeEligibilityService,

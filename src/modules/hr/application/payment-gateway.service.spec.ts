@@ -1,6 +1,13 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { MockPaymentGatewayService } from './payment-gateway.service';
+import {
+  createPaymentGatewayProviders,
+  DisabledPaymentGatewayService,
+  MockPaymentGatewayService,
+  PAYMENT_GATEWAY,
+  resolvePayoutGatewayMode,
+  type PaymentGateway,
+} from './payment-gateway.service';
 
 class DeterministicMockPaymentGatewayService extends MockPaymentGatewayService {
   failureRoll = 50;
@@ -14,6 +21,72 @@ class DeterministicMockPaymentGatewayService extends MockPaymentGatewayService {
     return this.referenceSuffix;
   }
 }
+
+describe('resolvePayoutGatewayMode', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalPayoutGateway = process.env.PAYOUT_GATEWAY;
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    if (originalPayoutGateway === undefined) {
+      delete process.env.PAYOUT_GATEWAY;
+    } else {
+      process.env.PAYOUT_GATEWAY = originalPayoutGateway;
+    }
+  });
+
+  it('defaults to mock outside production', () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.PAYOUT_GATEWAY;
+    expect(resolvePayoutGatewayMode()).toBe('mock');
+  });
+
+  it('defaults to disabled in production', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.PAYOUT_GATEWAY;
+    expect(resolvePayoutGatewayMode()).toBe('disabled');
+  });
+});
+
+describe('createPaymentGatewayProviders', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalPayoutGateway = process.env.PAYOUT_GATEWAY;
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    if (originalPayoutGateway === undefined) {
+      delete process.env.PAYOUT_GATEWAY;
+    } else {
+      process.env.PAYOUT_GATEWAY = originalPayoutGateway;
+    }
+  });
+
+  it('wires disabled gateway in production by default', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.PAYOUT_GATEWAY;
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: createPaymentGatewayProviders(),
+    }).compile();
+
+    const gateway = module.get<PaymentGateway>(PAYMENT_GATEWAY);
+    expect(gateway).toBeInstanceOf(DisabledPaymentGatewayService);
+    await expect(
+      gateway.triggerPayout({
+        employeeName: 'A',
+        bankAccount: '1',
+        amount: 10,
+        referenceId: 'REF',
+      }),
+    ).resolves.toEqual({ success: false, error: 'PAYOUT_GATEWAY_DISABLED' });
+  });
+
+  it('rejects explicit mock in production', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.PAYOUT_GATEWAY = 'mock';
+    expect(() => createPaymentGatewayProviders()).toThrow(/not allowed in production/);
+  });
+});
 
 describe('MockPaymentGatewayService', () => {
   let service: DeterministicMockPaymentGatewayService;

@@ -53,7 +53,7 @@ import { WalletService } from './application/wallet.service';
 
 import { ExportService } from '../../common/services/export.service';
 
-import { MockPaymentGatewayService, PAYMENT_GATEWAY } from '../hr/application/payment-gateway.service';
+import { createPaymentGatewayProviders } from '../hr/application/payment-gateway.service';
 import { MetricsModule } from '../metrics/metrics.module';
 import { PayoutConsistencyCron } from './infrastructure/payout-consistency.cron';
 import { BookingUpdatedHandler } from './infrastructure/booking-updated.handler';
@@ -112,8 +112,7 @@ import { PayoutRelayService } from './application/payout-relay.service';
     PurchaseInvoiceRepository,
     VendorRepository,
     TransactionCategoryRepository,
-    MockPaymentGatewayService,
-    { provide: PAYMENT_GATEWAY, useExisting: MockPaymentGatewayService },
+    ...createPaymentGatewayProviders(),
     PayoutConsistencyCron,
     BookingUpdatedHandler,
     ReconciliationFailedHandler,
