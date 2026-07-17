@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -27,10 +27,11 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 
 @Module({
   imports: [
-    UsersModule,
-    TenantsModule,
-    MailModule,
-    CommonModule,
+    // Cycle: Outbox → Analytics → Auth → Users/Tenants/Mail/Common → Common → Outbox
+    forwardRef(() => UsersModule),
+    forwardRef(() => TenantsModule),
+    forwardRef(() => MailModule),
+    forwardRef(() => CommonModule),
     TypeOrmModule.forFeature([RefreshToken, PasswordResetToken, EmailVerificationToken]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

@@ -80,7 +80,8 @@ export const createMailerOptions = (configService: ConfigService): MailerOptions
         ]
       : []),
     CqrsModule,
-    CommonModule,
+    // Cycle: Common → Outbox → Mail → Common
+    forwardRef(() => CommonModule),
     TypeOrmModule.forFeature([EmailTemplate]),
     forwardRef(() => OutboxModule),
   ],

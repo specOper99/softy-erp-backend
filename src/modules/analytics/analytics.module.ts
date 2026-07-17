@@ -20,9 +20,10 @@ import { UpdateMetricsHandler } from './infrastructure/update-metrics.handler';
   imports: [
     TypeOrmModule.forFeature([DailyMetrics, Booking]),
     CqrsModule,
-    AuthModule,
-    TenantsModule,
-    CommonModule,
+    // Cycle: Common → Outbox → Analytics → Auth/Tenants/Common
+    forwardRef(() => AuthModule),
+    forwardRef(() => TenantsModule),
+    forwardRef(() => CommonModule),
     forwardRef(() => OutboxModule),
   ],
   controllers: [AnalyticsController],
