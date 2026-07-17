@@ -23,7 +23,8 @@ import { NotificationRepository } from './infrastructure/notification.repository
   imports: [
     TypeOrmModule.forFeature([NotificationPreference, Notification]),
     CqrsModule,
-    UsersModule,
+    // Cycle: Common → Outbox → Notifications → Users → Common
+    forwardRef(() => UsersModule),
     forwardRef(() => OutboxModule),
   ],
   controllers: [NotificationPreferencesController, NotificationsController],

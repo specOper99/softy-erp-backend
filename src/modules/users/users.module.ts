@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from '../../common/common.module';
 import { Tenant } from '../tenants/domain/entities/tenant.entity';
@@ -8,7 +8,11 @@ import { UserRepository } from './infrastructure/user.repository';
 import { UsersService } from './application/users.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Tenant]), CommonModule],
+  imports: [
+    TypeOrmModule.forFeature([User, Tenant]),
+    // Cycle: Common → Outbox → Notifications → Users → Common
+    forwardRef(() => CommonModule),
+  ],
   controllers: [UsersController],
   providers: [UsersService, UserRepository],
   exports: [UsersService, UserRepository],
