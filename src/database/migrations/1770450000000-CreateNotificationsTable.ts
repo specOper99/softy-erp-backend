@@ -31,6 +31,7 @@ export class CreateNotificationsTable1770450000000 implements MigrationInterface
               'BOOKING_CREATED',
               'BOOKING_UPDATED',
               'BOOKING_CANCELLED',
+              'BOOKING_COMPLETED',
               'TASK_ASSIGNED',
               'TASK_COMPLETED',
               'PAYMENT_RECEIVED',
