@@ -53,6 +53,7 @@ export class TenantsController {
   }
 
   @Get()
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
     summary: 'Get current tenant',
     description: 'Returns only the current tenant (studio) resolved from authenticated tenant context.',
@@ -64,6 +65,7 @@ export class TenantsController {
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
     summary: 'Get tenant by ID (current tenant only)',
     description: 'Cross-tenant access is forbidden. You can only access your own tenant ID.',
