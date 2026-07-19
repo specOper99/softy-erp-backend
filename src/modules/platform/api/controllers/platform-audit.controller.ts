@@ -87,18 +87,19 @@ Logs include: tenant operations, impersonation sessions, security events, config
     @Query('offset') offset?: string,
   ) {
     const MAX_LIMIT = 100;
+    const DEFAULT_LIMIT = 50;
 
     const parsedLimit = limit !== undefined ? Number(limit) : undefined;
     const effectiveLimit =
       parsedLimit !== undefined && Number.isFinite(parsedLimit)
         ? Math.min(MAX_LIMIT, Math.max(1, Math.trunc(parsedLimit)))
-        : undefined;
+        : DEFAULT_LIMIT;
 
     const parsedOffset = offset !== undefined ? Number(offset) : undefined;
     const effectiveOffset =
-      parsedOffset !== undefined && Number.isFinite(parsedOffset) ? Math.max(0, Math.trunc(parsedOffset)) : undefined;
+      parsedOffset !== undefined && Number.isFinite(parsedOffset) ? Math.max(0, Math.trunc(parsedOffset)) : 0;
 
-    return this.auditService.findAll({
+    const { logs, total } = await this.auditService.findAll({
       platformUserId,
       action: action as PlatformAction | undefined,
       targetTenantId,
@@ -107,5 +108,13 @@ Logs include: tenant operations, impersonation sessions, security events, config
       limit: effectiveLimit,
       offset: effectiveOffset,
     });
+
+    // Wire contract (OpenAPI + FE): `{ data, total, limit, offset }` — service keeps domain `{ logs, total }`.
+    return {
+      data: logs,
+      total,
+      limit: effectiveLimit,
+      offset: effectiveOffset,
+    };
   }
 }

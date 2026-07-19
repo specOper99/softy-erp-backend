@@ -1,5 +1,5 @@
 Tenant Contract Report
-Generated: 2026-07-19T08:13:00.271Z
+Generated: 2026-07-19T10:50:18.852Z
 Scanned files: 637
 Tenant-owned entities detected: 31
 Violations (fail): 0
