@@ -191,4 +191,63 @@ describe('PlatformSecurityService', () => {
     expect(result.estimatedCompletionTime).toBeInstanceOf(Date);
     expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: PlatformAction.DATA_EXPORTED }));
   });
+
+  it('initiateDataDeletion schedules when tenantService returns tenant and audits schedule_deletion', async () => {
+    const scheduleDate = new Date('2026-09-01T00:00:00.000Z');
+    tenantService.scheduleTenantDeletion.mockResolvedValue({ id: tenantId });
+
+    const result = await service.initiateDataDeletion(
+      { tenantId, scheduleDate, reason: 'GDPR erasure request', hardDelete: true },
+      platformUserId,
+      ipAddress,
+    );
+
+    expect(tenantService.scheduleTenantDeletion).toHaveBeenCalledWith(
+      tenantId,
+      scheduleDate,
+      platformUserId,
+      'GDPR erasure request',
+      ipAddress,
+    );
+    expect(result).toEqual({
+      scheduledDate: scheduleDate,
+      cancellationDeadline: expect.any(Date),
+      executedImmediately: false,
+    });
+    expect(result.executedImmediately).toBe(false);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: PlatformAction.DATA_DELETED,
+        additionalContext: expect.objectContaining({
+          operation: 'schedule_deletion',
+          executedImmediately: false,
+          hardDelete: true,
+        }),
+      }),
+    );
+  });
+
+  it('initiateDataDeletion marks executedImmediately when schedule returns null', async () => {
+    const scheduleDate = new Date('2026-07-20T00:00:00.000Z');
+    tenantService.scheduleTenantDeletion.mockResolvedValue(null);
+
+    const result = await service.initiateDataDeletion(
+      { tenantId, scheduleDate, reason: 'Immediate wipe' },
+      platformUserId,
+      ipAddress,
+    );
+
+    expect(result.executedImmediately).toBe(true);
+    expect(result.cancellationDeadline).toEqual(scheduleDate);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: PlatformAction.DATA_DELETED,
+        additionalContext: expect.objectContaining({
+          operation: 'execute_deletion',
+          executedImmediately: true,
+          hardDelete: false,
+        }),
+      }),
+    );
+  });
 });

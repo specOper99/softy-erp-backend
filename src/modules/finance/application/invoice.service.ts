@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { BookingRepository } from '../../bookings/infrastructure/booking.repository';
+import { TenantsService } from '../../tenants/application/tenants.service';
 import { Invoice, InvoiceStatus } from '../domain/entities/invoice.entity';
 import { Currency } from '../domain/enums/currency.enum';
 
@@ -17,6 +18,7 @@ export class InvoiceService {
   constructor(
     private readonly invoiceRepository: InvoiceRepository,
     private readonly bookingRepository: BookingRepository,
+    private readonly tenantsService: TenantsService,
   ) {}
 
   /**
@@ -72,6 +74,9 @@ export class InvoiceService {
     const status =
       balanceDue === 0 ? InvoiceStatus.PAID : amountPaid > 0 ? InvoiceStatus.PARTIALLY_PAID : InvoiceStatus.DRAFT;
 
+    const tenant = await this.tenantsService.findOne(tenantId);
+    const currency = tenant.baseCurrency || Currency.USD;
+
     const MAX_INVOICE_NUMBER_RETRIES = 3;
     let lastError: unknown;
 
@@ -96,7 +101,7 @@ export class InvoiceService {
         totalAmount: booking.totalPrice,
         amountPaid,
         balanceDue,
-        currency: Currency.USD,
+        currency,
       });
 
       try {

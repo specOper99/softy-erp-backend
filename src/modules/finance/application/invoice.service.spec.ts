@@ -10,8 +10,10 @@ import {
 } from '../../../../test/helpers/mock-factories';
 import type { Booking } from '../../bookings/domain/entities/booking.entity';
 import { BookingRepository } from '../../bookings/infrastructure/booking.repository';
+import { TenantsService } from '../../tenants/application/tenants.service';
 import type { Invoice } from '../domain/entities/invoice.entity';
 import { InvoiceStatus } from '../domain/entities/invoice.entity';
+import { Currency } from '../domain/enums/currency.enum';
 import { InvoiceRepository } from '../infrastructure/invoice.repository';
 import { InvoiceService } from './invoice.service';
 
@@ -19,6 +21,7 @@ describe('InvoiceService', () => {
   let service: InvoiceService;
   let invoiceRepo: MockRepository<Invoice>;
   let bookingRepo: MockRepository<Booking>;
+  let tenantsService: { findOne: jest.Mock };
   const mockTenantId = 'tenant-123';
 
   const mockBooking = createMockBooking({
@@ -58,6 +61,9 @@ describe('InvoiceService', () => {
   beforeEach(async () => {
     const mockInvoiceRepo = createMockRepository();
     const mockBookingRepo = createMockRepository();
+    tenantsService = {
+      findOne: jest.fn().mockResolvedValue({ id: mockTenantId, baseCurrency: Currency.IQD }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -69,6 +75,10 @@ describe('InvoiceService', () => {
         {
           provide: BookingRepository,
           useValue: mockBookingRepo,
+        },
+        {
+          provide: TenantsService,
+          useValue: tenantsService,
         },
       ],
     }).compile();
@@ -101,12 +111,14 @@ describe('InvoiceService', () => {
         relations: ['client', 'servicePackage'],
         where: { id: 'booking-123', tenantId: 'tenant-123' },
       });
+      expect(tenantsService.findOne).toHaveBeenCalledWith(mockTenantId);
       expect(invoiceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           status: InvoiceStatus.DRAFT,
           subTotal: mockBooking.subTotal,
           taxTotal: mockBooking.taxAmount,
           totalAmount: mockBooking.totalPrice,
+          currency: Currency.IQD,
         }),
       );
       expect(result).toEqual(mockInvoice);

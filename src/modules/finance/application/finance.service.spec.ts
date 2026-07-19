@@ -487,6 +487,25 @@ describe('FinanceService - Comprehensive Tests', () => {
       expect(result.totalPayroll).toBe(0);
       expect(result.netBalance).toBe(0);
     });
+
+    it('adds EXPENSE and REFUND into totalExpenses (no overwrite)', async () => {
+      mockTransactionRepository.createQueryBuilder().getRawMany.mockResolvedValueOnce([
+        { type: TransactionType.INCOME, total: '5000' },
+        { type: TransactionType.REFUND, total: '300' },
+        { type: TransactionType.EXPENSE, total: '2000' },
+        { type: TransactionType.PAYROLL, total: '1000' },
+      ]);
+      const result = await service.getTransactionSummary();
+      expect(result.totalExpenses).toBe(2300);
+      expect(result.netBalance).toBe(1700); // 5000 - 2300 - 1000
+    });
+
+    it('filters voided originals and reversal rows from the summary query', async () => {
+      const qb = mockTransactionRepository.createQueryBuilder();
+      await service.getTransactionSummary();
+      expect(qb.where).toHaveBeenCalledWith('t.voidedAt IS NULL');
+      expect(qb.andWhere).toHaveBeenCalledWith('t.reversalOfId IS NULL');
+    });
   });
 
   // ============ WALLET AND BUDGET TESTS REMOVED (Moved to separate services) ============
@@ -541,6 +560,7 @@ describe('FinanceService - Comprehensive Tests', () => {
         currency: string;
         exchangeRate: number;
         amount: number;
+        type: TransactionType;
       }> = {},
     ) {
       return {
@@ -567,20 +587,42 @@ describe('FinanceService - Comprehensive Tests', () => {
       };
     }
 
+    function buildLockedBooking(amountPaid = 500) {
+      return {
+        id: 'booking-uuid-123',
+        tenantId: 'tenant-123',
+        amountPaid,
+        derivePaymentStatus: jest.fn().mockReturnValue('PARTIALLY_PAID'),
+      };
+    }
+
+    /** Manager that peeks TX, locks Booking, then locks TX (lock order). */
+    function buildVoidManager(
+      original = buildOriginal(),
+      lockedBooking: ReturnType<typeof buildLockedBooking> | null = buildLockedBooking(),
+    ) {
+      const findOne = jest.fn().mockImplementation((entity: unknown) => {
+        if (entity === Booking) {
+          return Promise.resolve(lockedBooking);
+        }
+        return Promise.resolve(original);
+      });
+      return {
+        findOne,
+        create: jest.fn().mockImplementation((_entity: unknown, data: unknown) => data),
+        save: jest
+          .fn()
+          .mockImplementation((data: unknown) =>
+            Promise.resolve({ ...(data as object), id: 'reversal-id', createdAt: new Date() }),
+          ),
+        update: jest.fn().mockResolvedValue({ affected: 1 }),
+      };
+    }
+
     beforeEach(() => {
       // dataSource.transaction runs the callback immediately with a mock manager
       mockDataSource.transaction.mockImplementation((cb: (mgr: unknown) => Promise<unknown>) => {
-        const mgr = {
-          findOne: jest.fn().mockResolvedValue(buildOriginal()),
-          create: jest.fn().mockImplementation((_entity: unknown, data: unknown) => data),
-          save: jest
-            .fn()
-            .mockImplementation((data: unknown) =>
-              Promise.resolve({ ...(data as object), id: 'reversal-id', createdAt: new Date() }),
-            ),
-          update: jest.fn().mockResolvedValue({ affected: 1 }),
-        };
-        return cb(mgr);
+        return cb(buildVoidManager());
       });
     });
 
@@ -590,18 +632,9 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     it('happy path: reversal copies all fields from original', async () => {
+      const original = buildOriginal();
       mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
-        const original = buildOriginal();
-        const mgr = {
-          findOne: jest.fn().mockResolvedValue(original),
-          create: jest.fn().mockImplementation((_entity: unknown, data: unknown) => data),
-          save: jest
-            .fn()
-            .mockImplementation((data: unknown) =>
-              Promise.resolve({ ...(data as object), id: 'reversal-id', createdAt: new Date() }),
-            ),
-          update: jest.fn().mockResolvedValue({ affected: 1 }),
-        };
+        const mgr = buildVoidManager(original);
         const result = await cb(mgr);
         // Verify create was called with correct reversed fields
         expect(mgr.create).toHaveBeenCalledWith(
@@ -625,24 +658,15 @@ describe('FinanceService - Comprehensive Tests', () => {
     });
 
     it('happy path: marks original as voided via update', async () => {
-      let capturedMgr: { update: jest.Mock } | null = null;
+      let capturedMgr: ReturnType<typeof buildVoidManager> | null = null;
       mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
-        const mgr = {
-          findOne: jest.fn().mockResolvedValue(buildOriginal()),
-          create: jest.fn().mockImplementation((_entity: unknown, data: unknown) => data),
-          save: jest
-            .fn()
-            .mockImplementation((data: unknown) =>
-              Promise.resolve({ ...(data as object), id: 'reversal-id', createdAt: new Date() }),
-            ),
-          update: jest.fn().mockResolvedValue({ affected: 1 }),
-        };
+        const mgr = buildVoidManager();
         capturedMgr = mgr;
         return cb(mgr);
       });
       await service.voidTransaction(originalId);
       expect(capturedMgr!.update).toHaveBeenCalledWith(
-        expect.anything(),
+        Transaction,
         { id: originalId, tenantId: 'tenant-123' },
         expect.objectContaining({ voidedAt: expect.any(Date) }),
       );
@@ -653,14 +677,46 @@ describe('FinanceService - Comprehensive Tests', () => {
       expect(mockEventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ reversalOfId: originalId }));
     });
 
+    it('decreases Booking.amountPaid when voiding a booking INCOME payment', async () => {
+      let capturedMgr: ReturnType<typeof buildVoidManager> | null = null;
+      const lockedBooking = buildLockedBooking(500);
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
+        const mgr = buildVoidManager(buildOriginal({ amount: 200 }), lockedBooking);
+        capturedMgr = mgr;
+        return cb(mgr);
+      });
+
+      await service.voidTransaction(originalId);
+
+      expect(lockedBooking.derivePaymentStatus).toHaveBeenCalled();
+      expect(capturedMgr!.update).toHaveBeenCalledWith(
+        Booking,
+        { id: 'booking-uuid-123', tenantId: 'tenant-123' },
+        expect.objectContaining({ amountPaid: 300 }),
+      );
+    });
+
+    it('increases Booking.amountPaid when voiding a booking REFUND', async () => {
+      let capturedMgr: ReturnType<typeof buildVoidManager> | null = null;
+      const lockedBooking = buildLockedBooking(300);
+      mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
+        const mgr = buildVoidManager(buildOriginal({ amount: 100, type: TransactionType.REFUND }), lockedBooking);
+        capturedMgr = mgr;
+        return cb(mgr);
+      });
+
+      await service.voidTransaction(originalId);
+
+      expect(capturedMgr!.update).toHaveBeenCalledWith(
+        Booking,
+        { id: 'booking-uuid-123', tenantId: 'tenant-123' },
+        expect.objectContaining({ amountPaid: 400 }),
+      );
+    });
+
     it('throws ConflictException when original is already voided', async () => {
       mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
-        const mgr = {
-          findOne: jest.fn().mockResolvedValue(buildOriginal({ voidedAt: new Date() })),
-          create: jest.fn(),
-          save: jest.fn(),
-          update: jest.fn(),
-        };
+        const mgr = buildVoidManager(buildOriginal({ voidedAt: new Date() }), null);
         return cb(mgr);
       });
       await expect(service.voidTransaction(originalId)).rejects.toThrow(ConflictException);
@@ -668,12 +724,7 @@ describe('FinanceService - Comprehensive Tests', () => {
 
     it('throws ConflictException when trying to void a reversal', async () => {
       mockDataSource.transaction.mockImplementationOnce(async (cb: (mgr: unknown) => Promise<unknown>) => {
-        const mgr = {
-          findOne: jest.fn().mockResolvedValue(buildOriginal({ reversalOfId: 'some-parent-id' })),
-          create: jest.fn(),
-          save: jest.fn(),
-          update: jest.fn(),
-        };
+        const mgr = buildVoidManager(buildOriginal({ reversalOfId: 'some-parent-id' }), null);
         return cb(mgr);
       });
       await expect(service.voidTransaction(originalId)).rejects.toThrow(ConflictException);

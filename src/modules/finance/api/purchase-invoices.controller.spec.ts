@@ -47,9 +47,10 @@ describe('PurchaseInvoicesController', () => {
     expect(service.create).toHaveBeenCalledWith(dto);
   });
 
-  it('wires findAll to service', async () => {
-    await controller.findAll();
-    expect(service.findAll).toHaveBeenCalled();
+  it('wires findAll to service with cursor query', async () => {
+    const query = { cursor: 'abc', limit: 10 };
+    await controller.findAll(query);
+    expect(service.findAll).toHaveBeenCalledWith(query);
   });
 
   it('wires findOne to service', async () => {

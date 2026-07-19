@@ -252,7 +252,7 @@ export class BookingsController {
   @ApiResponse({ status: 404, description: 'bookings.not_found' })
   async getBookingTasks(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     await this.bookingsService.findOne(id, user);
-    return this.tasksService.findByBooking(id);
+    return this.tasksService.findByBooking(id, user);
   }
 
   @Patch(':id/cancel')

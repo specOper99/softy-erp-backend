@@ -136,6 +136,35 @@ export class Invoice extends BaseTenantEntity {
     }
   }
 
+  /**
+   * Reverses a payment on this invoice (booking refund path).
+   * Decreases amountPaid and restores balanceDue / status.
+   */
+  recordRefund(amount: number): void {
+    if (amount <= 0) {
+      throw new RuntimeFailure('Refund amount must be positive');
+    }
+
+    const amountDecimal = new Decimal(amount);
+    const currentPaid = new Decimal(this.amountPaid);
+    if (amountDecimal.greaterThan(currentPaid)) {
+      throw new RuntimeFailure('Refund amount exceeds invoice amount paid');
+    }
+
+    const total = new Decimal(this.totalAmount);
+    this.amountPaid = currentPaid.minus(amountDecimal).toDecimalPlaces(2).toNumber();
+    this.balanceDue = total.minus(this.amountPaid).toDecimalPlaces(2).toNumber();
+    this.paidDate = null;
+
+    if (this.amountPaid <= 0) {
+      this.amountPaid = 0;
+      this.balanceDue = total.toDecimalPlaces(2).toNumber();
+      this.status = this.status === InvoiceStatus.CANCELLED ? InvoiceStatus.CANCELLED : InvoiceStatus.DRAFT;
+    } else {
+      this.status = InvoiceStatus.PARTIALLY_PAID;
+    }
+  }
+
   markAsSent(): void {
     if (this.status === InvoiceStatus.DRAFT) {
       this.status = InvoiceStatus.SENT;
@@ -143,10 +172,19 @@ export class Invoice extends BaseTenantEntity {
     }
   }
 
+  /**
+   * Cancels the invoice and clears payment snapshot (booking cancel path).
+   * VOID invoices are left untouched.
+   */
   cancel(): void {
-    if (this.status !== InvoiceStatus.PAID) {
-      this.status = InvoiceStatus.CANCELLED;
+    if (this.status === InvoiceStatus.VOID) {
+      return;
     }
+
+    this.status = InvoiceStatus.CANCELLED;
+    this.amountPaid = 0;
+    this.balanceDue = new Decimal(this.totalAmount).toDecimalPlaces(2).toNumber();
+    this.paidDate = null;
   }
 
   isOverdue(): boolean {

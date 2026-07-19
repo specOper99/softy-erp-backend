@@ -13,7 +13,8 @@ const TENANT_GUARDS = new Set(['JwtAuthGuard']);
 type RuleId =
   | 'MUTATING_ENDPOINT_MISSING_AUTH_OR_PUBLIC'
   | 'SKIP_TENANT_AUTH_MODEL_UNDECLARED'
-  | 'UNGUARDED_SERVICE_ORCHESTRATION_RISK';
+  | 'UNGUARDED_SERVICE_ORCHESTRATION_RISK'
+  | 'ROLES_GUARD_MISSING_ROLES';
 
 interface Violation {
   file: string;
@@ -27,6 +28,8 @@ interface DecoratorContext {
   guards: Set<string>;
   hasSkipTenant: boolean;
   hasMutatingDecorator: boolean;
+  hasRoles: boolean;
+  hasHttpDecorator: boolean;
 }
 
 interface MethodEntry {
@@ -73,6 +76,19 @@ function shouldScanFile(relativePath: string): boolean {
   return true;
 }
 
+function decoratorStackOpen(decoratorLines: string[]): boolean {
+  const joined = decoratorLines.join('\n');
+  let depth = 0;
+  for (const ch of joined) {
+    if (ch === '(' || ch === '{' || ch === '[') {
+      depth += 1;
+    } else if (ch === ')' || ch === '}' || ch === ']') {
+      depth -= 1;
+    }
+  }
+  return depth > 0;
+}
+
 function parseDecoratorContext(decoratorLines: string[]): DecoratorContext {
   const merged = decoratorLines.join(' ');
   const guards = new Set<string>();
@@ -92,6 +108,8 @@ function parseDecoratorContext(decoratorLines: string[]): DecoratorContext {
     guards,
     hasSkipTenant: /@SkipTenant\s*\(/.test(merged),
     hasMutatingDecorator: /@(Post|Patch|Put|Delete)\s*\(/.test(merged),
+    hasRoles: /@Roles\s*\(/.test(merged),
+    hasHttpDecorator: /@(Get|Post|Patch|Put|Delete)\s*\(/.test(merged),
   };
 }
 
@@ -145,6 +163,8 @@ function extractControllerMetadata(fileContent: string): {
     guards: new Set<string>(),
     hasSkipTenant: false,
     hasMutatingDecorator: false,
+    hasRoles: false,
+    hasHttpDecorator: false,
   };
 
   let pendingDecoratorLines: string[] = [];
@@ -154,6 +174,12 @@ function extractControllerMetadata(fileContent: string): {
     const trimmed = line.trim();
 
     if (trimmed.startsWith('@')) {
+      pendingDecoratorLines.push(trimmed);
+      continue;
+    }
+
+    // Keep collecting multi-line decorator argument blocks (@ApiOperation({ ... }))
+    if (pendingDecoratorLines.length > 0 && decoratorStackOpen(pendingDecoratorLines)) {
       pendingDecoratorLines.push(trimmed);
       continue;
     }
@@ -286,6 +312,48 @@ function checkSkipTenantAuthModel(
   ];
 }
 
+function checkRolesGuardMissingRoles(
+  relativePath: string,
+  classDecorators: DecoratorContext,
+  methods: MethodEntry[],
+): Violation[] {
+  const classHasRolesGuard = classDecorators.guards.has('RolesGuard');
+  const classHasRoles = classDecorators.hasRoles;
+
+  if (!classHasRolesGuard && !methods.some((method) => method.decorators.guards.has('RolesGuard'))) {
+    return [];
+  }
+
+  const violations: Violation[] = [];
+
+  for (const method of methods) {
+    if (!method.decorators.hasHttpDecorator) {
+      continue;
+    }
+
+    const endpointHasRolesGuard = classHasRolesGuard || method.decorators.guards.has('RolesGuard');
+    if (!endpointHasRolesGuard) {
+      continue;
+    }
+
+    const endpointHasRoles = classHasRoles || method.decorators.hasRoles;
+    if (endpointHasRoles) {
+      continue;
+    }
+
+    violations.push({
+      file: relativePath,
+      line: method.line,
+      rule: 'ROLES_GUARD_MISSING_ROLES',
+      message:
+        'Endpoint uses RolesGuard but has no @Roles() at class or method level. Add @Roles(...) or remove RolesGuard.',
+      content: method.name,
+    });
+  }
+
+  return violations;
+}
+
 function checkUnguardedServiceOrchestrationRisk(
   relativePath: string,
   fileContent: string,
@@ -379,6 +447,9 @@ function main(): void {
     );
     violations = violations.concat(
       checkUnguardedServiceOrchestrationRisk(relativePath, fileContent, metadata.classDecorators, metadata.methods),
+    );
+    violations = violations.concat(
+      checkRolesGuardMissingRoles(relativePath, metadata.classDecorators, metadata.methods),
     );
   }
 

@@ -31,8 +31,10 @@ import { BookingCompletionHandler } from './infrastructure/booking-completion.ha
 import { BookingRepository } from './infrastructure/booking.repository';
 import { ProcessingTypeRepository } from './infrastructure/processing-type.repository';
 import { BookingExportService } from './application/booking-export.service';
+import { BookingFinanceEffectsService } from './application/booking-finance-effects.service';
 import { BookingIntakeService } from './application/booking-intake.service';
 import { BookingStateMachineService } from './application/booking-state-machine.service';
+import { BookingTaskSpawnService } from './application/booking-task-spawn.service';
 import { BookingWorkflowService } from './application/booking-workflow.service';
 import { BookingsPaymentsService } from './application/bookings-payments.service';
 import { BookingsPricingService } from './application/bookings-pricing.service';
@@ -69,6 +71,8 @@ import { StaffConflictService } from './application/staff-conflict.service';
     BookingsPaymentsService,
     BookingsPricingService,
     BookingWorkflowService,
+    BookingFinanceEffectsService,
+    BookingTaskSpawnService,
     BookingStateMachineService,
     BookingExportService,
     ExportService,

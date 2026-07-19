@@ -118,8 +118,8 @@ export class TasksController {
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'bookings.not_found' })
-  findByBooking(@Param('bookingId', ParseUUIDPipe) bookingId: string) {
-    return this.tasksService.findByBooking(bookingId);
+  findByBooking(@Param('bookingId', ParseUUIDPipe) bookingId: string, @CurrentUser() user: User) {
+    return this.tasksService.findByBooking(bookingId, user);
   }
 
   @Get(':id')
@@ -129,8 +129,8 @@ export class TasksController {
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'task.not_found_plain' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tasksService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.tasksService.findOne(id, user);
   }
 
   @Patch(':id')

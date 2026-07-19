@@ -76,16 +76,16 @@ describe('TasksController', () => {
   });
 
   describe('findByBooking', () => {
-    it('should call service.findByBooking', async () => {
-      await controller.findByBooking('b-uuid');
-      expect(service.findByBooking).toHaveBeenCalledWith('b-uuid');
+    it('should call service.findByBooking with current user', async () => {
+      await controller.findByBooking('b-uuid', mockUser);
+      expect(service.findByBooking).toHaveBeenCalledWith('b-uuid', mockUser);
     });
   });
 
   describe('findOne', () => {
-    it('should call service.findOne', async () => {
-      await controller.findOne('uuid');
-      expect(service.findOne).toHaveBeenCalledWith('uuid');
+    it('should call service.findOne with current user', async () => {
+      await controller.findOne('uuid', mockUser);
+      expect(service.findOne).toHaveBeenCalledWith('uuid', mockUser);
     });
   });
 

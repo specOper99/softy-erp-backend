@@ -22,6 +22,7 @@ import type { TransactionCategory } from './transaction-category.entity';
     ` CASE WHEN "purchase_invoice_id" IS NOT NULL THEN 1 ELSE 0 END) <= 1`,
 )
 @Index(['tenantId', 'id'], { unique: true })
+@Index(['tenantId', 'idempotencyKey'], { unique: true })
 @Index(['tenantId', 'transactionDate']) // Optimized for "transactions by date within tenant"
 @Index(['tenantId', 'department']) // Optimized for department-level budget reporting
 export class Transaction extends BaseTenantEntity {
@@ -90,6 +91,10 @@ export class Transaction extends BaseTenantEntity {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   reference: string | null;
+
+  /** Client-supplied idempotency key; unique per tenant when set (payroll-style). */
+  @Column({ name: 'idempotency_key', type: 'text', nullable: true })
+  idempotencyKey: string | null;
 
   @ManyToOne('Booking', { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'booking_id' })

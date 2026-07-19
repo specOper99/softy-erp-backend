@@ -16,7 +16,6 @@ import { AuditPublisher } from '../../audit/application/audit.publisher';
 import { Transaction } from '../../finance/domain/entities/transaction.entity';
 import { TransactionType } from '../../finance/domain/enums/transaction-type.enum';
 import { FinanceService } from '../../finance/application/finance.service';
-import { InvoiceService } from '../../finance/application/invoice.service';
 import { TaskAssignee } from '../../tasks/domain/entities/task-assignee.entity';
 import { Task } from '../../tasks/domain/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/domain/entities/time-entry.entity';
@@ -29,6 +28,8 @@ import { BookingCompletedEvent } from '../domain/events/booking-completed.event'
 import { BookingConfirmedEvent } from '../domain/events/booking-confirmed.event';
 import { BookingCreatedEvent } from '../domain/events/booking-created.event';
 import { BookingRescheduledEvent } from '../domain/events/booking-rescheduled.event';
+import { BookingFinanceEffectsService } from './booking-finance-effects.service';
+import { BookingTaskSpawnService } from './booking-task-spawn.service';
 import { BookingWorkflowService } from './booking-workflow.service';
 
 import { OutboxEvent } from '../../../common/entities/outbox-event.entity';
@@ -154,12 +155,8 @@ describe('BookingWorkflowService', () => {
         { provide: BookingStateMachineService, useValue: mockStateMachine },
         { provide: StaffConflictService, useValue: staffConflictService },
         { provide: AvailabilityCacheOwnerService, useValue: availabilityCacheOwner },
-        {
-          provide: InvoiceService,
-          useValue: {
-            createInvoice: jest.fn().mockResolvedValue({ id: 'inv-1' }),
-          },
-        },
+        BookingFinanceEffectsService,
+        BookingTaskSpawnService,
       ],
     }).compile();
 
@@ -233,6 +230,18 @@ describe('BookingWorkflowService', () => {
             bookingId: 'booking-1',
             tenantId: 'tenant-1',
             clientEmail: 'test@example.com',
+          }),
+        }),
+      );
+
+      expect(queryRunner.manager.save).toHaveBeenCalledWith(
+        OutboxEvent,
+        expect.objectContaining({
+          type: 'InvoiceGenerationRequested',
+          aggregateId: 'booking-1',
+          payload: expect.objectContaining({
+            bookingId: 'booking-1',
+            tenantId: 'tenant-1',
           }),
         }),
       );
@@ -559,8 +568,22 @@ describe('BookingWorkflowService', () => {
       ] as Task[];
 
       const bookingTransactions = [
-        { id: 'txn-1', amount: 80, category: 'Booking Payment' },
-        { id: 'txn-2', amount: 20, category: 'Booking Payment' },
+        {
+          id: 'txn-1',
+          amount: 80,
+          category: 'Booking Payment',
+          type: TransactionType.INCOME,
+          voidedAt: null,
+          reversalOfId: null,
+        },
+        {
+          id: 'txn-2',
+          amount: 20,
+          category: 'Booking Payment',
+          type: TransactionType.INCOME,
+          voidedAt: null,
+          reversalOfId: null,
+        },
       ] as Transaction[];
 
       (queryRunner.manager.findOne as jest.Mock)
@@ -641,8 +664,9 @@ describe('BookingWorkflowService', () => {
       (queryRunner.manager.findOne as jest.Mock)
         .mockResolvedValueOnce({ id: 'booking-1' })
         .mockResolvedValueOnce(bookingToCancel)
+        .mockResolvedValueOnce(null) // linked invoice (none)
         .mockResolvedValueOnce({ id: 'booking-1' })
-        .mockResolvedValueOnce(bookingToCancel);
+        .mockResolvedValueOnce(bookingToCancel); // mutated to CANCELLED by first call
       (queryRunner.manager.find as jest.Mock).mockImplementation((entity: unknown) => {
         if (entity === Task) {
           return Promise.resolve(bookingTasks);
@@ -651,7 +675,16 @@ describe('BookingWorkflowService', () => {
           return Promise.resolve([]);
         }
         if (entity === Transaction) {
-          return Promise.resolve([{ id: 'txn-1', amount: 200, category: 'Booking Payment' }] as Transaction[]);
+          return Promise.resolve([
+            {
+              id: 'txn-1',
+              amount: 200,
+              category: 'Booking Payment',
+              type: TransactionType.INCOME,
+              voidedAt: null,
+              reversalOfId: null,
+            },
+          ] as Transaction[]);
         }
         return Promise.resolve([]);
       });
@@ -738,7 +771,16 @@ describe('BookingWorkflowService', () => {
           ] as TaskAssignee[]);
         }
         if (entity === Transaction) {
-          return Promise.resolve([{ id: 'txn-1', amount: 120, category: 'Booking Payment' }] as Transaction[]);
+          return Promise.resolve([
+            {
+              id: 'txn-1',
+              amount: 120,
+              category: 'Booking Payment',
+              type: TransactionType.INCOME,
+              voidedAt: null,
+              reversalOfId: null,
+            },
+          ] as Transaction[]);
         }
         return Promise.resolve([]);
       });
@@ -759,6 +801,99 @@ describe('BookingWorkflowService', () => {
         'user-b',
         undefined,
         15,
+      );
+    });
+
+    it('nets INCOME minus REFUND and clears amountPaid on cancel', async () => {
+      const bookingToCancel = {
+        ...mockBooking,
+        status: BookingStatus.CONFIRMED,
+        amountPaid: 150,
+        eventDate: new Date(Date.now() + 86400000),
+        derivePaymentStatus: jest.fn().mockReturnValue('UNPAID'),
+      } as Booking;
+
+      (queryRunner.manager.findOne as jest.Mock)
+        .mockResolvedValueOnce({ id: 'booking-1' })
+        .mockResolvedValueOnce(bookingToCancel);
+      (queryRunner.manager.find as jest.Mock).mockImplementation((entity: unknown) => {
+        if (entity === Task) {
+          return Promise.resolve([]);
+        }
+        if (entity === Transaction) {
+          return Promise.resolve([
+            {
+              id: 'txn-income',
+              amount: 200,
+              category: 'Booking Payment',
+              type: TransactionType.INCOME,
+              voidedAt: null,
+              reversalOfId: null,
+            },
+            {
+              id: 'txn-refund',
+              amount: 50,
+              category: 'Booking Refund',
+              type: TransactionType.REFUND,
+              voidedAt: null,
+              reversalOfId: null,
+            },
+          ] as Transaction[]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.cancelBooking('booking-1', { reason: 'Client request' });
+
+      expect(financeService.createTransactionWithManager).toHaveBeenCalledWith(
+        queryRunner.manager,
+        expect.objectContaining({
+          type: TransactionType.INCOME,
+          amount: -150,
+          category: 'Booking Reversal',
+        }),
+      );
+      expect(bookingToCancel.amountPaid).toBe(0);
+      expect(bookingToCancel.derivePaymentStatus).toHaveBeenCalled();
+    });
+
+    it('uses typed REFUND / reversalOfId checks, not category string matching', async () => {
+      const bookingToCancel = {
+        ...mockBooking,
+        status: BookingStatus.CONFIRMED,
+        amountPaid: 100,
+        eventDate: new Date(Date.now() + 86400000),
+        derivePaymentStatus: jest.fn().mockReturnValue('UNPAID'),
+      } as Booking;
+
+      (queryRunner.manager.findOne as jest.Mock)
+        .mockResolvedValueOnce({ id: 'booking-1' })
+        .mockResolvedValueOnce(bookingToCancel);
+      (queryRunner.manager.find as jest.Mock).mockImplementation((entity: unknown) => {
+        if (entity === Task) {
+          return Promise.resolve([]);
+        }
+        if (entity === Transaction) {
+          return Promise.resolve([
+            {
+              id: 'txn-1',
+              amount: 100,
+              category: 'Booking Payment with refund note',
+              type: TransactionType.INCOME,
+              voidedAt: null,
+              reversalOfId: null,
+            },
+          ] as Transaction[]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.cancelBooking('booking-1', { reason: 'Client request' });
+
+      // Category containing "refund" must NOT suppress the reversal when type is INCOME.
+      expect(financeService.createTransactionWithManager).toHaveBeenCalledWith(
+        queryRunner.manager,
+        expect.objectContaining({ amount: -100, category: 'Booking Reversal' }),
       );
     });
   });

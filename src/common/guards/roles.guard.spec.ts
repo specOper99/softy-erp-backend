@@ -6,26 +6,39 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 import { RolesGuard } from './roles.guard';
 
 describe('RolesGuard', () => {
-  function createExecutionContext(user?: unknown): ExecutionContext {
+  function createExecutionContext(user?: unknown, method = 'GET'): ExecutionContext {
     return {
       switchToHttp: () => ({
-        getRequest: () => ({ user }),
+        getRequest: () => ({ user, method }),
       }),
       getHandler: () => ({}),
       getClass: () => ({}),
     } as unknown as ExecutionContext;
   }
 
-  it('returns true when no roles are required', () => {
+  it('returns true for GET when no roles are required (read fail-open)', () => {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(undefined),
     } as unknown as Reflector;
 
     const guard = new RolesGuard(reflector);
 
-    expect(guard.canActivate(createExecutionContext())).toBe(true);
+    expect(guard.canActivate(createExecutionContext(undefined, 'GET'))).toBe(true);
     expect(reflector.getAllAndOverride).toHaveBeenCalled();
     expect(reflector.getAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, expect.any(Array));
+  });
+
+  it('returns false for mutating methods when no roles are required (fail-closed)', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(undefined),
+    } as unknown as Reflector;
+
+    const guard = new RolesGuard(reflector);
+
+    expect(guard.canActivate(createExecutionContext({ role: Role.ADMIN }, 'POST'))).toBe(false);
+    expect(guard.canActivate(createExecutionContext({ role: Role.ADMIN }, 'PATCH'))).toBe(false);
+    expect(guard.canActivate(createExecutionContext({ role: Role.ADMIN }, 'PUT'))).toBe(false);
+    expect(guard.canActivate(createExecutionContext({ role: Role.ADMIN }, 'DELETE'))).toBe(false);
   });
 
   it('throws UnauthorizedException when roles are required but user is missing', () => {

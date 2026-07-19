@@ -74,7 +74,7 @@ async function waitForMigrationsApplied(): Promise<void> {
 
   const dbWaitRetries = parsePositiveInt(process.env.DB_WAIT_RETRIES, 30, 'DB_WAIT_RETRIES');
   const dbWaitDelay = parsePositiveInt(process.env.DB_WAIT_DELAY, 2, 'DB_WAIT_DELAY');
-  const migrationWaitRetries = parsePositiveInt(process.env.MIGRATION_WAIT_RETRIES, 60, 'MIGRATION_WAIT_RETRIES');
+  const migrationWaitRetries = parsePositiveInt(process.env.MIGRATION_WAIT_RETRIES, 30, 'MIGRATION_WAIT_RETRIES');
   const migrationWaitDelay = parsePositiveInt(process.env.MIGRATION_WAIT_DELAY, 5, 'MIGRATION_WAIT_DELAY');
 
   await waitForDatabase(connectionConfig.host, connectionConfig.port, dbWaitRetries, dbWaitDelay);

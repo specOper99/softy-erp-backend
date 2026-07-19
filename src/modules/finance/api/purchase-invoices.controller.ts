@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/decorators';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { RolesGuard } from '../../../common/guards';
 import { MfaRequired } from '../../auth/infrastructure/decorators/mfa-required.decorator';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
@@ -30,12 +31,12 @@ export class PurchaseInvoicesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List purchase invoices with vendor and transaction' })
-  @ApiResponse({ status: 200, description: 'Return tenant purchase invoices' })
+  @ApiOperation({ summary: 'List purchase invoices with vendor and transaction (cursor pagination)' })
+  @ApiResponse({ status: 200, description: 'Return page of tenant purchase invoices' })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  findAll() {
-    return this.purchaseInvoicesService.findAll();
+  findAll(@Query() query: CursorPaginationDto) {
+    return this.purchaseInvoicesService.findAll(query);
   }
 
   @Get(':id')

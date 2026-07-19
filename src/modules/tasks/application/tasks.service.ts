@@ -137,8 +137,23 @@ export class TasksService {
     });
   }
 
-  async findOne(id: string): Promise<Task> {
+  async findOne(id: string, user?: User): Promise<Task> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
+
+    // RBAC: FIELD_STAFF can only read tasks they are assigned to
+    if (user?.role === Role.FIELD_STAFF) {
+      const qb = this.createTaskBaseQuery(tenantId).andWhere('task.id = :id', { id });
+      this.applyFieldStaffFilter(qb, user.id);
+      const task = await qb.getOne();
+      if (!task) {
+        throw new NotFoundException({
+          code: 'tasks.not_found_by_id',
+          args: { id },
+        });
+      }
+      return task;
+    }
+
     const task = await this.taskRepository.findOne({
       where: { id, tenantId },
       relations: ['booking', 'booking.client', 'processingType', 'assignedUser'],
@@ -152,9 +167,17 @@ export class TasksService {
     return task;
   }
 
-  async findByBooking(bookingId: string, limit = 100): Promise<Task[]> {
+  async findByBooking(bookingId: string, user?: User, limit = 100): Promise<Task[]> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const take = this.normalizeListLimit(limit);
+
+    // RBAC: FIELD_STAFF only see tasks they are assigned to for this booking
+    if (user?.role === Role.FIELD_STAFF) {
+      const qb = this.createTaskBaseQuery(tenantId).andWhere('task.bookingId = :bookingId', { bookingId }).take(take);
+      this.applyFieldStaffFilter(qb, user.id);
+      return qb.getMany();
+    }
+
     return this.taskRepository.find({
       where: { bookingId, tenantId },
       relations: ['processingType', 'assignedUser', 'booking', 'booking.client'],
@@ -224,7 +247,7 @@ export class TasksService {
   }
 
   async startTask(id: string, user: User): Promise<Task> {
-    const task = await this.findOne(id);
+    const task = await this.findOne(id, user);
 
     this.assertCanUpdateTaskStatus(user, task);
 
@@ -420,6 +443,24 @@ export class TasksService {
       .leftJoinAndSelect('task.processingType', 'processingType', 'processingType.tenantId = :tenantId', { tenantId })
       .leftJoinAndSelect('task.assignedUser', 'assignedUser', 'assignedUser.tenantId = :tenantId', { tenantId })
       .andWhere('task.tenantId = :tenantId', { tenantId });
+  }
+
+  /**
+   * Applies an RBAC filter so FIELD_STAFF can only see tasks where they are
+   * explicitly assigned — either via the task_assignees join table or via the
+   * legacy assigned_user_id column.
+   */
+  private applyFieldStaffFilter(qb: SelectQueryBuilder<Task>, userId: string): void {
+    qb.andWhere(
+      `(EXISTS (
+        SELECT 1
+        FROM task_assignees ta
+        WHERE ta.task_id = task.id
+          AND ta.tenant_id = task."tenant_id"
+          AND ta.user_id = :userId
+      ) OR task.assigned_user_id = :userId)`,
+      { userId },
+    );
   }
 
   private parseFilterDate(value: string): Date {

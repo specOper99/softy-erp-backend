@@ -69,6 +69,7 @@ export class PackagesController {
   }
 
   @Get()
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
     summary: 'Get all service packages with filtering (Offset Pagination - Deprecated)',
     description: 'Supports filtering by active status and search. Use /packages/cursor for better performance.',
@@ -88,6 +89,7 @@ export class PackagesController {
   }
 
   @Get('cursor')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({
     summary: 'Get all service packages with filtering (Cursor Pagination - Recommended)',
     description: 'Supports filtering by active status and search with cursor pagination',
@@ -106,6 +108,7 @@ export class PackagesController {
   }
 
   @Get('cursor/no-filters')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all packages with cursor pagination (no filters)' })
   @ApiOkResponse({
     description: 'Return paginated packages',
@@ -117,6 +120,7 @@ export class PackagesController {
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @Cacheable()
   @ApiOperation({ summary: 'Get service package by ID' })
   @ApiOkResponse({ description: 'Package details', type: ServicePackageSummaryResponseDto })

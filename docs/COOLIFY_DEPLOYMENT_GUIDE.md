@@ -38,10 +38,10 @@ Wire those values into the backend resource Environment Variables (table below).
 
 ## Backend Coolify resource
 
-1. Create a **Docker Compose** resource.
-2. **Base Directory:** `backend`.
-3. **Compose file:** `docker-compose.coolify.yml`.
-4. Set env vars (never commit secrets):
+1. Create a **Docker Compose** resource (preferred) **or** Dockerfile Application.
+2. **Base Directory:** `backend` (compose) / repo root if backend is the Coolify root.
+3. **Compose file:** `docker-compose.coolify.yml` (compose pack).
+4. Set env vars (never commit secrets). Mark secrets **Runtime only** — uncheck **Available at Buildtime** so Coolify does not inject them as Dockerfile `ARG` (leaks into build logs / image layers).
 
 | Variable | Required | Notes |
 |----------|----------|--------|
@@ -51,14 +51,30 @@ Wire those values into the backend resource Environment Variables (table below).
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | Yes | Garage keys |
 | `S3_BUCKET` | Yes | Bucket created in Garage |
 | `S3_REGION` | No | Default `garage` |
-| `JWT_SECRET` | Yes | `openssl rand -base64 32` |
-| `PLATFORM_JWT_SECRET` | Yes | |
-| `PASSWORD_RESET_TOKEN_SECRET` | Yes | |
-| `ENCRYPTION_KEY` | Yes | ≥32 chars |
+| `JWT_SECRET` | Yes | `openssl rand -base64 32` — **runtime only** |
+| `PLATFORM_JWT_SECRET` | Yes | **runtime only** |
+| `PASSWORD_RESET_TOKEN_SECRET` | Yes | **runtime only** |
+| `ENCRYPTION_KEY` | Yes | ≥32 chars — **runtime only** |
 | `CORS_ORIGINS` | Yes | Comma-separated frontend origins |
+| `RUN_MIGRATIONS_ON_BOOT` | Yes (Dockerfile Application) | `true` so entrypoint applies migrations before Nest |
+| `PAYOUT_GATEWAY` | Yes (prod) | `disabled` until a real bank/ACH gateway is wired |
+| `MIGRATION_WAIT_RETRIES` | Recommended | `30` (not `60`) so wait ≤ HEALTHCHECK `start-period` 240s |
+| `MIGRATION_WAIT_DELAY` | Recommended | `5` |
+| `NODE_ENV` | Yes | `production` — **runtime only** (build stage forces development for `npm ci`/`build`) |
 
 5. Do **not** override the image entrypoint or start command.
 6. Migrations: either apply out-of-band (compose `migrate` profile) **or** set `RUN_MIGRATIONS_ON_BOOT=true` for Dockerfile Application (next section).
+7. Keep **replicas = 1** while `RUN_MIGRATIONS_ON_BOOT=true` (avoid concurrent migrate races).
+
+### Coolify Dockerfile Application checklist (before every redeploy)
+
+| Setting | Value |
+|---------|--------|
+| `RUN_MIGRATIONS_ON_BOOT` | `true` (runtime) |
+| `PAYOUT_GATEWAY` | `disabled` |
+| `MIGRATION_WAIT_RETRIES` | `30` |
+| Secrets (JWT, DB, encryption, seed passwords, …) | Runtime only — never Buildtime |
+| Replicas | `1` while boot-migrate on |
 
 Resource limits in compose (`mem_limit: 768M`, `cpus: 1.0`) are a starting point — raise if the app OOMs under load, but leave headroom for Coolify + managed DBs.
 
@@ -126,7 +142,9 @@ If wait path and devops has not migrated yet, logs repeat `pending migrations st
 
 ### Timing (avoids the restart storm)
 
-Worst-case wait path = DB wait (`DB_WAIT_RETRIES`×`DB_WAIT_DELAY`, default 30×2 = 60s) + migration wait (`MIGRATION_WAIT_RETRIES`×`MIGRATION_WAIT_DELAY`, default 30×5 = 150s) = **210s**. Image `HEALTHCHECK` `start-period` is **240s**. Keep Coolify health start period ≥ that (or disable healthcheck only for emergency). Boot-migrate path is usually much shorter (DB wait + migrate).
+Worst-case wait path = DB wait (`DB_WAIT_RETRIES`×`DB_WAIT_DELAY`, default 30×2 = 60s) + migration wait (`MIGRATION_WAIT_RETRIES`×`MIGRATION_WAIT_DELAY`, default **30**×5 = 150s) = **210s**. Image `HEALTHCHECK` `start-period` is **240s**.
+
+Set Coolify `MIGRATION_WAIT_RETRIES=30` (not `60`). A value of `60` yields 300s > start-period and Coolify can mark the container unhealthy while still waiting. Keep Coolify health start period ≥ 240s (or disable healthcheck only for emergency). Boot-migrate path is usually much shorter (DB wait + migrate).
 
 ---
 

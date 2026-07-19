@@ -1,9 +1,11 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { TENANT_REPO_PURCHASE_INVOICE } from '../../../common/constants/tenant-repo.tokens';
+import { CursorPaginationDto } from '../../../common/dto/cursor-pagination.dto';
 import { TenantAwareRepository } from '../../../common/repositories/tenant-aware.repository';
 import { TenantContextService } from '../../../common/services/tenant-context.service';
 import { isUniqueViolation } from '../../../common/utils/db-error.util';
+import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { CreatePurchaseInvoiceDto } from '../api/dto';
 import { PurchaseInvoice, Vendor } from '../domain/entities';
 import { Transaction } from '../domain/entities/transaction.entity';
@@ -54,9 +56,13 @@ export class PurchaseInvoicesService {
         });
         const savedInvoice = await manager.save(purchaseInvoice);
 
-        await manager.update(Transaction, transaction.id, {
-          purchaseInvoiceId: savedInvoice.id,
-        });
+        await manager.update(
+          Transaction,
+          { id: transaction.id, tenantId },
+          {
+            purchaseInvoiceId: savedInvoice.id,
+          },
+        );
 
         return savedInvoice;
       });
@@ -72,11 +78,23 @@ export class PurchaseInvoicesService {
     }
   }
 
-  async findAll(): Promise<PurchaseInvoice[]> {
-    return this.purchaseInvoiceRepository.find({
-      relations: ['vendor', 'transaction'],
-      order: { invoiceDate: 'DESC', createdAt: 'DESC' },
-    });
+  async findAll(
+    query: CursorPaginationDto = new CursorPaginationDto(),
+  ): Promise<{ data: PurchaseInvoice[]; nextCursor: string | null }> {
+    const qb = this.purchaseInvoiceRepository
+      .createQueryBuilder('pi')
+      .leftJoinAndSelect('pi.vendor', 'vendor')
+      .leftJoinAndSelect('pi.transaction', 'transaction');
+
+    return CursorPaginationHelper.paginateWithCustomDateField(
+      qb,
+      {
+        cursor: query.cursor,
+        limit: query.limit,
+        alias: 'pi',
+      },
+      'invoiceDate',
+    );
   }
 
   async findById(id: string): Promise<PurchaseInvoice> {

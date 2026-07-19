@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check enum migration coverage (offline)
+        run: npm run check:enum-migration-coverage
+
       - name: List Pending Migrations
         run: npm run migration:show
         env:

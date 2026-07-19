@@ -9,20 +9,24 @@ import { OutboxEvent, OutboxStatus } from '../entities/outbox-event.entity';
 import {
   durableCategoriesForEventType,
   isFinancialOutboxEventType,
+  isInvoiceOutboxEventType,
   isMailOutboxEventType,
   isNotificationOutboxEventType,
   isWebhookOutboxEventType,
   killSwitchFlagForCategory,
   OUTBOX_EVENTS_QUEUE,
+  type DurableOutboxCategory,
   type OutboxEventEnvelope,
 } from '../events/outbox-envelope';
 import { FlagsService } from '../flags/flags.service';
 import {
   OUTBOX_FINANCIAL_CONSUMER,
+  OUTBOX_INVOICE_CONSUMER,
   OUTBOX_MAIL_CONSUMER,
   OUTBOX_NOTIFICATION_CONSUMER,
   OUTBOX_WEBHOOK_CONSUMER,
   type OutboxFinancialConsumerPort,
+  type OutboxInvoiceConsumerPort,
   type OutboxMailConsumerPort,
   type OutboxNotificationConsumerPort,
   type OutboxWebhookConsumerPort,
@@ -69,15 +73,28 @@ export class OutboxRelayService {
   private async processBatch(): Promise<void> {
     const now = new Date();
 
-    const events = await this.dataSource
-      .createQueryBuilder(OutboxEvent, 'event')
-      .where('event.status = :status', { status: OutboxStatus.PENDING })
-      .andWhere('(event.nextAttemptAt IS NULL OR event.nextAttemptAt <= :now)', { now })
-      .orderBy('event.createdAt', 'ASC')
-      .limit(BATCH_SIZE)
-      .setLock('pessimistic_write')
-      .setOnLocked('skip_locked')
-      .getMany();
+    const events = await this.dataSource.transaction(async (manager) => {
+      const outboxRepository = manager.getRepository(OutboxEvent);
+      const claimedEvents = await outboxRepository
+        .createQueryBuilder('event')
+        .where('event.status = :status', { status: OutboxStatus.PENDING })
+        .andWhere('(event.nextAttemptAt IS NULL OR event.nextAttemptAt <= :now)', { now })
+        .andWhere('(event.claimLeaseExpiresAt IS NULL OR event.claimLeaseExpiresAt <= :now)', { now })
+        .orderBy('event.createdAt', 'ASC')
+        .limit(BATCH_SIZE)
+        .setLock('pessimistic_write')
+        .setOnLocked('skip_locked')
+        .getMany();
+
+      const claimLeaseExpiresAt = new Date(Date.now() + CLAIM_LEASE_MS);
+      for (const event of claimedEvents) {
+        event.claimedBy = this.instanceId;
+        event.claimLeaseExpiresAt = claimLeaseExpiresAt;
+      }
+      await outboxRepository.save(claimedEvents);
+
+      return claimedEvents;
+    });
 
     if (events.length === 0) {
       return;
@@ -200,11 +217,14 @@ export class OutboxEventProcessor extends WorkerHost {
     @Optional()
     @Inject(OUTBOX_FINANCIAL_CONSUMER)
     private readonly financialConsumer?: OutboxFinancialConsumerPort,
+    @Optional()
+    @Inject(OUTBOX_INVOICE_CONSUMER)
+    private readonly invoiceConsumer?: OutboxInvoiceConsumerPort,
   ) {
     super();
   }
 
-  private isCategoryEnabled(category: 'financial' | 'notification' | 'mail' | 'webhook'): boolean {
+  private isCategoryEnabled(category: DurableOutboxCategory): boolean {
     const flag = killSwitchFlagForCategory(category);
     return this.flagsService?.isEnabled(flag, {}, true) ?? true;
   }
@@ -220,6 +240,15 @@ export class OutboxEventProcessor extends WorkerHost {
         await this.financialConsumer.process(envelope);
       } else {
         await this.recordInboxOnly('outbox-financial-consumer', envelope);
+      }
+      handled = true;
+    }
+
+    if (isInvoiceOutboxEventType(envelope.eventType) && this.isCategoryEnabled('invoice')) {
+      if (this.invoiceConsumer) {
+        await this.invoiceConsumer.process(envelope);
+      } else {
+        await this.recordInboxOnly('outbox-invoice-consumer', envelope);
       }
       handled = true;
     }

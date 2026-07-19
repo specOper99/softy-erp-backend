@@ -124,10 +124,31 @@ describe('PurchaseInvoicesService', () => {
     // extended at-most-one check constraint are both satisfied.
     expect(manager.update).toHaveBeenCalledWith(
       expect.anything(),
-      'txn-1',
+      { id: 'txn-1', tenantId: 'tenant-123' },
       expect.objectContaining({ purchaseInvoiceId: 'pi-1' }),
     );
     expect(result.transactionId).toBe('txn-1');
+  });
+
+  it('paginates findAll with cursor helper', async () => {
+    const page = { data: [persistedInvoice], nextCursor: null };
+    const qb = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+    };
+    (repository.createQueryBuilder as jest.Mock) = jest.fn().mockReturnValue(qb);
+    const { CursorPaginationHelper } = await import('../../../common/utils/cursor-pagination.helper');
+    const spy = jest.spyOn(CursorPaginationHelper, 'paginateWithCustomDateField').mockResolvedValue(page);
+
+    const result = await service.findAll({ cursor: undefined, limit: 10 });
+
+    expect(repository.createQueryBuilder).toHaveBeenCalledWith('pi');
+    expect(spy).toHaveBeenCalledWith(
+      qb,
+      expect.objectContaining({ cursor: undefined, limit: 10, alias: 'pi' }),
+      'invoiceDate',
+    );
+    expect(result).toEqual(page);
+    spy.mockRestore();
   });
 
   it('blocks cross-tenant vendor ID', async () => {

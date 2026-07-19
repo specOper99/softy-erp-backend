@@ -17,8 +17,10 @@ describe('Tasks authorization policy guardrail (integration config)', () => {
   it('keeps explicit roles on read endpoints accessible to field staff (ARCH-010)', () => {
     const findMyTasksRoles = Reflect.getMetadata(ROLES_KEY, TasksController.prototype.findMyTasks) as Role[];
     const findByBookingRoles = Reflect.getMetadata(ROLES_KEY, TasksController.prototype.findByBooking) as Role[];
+    const findOneRoles = Reflect.getMetadata(ROLES_KEY, TasksController.prototype.findOne) as Role[];
 
     expect(findMyTasksRoles).toEqual(staffAndManagerRoles);
     expect(findByBookingRoles).toEqual(staffAndManagerRoles);
+    expect(findOneRoles).toEqual(staffAndManagerRoles);
   });
 });

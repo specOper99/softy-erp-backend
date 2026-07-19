@@ -1,6 +1,6 @@
+import { getQueueToken } from '@nestjs/bullmq';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getQueueToken } from '@nestjs/bullmq';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { OutboxEvent, OutboxStatus } from '../entities/outbox-event.entity';
@@ -39,8 +39,19 @@ describe('OutboxRelayService', () => {
     getMany: jest.fn().mockResolvedValue([pendingEvent]),
   };
 
-  const mockDataSource = {
+  const mockTransactionalOutboxRepository = {
     createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    save: jest.fn().mockImplementation(async (events: OutboxEvent[]) => events),
+  };
+
+  const mockDataSource = {
+    transaction: jest
+      .fn()
+      .mockImplementation(
+        async (
+          callback: (manager: { getRepository: () => typeof mockTransactionalOutboxRepository }) => Promise<unknown>,
+        ) => callback({ getRepository: () => mockTransactionalOutboxRepository }),
+      ),
   };
 
   const mockQueue = {
@@ -66,6 +77,7 @@ describe('OutboxRelayService', () => {
     jest.clearAllMocks();
     mockFlagsService.isEnabled.mockReturnValue(true);
     mockQueryBuilder.getMany.mockResolvedValue([{ ...pendingEvent }]);
+    mockTransactionalOutboxRepository.save.mockImplementation(async (events: OutboxEvent[]) => events);
   });
 
   it('dispatches events to BullMQ with jobId=eventId', async () => {
@@ -79,6 +91,8 @@ describe('OutboxRelayService', () => {
     expect(mockOutboxRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: OutboxStatus.DISPATCHED }),
     );
+    expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(mockQueryBuilder.setLock).toHaveBeenCalledWith('pessimistic_write');
   });
 
   it('marks FAILED when all durable kill switches are off (no dual-delivery backlog)', async () => {

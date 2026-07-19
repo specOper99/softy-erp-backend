@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EventBus } from '@nestjs/cqrs';
 import { differenceInCalendarDays } from 'date-fns';
 import { DataSource } from 'typeorm';
@@ -10,9 +9,6 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { toErrorMessage } from '../../../common/utils/error.util';
 import { AuditPublisher } from '../../audit/application/audit.publisher';
 import { FinanceService } from '../../finance/application/finance.service';
-import { InvoiceService } from '../../finance/application/invoice.service';
-import { Transaction } from '../../finance/domain/entities/transaction.entity';
-import { TransactionType } from '../../finance/domain/enums/transaction-type.enum';
 import { TaskAssignee } from '../../tasks/domain/entities/task-assignee.entity';
 import { Task } from '../../tasks/domain/entities/task.entity';
 import { TimeEntry, TimeEntryStatus } from '../../tasks/domain/entities/time-entry.entity';
@@ -20,14 +16,15 @@ import { TaskStatus } from '../../tasks/domain/enums/task-status.enum';
 import { User } from '../../users/domain/entities/user.entity';
 import { CancelBookingDto, ConfirmBookingResponseDto, RescheduleBookingDto } from '../api/dto';
 import { Booking } from '../domain/entities/booking.entity';
-import { ProcessingType } from '../domain/entities/processing-type.entity';
 import { BookingStatus } from '../domain/enums/booking-status.enum';
 import { BookingCancelledEvent } from '../domain/events/booking-cancelled.event';
 import { BookingCompletedEvent } from '../domain/events/booking-completed.event';
 import { BookingConfirmedEvent } from '../domain/events/booking-confirmed.event';
 import { BookingCreatedEvent } from '../domain/events/booking-created.event';
 import { BookingRescheduledEvent } from '../domain/events/booking-rescheduled.event';
+import { BookingFinanceEffectsService } from './booking-finance-effects.service';
 import { BookingStateMachineService } from './booking-state-machine.service';
+import { BookingTaskSpawnService } from './booking-task-spawn.service';
 import { StaffConflictService } from './staff-conflict.service';
 
 @Injectable()
@@ -36,13 +33,13 @@ export class BookingWorkflowService {
 
   constructor(
     private readonly financeService: FinanceService,
+    private readonly financeEffects: BookingFinanceEffectsService,
+    private readonly taskSpawn: BookingTaskSpawnService,
     private readonly auditService: AuditPublisher,
     private readonly dataSource: DataSource,
-    private readonly configService: ConfigService,
     private readonly eventBus: EventBus,
     private readonly stateMachine: BookingStateMachineService,
     private readonly staffConflictService: StaffConflictService,
-    private readonly invoiceService: InvoiceService,
     private readonly availabilityCacheOwner: AvailabilityCacheOwnerService,
   ) {}
 
@@ -100,56 +97,10 @@ export class BookingWorkflowService {
       booking.status = BookingStatus.CONFIRMED;
       await manager.save(booking);
 
-      // Step 3: Generate Tasks from booking's selected processing types (one task per type)
-      const bookingWithPT = await manager.findOne(Booking, {
-        where: { id, tenantId },
-        relations: ['processingTypes'],
-      });
-      const processingTypes: ProcessingType[] = bookingWithPT?.processingTypes ?? [];
-      const tasksToCreate: Partial<Task>[] = [];
-      const maxTasks = this.configService.get<number>('booking.maxTasksPerBooking', 500);
-
-      if (processingTypes.length > maxTasks) {
-        throw new BadRequestException(
-          `Cannot confirm booking: total tasks requested(${processingTypes.length}) exceeds the maximum allowed limit of ${maxTasks} per booking.`,
-        );
-      }
-
-      for (const pt of processingTypes) {
-        tasksToCreate.push({
-          bookingId: booking.id,
-          processingTypeId: pt.id,
-          status: TaskStatus.PENDING,
-          commissionSnapshot: Number(pt.defaultCommissionAmount) || 0,
-          dueDate: booking.eventDate,
-          tenantId: booking.tenantId,
-          locationLink: booking.locationLink ?? null,
-        });
-      }
-
-      const createdTasks = await manager.save(Task, tasksToCreate);
-
-      const depositAmount = Number(booking.depositAmount) || 0;
-      const alreadyPaid = Number(booking.amountPaid) || 0;
-      let transactionId: string | null = null;
-      let depositTx: Transaction | null = null;
-
-      if (depositAmount > 0 && alreadyPaid < depositAmount) {
-        const remainingDeposit = depositAmount - alreadyPaid;
-
-        depositTx = await this.financeService.createTransactionWithManager(manager, {
-          type: TransactionType.INCOME,
-          amount: remainingDeposit,
-          category: 'Booking Deposit',
-          bookingId: booking.id,
-          description: `Deposit payment on confirm: ${booking.client?.name || 'Unknown Client'} - ${booking.servicePackage?.name}`,
-          transactionDate: new Date(),
-          revenueAccountCode: booking.servicePackage?.revenueAccountCode,
-        });
-        transactionId = depositTx.id;
-
-        booking.amountPaid = alreadyPaid + remainingDeposit;
-        booking.paymentStatus = booking.derivePaymentStatus();
+      // Step 3: Spawn tasks + finance deposit (extracted collaborators)
+      const createdTasks = await this.taskSpawn.spawnTasksForConfirm(manager, booking, tenantId);
+      const { depositTx, transactionId } = await this.financeEffects.applyConfirmDeposit(manager, booking);
+      if (depositTx) {
         await manager.save(booking);
       }
 
@@ -190,6 +141,19 @@ export class BookingWorkflowService {
         },
       });
 
+      // Eventually-consistent invoice: outbox worker retries createInvoice (non-blocking confirm).
+      await manager.save(OutboxEvent, {
+        aggregateId: booking.id,
+        aggregateType: 'Booking',
+        type: 'InvoiceGenerationRequested',
+        tenantId: booking.tenantId,
+        occurredAt: new Date(),
+        payload: {
+          bookingId: booking.id,
+          tenantId: booking.tenantId,
+        },
+      });
+
       return {
         booking,
         tasksCreated: createdTasks.length,
@@ -197,19 +161,6 @@ export class BookingWorkflowService {
         depositTx,
       };
     });
-
-    // Step 5: Auto-generate invoice (non-blocking; failure does not roll back confirm)
-    try {
-      await this.invoiceService.createInvoice(result.booking.id);
-    } catch (error) {
-      // Log so the billing gap is visible in monitoring — someone must manually
-      // retry or create the invoice. Silent swallow here is intentional (the
-      // booking is confirmed regardless) but the failure must not be invisible.
-      this.logger.error(
-        `Invoice generation failed for booking ${result.booking.id}: ${toErrorMessage(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-    }
 
     // Notify after commit so events and caches never reflect rolled-back data.
     if (result.depositTx) {
@@ -275,78 +226,8 @@ export class BookingWorkflowService {
         );
       }
 
-      const taskIds = bookingTasks.map((task) => task.id);
-      const taskAssigneesByTaskId = new Map<string, TaskAssignee[]>();
-      if (taskIds.length > 0) {
-        const taskAssignees = await manager.find(TaskAssignee, {
-          where: taskIds.map((taskId) => ({ tenantId, taskId })),
-        });
-
-        for (const assignee of taskAssignees) {
-          const existing = taskAssigneesByTaskId.get(assignee.taskId) ?? [];
-          existing.push(assignee);
-          taskAssigneesByTaskId.set(assignee.taskId, existing);
-        }
-      }
-
-      for (const task of bookingTasks) {
-        const taskAssignees = taskAssigneesByTaskId.get(task.id) ?? [];
-        if (taskAssignees.length > 0) {
-          for (const assignee of taskAssignees) {
-            const assigneeCommission = Number(assignee.commissionSnapshot) || 0;
-            if (assigneeCommission > 0) {
-              await this.financeService.transferPendingCommission(
-                manager,
-                assignee.userId,
-                undefined,
-                assigneeCommission,
-              );
-            }
-          }
-          continue;
-        }
-
-        const legacyCommission = Number(task.commissionSnapshot) || 0;
-        if (task.assignedUserId && legacyCommission > 0) {
-          await this.financeService.transferPendingCommission(
-            manager,
-            task.assignedUserId,
-            undefined,
-            legacyCommission,
-          );
-        }
-      }
-
-      const bookingIncomeTransactions = await manager.find(Transaction, {
-        where: {
-          tenantId,
-          bookingId: booking.id,
-          type: TransactionType.INCOME,
-        },
-      });
-
-      const reversalAmount = bookingIncomeTransactions.reduce((sum, transaction) => {
-        const amount = Number(transaction.amount) || 0;
-        return amount > 0 ? sum + amount : sum;
-      }, 0);
-
-      const hasExistingReversal = bookingIncomeTransactions.some((transaction) => {
-        const amount = Number(transaction.amount) || 0;
-        const category = (transaction.category || '').toLowerCase();
-        return amount < 0 || category.includes('refund') || category.includes('reversal');
-      });
-
-      let reversalTx: Transaction | null = null;
-      if (reversalAmount > 0 && !hasExistingReversal) {
-        reversalTx = await this.financeService.createTransactionWithManager(manager, {
-          type: TransactionType.INCOME,
-          amount: -reversalAmount,
-          category: 'Booking Reversal',
-          bookingId: booking.id,
-          description: `Booking cancellation reversal: ${booking.client?.name || 'Unknown Client'}`,
-          transactionDate: new Date(),
-        });
-      }
+      await this.financeEffects.reverseTaskCommissions(manager, tenantId, bookingTasks);
+      const reversalTx = await this.financeEffects.applyCancelReversal(manager, tenantId, booking);
 
       const oldStatus = booking.status;
 
@@ -357,10 +238,13 @@ export class BookingWorkflowService {
       if (dto?.reason) {
         booking.cancellationReason = dto.reason;
       }
-      // Gap 4: Sync paymentStatus after reversal
+      // Clear paid balance after cancel reversal; ledger is source of economic truth.
+      booking.amountPaid = 0;
       booking.paymentStatus = booking.derivePaymentStatus();
 
       const saved = await manager.save(booking);
+
+      await this.financeEffects.cancelLinkedInvoice(manager, tenantId, booking.id);
 
       await this.auditService.log({
         action: 'STATUS_CHANGE',

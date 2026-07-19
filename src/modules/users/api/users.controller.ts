@@ -101,6 +101,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiOkResponse({ description: 'User retrieved', type: UserResponseDto })
   @ApiResponse({ status: 401, description: 'common.unauthorized_plain' })

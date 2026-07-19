@@ -39,10 +39,15 @@
 ### 2.1 Role-Based Access Control (RBAC)
 Supported Roles:
 - `ADMIN`: Full system access within their tenant.
-- `OPS_MANAGER`: Operational access (Users, Bookings, Finance) but limited system config.
+- `OPS_MANAGER`: Operational access (Users, Bookings, catalog/ops workflows) but limited system config. Finance ledger/report/transaction controllers are **ADMIN-only** (plus MFA on sensitive finance writes).
 - `FIELD_STAFF`: Limited access to assigned Tasks and personal Profile/Wallet.
 
-### 2.2 Tenant Isolation (Critical)
+### 2.2 RolesGuard Contract
+- Controllers that mount `RolesGuard` must declare `@Roles(...)` on every endpoint (or at class level).
+- CI enforces this via `npm run check:authorization-contract` (`ROLES_GUARD_MISSING_ROLES`).
+- Runtime fail-closed: if `RolesGuard` runs on a mutating HTTP method (`POST`/`PUT`/`PATCH`/`DELETE`) without `@Roles`, the request is denied.
+
+### 2.3 Tenant Isolation (Critical)
 - **Principle**: "Shared Database, Separate Schemas" logic enforced via Row-Level Security pattern.
 - **Implementation**:
   - `TenantContextService` extracts `tenantId` from the JWT.

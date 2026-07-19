@@ -8,6 +8,7 @@ import { OUTBOX_EVENTS_QUEUE } from '../events/outbox-envelope';
 import { ConsumerInboxService } from '../services/consumer-inbox.service';
 import { OutboxEventProcessor, OutboxRelayService } from '../services/outbox-relay.service';
 import { AnalyticsModule } from '../../modules/analytics/analytics.module';
+import { FinanceModule } from '../../modules/finance/finance.module';
 import { MailModule } from '../../modules/mail/mail.module';
 import { NotificationsModule } from '../../modules/notifications/notifications.module';
 import { WebhooksModule } from '../../modules/webhooks/webhooks.module';
@@ -21,6 +22,7 @@ const backgroundJobsEnabled = areBackgroundJobsEnabled();
     forwardRef(() => MailModule),
     forwardRef(() => WebhooksModule),
     forwardRef(() => AnalyticsModule),
+    forwardRef(() => FinanceModule),
     ...(backgroundJobsEnabled
       ? [
           BullModule.registerQueue({

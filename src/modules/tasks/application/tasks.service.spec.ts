@@ -51,8 +51,18 @@ describe('TasksService - Comprehensive Tests', () => {
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     getMany: jest.fn().mockResolvedValue([mockTask]),
+    getOne: jest.fn().mockResolvedValue(mockTask),
   };
   mockTaskRepository.createQueryBuilder = jest.fn(() => mockQueryBuilder);
+
+  const expectFieldStaffTaskFilter = (queryBuilder: { andWhere: jest.Mock }, userId: string): void => {
+    const rbacCall = queryBuilder.andWhere.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('task_assignees'),
+    );
+    expect(rbacCall).toBeDefined();
+    expect(rbacCall[0]).toContain('assigned_user_id');
+    expect(rbacCall[1]).toEqual({ userId });
+  };
 
   const mockWalletService = {
     moveToPayable: jest.fn().mockResolvedValue({}),
@@ -126,6 +136,17 @@ describe('TasksService - Comprehensive Tests', () => {
 
     // Reset mocks
     jest.clearAllMocks();
+
+    // Restore query-builder chain defaults cleared above
+    mockQueryBuilder.leftJoinAndSelect.mockReturnThis();
+    mockQueryBuilder.where.mockReturnThis();
+    mockQueryBuilder.andWhere.mockReturnThis();
+    mockQueryBuilder.orderBy.mockReturnThis();
+    mockQueryBuilder.skip.mockReturnThis();
+    mockQueryBuilder.take.mockReturnThis();
+    mockQueryBuilder.getMany.mockResolvedValue([mockTask]);
+    mockQueryBuilder.getOne.mockResolvedValue(mockTask);
+    mockTaskRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
     const mockUpdateQueryBuilder = {
       update: jest.fn().mockReturnThis(),
@@ -219,6 +240,37 @@ describe('TasksService - Comprehensive Tests', () => {
     it('should throw NotFoundException for invalid id', async () => {
       await expect(service.findOne('invalid-id')).rejects.toThrow(NotFoundException);
     });
+
+    it('should filter FIELD_STAFF reads via assignee mapping and legacy assigned user fallback', async () => {
+      mockQueryBuilder.getOne.mockResolvedValueOnce(mockTask);
+
+      const result = await service.findOne('task-uuid-123', staffUser);
+
+      expect(result).toEqual(mockTask);
+      expect(mockTaskRepository.createQueryBuilder).toHaveBeenCalledWith('task');
+      expectFieldStaffTaskFilter(mockQueryBuilder, staffUser.id);
+      expect(mockTaskRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should hide peer tasks from FIELD_STAFF with NotFoundException', async () => {
+      mockQueryBuilder.getOne.mockResolvedValueOnce(null);
+
+      await expect(service.findOne('peer-task-id', staffUser)).rejects.toThrow(NotFoundException);
+      expectFieldStaffTaskFilter(mockQueryBuilder, staffUser.id);
+    });
+
+    it('should not apply FIELD_STAFF filter for ADMIN', async () => {
+      mockTaskRepository.findOne.mockClear();
+      mockTaskRepository.findOne.mockResolvedValueOnce(mockTask);
+
+      await service.findOne('task-uuid-123', adminUser);
+
+      expect(mockTaskRepository.findOne).toHaveBeenCalled();
+      const rbacCall = mockQueryBuilder.andWhere.mock.calls.find(
+        (call) => typeof call[0] === 'string' && call[0].includes('task_assignees'),
+      );
+      expect(rbacCall).toBeUndefined();
+    });
   });
 
   describe('findByBooking', () => {
@@ -236,7 +288,7 @@ describe('TasksService - Comprehensive Tests', () => {
 
     it('should clamp limit to max 100', async () => {
       mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
-      await service.findByBooking('booking-uuid-123', 1000);
+      await service.findByBooking('booking-uuid-123', undefined, 1000);
       expect(mockTaskRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 100,
@@ -246,7 +298,7 @@ describe('TasksService - Comprehensive Tests', () => {
 
     it('should clamp limit to min 1', async () => {
       mockTaskRepository.find.mockResolvedValueOnce([mockTask]);
-      await service.findByBooking('booking-uuid-123', 0);
+      await service.findByBooking('booking-uuid-123', undefined, 0);
       expect(mockTaskRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 1,
@@ -258,6 +310,16 @@ describe('TasksService - Comprehensive Tests', () => {
       mockTaskRepository.find.mockResolvedValueOnce([]);
       const result = await service.findByBooking('booking-no-tasks');
       expect(result).toHaveLength(0);
+    });
+
+    it('should filter FIELD_STAFF booking tasks via assignee mapping', async () => {
+      mockQueryBuilder.getMany.mockResolvedValueOnce([mockTask]);
+
+      const result = await service.findByBooking('booking-uuid-123', staffUser);
+
+      expect(result).toEqual([mockTask]);
+      expectFieldStaffTaskFilter(mockQueryBuilder, staffUser.id);
+      expect(mockTaskRepository.find).not.toHaveBeenCalled();
     });
   });
 
@@ -362,24 +424,19 @@ describe('TasksService - Comprehensive Tests', () => {
       await expect(service.startTask('invalid-id', adminUser)).rejects.toThrow(NotFoundException);
     });
 
-    it('should forbid field staff from starting unassigned task', async () => {
-      mockTaskRepository.findOne.mockResolvedValueOnce({
-        ...mockTask,
-        assignedUserId: null,
-      });
-      await expect(service.startTask('task-uuid-123', staffUser)).rejects.toThrow(ForbiddenException);
+    it('should hide unassigned tasks from field staff on start', async () => {
+      mockQueryBuilder.getOne.mockResolvedValueOnce(null);
+      await expect(service.startTask('task-uuid-123', staffUser)).rejects.toThrow(NotFoundException);
     });
 
-    it("should forbid field staff from starting someone else's task", async () => {
-      mockTaskRepository.findOne.mockResolvedValueOnce({
-        ...mockTask,
-        assignedUserId: 'another-user',
-      });
-      await expect(service.startTask('task-uuid-123', staffUser)).rejects.toThrow(ForbiddenException);
+    it("should hide someone else's task from field staff on start", async () => {
+      // Assignee filter hides peer tasks before status mutation checks
+      mockQueryBuilder.getOne.mockResolvedValueOnce(null);
+      await expect(service.startTask('task-uuid-123', staffUser)).rejects.toThrow(NotFoundException);
     });
 
     it('should allow field staff to start own assigned task', async () => {
-      mockTaskRepository.findOne.mockResolvedValueOnce({
+      mockQueryBuilder.getOne.mockResolvedValueOnce({
         ...mockTask,
         assignedUserId: 'staff-uuid',
         status: TaskStatus.PENDING,

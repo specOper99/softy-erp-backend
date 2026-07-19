@@ -74,6 +74,8 @@ services:
       # Payroll bank gateway: production defaults to disabled (no mock money movement).
       # Set a real PAYOUT_GATEWAY implementation before enabling payroll payouts.
       PAYOUT_GATEWAY: ${PAYOUT_GATEWAY:-disabled}
+      # Dockerfile Application: set true so entrypoint migrates before Nest (1 replica).
+      RUN_MIGRATIONS_ON_BOOT: ${RUN_MIGRATIONS_ON_BOOT:-false}
       # --- Seed (first boot only) ---
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-}

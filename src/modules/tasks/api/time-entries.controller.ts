@@ -17,18 +17,21 @@ export class TimeEntriesController {
   constructor(private readonly timeEntriesService: TimeEntriesService) {}
 
   @Post('start')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Start a timer for a task' })
   async startTimer(@CurrentUser() user: User, @Body() dto: StartTimeEntryDto) {
     return this.timeEntriesService.startTimer(user.id, dto);
   }
 
   @Post(':id/stop')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Stop an active timer' })
   async stopTimer(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string, @Body() dto: StopTimeEntryDto) {
     return this.timeEntriesService.stopTimer(user.id, id, dto);
   }
 
   @Get('active')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Get current active timer for logged in user' })
   async getActiveTimer(@CurrentUser() user: User) {
     return this.timeEntriesService.getActiveTimer(user.id);
@@ -42,6 +45,7 @@ export class TimeEntriesController {
   }
 
   @Patch(':id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER, Role.FIELD_STAFF)
   @ApiOperation({ summary: 'Update a time entry' })
   async update(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTimeEntryDto) {
     return this.timeEntriesService.update(user, id, dto);

@@ -1,5 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { PaymentMethod } from '../../../../common/enums/payment-method.enum';
 
 export class RecordPaymentDto {
@@ -27,4 +38,16 @@ export class RecordPaymentDto {
   @IsOptional()
   @IsDateString()
   transactionDate?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Idempotency key unique per tenant (16-256 chars, alphanumeric/hyphen/underscore). Replays return without double-charging.',
+    example: 'pay-booking-abc-001',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(16)
+  @MaxLength(256)
+  @Matches(/^[A-Za-z0-9_-]+$/)
+  idempotencyKey?: string;
 }

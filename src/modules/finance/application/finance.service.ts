@@ -8,6 +8,7 @@ import { TenantContextService } from '../../../common/services/tenant-context.se
 import { CursorPaginationHelper } from '../../../common/utils/cursor-pagination.helper';
 import { MathUtils } from '../../../common/utils/math.utils';
 
+import { Booking } from '../../bookings/domain/entities/booking.entity';
 import { TenantsService } from '../../tenants/application/tenants.service';
 import { CreateTransactionDto, TransactionCursorQueryDto, TransactionFilterDto } from '../api/dto';
 import { Transaction } from '../domain/entities/transaction.entity';
@@ -208,6 +209,7 @@ export class FinanceService {
       revenueAccountCode?: string;
       paymentMethod?: string;
       reference?: string;
+      idempotencyKey?: string;
     },
   ): Promise<Transaction> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
@@ -221,6 +223,7 @@ export class FinanceService {
       revenueAccountCode: data.revenueAccountCode ?? null,
       paymentMethod: data.paymentMethod ?? null,
       reference: data.reference ?? null,
+      idempotencyKey: data.idempotencyKey ?? null,
     });
     const savedTransaction = await manager.save(transaction);
 
@@ -391,7 +394,26 @@ export class FinanceService {
     let savedReversal: Transaction;
     try {
       savedReversal = await this.dataSource.transaction(async (manager) => {
-        // Lock the original row to prevent concurrent void attempts.
+        // Peek without lock to learn bookingId for lock order: Booking then Transaction.
+        const peek = await manager.findOne(Transaction, {
+          where: { id, tenantId },
+        });
+
+        if (!peek) {
+          throw new NotFoundException({
+            code: 'finance.transaction_not_found',
+            args: { id },
+          });
+        }
+
+        let lockedBooking: Booking | null = null;
+        if (peek.bookingId) {
+          lockedBooking = await manager.findOne(Booking, {
+            where: { id: peek.bookingId, tenantId },
+            lock: { mode: 'pessimistic_write' },
+          });
+        }
+
         const original = await manager.findOne(Transaction, {
           where: { id, tenantId },
           lock: { mode: 'pessimistic_write' },
@@ -449,6 +471,27 @@ export class FinanceService {
             voidedBy: resolvedUserId,
           },
         );
+
+        // Keep Booking.amountPaid in sync with the voided ledger row.
+        if (lockedBooking && original.bookingId) {
+          const paid = Number(lockedBooking.amountPaid || 0);
+          const originalAmount = Number(original.amount) || 0;
+          // INCOME void reduces paid; REFUND void restores paid.
+          const adjustment =
+            original.type === TransactionType.REFUND ? Math.abs(originalAmount) : -Math.abs(originalAmount);
+          const newPaid = Math.max(0, MathUtils.add(paid, adjustment));
+          lockedBooking.amountPaid = newPaid;
+          lockedBooking.paymentStatus = lockedBooking.derivePaymentStatus();
+          await manager.update(
+            Booking,
+            { id: lockedBooking.id, tenantId: lockedBooking.tenantId },
+            {
+              amountPaid: newPaid,
+              paymentStatus: lockedBooking.paymentStatus,
+              updatedAt: new Date(),
+            },
+          );
+        }
 
         return saved;
       });
@@ -543,10 +586,13 @@ export class FinanceService {
   }> {
     const tenantId = TenantContextService.getTenantIdOrThrow();
     const tenant = await this.tenantsService.findOne(tenantId);
+    // Exclude voided originals and their reversal rows so nets stay correct.
     const result = await this.transactionRepository
       .createQueryBuilder('t')
       .select('t.type', 'type')
       .addSelect('SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))', 'total')
+      .where('t.voidedAt IS NULL')
+      .andWhere('t.reversalOfId IS NULL')
       .groupBy('t.type')
       .getRawMany<{ type: TransactionType; total: string }>();
 
@@ -568,7 +614,7 @@ export class FinanceService {
           summary.totalExpenses = MathUtils.add(summary.totalExpenses, amount);
           break;
         case TransactionType.EXPENSE:
-          summary.totalExpenses = amount;
+          summary.totalExpenses = MathUtils.add(summary.totalExpenses, amount);
           break;
         case TransactionType.PAYROLL:
           summary.totalPayroll = amount;

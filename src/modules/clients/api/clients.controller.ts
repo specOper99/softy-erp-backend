@@ -50,6 +50,7 @@ export class ClientsController {
   }
 
   @Get()
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get all clients with optional tag and search filtering' })
   @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by client name, email, or phone' })
   @ApiQuery({ name: 'tags', required: false, type: String, description: 'Comma-separated tag filter' })
@@ -74,6 +75,7 @@ export class ClientsController {
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.OPS_MANAGER)
   @ApiOperation({ summary: 'Get client by ID' })
   @ApiOkResponse({ description: 'Client details', type: ClientResponseDto })
   findOne(@Param('id', ParseUUIDPipe) id: string) {

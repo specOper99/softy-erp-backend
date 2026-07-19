@@ -4,6 +4,7 @@ export const OUTBOX_NOTIFICATION_CONSUMER = Symbol('OUTBOX_NOTIFICATION_CONSUMER
 export const OUTBOX_MAIL_CONSUMER = Symbol('OUTBOX_MAIL_CONSUMER');
 export const OUTBOX_WEBHOOK_CONSUMER = Symbol('OUTBOX_WEBHOOK_CONSUMER');
 export const OUTBOX_FINANCIAL_CONSUMER = Symbol('OUTBOX_FINANCIAL_CONSUMER');
+export const OUTBOX_INVOICE_CONSUMER = Symbol('OUTBOX_INVOICE_CONSUMER');
 
 export interface OutboxNotificationConsumerPort {
   process(envelope: OutboxEventEnvelope): Promise<void>;
@@ -18,5 +19,9 @@ export interface OutboxWebhookConsumerPort {
 }
 
 export interface OutboxFinancialConsumerPort {
+  process(envelope: OutboxEventEnvelope): Promise<void>;
+}
+
+export interface OutboxInvoiceConsumerPort {
   process(envelope: OutboxEventEnvelope): Promise<void>;
 }

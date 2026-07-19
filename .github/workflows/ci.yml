@@ -98,6 +98,9 @@ jobs:
       - name: Check migration policy
         run: npm run check:migration-policy
 
+      - name: Check enum migration coverage (offline)
+        run: npm run check:enum-migration-coverage
+
       - name: Check config key safety
         run: npm run check:config-keys
 
@@ -179,6 +182,40 @@ jobs:
           DB_DATABASE: test_db
           DB_SYNCHRONIZE: false
           DB_LOGGING: false
+
+      - name: Check runtime schema
+        run: npm run check:runtime-schema
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+
+      - name: Nest boot smoke (production gates)
+        run: npm run check:nest-boot-smoke
+        env:
+          NODE_ENV: production
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_password
+          DB_DATABASE: test_db
+          DB_SYNCHRONIZE: false
+          DB_LOGGING: false
+          DB_MIGRATIONS_RUN: 'false'
+          REDIS_URL: redis://localhost:9379/0
+          JWT_SECRET: A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v2W3x4Y5z6
+          PLATFORM_JWT_SECRET: Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g0F9e8D7c6B5a4
+          PASSWORD_RESET_TOKEN_SECRET: R1e2S3e4T5t6O7k8E9n0Secret32charsXX
+          ENCRYPTION_KEY: test-encryption-key-must-be-32chars!!
+          PAYOUT_GATEWAY: disabled
+          VAULT_ENABLED: 'false'
+          OTEL_ENABLED: 'false'
+          CORS_ORIGINS: http://localhost:3000
 
       - name: Run tests
         run: npm run test -- --runInBand

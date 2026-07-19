@@ -9,6 +9,8 @@ interface RequestWithUser extends Request {
   user?: User;
 }
 
+const SAFE_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -19,11 +21,17 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+
     if (!requiredRoles) {
+      // Fail-closed for mutating methods: RolesGuard without @Roles must not allow writes.
+      const method = (request.method ?? '').toUpperCase();
+      if (method && !SAFE_HTTP_METHODS.has(method)) {
+        return false;
+      }
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const user = request.user;
     if (!user) {
       throw new UnauthorizedException();

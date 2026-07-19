@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommonModule } from '../../common/common.module';
@@ -8,6 +8,7 @@ import {
   TENANT_REPO_TRANSACTION_CATEGORY,
   TENANT_REPO_VENDOR,
 } from '../../common/constants/tenant-repo.tokens';
+import { OUTBOX_INVOICE_CONSUMER } from '../../common/outbox/outbox-consumer.port';
 import { TenantAwareRepository } from '../../common/repositories/tenant-aware.repository';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { Booking } from '../bookings/domain/entities/booking.entity';
@@ -60,6 +61,7 @@ import { BookingUpdatedHandler } from './infrastructure/booking-updated.handler'
 import { ReconciliationFailedHandler } from './infrastructure/financial-failure.handler';
 import { BookingPriceChangedHandler } from './infrastructure/booking-price-changed.handler';
 import { PayoutRelayService } from './application/payout-relay.service';
+import { OutboxInvoiceGenerationConsumer } from './infrastructure/outbox-invoice-generation.consumer';
 
 @Module({
   imports: [
@@ -75,7 +77,7 @@ import { PayoutRelayService } from './application/payout-relay.service';
       Vendor,
       Booking,
     ]),
-    CommonModule,
+    forwardRef(() => CommonModule),
     TenantsModule,
     AnalyticsModule,
     MetricsModule,
@@ -117,6 +119,11 @@ import { PayoutRelayService } from './application/payout-relay.service';
     BookingUpdatedHandler,
     ReconciliationFailedHandler,
     BookingPriceChangedHandler,
+    OutboxInvoiceGenerationConsumer,
+    {
+      provide: OUTBOX_INVOICE_CONSUMER,
+      useExisting: OutboxInvoiceGenerationConsumer,
+    },
     {
       provide: TENANT_REPO_PURCHASE_INVOICE,
       useFactory: (repo: Repository<PurchaseInvoice>) => new TenantAwareRepository(repo),
@@ -156,6 +163,7 @@ import { PayoutRelayService } from './application/payout-relay.service';
     PayoutRelayService,
     PayoutRepository,
     PurchaseInvoiceRepository,
+    OUTBOX_INVOICE_CONSUMER,
   ],
 })
 export class FinanceModule {}
