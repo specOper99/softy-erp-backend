@@ -591,7 +591,8 @@ export class FinanceService {
       .createQueryBuilder('t')
       .select('t.type', 'type')
       .addSelect('SUM(CAST(t.amount AS DECIMAL) * CAST(t.exchange_rate AS DECIMAL))', 'total')
-      .where('t.voidedAt IS NULL')
+      .where('t.tenantId = :tenantId', { tenantId })
+      .andWhere('t.voidedAt IS NULL')
       .andWhere('t.reversalOfId IS NULL')
       .groupBy('t.type')
       .getRawMany<{ type: TransactionType; total: string }>();

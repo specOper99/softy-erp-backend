@@ -503,7 +503,8 @@ describe('FinanceService - Comprehensive Tests', () => {
     it('filters voided originals and reversal rows from the summary query', async () => {
       const qb = mockTransactionRepository.createQueryBuilder();
       await service.getTransactionSummary();
-      expect(qb.where).toHaveBeenCalledWith('t.voidedAt IS NULL');
+      expect(qb.where).toHaveBeenCalledWith('t.tenantId = :tenantId', { tenantId: 'tenant-123' });
+      expect(qb.andWhere).toHaveBeenCalledWith('t.voidedAt IS NULL');
       expect(qb.andWhere).toHaveBeenCalledWith('t.reversalOfId IS NULL');
     });
   });
