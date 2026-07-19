@@ -10,6 +10,7 @@ import { Tenant } from '../../tenants/domain/entities/tenant.entity';
 import { TenantStatus } from '../../tenants/domain/enums/tenant-status.enum';
 import { UsersService } from '../../users/application/users.service';
 import { TenantLifecycleEvent } from '../domain/entities/tenant-lifecycle-event.entity';
+import { PlatformAuditService } from './platform-audit.service';
 import { PlatformTenantService } from './platform-tenant.service';
 import { TenantDeletionExecutorService } from './tenant-deletion-executor.service';
 
@@ -18,6 +19,7 @@ describe('PlatformTenantService deletion lifecycle', () => {
   let tenantRepo: ReturnType<typeof createMockRepository>;
   let lifecycleRepo: ReturnType<typeof createMockRepository>;
   let deletionExecutor: { executeScheduledDeletion: jest.Mock };
+  let auditService: { log: jest.Mock };
 
   const baseTenant: Partial<Tenant> = {
     id: 'tenant-1',
@@ -31,6 +33,7 @@ describe('PlatformTenantService deletion lifecycle', () => {
     tenantRepo = createMockRepository();
     lifecycleRepo = createMockRepository();
     deletionExecutor = { executeScheduledDeletion: jest.fn().mockResolvedValue(true) };
+    auditService = { log: jest.fn().mockResolvedValue(null) };
 
     lifecycleRepo.create.mockImplementation((entity) => entity);
     lifecycleRepo.save.mockImplementation((entity) => Promise.resolve({ id: 'event-1', ...entity }));
@@ -45,6 +48,7 @@ describe('PlatformTenantService deletion lifecycle', () => {
         { provide: UsersService, useValue: {} },
         { provide: TenantsService, useValue: {} },
         { provide: TenantDeletionExecutorService, useValue: deletionExecutor },
+        { provide: PlatformAuditService, useValue: auditService },
       ],
     }).compile();
 

@@ -12,6 +12,8 @@ import { Role } from '../../users/domain/enums/role.enum';
 import { UsersService } from '../../users/application/users.service';
 import type { CreateTenantDto, UpdateTenantDto } from '../api/dto/tenant-management.dto';
 import { TenantLifecycleEvent } from '../domain/entities/tenant-lifecycle-event.entity';
+import { PlatformAction } from '../domain/enums/platform-action.enum';
+import { PlatformAuditService } from './platform-audit.service';
 import { PlatformTenantService } from './platform-tenant.service';
 import { TenantDeletionExecutorService } from './tenant-deletion-executor.service';
 
@@ -25,6 +27,7 @@ describe('PlatformTenantService.createTenant', () => {
   let dataSource: { transaction: jest.Mock };
   let usersService: { findByEmailGlobal: jest.Mock; createWithManager: jest.Mock };
   let tenantsService: { createWithManager: jest.Mock };
+  let auditService: { log: jest.Mock };
 
   const mockManager = {
     create: jest.fn(),
@@ -46,6 +49,7 @@ describe('PlatformTenantService.createTenant', () => {
     tenantRepo = createMockRepository();
     lifecycleRepo = createMockRepository();
     cacheUtils = { del: jest.fn().mockResolvedValue(undefined) };
+    auditService = { log: jest.fn().mockResolvedValue(null) };
     usersService = {
       findByEmailGlobal: jest.fn().mockResolvedValue(null),
       createWithManager: jest.fn().mockImplementation((_m, dto) => Promise.resolve({ id: 'user-uuid', ...dto })),
@@ -80,6 +84,7 @@ describe('PlatformTenantService.createTenant', () => {
         { provide: UsersService, useValue: usersService },
         { provide: TenantsService, useValue: tenantsService },
         { provide: TenantDeletionExecutorService, useValue: {} },
+        { provide: PlatformAuditService, useValue: auditService },
       ],
     }).compile();
 
@@ -102,6 +107,14 @@ describe('PlatformTenantService.createTenant', () => {
       }),
     );
     expect(lifecycleRepo.save).toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        platformUserId: 'platform-op-1',
+        action: PlatformAction.TENANT_CREATED,
+        targetTenantId: 'tenant-uuid',
+        ipAddress: '127.0.0.1',
+      }),
+    );
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-uuid');
   });
@@ -176,6 +189,7 @@ describe('PlatformTenantService.updateTenant', () => {
   let tenantRepo: ReturnType<typeof createMockRepository>;
   let lifecycleRepo: ReturnType<typeof createMockRepository>;
   let cacheUtils: { del: jest.Mock };
+  let auditService: { log: jest.Mock };
 
   const existingTenant = {
     id: 'tenant-uuid',
@@ -196,6 +210,7 @@ describe('PlatformTenantService.updateTenant', () => {
     tenantRepo = createMockRepository();
     lifecycleRepo = createMockRepository();
     cacheUtils = { del: jest.fn().mockResolvedValue(undefined) };
+    auditService = { log: jest.fn().mockResolvedValue(null) };
 
     tenantRepo.findOne.mockResolvedValue(existingTenant);
     tenantRepo.save.mockImplementation((entity) => Promise.resolve(entity));
@@ -212,6 +227,7 @@ describe('PlatformTenantService.updateTenant', () => {
         { provide: UsersService, useValue: {} },
         { provide: TenantsService, useValue: {} },
         { provide: TenantDeletionExecutorService, useValue: {} },
+        { provide: PlatformAuditService, useValue: auditService },
       ],
     }).compile();
 
@@ -231,6 +247,15 @@ describe('PlatformTenantService.updateTenant', () => {
     expect(result.subscriptionEndsAt).toEqual(new Date('2026-04-01'));
     expect(result.trialEndsAt).toEqual(new Date('2026-03-15'));
     expect(lifecycleRepo.save).toHaveBeenCalled();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        platformUserId: 'platform-op-1',
+        action: PlatformAction.TENANT_UPDATED,
+        targetTenantId: 'tenant-uuid',
+        reason: 'Plan change',
+        ipAddress: '127.0.0.1',
+      }),
+    );
     expect(cacheUtils.del).toHaveBeenCalledWith('tenant:state:tenant-uuid');
   });
 

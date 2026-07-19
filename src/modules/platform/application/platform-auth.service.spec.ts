@@ -85,6 +85,24 @@ describe('PlatformAuthService', () => {
     expect(refreshTokenRepository.save).toHaveBeenCalled();
   });
 
+  it('login returns mfaRequired without session tokens when MFA is enabled', async () => {
+    platformUserRepository.findOne.mockResolvedValue({ ...activeUser, mfaEnabled: true });
+    jwtService.sign.mockReturnValue('mfa-temp-token');
+
+    const result = await service.login('admin@platform.test', 'password123');
+
+    expect(result).toEqual({
+      mfaRequired: true,
+      tempToken: 'mfa-temp-token',
+      accessToken: '',
+    });
+    expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      { sub: activeUser.id, purpose: 'mfa' },
+      expect.objectContaining({ expiresIn: 5 * 60, audience: 'platform' }),
+    );
+  });
+
   it('login rejects unknown email', async () => {
     platformUserRepository.findOne.mockResolvedValue(null);
 
@@ -153,7 +171,7 @@ describe('PlatformAuthService', () => {
     it('verifies MFA and returns tokens', async () => {
       const mfaEnabledUser = { ...activeUser, mfaEnabled: true, mfaSecret: 'secret' };
       platformUserRepository.findOne.mockResolvedValue(mfaEnabledUser);
-      jwtService.verify.mockReturnValue({ sub: mfaEnabledUser.id });
+      jwtService.verify.mockReturnValue({ sub: mfaEnabledUser.id, purpose: 'mfa' });
       mfaService.verifyToken.mockReturnValue(true);
 
       const result = await service.verifyMfaLogin('temp-token', '123456');
@@ -165,10 +183,19 @@ describe('PlatformAuthService', () => {
     it('rejects if MFA code is invalid', async () => {
       const mfaEnabledUser = { ...activeUser, mfaEnabled: true, mfaSecret: 'secret' };
       platformUserRepository.findOne.mockResolvedValue(mfaEnabledUser);
-      jwtService.verify.mockReturnValue({ sub: mfaEnabledUser.id });
+      jwtService.verify.mockReturnValue({ sub: mfaEnabledUser.id, purpose: 'mfa' });
       mfaService.verifyToken.mockReturnValue(false);
 
       await expect(service.verifyMfaLogin('temp-token', 'wrong-code')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('rejects session access tokens used as MFA temp tokens', async () => {
+      jwtService.verify.mockReturnValue({ sub: activeUser.id });
+
+      await expect(service.verifyMfaLogin('session-access-token', '123456')).rejects.toThrow(
+        new UnauthorizedException('auth.invalid_mfa_token'),
+      );
+      expect(mfaService.verifyToken).not.toHaveBeenCalled();
     });
   });
 });

@@ -37,6 +37,7 @@ export class PlatformAuthService {
   async login(email: string, password: string, context?: PlatformRequestContext): Promise<PlatformAuthResponseDto> {
     const user = await this.platformUserRepository.findOne({
       where: { email: email.toLowerCase().trim() },
+      select: ['id', 'email', 'fullName', 'role', 'status', 'passwordHash', 'mfaEnabled'],
     });
 
     if (!user) {
@@ -50,6 +51,16 @@ export class PlatformAuthService {
     const isPasswordValid = await this.passwordHashService.verify(user.passwordHash, password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('auth.invalid_credentials');
+    }
+
+    // MFA-enabled accounts must complete TOTP before any session tokens are issued.
+    // Returning full tokens here skips the challenge and lands the admin on the dashboard.
+    if (user.mfaEnabled) {
+      return {
+        mfaRequired: true,
+        tempToken: this.issueMfaTempToken(user.id),
+        accessToken: '',
+      };
     }
 
     const tokens = await this.generateTokens(user, context);
@@ -135,12 +146,16 @@ export class PlatformAuthService {
     const platformSecret = this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET');
     let userId: string;
     try {
-      const payload = this.jwtService.verify<{ sub: string }>(tempToken, {
+      const payload = this.jwtService.verify<{ sub: string; purpose?: string }>(tempToken, {
         secret: platformSecret,
         audience: 'platform',
       });
+      if (payload.purpose !== 'mfa' || !payload.sub) {
+        throw new UnauthorizedException('auth.invalid_mfa_token');
+      }
       userId = payload.sub;
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('auth.invalid_mfa_token');
     }
 
@@ -187,6 +202,19 @@ export class PlatformAuthService {
         role: user.role,
       },
     };
+  }
+
+  /** Short-lived JWT consumed by verifyMfaLogin — not a session access token. */
+  private issueMfaTempToken(userId: string): string {
+    const platformSecret = this.configService.getOrThrow<string>('PLATFORM_JWT_SECRET');
+    return this.jwtService.sign(
+      { sub: userId, purpose: 'mfa' },
+      {
+        secret: platformSecret,
+        expiresIn: 5 * 60,
+        audience: 'platform',
+      },
+    );
   }
 
   private async generateTokens(user: PlatformUser, context?: PlatformRequestContext): Promise<PlatformTokensDto> {

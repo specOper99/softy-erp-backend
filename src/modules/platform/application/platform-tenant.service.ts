@@ -18,6 +18,8 @@ import {
   UpdateTenantDto,
 } from '../api/dto/tenant-management.dto';
 import { TenantLifecycleEvent } from '../domain/entities/tenant-lifecycle-event.entity';
+import { PlatformAction } from '../domain/enums/platform-action.enum';
+import { PlatformAuditService } from './platform-audit.service';
 import { TenantDeletionExecutorService } from './tenant-deletion-executor.service';
 
 const DEFAULT_DELETION_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -60,6 +62,7 @@ export class PlatformTenantService {
     private readonly usersService: UsersService,
     private readonly tenantsService: TenantsService,
     private readonly deletionExecutor: TenantDeletionExecutorService,
+    private readonly auditService: PlatformAuditService,
   ) {}
 
   private assertDeletableStatus(tenant: Tenant): void {
@@ -250,6 +253,16 @@ export class PlatformTenantService {
       newState: this.tenantSnapshot(result),
     });
 
+    await this.auditService.log({
+      platformUserId,
+      action: PlatformAction.TENANT_CREATED,
+      targetTenantId: result.id,
+      targetEntityType: 'tenant',
+      targetEntityId: result.id,
+      ipAddress,
+      changesAfter: this.tenantSnapshot(result),
+    });
+
     this.logger.warn(
       `Tenant created with initial admin: tenant=${result.id} (${result.slug}) ` +
         `adminEmail=${dto.initialAdmin.email} platformOperator=${platformUserId} ip=${ipAddress} ` +
@@ -263,7 +276,7 @@ export class PlatformTenantService {
     tenantId: string,
     dto: UpdateTenantDto,
     platformUserId: string,
-    _ipAddress: string,
+    ipAddress: string,
     reason: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
@@ -279,13 +292,27 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    const newState = this.tenantSnapshot(updated);
+
     await this.recordLifecycleEvent({
       tenantId: updated.id,
       eventType: 'tenant.updated',
       triggeredBy: platformUserId,
       reason,
       previousState,
-      newState: this.tenantSnapshot(updated),
+      newState,
+    });
+
+    await this.auditService.log({
+      platformUserId,
+      action: PlatformAction.TENANT_UPDATED,
+      targetTenantId: updated.id,
+      targetEntityType: 'tenant',
+      targetEntityId: updated.id,
+      reason,
+      ipAddress,
+      changesBefore: previousState,
+      changesAfter: newState,
     });
 
     this.logger.log(`Tenant updated: ${updated.id} (${updated.slug})`);
@@ -297,7 +324,7 @@ export class PlatformTenantService {
     tenantId: string,
     dto: SuspendTenantDto,
     platformUserId: string,
-    _ipAddress: string,
+    ipAddress: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
     const previousState = this.tenantSnapshot(tenant);
@@ -323,13 +350,27 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    const newState = this.tenantSnapshot(updated);
+
     await this.recordLifecycleEvent({
       tenantId: updated.id,
       eventType: 'tenant.suspended',
       triggeredBy: platformUserId,
       reason: dto.reason,
       previousState,
-      newState: this.tenantSnapshot(updated),
+      newState,
+    });
+
+    await this.auditService.log({
+      platformUserId,
+      action: PlatformAction.TENANT_SUSPENDED,
+      targetTenantId: updated.id,
+      targetEntityType: 'tenant',
+      targetEntityId: updated.id,
+      reason: dto.reason,
+      ipAddress,
+      changesBefore: previousState,
+      changesAfter: newState,
     });
 
     this.logger.warn(`Tenant suspended: ${updated.id} (${updated.slug}) - ${dto.reason}`);
@@ -341,7 +382,7 @@ export class PlatformTenantService {
     tenantId: string,
     dto: ReactivateTenantDto,
     platformUserId: string,
-    _ipAddress: string,
+    ipAddress: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
     const previousState = this.tenantSnapshot(tenant);
@@ -373,13 +414,27 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    const newState = this.tenantSnapshot(updated);
+
     await this.recordLifecycleEvent({
       tenantId: updated.id,
       eventType: 'tenant.reactivated',
       triggeredBy: platformUserId,
       reason: dto.reason,
       previousState,
-      newState: this.tenantSnapshot(updated),
+      newState,
+    });
+
+    await this.auditService.log({
+      platformUserId,
+      action: PlatformAction.TENANT_REACTIVATED,
+      targetTenantId: updated.id,
+      targetEntityType: 'tenant',
+      targetEntityId: updated.id,
+      reason: dto.reason,
+      ipAddress,
+      changesBefore: previousState,
+      changesAfter: newState,
     });
 
     this.logger.log(`Tenant reactivated: ${updated.id} (${updated.slug}) - ${dto.reason}`);
@@ -387,7 +442,7 @@ export class PlatformTenantService {
     return updated;
   }
 
-  async lockTenant(tenantId: string, reason: string, platformUserId: string, _ipAddress: string): Promise<Tenant> {
+  async lockTenant(tenantId: string, reason: string, platformUserId: string, ipAddress: string): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
     const previousState = this.tenantSnapshot(tenant);
 
@@ -396,13 +451,27 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    const newState = this.tenantSnapshot(updated);
+
     await this.recordLifecycleEvent({
       tenantId: updated.id,
       eventType: 'tenant.locked',
       triggeredBy: platformUserId,
       reason,
       previousState,
-      newState: this.tenantSnapshot(updated),
+      newState,
+    });
+
+    await this.auditService.log({
+      platformUserId,
+      action: PlatformAction.TENANT_LOCKED,
+      targetTenantId: updated.id,
+      targetEntityType: 'tenant',
+      targetEntityId: updated.id,
+      reason,
+      ipAddress,
+      changesBefore: previousState,
+      changesAfter: newState,
     });
 
     this.logger.warn(`Tenant LOCKED: ${updated.id} (${updated.slug}) - ${reason}`);
@@ -427,13 +496,28 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    const newState = this.tenantSnapshot(updated);
+
     await this.recordLifecycleEvent({
       tenantId: updated.id,
       eventType: 'tenant.deletion_scheduled',
       triggeredBy: platformUserId,
       reason,
       previousState,
-      newState: this.tenantSnapshot(updated),
+      newState,
+    });
+
+    await this.auditService.log({
+      platformUserId,
+      action: PlatformAction.TENANT_UPDATED,
+      targetTenantId: updated.id,
+      targetEntityType: 'tenant',
+      targetEntityId: updated.id,
+      reason,
+      ipAddress,
+      changesBefore: previousState,
+      changesAfter: newState,
+      additionalContext: { operation: 'deletion_scheduled' },
     });
 
     this.logger.warn(
@@ -475,7 +559,7 @@ export class PlatformTenantService {
     tenantId: string,
     _dto: CancelDeletionDto,
     platformUserId: string,
-    _ipAddress: string,
+    ipAddress: string,
     reason: string,
   ): Promise<Tenant> {
     const tenant = await this.getTenant(tenantId);
@@ -495,13 +579,28 @@ export class PlatformTenantService {
     const updated = await this.tenantRepository.save(tenant);
     await this.invalidateTenantStateCache(updated.id);
 
+    const newState = this.tenantSnapshot(updated);
+
     await this.recordLifecycleEvent({
       tenantId: updated.id,
       eventType: 'tenant.deletion_cancelled',
       triggeredBy: platformUserId,
       reason,
       previousState,
-      newState: this.tenantSnapshot(updated),
+      newState,
+    });
+
+    await this.auditService.log({
+      platformUserId,
+      action: PlatformAction.TENANT_REACTIVATED,
+      targetTenantId: updated.id,
+      targetEntityType: 'tenant',
+      targetEntityId: updated.id,
+      reason,
+      ipAddress,
+      changesBefore: previousState,
+      changesAfter: newState,
+      additionalContext: { operation: 'deletion_cancelled' },
     });
 
     this.logger.log(`Tenant deletion cancelled: ${updated.id} (${updated.slug}) - ${reason}`);
